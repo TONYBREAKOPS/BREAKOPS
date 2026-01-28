@@ -1,0 +1,3072 @@
+<!doctype html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAHrklEQVR4nO3aPW5cVxaF0ZLhSBAgEZ5Rw0DPowMnHo8TB55HAw0PpwMDAjkDdaAulUjzp37eu/ecu9eKBEuiHgnVd3ZRfvf+w8cvByDSD7MfAJhHACCYAEAwAYBgAgDBBACCCQAEEwAIJgAQTAAgmABAMAGAYAIAwQQAggkABBMACCYAEEwAIJgAQDABCPfp7m72IzCRAAT7dHd3+HT3kwgEEwAIJgChjtf/64+tgFQCAMEEIND31//036yARAIAwQQgzHPX//RzVkAaAYBgAhDktet/+jVWQBIBgGACEOKc63/6tVZACgGAYAIQ4JLrf/o9VkACAVjcNS/+0+8VgdUJAAQTgIXdcv1PH8MKWJkAQDABWNQW1//0sayAVQkABBOABW15/U8f0wpYkQBAMAFYzB7X//SxrYDVCAAEE4CF7Hn9T3+GFbASAVjEiBc/6xEALmYFrEMAFjDj+ovAGgQAgglAczPf+1sB/QkABBOAxip8598K6E0AIJgANFXh+h9ZAX0JAAQTgIYqXf8jK6AnAYBgAtBMxet/ZAX0IwCNVH7xH4lALwIAwQSgiQ7X/8gK6EMAIJgANNDp+h9ZAT0IAAQTgOI6Xv8jK6A+AYBgAlBY5+t/ZAXUJgAQTACKWuH6H1kBdQkABBOAgkZe///+9XnIn2MF1CQAxaw0/Z8SgXoEINjx+o9aAdQjAIWsfP2PrIBaBACCCUARo6//09k/8m2AFVCHAEAwASgg4b3/U1ZADQIQ6KW5718D8gjAZInX/8gKmE8AIJgATDTj+r8180e/DbAC5hIACCYAkyS/93/KCphHACaY9eI/d97P+NcAEZhDACCYAAxW/fpf++u3YAWMJwAQTAAG8o2/t1kBYwlAgGvnvP81eH0CMIjrfz4rYBwBgGACMMDM63/rjJ/1NsAKGEMAIJgA7Mx7/+tZAfsTgB3NfvFvNd/9a8C6BIDSrIB9CcBOZl//lYjAfgRgUVvPdm8D1iQAO3D9t2cF7EMAIJgAbKzC9d9rrs9+G2AFbE8AIJgAbKjC9V+dFbAtAVjM3jN99tsAtiUAG3H9x7ECtiMAEEwANlDl+o+a5xXeBlgB2xCAG1V58ScSgdsJAAQTgBtUuv6jZ3mFtwGHgxVwKwGAYAJwpeTrP/vPfcoKuJ4AQDABuEKl689XVsB1BKC52TN89p/PbQTgQq5/XVbA5QQAggnABapd/yrzu8pzHA5WwKUEAIIJwJmqXX9eZgWcTwDOUPHFX2l2Hw71nkcEziMAEEwA3lDx+nMeK+BtAtBQtbl9VPW5eJkAvML1788KeJ0AQDABeEHV6199Zld8PivgZQIAwQTgGVWvP9ezAp4nAI1UnNfP6fKcCMDfuP7rsgL+TgAgmAB8p/L17zarqz6vFfCYAPxf5Rc/2xKBEwGAYAJwqH/9q87pt1R+bivgKwGAYPEBqH792Y8VIADlVZ7R5+j+/KuLDoDrT/oKiA5Adatcz1U+jxXFBsD15yh5BcQGAAgNQIfrv9psrv75pK6AuAB0ePHDKHEBgJckroCoAHS5/tXn8rU6fF5pEYgKAPBYTAC6XH/mS1oBMQHoosNMvsXqn183EQFw/blUygqICADwvOUD0On6p8zjLp9nwgpYPgDAy5YOQKfrT02rr4ClA9BJl1m8lbTPt6plA+D6s5WVV8CSAfDiZ2urRmDJAHSTOodTP+9KlguA689eVlwBywUAON9SAeh4/dNncLfPf7UVsFQAgMssE4CO15+eVloBywSgo27zdy++DvMsEQDXn9FWWQFLBKAjV+8xX4852gfA9WeWFVZA+wAA12sdgK7X39x9XsevS/cV0DYAXV/8rKdzBNoGALhdywB0vv4dZ+5IXb8+XVdAywAA22gXgM7Xn7V1XAHtAtBZ13k7mq/TOK0C4PpTXbcV0CoAwLbaBKD79TdrL9P569VpBbQJALC9d+8/fPwy+yHe0v36k+nh/vPh4f5+9mO8ygKAYOUD4PrTVYfvBZQOgBc/3VWPQOkAAPsqGwDXn1VUXgFlAwDsr2QAXH9WU3UFlAwAMEa5ALj+rKriCigXAGCcUgFw/VldtRVQKgDAWGUC4PqTotIKKBEAL36Yo0QAIE2VFTA9AK4/qSpEYHoAgHmmBsD1J93sFWABQLBpAXD94auZK8ACgGBTAuD6w2OzVoAFAMGGB8D1h+fNWAEWAAQbGgDXH143egUMC4AXP5xnZAS8BYBgQwLg+sNlRq0ACwCC7R4A1x+uM2IFWAAQbNcAuP5wm71XgAUAwX7c6wO7/id//P7btx//65dfJz7JY56rh+Pr6OH+fvOP/e79h49fNv+oBwE4HB7/RX5q5l9sz9XPw/3nXQKwy1sAL37Y1l7fC/A9gJ28ds3O+fm9eC6+t/n3AI6Verj/vPWHXk7Vr5HnquvT3d2mbwU2D8Ae71NWVfVr5blyeAuwk3/8/M+bfn4vnovvCQAE2+2fATn58z///vbjSpfMcyEAEMxbAAgmABBMACCYAEAwAYBgAgDBBACCCQAEEwAIJgAQTAAgmABAMAGAYAIAwQQAggkABBMACCYAEEwAIJgAQDABgGACAMEEAIIJAAQTAAgmABBMACCYAEAwAYBgAgDB/gctCoHm95BEvAAAAABJRU5ErkJggg==">
+
+
+
+
+
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>BreakOPS</title>
+<style>
+:root { --bg:#0b0f14; --card:#111826; --muted:#9aa4b2; --text:#e7eef8; --accent:#4aa3ff; --border:#233043; }
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;}
+header{padding:18px 18px 12px; position:sticky; top:0; background:linear-gradient(to bottom, rgba(11,15,20,.98), rgba(11,15,20,.75)); backdrop-filter: blur(10px); border-bottom:1px solid var(--border); z-index:10;}
+.brand{display:flex; align-items:center; gap:12px;}
+h1{margin:0;font-size:44px;font-weight:1000;letter-spacing:.4px;}
+.sub{color:var(--muted);font-size:13px;line-height:1.35; margin-top:4px}
+.builtby{color:var(--muted);font-size:11px;opacity:.75;margin-top:2px}
+.wrap{padding:14px 18px 22px; max-width:1400px; margin:0 auto;}
+.card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:12px;}
+label{display:block; font-size:12px; color:var(--muted); margin:0 0 6px;}
+select,input[type="text"]{width:100%; background:#0c1320; border:1px solid var(--border); color:var(--text); padding:10px 10px; border-radius:12px; outline:none;}
+button{background:var(--accent); color:#04101f; border:none; padding:10px 12px; border-radius:12px; font-weight:900; cursor:pointer;}
+button.secondary{background:#0c1320;color:var(--text); border:1px solid var(--border);}
+button.capBtn{min-width:40px; font-size:18px; font-weight:900; line-height:1; background:#1f2937; border:2px solid #94a3b8; color:#fff;}
+button.capBtn:disabled{opacity:.35;}
+.controls{display:grid; grid-template-columns: 1fr 1fr 1fr 1.2fr; gap:10px; align-items:end;}
+@media (max-width: 980px){ .controls{grid-template-columns:1fr 1fr;} }
+.sectionTitle{display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin:12px 2px 8px;}
+.sectionTitle h2{margin:0;font-size:15px;}
+.pill{font-size:12px;color:var(--muted);}
+.posGrid{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; align-items:start;}
+.posGrid > div{min-width:0;}
+@media (max-width: 1100px){ .posGrid{grid-template-columns:1fr;} }
+table{width:100%; border-collapse:collapse; overflow:hidden; border-radius:12px; border:1px solid var(--border);}
+th,td{padding:9px 10px; border-bottom:1px solid var(--border); font-size:13px;}
+th{color:#cfe3ff; text-align:left; background:#0c1320; position:sticky; top:0;}
+tr:last-child td{border-bottom:none;}
+.mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+.posSel{background:#0c1320; border:1px solid var(--border); color:var(--text); padding:7px 8px; border-radius:10px; width:100%;}
+
+.posWithHours{display:block;}
+.hrsCol{width:54px;}
+th.hrsCol, td.hrsCol{padding:9px 6px; text-align:center; vertical-align:middle;}
+th.hrsCol{font-size:13px; font-weight:600; line-height:1.2; height:42px;}
+.hrsSel{width:100%; background:#0c1320; border:1px solid var(--border); color:var(--text); padding:8px 0; border-radius:10px; font-weight:900; text-align:center; font-size:12px;}
+
+
+
+/* Hours: make the selected value itself the obvious indicator (no extra badges) */
+/* Keep a subtle tint on the dropdown bubble so you can scan the list quickly */
+td.hrsCol.hrs-first .hrsSel{border-color:rgba(255,215,0,0.55); box-shadow:0 0 0 2px rgba(255,215,0,0.14) inset; background:rgba(255,215,0,0.06);}
+td.hrsCol.hrs-second .hrsSel{border-color:rgba(0,200,255,0.55); box-shadow:0 0 0 2px rgba(0,200,255,0.14) inset; background:rgba(0,200,255,0.06);}
+td.hrsCol.hrs-all .hrsSel{border-color:rgba(120,255,180,0.40); box-shadow:0 0 0 2px rgba(120,255,180,0.12) inset; background:rgba(120,255,180,0.05);}
+/* Coverage / staffing mini-table (screen only) */
+.covMini{margin:6px 0 10px; border:1px solid var(--border); border-radius:12px; overflow:hidden; background:#0c1320;}
+.covMini table{border:none; border-radius:0;}
+.covMini th,.covMini td{font-size:12px; padding:7px 8px; border-bottom:1px solid var(--border);}
+.covMini th{position:static; background:rgba(255,255,255,0.03); color:#cfe3ff;}
+.covMini tr:last-child td{border-bottom:none;}
+.deltaShort{color:#ff4d4d; font-weight:900;}
+.deltaOver{color:#86efac; font-weight:900;}
+.deltaEven{color:#fde047; font-weight:900;}
+.toast{position:fixed; bottom:16px; right:16px; background:#0c1320; border:1px solid var(--border); color:var(--text);
+       padding:10px 12px; border-radius:12px; display:none; max-width:360px;}
+.muted{color:var(--muted);}
+
+.ufo{filter: drop-shadow(0 8px 18px rgba(0,0,0,.45)); width:70px; height:auto;}
+@media (prefers-reduced-motion: no-preference) {
+  .ufo {
+    animation: ufoFloat 2.7s ease-in-out infinite;
+    transform-origin: 50% 50%;
+  }
+}
+
+.alien{margin-left:4px;filter: drop-shadow(0 6px 12px rgba(0,0,0,.4));}
+@media (prefers-reduced-motion: no-preference) {
+  .alien {
+    animation: alienBob 3.5s ease-in-out infinite;
+  }
+}
+@keyframes alienBob {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes ufoFloat {
+
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+  100% { transform: translateY(0px); }
+}
+
+/* Print (hidden on screen; only shown when printing via Print button) */
+.printCard{margin-top:12px; display:none;}
+.printPage{background:#fff; color:#111; border-radius:12px; padding:14px; border:1px solid #ddd;}
+.printTitle{font-weight:1000; font-size:18px; margin:0 0 6px; letter-spacing:.2px;}
+.printMeta{font-size:11px; color:#444; margin:0 0 10px;}
+.printSection{border:1px solid #ddd; border-radius:10px; overflow:hidden; margin-bottom:10px;}
+.printSectionTitle{background:#f3f5f7; padding:8px 10px; font-weight:900; font-size:12px;}
+.printSection table{border-collapse:collapse;width:88%;margin:0 auto;border:2px solid #000;}
+.printSection th, .printSection td{border:1px solid #000;font-size:10px;padding:5px 6px;}
+.printSection th{background:#fafafa; color:#222; position:static;}
+.smallNote{font-size:10px;color:#555;}
+
+/* Dispatcher/PIC print two-column layout */
+.dpPrintWrap{display:flex; gap:12px; align-items:flex-start; width:100%;}
+.dpNames{flex:0 0 55%;}
+.dpTimes{flex:1 1 45%; margin-left:-0.8in;} /* scoot times left ~1 inch */
+.dpMiniTable{width:100%; border-collapse:collapse; table-layout:fixed;}
+.dpMiniTable th,.dpMiniTable td{border:1px solid #000;font-size:10px;padding:5px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dpMiniTable th{background:#fafafa; color:#222; font-weight:900;}
+
+@media print {
+  header, .card, #content, #extrasCard { display:none !important; }
+  #breakopsFooter { display:none !important; }
+  body { background:#fff; }
+  .wrap { max-width:none; padding:0; }
+  .printCard { display:block !important; margin:0; }
+  .printPage { border:none; border-radius:0; padding:0.25in; }
+  .pageBreakAfter { break-after: page; page-break-after: always; }
+  @page { margin: 0.5in; }
+}
+
+#exportCsv{display:none !important;}
+
+
+  /* --- Break Picker Emphasis --- */
+  .break-header{
+    font-size: 48px;
+    font-weight:900;
+    text-align:center;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    margin: 8px 0 6px;
+    color:#00d1ff;
+    text-shadow: 0 2px 0 rgba(0,0,0,.35);
+  }
+  tr.next-up{
+    background: rgba(255, 235, 59, .25);
+    outline: 3px solid rgba(255, 235, 59, .65);
+    outline-offset: -3px;
+  }
+  tr.next-up td{ font-weight:800; }
+  tr.next-up td:first-child::before{
+    content:"NEXT → ";
+    font-weight:900;
+    color:#ffeb3b;
+  }
+  select.seatSel{
+    min-width: 140px;
+  }
+
+
+/* Hours suffix after name */
+.hrsAfter{display:inline-flex;align-items:center;justify-content:center;margin-left:6px;padding:2px 6px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.2px;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.25);color:#e5e7eb;}
+
+/* Dispatcher daily assignment grid (3 blocks) */
+.dpDailyGrid{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap:12px;
+}
+.dpDailyCard{
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:rgba(255,255,255,0.03);
+  overflow:hidden;
+}
+.dpDailyCard .hdr{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:10px 12px;
+  background:rgba(255,255,255,0.04);
+  border-bottom:1px solid var(--border);
+}
+.dpDailyCard .hdr .lbl{font-weight:800;}
+.dpDailyCard table{margin:0; border:none; border-radius:0;}
+.dpDailyCard th{position:static; font-size:12px; height:42px;}
+.dpDailyCard td{font-size:13px;}
+.dpAssignSel{
+  width:100%;
+  background:#0c1320;
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:7px 8px;
+  border-radius:10px;
+}
+@media (max-width: 980px){
+  .dpDailyGrid{grid-template-columns:1fr;}
+}
+
+.vdpCopyBtn{
+  padding:6px 10px;
+  font-size:12px;
+  border-radius:10px;
+}
+</style>
+
+
+<style>
+  .dpReliefHalf {
+    width: 50% !important;
+    margin: 0 auto !important;
+  }
+  /* Keep the PIC relief table inside the half-width container and prevent overflow in print */
+  .printSection.dpReliefHalf table {
+    width: 100% !important;
+  }
+  .printSection.dpReliefHalf th:nth-child(1),
+  .printSection.dpReliefHalf td:nth-child(1) {
+    width: 32%;
+  }
+  .printSection.dpReliefHalf th:nth-child(2),
+  .printSection.dpReliefHalf td:nth-child(2) {
+    width: 68%;
+  }
+  .printSection.dpReliefHalf th,
+  .printSection.dpReliefHalf td {
+    font-size: 9px;
+    padding: 4px 5px;
+  }
+</style>
+
+
+<style>
+.copyBox, 
+textarea.copyBox, 
+#copyArea {
+  max-height: none !important;
+  height: auto !important;
+  overflow: visible !important;
+  white-space: pre-wrap;
+}
+</style>
+
+
+<style>
+.status-staffed, .staffed, .ok, .right {
+  color: #1e90ff !important; /* blue */
+  font-weight: 700;
+}
+</style>
+
+</head>
+<body>
+<header>
+  <div class="wrap" style="padding:0 18px;">
+    <div class="brand">
+
+
+
+
+
+<svg viewBox="0 0 300 180" width="200" height="120" class="ufo" aria-hidden="true">
+  <defs>
+    <linearGradient id="fighterHull" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2a2e33"/>
+      <stop offset="100%" stop-color="#0e1114"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Main delta wing -->
+  <polygon points="150,20 30,150 270,150" fill="url(#fighterHull)" stroke="#1a1d20" stroke-width="4"/>
+
+  <!-- Cockpit canopy -->
+  <polygon points="150,50 115,120 185,120" fill="#101820" stroke="#3b4045" stroke-width="2"/>
+
+  <!-- Air intakes -->
+  <rect x="80" y="120" width="28" height="16" rx="3" fill="#1c1f24"/>
+  <rect x="192" y="120" width="28" height="16" rx="3" fill="#1c1f24"/>
+
+  <!-- Exhaust -->
+  <polygon points="150,110 135,150 165,150" fill="#1c1f24"/>
+
+  <!-- Formation lights (subtle white/gray) -->
+  <circle cx="90" cy="145" r="3" fill="#cfd3d6"/>
+  <circle cx="150" cy="148" r="3" fill="#cfd3d6"/>
+  <circle cx="210" cy="145" r="3" fill="#cfd3d6"/>
+</svg>
+
+
+
+
+
+<div>
+        <h1>BreakOPS</h1>
+        <div class="sub">Modern Solutions > Old Problems</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <div id="dpDailyAssignmentsCard" style="margin-bottom:12px;">
+      <div class="sectionTitle" style="margin:0 2px 8px;">
+        <h2>Dispatcher channel assignments (visual)</h2>
+        <div class="pill">Pick the day → assigns per 4‑hour block</div>
+      </div>
+      <div id="dpDailyAssignmentsGrid" class="dpDailyGrid"></div>
+      <div class="muted" style="font-size:12px;margin-top:8px;">Visual-only channel assignments (saved per day + block). Not linked to break selections.</div>
+    </div>
+
+    <div class="controls">
+      <div>
+        <label for="modeSel">Mode</label>
+        <select id="modeSel">
+          <option value="days">Days (0600–1800)</option>
+          <option value="nights">Nights (1800–0600)</option>
+        </select>
+      </div>
+      <div>
+        <label for="daySel">Day of Week</label>
+        <select id="daySel"></select>
+      </div>
+      <div>
+        <label for="blockSel">4-hour block</label>
+        <select id="blockSel"></select>
+      </div>
+      <div>
+        <label for="searchBox">Search</label>
+        <input id="searchBox" type="text" placeholder="Type a name…"/>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; margin-top:10px; align-items:center;">
+      <button id="printBtn">Print break sheets</button>
+      <button id="exportCsv" class="secondary">Export CSV (positions)</button>
+      <button id="resetPositions" class="secondary">Reset saved positions</button>
+      <button id="lockBtn" class="secondary">Lock editing</button>
+      <span id="lockState" class="pill" style="margin-left:4px;"></span>
+    </div>
+
+    <div class="muted" style="font-size:12px;margin-top:10px;">
+      Select Days/Nights → Day of week → 4-hour block. Add overtime extras below. Switch between position assignments if needed.</div>
+  </div>
+
+  <div id="content"></div>
+
+  
+  <!-- OUT / NOT WORKING PANEL -->
+  <div class="card" id="absentPanel" style="margin-top:12px;">
+    <div class="sectionTitle" style="margin:0 2px 8px;">
+      <h2>OUT / NOT WORKING</h2>
+      <div class="pill">Currently set to OUT</div>
+    </div>
+    <div class="muted" style="font-size:12px; margin:0 0 8px 0;">
+      Anyone you change to <b>OUT</b> will show here so you can quickly move them back.
+    </div>
+    <div style="border:1px solid var(--border); border-radius:12px; overflow:hidden;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:8px;">Employee</th>
+            <th style="text-align:left; padding:8px;">Restore to</th>
+            <th style="text-align:left; padding:8px; width:110px;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="absentTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // Build a base-position lookup so we can restore people correctly
+    function _basePosByKey(){
+      const m = {};
+      try{
+        (window.BASE||[]).forEach(r=>{
+          const key = (window.toKey ? window.toKey(r) : (String(r.Employee||"").toUpperCase()+"||"+String(r.Seniority||"")));
+          m[String(key)] = String(r.Position||"DISPATCHER").toUpperCase();
+        });
+      }catch(e){}
+      return m;
+    }
+
+    function _findPosSelectByKey(key){
+      return document.querySelector('select.posSel[data-key="'+CSS.escape(key)+'"]');
+    }
+
+    function refreshAbsentList(){
+      try{
+        const tbody = document.getElementById("absentTbody");
+        const panel = document.getElementById("absentPanel");
+        if(!tbody || !panel) return;
+
+        // Always show the panel (user wants an always-visible list)
+        panel.style.display = "";
+
+        const KEY_POS = (()=>{
+  // Prefer the same key the main app uses (saved by Firestore listener)
+  // Fallback: best-effort find any schedule_positions key in localStorage
+  try{
+    const candidates = Object.keys(localStorage||{}).filter(k=>/^schedule_positions/i.test(k));
+    if(candidates.length){
+      // pick most recent-ish (lexicographically)
+      candidates.sort();
+      return candidates[candidates.length-1];
+    }
+  }catch(e){}
+  return "schedule_positions_v12";
+})();
+
+        // Load OUT set (shift-wide source of truth for the OUT list)
+        let outSet = {};
+        try{
+          if(typeof window.getRosterOutSet === "function"){
+            outSet = window.getRosterOutSet() || {};
+          } else {
+            const raw = localStorage.getItem("schedule_out_v1");
+            if(raw) outSet = JSON.parse(raw) || {};
+          }
+        }catch(_){ outSet = {}; }
+
+        const entries = Object.entries(outSet || {})
+          .map(([k,_v])=>[ (typeof window.canonicalEmpKey==='function'?window.canonicalEmpKey(k):String(k)), "OUT" ])
+          .filter(([k,_v])=>k);
+
+        tbody.innerHTML = "";
+
+        if(!entries.length){
+          const tr = document.createElement("tr");
+          tr.innerHTML = '<td style="padding:8px;" colspan="3" class="muted">No one is currently marked OUT.</td>';
+          tbody.appendChild(tr);
+          return;
+        }
+
+        const BASE = Array.isArray(window.BASE) ? window.BASE : [];
+        const POSITIONS = Array.isArray(window.POSITIONS) ? window.POSITIONS : ["DISPATCHER","CALLTAKER","PIC"];
+        const baseKey = typeof window.baseKey === "function" ? window.baseKey : (rec)=>`${rec.Employee}||${rec.Seniority}`;
+
+        function findRecByKey(key){
+          return BASE.find(r => String(baseKey(r)) === String(key)) || null;
+        }
+
+        function safe(text){
+          return String(text ?? "")
+            .replace(/&/g,"&amp;")
+            .replace(/</g,"&lt;")
+            .replace(/>/g,"&gt;")
+            .replace(/"/g,"&quot;")
+            .replace(/'/g,"&#39;");
+        }
+
+        function optionsHtml(current, basePos){
+          const set = new Set([...(POSITIONS||[]), "OUT"]);
+          if(basePos) set.add(String(basePos).toUpperCase());
+          const list = Array.from(set);
+          // Put OUT last in selector
+          list.sort((a,b)=>{
+            if(a==="OUT") return 1;
+            if(b==="OUT") return -1;
+            if(a===current) return -1;
+            if(b===current) return 1;
+            return a.localeCompare(b);
+          });
+          return list.map(p=>{
+            const up = String(p).toUpperCase();
+            const sel = up === String(current).toUpperCase() ? "selected" : "";
+            return `<option value="${safe(up)}" ${sel}>${safe(up)}</option>`;
+          }).join("");
+        }
+
+        entries.forEach(([key,_v])=>{
+          const rec = findRecByKey(key);
+          const name = rec ? String(rec.Employee) : String(key).split("||")[0] || String(key);
+          const basePos = rec ? String(rec.Position || "DISPATCHER").toUpperCase() : "DISPATCHER";
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td style="padding:8px;">${safe(name)}</td>
+            <td style="padding:8px;">
+              <select class="posSel absRestoreSel" data-restore-key="${safe(key)}">
+                ${optionsHtml(basePos, basePos)}
+              </select>
+            </td>
+            <td style="padding:8px;">
+              <button class="btn small" data-restore-btn="1" data-restore-key="${safe(key)}">Restore</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        // Wire restore buttons
+        tbody.querySelectorAll('button[data-restore-btn="1"]').forEach(btn=>{
+          btn.addEventListener("click", async ()=>{
+            const keyRaw = btn.getAttribute("data-restore-key") || "";
+            if(!keyRaw) return;
+            const key = (typeof window.canonicalEmpKey === "function") ? window.canonicalEmpKey(keyRaw) : (keyRaw.split("||").length>=2 ? (String(keyRaw.split("||")[0]||"").trim().toUpperCase()+"||"+String(keyRaw.split("||")[1]||"").trim()) : String(keyRaw).trim().toUpperCase());
+
+            const sel = tbody.querySelector(`select.absRestoreSel[data-restore-key="${CSS.escape(key)}"]`);
+            const restoreTo = sel ? String(sel.value||"DISPATCHER").toUpperCase() : "DISPATCHER";
+
+            // If user kept them OUT, just re-apply OUT and refresh
+            if(restoreTo === "OUT"){
+              try{ if(typeof window.setOutStatus === "function") window.setOutStatus(key,true); }catch(_){ }
+              setTimeout(()=>{ try{ refreshAbsentList(); }catch(_){ } try{ if(typeof window.render==="function") window.render(); }catch(_){ } },80);
+              return;
+            }
+
+
+            // Clear OUT status (shift-wide) first so it can't bounce back across blocks
+try{
+  if(typeof window.saveRosterOutSet === 'function'){
+    let curOut = (typeof window.getRosterOutSet==='function') ? (window.getRosterOutSet()||{}) : {};
+    delete curOut[key];
+    if(keyRaw && keyRaw !== key) delete curOut[keyRaw];
+    await window.saveRosterOutSet(curOut);
+  } else {
+    try{
+      const rawOut = localStorage.getItem('schedule_out_v1');
+      const curOut = rawOut ? (JSON.parse(rawOut)||{}) : {};
+      delete curOut[key];
+      if(keyRaw && keyRaw !== key) delete curOut[keyRaw];
+      localStorage.setItem('schedule_out_v1', JSON.stringify(curOut));
+    }catch{}
+  }
+}catch(_e){}
+
+// Always start from the latest full map (avoids overwriting other users' changes)
+try{
+  if(typeof window.getRosterPosOverrides === "function"){
+    posMap = window.getRosterPosOverrides() || posMap || {};
+  } else {
+    const raw2 = localStorage.getItem(KEY_POS);
+    if(raw2) posMap = JSON.parse(raw2) || posMap || {};
+  }
+}catch(_e){}
+
+// Remove override if restoring to base position; otherwise store override
+const rec = findRecByKey(key);
+            const basePos = rec ? String(rec.Position || "DISPATCHER").toUpperCase() : "DISPATCHER";
+
+            if(restoreTo === basePos){
+              try{ delete posMap[key]; if(keyRaw && keyRaw !== key) delete posMap[keyRaw]; }catch(_){}
+            }else{
+              posMap[key] = restoreTo; if(keyRaw && keyRaw !== key) delete posMap[keyRaw];
+            }
+
+            try{
+              if(typeof window.saveRosterPosOverrides === "function"){
+                await window.saveRosterPosOverrides(posMap);
+              }else{
+                localStorage.setItem(KEY_POS, JSON.stringify(posMap));
+              }
+            }catch(_e){
+              try{ localStorage.setItem(KEY_POS, JSON.stringify(posMap)); }catch(_){}
+            }
+
+            // Refresh panel + full app render after save
+setTimeout(()=>{
+  try{ refreshAbsentList(); }catch(_){}
+  try{ if(typeof window.render === "function") window.render(); }catch(_){}
+}, 80);
+          });
+        });
+
+      }catch(e){
+        // Don't let helper panel break main app
+        try{ console.error("Absent panel failed:", e); }catch(_){}
+      }
+    }
+
+    // Keep in sync as the view rerenders
+    setInterval(refreshAbsentList, 1000);
+  
+</script>
+
+<div class="card" id="extrasCard" style="margin-top:12px;">
+    <div class="sectionTitle" style="margin:0 2px 8px;">
+      <h2>Add extra people (for this day/block)</h2>
+      <div class="pill">Appends to the end (unless it’s their day off)</div>
+    </div>
+    <div style="display:grid; grid-template-columns: 1.6fr 0.9fr 0.9fr; gap:10px;">
+      <div>
+        <label for="extraEmployee">Employee</label>
+        <input id="extraEmployee" type="text" list="employeeDatalist" placeholder="Start typing a name…"/>
+        <datalist id="employeeDatalist"></datalist>
+      </div>
+      <div>
+        <label for="extraPos">Position</label>
+        <select id="extraPos"></select>
+      </div>
+      <div style="display:flex; gap:8px; align-items:end;">
+        <button id="addExtra">Add</button>
+        <button id="clearExtras" class="secondary">Clear extras</button>
+      </div>
+    </div>
+
+    <div style="overflow:auto; margin-top:10px;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:50%">Extra person</th>
+            <th style="width:20%">Position</th>
+            <th style="width:30%">Remove</th>
+          </tr>
+        </thead>
+        <tbody id="extrasTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="printCard" id="printCard"></div>
+
+  <!-- Break selections (interactive) -->
+  <div class="card" id="breakPickerCard" style="margin-top:12px;"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  // Firebase Firestore shared break selections (no sign-in)
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+  import {
+    getFirestore,
+    doc,
+    getDoc,
+    setDoc,
+    onSnapshot,
+    runTransaction
+  } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCnabvDHyrEYPjtGikTSC6eIQL2VEPWnn4",
+    authDomain: "legitimous-2f2d2.firebaseapp.com",
+    projectId: "legitimous-2f2d2",
+    storageBucket: "legitimous-2f2d2.firebasestorage.app",
+    messagingSenderId: "1097431114529",
+    appId: "1:1097431114529:web:2adfdae7838b4840f0d460"
+  };
+
+  const _fbApp = initializeApp(firebaseConfig);
+  const _db = getFirestore(_fbApp);
+
+  // Shared landing view (mode/day/block) so everyone lands where you last locked
+  const _APPSTATE_DOC = doc(_db, "appState", "current");
+
+  async function _getLandingView(){
+    try {
+      const snap = await getDoc(_APPSTATE_DOC);
+      if(!snap.exists()) return null;
+      const d = snap.data() || {};
+      return { mode: String(d.mode||""), day: String(d.day||""), block: String(d.block||"") };
+    } catch(e){
+      return null;
+    }
+  }
+
+  async function _setLandingView(mode, day, block){
+    try {
+      await setDoc(_APPSTATE_DOC, { mode, day, block }, { merge: true });
+      return true;
+    } catch(e){
+      console.warn("Landing view save failed", e);
+      return false;
+    }
+  }
+
+  // Expose helpers for the non-module script
+  window.__getLandingView = _getLandingView;
+  window.__setLandingView = _setLandingView;
+
+
+  const _CAPS = { CALLTAKER: 3, DISPATCHER: 2, PIC: 1 };
+
+  // Shared roster + extras (for everyone)
+  // - rosterConfig/global: { posOverrides: {"EMP||SEN": "CALLTAKER" ...} }
+  // - breakScopes/{scopeKey}: { breaks: {...}, extras: [...] }
+  const _ROSTER_DOC = doc(_db, "rosterConfig", "global");
+  let _sharedRosterCache = { posOverrides: {}, outSet: {} };
+  // Canonical employee key normalization: EMPLOYEE is always uppercased.
+  function canonicalEmpKey(key){
+    const s = String(key||"");
+    const parts = s.split("||");
+    if(parts.length < 2) return s.trim().toUpperCase();
+    const emp = String(parts[0]||"").trim().toUpperCase();
+    const sen = String(parts[1]||"").trim();
+    return `${emp}||${sen}`;
+  }
+
+  let _sharedExtrasCache = [];
+  let _rosterUnsub = null;
+
+  let _sharedBreaksCache = { CALLTAKER: [], DISPATCHER: [], PIC: [] };
+  let _sharedAssignCache = { CALLTAKER: {}, DISPATCHER: {}, PIC: {} };
+  let _sharedSlotCapsCache = { CALLTAKER: {}, DISPATCHER: {}, PIC: {} };
+  let _sharedDpVisualCache = {}; // { [assignmentLabel]: employeeKey }
+  let _sharedDpVisualLockedCache = false;
+
+
+  // Per-scope cache so the 3 dispatcher tables at the top stay synced to their
+  // own block's break selector / assignment map.
+  const _scopeCache = Object.create(null); // { [scopeKey]: { breaks, assignments, slotCaps, extras, ts } }
+
+  let _lastCtx = null;
+  let _unsub = null;
+
+  function attachRosterListener(){
+    if(_rosterUnsub){ _rosterUnsub(); _rosterUnsub = null; }
+    _rosterUnsub = onSnapshot(_ROSTER_DOC, (snap)=>{
+      const data = snap.exists() ? (snap.data()||{}) : {};
+      const po = (data && typeof data.posOverrides === 'object' && data.posOverrides) ? data.posOverrides : {};
+      // Normalize values to uppercase strings
+      const norm = {};
+      for(const [k,v] of Object.entries(po)){
+        const sv = String(v ?? "").trim();
+        if(!sv) continue;
+        norm[canonicalEmpKey(k)] = sv.toUpperCase();
+      }
+      _sharedRosterCache.posOverrides = norm;
+      // Also keep a local fallback copy
+      try { localStorage.setItem(STORAGE_KEY_POS, JSON.stringify(norm)); } catch {}
+
+      // OUT set (shift-wide)
+      const outRaw = (data && typeof data.outSet === 'object' && data.outSet) ? data.outSet : {};
+      const outNorm = {};
+      for(const [k,v] of Object.entries(outRaw)){
+        if(!v) continue;
+        outNorm[canonicalEmpKey(k)] = true;
+      }
+      _sharedRosterCache.outSet = outNorm;
+      try { localStorage.setItem(STORAGE_KEY_OUT, JSON.stringify(outNorm)); } catch {}
+
+      render();
+    });
+  }
+
+  async function saveRosterPosOverrides(map){
+    // map is a plain object
+    const norm = {};
+    for(const [k,v] of Object.entries(map||{})){
+      const sv = String(v ?? "").trim();
+      if(!sv) continue;
+      if(String(sv).toUpperCase()==="OUT") continue;
+      norm[canonicalEmpKey(k)] = sv.toUpperCase();
+    }
+    _sharedRosterCache.posOverrides = norm;
+    try { localStorage.setItem(STORAGE_KEY_POS, JSON.stringify(norm)); } catch {}
+    await runTransaction(_db, async (tx)=>{
+      const snap = await tx.get(_ROSTER_DOC);
+      const cur = snap.exists() ? (snap.data()||{}) : {};
+      tx.set(_ROSTER_DOC, { ...cur, posOverrides: norm }, { merge: true });
+    });
+  }
+
+
+  async function saveRosterOutSet(map){
+    const norm = {};
+    for(const [k,v] of Object.entries(map||{})){
+      if(!v) continue;
+      norm[canonicalEmpKey(k)] = true;
+    }
+    _sharedRosterCache.outSet = norm;
+    try { localStorage.setItem(STORAGE_KEY_OUT, JSON.stringify(norm)); } catch {}
+    await runTransaction(_db, async (tx)=>{
+      const snap = await tx.get(_ROSTER_DOC);
+      const cur = snap.exists() ? (snap.data()||{}) : {};
+      tx.set(_ROSTER_DOC, { ...cur, outSet: norm }, { merge: true });
+    });
+  }
+
+  function loadOutSet(){
+    if(_sharedRosterCache && _sharedRosterCache.outSet && Object.keys(_sharedRosterCache.outSet).length){
+      return _sharedRosterCache.outSet;
+    }
+    return loadJson(STORAGE_KEY_OUT, {});
+  }
+  function saveOutSet(map){
+    saveJson(STORAGE_KEY_OUT, map);
+    saveRosterOutSet(map).catch((e)=>{ console.error(e); toast("Couldn't save OUT status to Firebase."); });
+  }
+  function setOutStatus(key, isOut){
+    const out = loadOutSet();
+    const ck = canonicalEmpKey(key);
+    if(isOut) out[ck] = true;
+    else delete out[ck];
+    saveOutSet(out);
+  }
+
+// Expose for non-module helper panels (Absent restore)
+window.saveRosterPosOverrides = saveRosterPosOverrides;
+window.saveRosterOutSet = saveRosterOutSet;
+window.setOutStatus = setOutStatus;
+window.getRosterOutSet = function(){ try { return JSON.parse(JSON.stringify((_sharedRosterCache && _sharedRosterCache.outSet) ? _sharedRosterCache.outSet : loadOutSet())); } catch { return loadOutSet(); } };
+// Also expose a safe read helper for non-module scripts (Absent panel)
+window.getRosterPosOverrides = function(){
+  try { return JSON.parse(JSON.stringify((_sharedRosterCache && _sharedRosterCache.posOverrides) ? _sharedRosterCache.posOverrides : {})); }
+  catch(e){ return (_sharedRosterCache && _sharedRosterCache.posOverrides) ? _sharedRosterCache.posOverrides : {}; }
+};
+function _normalizeBreaks(b){
+    const out = { CALLTAKER: [], DISPATCHER: [], PIC: [] };
+    if(!b) return out;
+    for(const pos of ["CALLTAKER","DISPATCHER","PIC"]){
+      const arr = Array.isArray(b[pos]) ? b[pos] : [];
+      out[pos] = arr.filter(x=>x && x.key).map(x=>({
+        key: String(x.key),
+        name: String(x.name || ""),
+        time: String(x.time || "")
+      }));
+    }
+    return out;
+  }
+
+  function _normalizeAssignments(a){
+    const out = { CALLTAKER:{}, DISPATCHER:{}, PIC:{} };
+    if(!a || typeof a !== 'object') return out;
+    for(const pos of ['CALLTAKER','DISPATCHER','PIC']){
+      const obj = (a[pos] && typeof a[pos]==='object') ? a[pos] : {};
+      const norm = {};
+      for(const [k,v] of Object.entries(obj)) norm[String(k)] = String(v||'');
+      out[pos] = norm;
+    }
+    return out;
+  }
+  function _normalizeDpVisual(v){
+    const out = {};
+    if(!v || typeof v !== 'object') return out;
+    for(const [k,val] of Object.entries(v)){
+      const kk = String(k||"").trim();
+      if(!kk) continue;
+      const vv = String(val||"").trim();
+      out[kk] = vv;
+    }
+    return out;
+  }
+
+
+
+  function _normalizeSlotCaps(sc){
+    const out = { CALLTAKER:{}, DISPATCHER:{}, PIC:{} };
+    if(!sc || typeof sc !== 'object') return out;
+    for(const pos of ['CALLTAKER','DISPATCHER','PIC']){
+      const obj = (sc[pos] && typeof sc[pos]==='object') ? sc[pos] : {};
+      const norm = {};
+      for(const [k,v] of Object.entries(obj)){
+        const n = Number(v);
+        if(Number.isFinite(n)) norm[String(k)] = Math.max(0, Math.min(20, Math.floor(n)));
+      }
+      out[pos] = norm;
+    }
+    return out;
+  }
+
+  
+  function _validateCaps(breaks){
+    for(const pos of ["CALLTAKER","DISPATCHER","PIC"]){
+      const counts = new Map();
+      for(const s of (breaks[pos]||[])){
+        if(!s.time) continue;
+        counts.set(s.time, (counts.get(s.time)||0)+1);
+      }
+      for(const [t,n] of counts.entries()){
+        const cap = capFor(pos, t);
+        if(n > cap) throw new Error(`${pos} slot ${t} exceeds cap (${n}/${cap})`);
+      }
+    }
+  }
+
+
+
+  function _validateUniqueAssignments(assignments){
+    // Enforce 1 person per assignment (per scope) for CALLTAKER, DISPATCHER, and PIC.
+    for(const pos of ["CALLTAKER","DISPATCHER","PIC"]){
+      const used = new Map();
+      const obj = (assignments && assignments[pos]) ? assignments[pos] : {};
+      for(const [k,v] of Object.entries(obj)){
+        const seat = String(v||"").trim();
+        if(!seat) continue;
+        if(used.has(seat) && used.get(seat) !== k){
+          throw new Error(`${pos} assignment ${seat} already taken`);
+        }
+        used.set(seat, k);
+      }
+    }
+  }
+  function _scopeRef(){
+    // scopeKey() is defined later in this file.
+    let k = "";
+    try { k = scopeKey(); } catch { k = ""; }
+    if(!k) k = "unknown";
+    return doc(_db, "breakScopes", k);
+  }
+
+  function attachFirestoreListener(){
+    if(_unsub){ _unsub(); _unsub = null; }
+    _unsub = onSnapshot(_scopeRef(), (snap)=>{
+      const data = snap.exists() ? (snap.data()||{}) : {};
+      _sharedBreaksCache = _normalizeBreaks(data.breaks);
+      _sharedAssignCache = _normalizeAssignments(data.assignments);
+      _sharedSlotCapsCache = _normalizeSlotCaps(data.slotCaps);
+      _sharedDpVisualCache = _normalizeDpVisual(data.dpVisual);
+      _sharedDpVisualLockedCache = !!data.dpVisualLocked;
+      _sharedExtrasCache = Array.isArray(data.extras) ? data.extras : [];
+
+      // Keep a per-scope snapshot so other blocks (not currently selected) can
+      // be rendered accurately in the top 3-block dispatcher assignment view.
+      try {
+        const k = scopeKey();
+        _scopeCache[k] = {
+          breaks: _sharedBreaksCache,
+          assignments: _sharedAssignCache,
+          slotCaps: _sharedSlotCapsCache,
+          dpVisual: _sharedDpVisualCache,
+          dpVisualLocked: _sharedDpVisualLockedCache,
+          extras: _sharedExtrasCache,
+          ts: Date.now()
+        };
+      } catch {}
+
+      if(_lastCtx){
+        renderBreakPicker(_lastCtx.selectedDay, _lastCtx.mode, _lastCtx.block, _lastCtx.buckets);
+      }
+      try { renderExtrasTable(); } catch {}
+      try { render(); } catch {}
+    });
+  }
+
+  function loadBreaksForScope(){
+    return _normalizeBreaks(_sharedBreaksCache);
+  }
+
+  function loadAssignmentsForScope(){
+    return _normalizeAssignments(_sharedAssignCache);
+  }
+  function loadDpVisualForScope(){
+    return _normalizeDpVisual(_sharedDpVisualCache);
+  }
+  function isDpVisualLockedForScope(){
+    return !!_sharedDpVisualLockedCache;
+  }
+  async function saveDpVisualForScope(map){
+    const normalized = _normalizeDpVisual(map);
+    await runTransaction(_db, async (tx)=>{
+      const ref = _scopeRef();
+      const snap = await tx.get(ref);
+      const cur = snap.exists() ? (snap.data()||{}) : {};
+      tx.set(ref, { ...cur, dpVisual: normalized }, { merge: true });
+    });
+    _sharedDpVisualCache = normalized;
+  }
+  async function setDpVisualLockedForScope(locked){
+    const v = !!locked;
+    await runTransaction(_db, async (tx)=>{
+      const ref = _scopeRef();
+      const snap = await tx.get(ref);
+      const cur = snap.exists() ? (snap.data()||{}) : {};
+      tx.set(ref, { ...cur, dpVisualLocked: v }, { merge: true });
+    });
+    _sharedDpVisualLockedCache = v;
+  }
+  async function clearDpVisualForScope(){
+    await saveDpVisualForScope({});
+  }
+
+
+
+  async function _ensureScopeCached(mode, day, block){
+    const k = scopeKeyFor(mode, day, block);
+    if(_scopeCache[k]) return _scopeCache[k];
+    try {
+      const snap = await getDoc(doc(_db, "breakScopes", k));
+      const data = snap.exists() ? (snap.data()||{}) : {};
+      const entry = {
+        breaks: _normalizeBreaks(data.breaks),
+        assignments: _normalizeAssignments(data.assignments),
+        slotCaps: _normalizeSlotCaps(data.slotCaps),
+        dpVisual: _normalizeDpVisual(data.dpVisual),
+        dpVisualLocked: !!data.dpVisualLocked,
+        extras: Array.isArray(data.extras) ? data.extras : [],
+        ts: Date.now()
+      };
+      _scopeCache[k] = entry;
+      return entry;
+    } catch(e){
+      return null;
+    }
+  }
+
+  
+  function loadSlotCapsForScope(){
+    return _normalizeSlotCaps(_sharedSlotCapsCache);
+  }
+
+  async function saveSlotCapsForScope(slotCaps){
+    const normalized = _normalizeSlotCaps(slotCaps);
+
+    // Don't allow shrinking below already-used selections
+    const breaksNow = loadBreaksForScope();
+    for(const pos of ['CALLTAKER','DISPATCHER','PIC']){
+      const used = {};
+      for(const s of (breaksNow[pos]||[])){
+        if(!s.time) continue;
+        used[s.time] = (used[s.time]||0) + 1;
+      }
+      for(const [tm,count] of Object.entries(used)){
+        const cap = (normalized[pos] && Object.prototype.hasOwnProperty.call(normalized[pos], tm)) ? normalized[pos][tm] : _CAPS[pos];
+        if(cap < count) throw new Error(`${pos} slot ${tm} cannot be set below ${count}`);
+      }
+    }
+
+    await runTransaction(_db, async (tx)=>{
+      const ref = _scopeRef();
+      const snap = await tx.get(ref);
+      const cur = snap.exists() ? (snap.data()||{}) : {};
+      tx.set(ref, { ...cur, slotCaps: normalized }, { merge: true });
+    });
+    _sharedSlotCapsCache = normalized;
+  }
+
+  function capFor(pos, time){
+    const sc = loadSlotCapsForScope();
+    if(sc[pos] && Object.prototype.hasOwnProperty.call(sc[pos], time)) return Number(sc[pos][time]);
+    return _CAPS[pos];
+  }
+
+async function saveAssignmentsForScope(assignments){
+    const normalized = _normalizeAssignments(assignments);
+    _validateUniqueAssignments(normalized);
+    await runTransaction(_db, async (tx)=>{
+      const ref = _scopeRef();
+      const snap = await tx.get(ref);
+      const cur = snap.exists() ? (snap.data()||{}) : {};
+      tx.set(ref, { ...cur, assignments: normalized }, { merge: true });
+    });
+    _sharedAssignCache = normalized;
+  }
+
+  async function saveBreaksForScope(data){
+    const normalized = _normalizeBreaks(data);
+    _validateCaps(normalized);
+    await runTransaction(_db, async (tx)=>{
+      const ref = _scopeRef();
+      const snap = await tx.get(ref);
+      const cur = snap.exists() ? (snap.data()||{}) : {};
+      tx.set(ref, { ...cur, breaks: normalized }, { merge: true });
+    });
+    _sharedBreaksCache = normalized;
+  }
+
+  async function clearBreaksForScope(){
+    await saveBreaksForScope({ CALLTAKER: [], DISPATCHER: [], PIC: [] });
+  }
+
+  async function clearAssignmentsForScope(){
+    await saveAssignmentsForScope({ CALLTAKER:{}, DISPATCHER:{}, PIC:{} });
+  }
+
+
+  async function clearKeyFromScope(employeeKey){
+    // Remove this employee's break + assignment from ALL groups in the CURRENT scope.
+    await runTransaction(_db, async (tx)=>{
+      const ref = _scopeRef();
+      const snap = await tx.get(ref);
+      const cur = snap.exists() ? (snap.data()||{}) : {};
+      const breaks = _normalizeBreaks(cur.breaks);
+      const assigns = _normalizeAssignments(cur.assignments);
+
+      for(const pos of ['CALLTAKER','DISPATCHER','PIC']){
+        if(assigns[pos] && Object.prototype.hasOwnProperty.call(assigns[pos], employeeKey)) delete assigns[pos][employeeKey];
+        breaks[pos] = (breaks[pos]||[]).filter(x => String(x.key) !== String(employeeKey));
+      }
+
+      _validateCaps(breaks);
+      _validateUniqueAssignments(assigns);
+      tx.set(ref, { ...cur, breaks: breaks, assignments: assigns }, { merge: true });
+    });
+  }
+
+const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const POSITIONS = ["CALLTAKER","DISPATCHER","PIC","OUT"];
+const STORAGE_KEY_POS = "schedule_positions_v12";
+
+const STORAGE_KEY_OUT = "schedule_out_v1";
+const STORAGE_KEY_EXTRAS = "schedule_extras_v1";
+const STORAGE_KEY_BREAKS = "break_selections_v1";
+const STORAGE_KEY_HOURS = "schedule_hours_v1";
+
+// Local (client-side) edit lock deterrent
+const LOCK_KEY = "breakops_edit_lock_v1";
+const LOCK_PASSCODE = "0911";
+function isLocked(){ return localStorage.getItem(LOCK_KEY) === "1"; }
+function setLocked(v){ localStorage.setItem(LOCK_KEY, v ? "1" : "0"); }
+
+function applyLockState(){
+  const locked = isLocked();
+  const btn = document.getElementById("lockBtn");
+  const state = document.getElementById("lockState");
+  if(btn) btn.textContent = locked ? "Unlock editing" : "Lock editing";
+  if(state) state.textContent = locked ? "LOCKED (view only)" : "UNLOCKED";
+
+  // Disable TOP editing controls only (positions + extras). Break selectors stay usable.
+  const selectors = [
+    "select[data-action='posChange']",
+    "select[data-action='hrsChange']",
+    "#extraEmployee",
+    "#extraPos",
+    "#addExtra",
+    "#clearExtras",
+    "button[data-ex-del]",    "#resetPositions",
+    "#exportCsv",
+    "#clearBreakSummary"
+  ];
+  document.querySelectorAll(selectors.join(",")).forEach(el=>{
+    if(locked) el.setAttribute("disabled","disabled");
+    else el.removeAttribute("disabled");
+  });
+}
+const BASE = [{"Employee": "CHARLES", "Seniority": 13, "Position": "CALLTAKER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "MOORE", "Seniority": 15, "Position": "CALLTAKER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6P-6A"}}, {"Employee": "HERRERA", "Seniority": 19, "Position": "CALLTAKER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "DODD", "Seniority": 28, "Position": "CALLTAKER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6P-6A"}}, {"Employee": "RHOADES", "Seniority": 47, "Position": "CALLTAKER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "PENA", "Seniority": 58, "Position": "CALLTAKER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "JACKSON", "Seniority": 67, "Position": "CALLTAKER", "DaysOff": "Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "2P-10P"}}, {"Employee": "AILSHIE", "Seniority": 71, "Position": "CALLTAKER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "10A-6P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "DESSELLIER", "Seniority": 73, "Position": "CALLTAKER", "DaysOff": "Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-2P"}}, {"Employee": "HALL", "Seniority": 74, "Position": "CALLTAKER", "DaysOff": "Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "HORNER", "Seniority": 79, "Position": "CALLTAKER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "10A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "SHANKMAN", "Seniority": 80, "Position": "CALLTAKER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "10A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "ZAMAGUEY", "Seniority": 82, "Position": "CALLTAKER", "DaysOff": "Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "SANDOVAL", "Seniority": 83, "Position": "CALLTAKER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "BROWNV", "Seniority": 84, "Position": "CALLTAKER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "HUTTA", "Seniority": 98, "Position": "CALLTAKER", "DaysOff": "Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "10P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "10P-6A", "SUNDAY": "OFF"}}, {"Employee": "BANKS", "Seniority": 99, "Position": "CALLTAKER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "PHAM", "Seniority": 100, "Position": "CALLTAKER", "DaysOff": "Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "OFF"}}, {"Employee": "TREVINO", "Seniority": 101, "Position": "CALLTAKER", "DaysOff": "Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "GALINDO", "Seniority": 103, "Position": "CALLTAKER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "LUTTON", "Seniority": 106, "Position": "CALLTAKER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6P-6A", "THURSDAY": "6P-2A", "FRIDAY": "6P-2A", "SATURDAY": "6P-6A", "SUNDAY": "OFF"}}, {"Employee": "PERRY", "Seniority": 107, "Position": "CALLTAKER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6P-6A"}}, {"Employee": "GUERRA", "Seniority": 108, "Position": "CALLTAKER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "10A-6P", "FRIDAY": "10A-6P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "MARTIN", "Seniority": 109, "Position": "CALLTAKER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6P-6A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-2A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "CROSSMAN", "Seniority": 110, "Position": "CALLTAKER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "PEREZJ", "Seniority": 111, "Position": "CALLTAKER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "GALLAGHER", "Seniority": 112, "Position": "CALLTAKER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "TREJO", "Seniority": 113, "Position": "CALLTAKER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6P-6A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-2A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "DOUGHERTY", "Seniority": 114, "Position": "CALLTAKER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6P-6A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-2A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "PINNOW", "Seniority": 115, "Position": "CALLTAKER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-6P", "FRIDAY": "10A-6P", "SATURDAY": "10A-6P", "SUNDAY": "6A-6P"}}, {"Employee": "CASTLEMAN", "Seniority": 116, "Position": "CALLTAKER", "DaysOff": "Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "2P-10P", "SUNDAY": "2P-10P"}}, {"Employee": "MAHER", "Seniority": 117, "Position": "CALLTAKER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-6P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-6P"}}, {"Employee": "COX", "Seniority": 118, "Position": "CALLTAKER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-6P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-6P"}}, {"Employee": "DURAN", "Seniority": 119, "Position": "CALLTAKER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "MCKNIGHT", "Seniority": 120, "Position": "CALLTAKER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "10A-6P", "WEDNESDAY": "6A-6P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-6P"}}, {"Employee": "MAHLE", "Seniority": 121, "Position": "CALLTAKER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-6P", "SUNDAY": "10A-6P"}}, {"Employee": "THOMAS", "Seniority": 122, "Position": "CALLTAKER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-6P", "SUNDAY": "6A-2P"}}, {"Employee": "SCROGGINS", "Seniority": 123, "Position": "CALLTAKER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6P-6A", "SATURDAY": "6P-2A", "SUNDAY": "6P-2A"}}, {"Employee": "GONZALEZ", "Seniority": 124, "Position": "CALLTAKER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6P-6A", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "HARDIN", "Seniority": 125, "Position": "CALLTAKER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "GUERRERO", "Seniority": 126, "Position": "CALLTAKER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-6A", "SUNDAY": "6P-2A"}}, {"Employee": "KROCK", "Seniority": 127, "Position": "CALLTAKER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-6P", "SUNDAY": "10A-6P"}}, {"Employee": "REED", "Seniority": 128, "Position": "CALLTAKER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6P-6A", "THURSDAY": "6P-2A", "FRIDAY": "6P-2A", "SATURDAY": "6P-6A", "SUNDAY": "OFF"}}, {"Employee": "RENFRO", "Seniority": 129, "Position": "CALLTAKER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6A-6P", "SATURDAY": "10A-6P", "SUNDAY": "10A-6P"}}, {"Employee": "MONCADA", "Seniority": 130, "Position": "CALLTAKER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-6P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "6A-6P"}}, {"Employee": "ABRAM", "Seniority": 131, "Position": "CALLTAKER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6A-6P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "ALLEN", "Seniority": 132, "Position": "CALLTAKER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6A-6P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "ESTRADA", "Seniority": 133, "Position": "CALLTAKER", "DaysOff": "Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "2P-10P", "SUNDAY": "OFF"}}, {"Employee": "DANFORD", "Seniority": 134, "Position": "CALLTAKER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6P-6A", "FRIDAY": "6P-2A", "SATURDAY": "6P-2A", "SUNDAY": "6P-6A"}}, {"Employee": "GARCIAA", "Seniority": 135, "Position": "CALLTAKER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6P-6A", "FRIDAY": "6P-2A", "SATURDAY": "6P-2A", "SUNDAY": "6P-6A"}}, {"Employee": "MIMS", "Seniority": 136, "Position": "CALLTAKER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-6P", "FRIDAY": "10A-6P", "SATURDAY": "10A-6P", "SUNDAY": "6A-6P"}}, {"Employee": "GOLDBLATT", "Seniority": 137, "Position": "CALLTAKER", "DaysOff": "Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "GLASSK", "Seniority": 138, "Position": "CALLTAKER", "DaysOff": "Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "2P-10P", "SUNDAY": "2P-10P"}}, {"Employee": "MARTINEZL", "Seniority": 139, "Position": "CALLTAKER", "DaysOff": "Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "10P-6A", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "Jones", "Seniority": 2, "Position": "DISPATCHER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Dillard", "Seniority": 4, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Graves", "Seniority": 6, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Wiese", "Seniority": 7, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Smothers", "Seniority": 14, "Position": "DISPATCHER", "DaysOff": "Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-2P"}}, {"Employee": "Finch", "Seniority": 16, "Position": "DISPATCHER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "6P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6P-6A"}}, {"Employee": "Ramirez", "Seniority": 17, "Position": "DISPATCHER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Jacobs", "Seniority": 18, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Toledo", "Seniority": 22, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "10A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Sierra", "Seniority": 23, "Position": "DISPATCHER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-6P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-6P"}}, {"Employee": "Lorona", "Seniority": 24, "Position": "DISPATCHER", "DaysOff": "Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "Rodriguez", "Seniority": 25, "Position": "DISPATCHER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-6P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-6P"}}, {"Employee": "Guidry", "Seniority": 26, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "10A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Marzahn", "Seniority": 27, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-2A", "SUNDAY": "6P-6A"}}, {"Employee": "Henas", "Seniority": 29, "Position": "DISPATCHER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "Curry", "Seniority": 30, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Bryan", "Seniority": 32, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "10A-6P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "FowlerL", "Seniority": 35, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "6A-6P", "FRIDAY": "10A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "SIGALA", "Seniority": 36, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-6P", "SUNDAY": "10A-6P"}}, {"Employee": "Maguda", "Seniority": 38, "Position": "DISPATCHER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "Harrison", "Seniority": 40, "Position": "DISPATCHER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6A-6P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "Black", "Seniority": 41, "Position": "DISPATCHER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6P-6A"}}, {"Employee": "Merrill", "Seniority": 42, "Position": "DISPATCHER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Rinaldi", "Seniority": 44, "Position": "DISPATCHER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "6P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6P-6A"}}, {"Employee": "Leatham", "Seniority": 46, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-6P", "SUNDAY": "6A-2P"}}, {"Employee": "AdamsS", "Seniority": 48, "Position": "DISPATCHER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "10A-6P", "FRIDAY": "10A-6P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "Brashear", "Seniority": 50, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "10P-6A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Johnson", "Seniority": 51, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Richardson", "Seniority": 52, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6P-6A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-2A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Olvera", "Seniority": 54, "Position": "DISPATCHER", "DaysOff": "Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "2P-10P", "SUNDAY": "2P-10P"}}, {"Employee": "Grounds", "Seniority": 55, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-2P", "SUNDAY": "6A-6P"}}, {"Employee": "Quinones", "Seniority": 57, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-6P", "SUNDAY": "10A-6P"}}, {"Employee": "Buglehall", "Seniority": 61, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-6A", "SUNDAY": "6P-2A"}}, {"Employee": "GarciaF", "Seniority": 62, "Position": "DISPATCHER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6A-6P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "Urrutia", "Seniority": 63, "Position": "DISPATCHER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6P-6A", "FRIDAY": "6P-2A", "SATURDAY": "6P-2A", "SUNDAY": "6P-6A"}}, {"Employee": "Slack", "Seniority": 68, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6P-6A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-2A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Wheat", "Seniority": 69, "Position": "DISPATCHER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6A-6P", "SATURDAY": "10A-6P", "SUNDAY": "10A-6P"}}, {"Employee": "Sanders", "Seniority": 72, "Position": "DISPATCHER", "DaysOff": "Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "2P-10P", "SUNDAY": "2P-10P"}}, {"Employee": "Clement", "Seniority": 75, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "PerezD", "Seniority": 76, "Position": "DISPATCHER", "DaysOff": "Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "2P-10P"}}, {"Employee": "White", "Seniority": 77, "Position": "DISPATCHER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-6P", "FRIDAY": "10A-6P", "SATURDAY": "10A-6P", "SUNDAY": "6A-6P"}}, {"Employee": "CLayton", "Seniority": 85, "Position": "DISPATCHER", "DaysOff": "Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "2P-10P", "SUNDAY": "2P-10P"}}, {"Employee": "Cruz", "Seniority": 86, "Position": "DISPATCHER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-6P", "FRIDAY": "10A-6P", "SATURDAY": "10A-6P", "SUNDAY": "6A-6P"}}, {"Employee": "Robles", "Seniority": 87, "Position": "DISPATCHER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Fuller", "Seniority": 88, "Position": "DISPATCHER", "DaysOff": "Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "2P-10P", "SUNDAY": "OFF"}}, {"Employee": "Baiza", "Seniority": 89, "Position": "DISPATCHER", "DaysOff": "Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "2P-10P", "SUNDAY": "2P-10P"}}, {"Employee": "FowlerH", "Seniority": 90, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-6A", "SUNDAY": "6P-2A"}}, {"Employee": "Warren", "Seniority": 91, "Position": "DISPATCHER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6P-6A", "THURSDAY": "6P-2A", "FRIDAY": "6P-2A", "SATURDAY": "6P-6A", "SUNDAY": "OFF"}}, {"Employee": "Claudio", "Seniority": 92, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-6A", "SUNDAY": "6P-2A"}}, {"Employee": "Thompkins", "Seniority": 93, "Position": "DISPATCHER", "DaysOff": "Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "Sumner", "Seniority": 94, "Position": "DISPATCHER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6P-6A", "SATURDAY": "6P-2A", "SUNDAY": "6P-2A"}}, {"Employee": "BrownC", "Seniority": 95, "Position": "DISPATCHER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-2A", "FRIDAY": "6P-2A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Dones", "Seniority": 96, "Position": "DISPATCHER", "DaysOff": "Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "Reynolds", "Seniority": 97, "Position": "DISPATCHER", "DaysOff": "Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "Wright", "Seniority": 104, "Position": "DISPATCHER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6P-6A", "FRIDAY": "6P-2A", "SATURDAY": "6P-2A", "SUNDAY": "6P-6A"}}, {"Employee": "Burnham", "Seniority": 105, "Position": "DISPATCHER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6P-6A", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "Dorsey", "Seniority": 3, "Position": "PIC", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-6P", "WEDNESDAY": "6A-2P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-6P"}}, {"Employee": "Rector", "Seniority": 8, "Position": "PIC", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "2P-10P", "THURSDAY": "10A-10P", "FRIDAY": "2P-10P", "SATURDAY": "10A-10P", "SUNDAY": "OFF"}}, {"Employee": "WALKER", "Seniority": 9, "Position": "PIC", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-6P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "6A-6P"}}, {"Employee": "MONING", "Seniority": 12, "Position": "PIC", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "10A-6P", "WEDNESDAY": "6A-6P", "THURSDAY": "10A-6P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "PETRIGNI", "Seniority": 20, "Position": "PIC", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "YOUNG", "Seniority": 37, "Position": "PIC", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "10P-6A", "FRIDAY": "6P-6A", "SATURDAY": "10P-6A", "SUNDAY": "6P-6A"}}, {"Employee": "GRISSO", "Seniority": 43, "Position": "PIC", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "10A-6P", "SUNDAY": "6A-6P"}}, {"Employee": "POPE", "Seniority": 56, "Position": "PIC", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "10P-6A", "WEDNESDAY": "6P-6A", "THURSDAY": "10P-6A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "GLENN", "Seniority": 59, "Position": "PIC", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "10P-6A", "SUNDAY": "6P-6A"}}, {"Employee": "DASKOU", "Seniority": 60, "Position": "PIC", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "ADAMSON", "Seniority": 64, "Position": "PIC", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "LINDLEY", "Seniority": 65, "Position": "PIC", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Santo", "Seniority": 70, "Position": "PIC", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "VALDEZ", "Seniority": 81, "Position": "PIC", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6P-6A", "SATURDAY": "6P-2A", "SUNDAY": "6P-6A"}}, {"Employee": "BLY", "Seniority": 102, "Position": "PIC", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6P-6A", "THURSDAY": "6P-2A", "FRIDAY": "6P-2A", "SATURDAY": "6P-6A", "SUNDAY": "OFF"}}];
+
+// --- Expose core roster data for helper panels (e.g., Absent list) ---
+window.BASE = BASE;
+window.POSITIONS = POSITIONS;
+window.baseKey = baseKey;
+
+
+function toast(msg){
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.style.display = "block";
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>el.style.display="none", 2200);
+}
+function loadJson(key, fallback){
+  try {
+    const raw = localStorage.getItem(key);
+    if(!raw) return fallback;
+    const obj = JSON.parse(raw);
+    return obj ?? fallback;
+  } catch(e) {
+    return fallback;
+  }
+}
+function saveJson(key, obj){ localStorage.setItem(key, JSON.stringify(obj)); }
+
+function loadPosOverrides(){
+  // Prefer shared Firestore roster cache; fallback to localStorage
+  if(_sharedRosterCache && _sharedRosterCache.posOverrides && Object.keys(_sharedRosterCache.posOverrides).length){
+    return _sharedRosterCache.posOverrides;
+  }
+  return loadJson(STORAGE_KEY_POS, {});
+}
+function savePosOverrides(map){
+  // Save for everyone (Firestore) + keep local fallback copy
+  saveJson(STORAGE_KEY_POS, map);
+  saveRosterPosOverrides(map).catch((e)=>{ console.error(e); toast("Couldn't save roster to Firebase."); });
+}
+
+function baseKey(rec){ return `${String(rec.Employee||'').toUpperCase()}||${rec.Seniority}`; }
+function getPosition(rec, posOverrides){
+  try{
+    const out = (typeof loadOutSet==="function") ? loadOutSet() : ( (_sharedRosterCache && _sharedRosterCache.outSet) ? _sharedRosterCache.outSet : {} );
+    if(out && out[baseKey(rec)]) return "OUT";
+  }catch{}
+  return (posOverrides[baseKey(rec)] || rec.Position || "DISPATCHER").toUpperCase();
+}
+
+// shift parsing
+function parseTimeToken(tok){
+  tok = String(tok||"").trim().toUpperCase();
+  const m = tok.match(/^(\d{1,2})(?::(\d{2}))?([AP])$/);
+  if(!m) return null;
+  let h = parseInt(m[1],10);
+  const min = m[2] ? parseInt(m[2],10) : 0;
+  const ap = m[3];
+  if(ap === "A"){ if(h === 12) h = 0; }
+  else { if(h !== 12) h += 12; }
+  return h*60 + min;
+}
+function parseShift(str){
+  str = String(str||"").trim();
+  if(!str || /^OFF$/i.test(str)) return null;
+  const m = str.toUpperCase().replace(/\s+/g,"").match(/^(.+)-(.+)$/);
+  if(!m) return null;
+  const start = parseTimeToken(m[1]);
+  const end = parseTimeToken(m[2]);
+  if(start == null || end == null) return null;
+  return {start, end};
+}
+function overlapsInterval(shift, block){
+  const s = shift.start, e = shift.end;
+  const intervals = (e > s) ? [[s,e]] : [[s,1440],[0,e]];
+  const bIntervals = (block.end > block.start) ? [[block.start, block.end]] : [[block.start,1440],[0,block.end]];
+  for(const [a1,a2] of intervals){
+    for(const [b1,b2] of bIntervals){
+      const lo = Math.max(a1,b1);
+      const hi = Math.min(a2,b2);
+      if(hi > lo) return true;
+    }
+  }
+  return false;
+}
+function fmtTime(mins){
+  mins = (mins + 1440) % 1440;
+  const h = Math.floor(mins/60);
+  const m = mins%60;
+  return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+}
+function blocksForMode(mode){
+  if(mode === "days") return [
+    {id:"0600-1000", label:"0600–1000", start: 6*60, end: 10*60},
+    {id:"1000-1400", label:"1000–1400", start: 10*60, end: 14*60},
+    {id:"1400-1800", label:"1400–1800", start: 14*60, end: 18*60},
+  ];
+  return [
+    {id:"1800-2200", label:"1800–2200", start: 18*60, end: 22*60},
+    {id:"2200-0200", label:"2200–0200", start: 22*60, end: 2*60},
+    {id:"0200-0600", label:"0200–0600", start: 2*60, end: 6*60},
+  ];
+}
+
+
+// Dispatcher assignment options (same as break picker) + CALL TAKING
+const DP_ASSIGN_OPTS = ['NORTH','EAST','SOUTH','WEST','NORTHWEST','CENTRAL','C 7TH','SPECIAL DETAIL 1','SPECIAL DETAIL 2','DC1','DC2','R31','R32','CALL TAKING'];
+// --- Adequate staffing targets ---
+// Calltakers: hour-by-hour targets (from your image)
+// Dispatchers: 10 always, EXCEPT Fri night 2200→Sat 0300 and Sat night 2200→Sun 0300 = 11
+// PIC: 3 always
+const ADEQUATE_BY_POS = (()=>{
+  // Legacy placeholder; calltaker adequate is now driven by CT_MIN via adequateFor().
+  return { CALLTAKER: {} };
+})();
+
+function adequateFor(pos, selectedDay, mode, hour){
+  const p = String(pos||'').toUpperCase();
+  const day = String(selectedDay||'');
+  const h = Number(hour);
+
+  if(p === 'CALLTAKER'){
+    // Use updated hourly targets from CT_MIN.
+    // Sun–Thurs use st; Fri/Sat use fs.
+    const isFriSat = (()=>{
+      const d = String(day||'').toUpperCase();
+      return (d === 'FRI' || d === 'SAT' || d === 'FRIDAY' || d === 'SATURDAY');
+    })();
+    const key = String(h).padStart(2,'0') + '00'; // hour -> HH00 (e.g., 6 -> "0600")
+    const rec = CT_MIN[key];
+    if(!rec) return 0;
+    return Number(isFriSat ? (rec.fs ?? 0) : (rec.st ?? 0));
+  }
+
+  if(p === 'PIC'){
+    return 3;
+  }
+
+  if(p === 'DISPATCHER'){
+    let base = 10;
+    if(String(mode||'').toLowerCase() === 'nights'){
+      const specialHours = new Set([22,23,0,1,2]);
+      const isSpecialWindow = (day === 'Friday' || day === 'Saturday') && specialHours.has(h);
+      if(isSpecialWindow) base = 11;
+    }
+    return base;
+  }
+
+  return 0;
+}
+
+function hoursForBlock(block){
+  const out=[];
+  const endAbs = block.end > block.start ? block.end : (block.end + 1440);
+  for(let t = block.start; t < endAbs; t += 60){
+    const h = Math.floor(((t%1440)+1440)%1440 / 60);
+    out.push(h);
+  }
+  return out;
+}
+
+function hourInterval(h){
+  const start = h*60;
+  const end = (h+1)*60;
+  return { start, end };
+}
+
+function overlapsHour(shift, h){
+  if(!shift) return false;
+  return overlapsInterval(shift, hourInterval(h));
+}
+function breakSlotsForBlock(block){
+  const slots=[];
+  const endAbs = block.end > block.start ? block.end : (block.end + 1440);
+  for(let t = block.start + 30; t <= endAbs; t += 30){
+    slots.push(fmtTime(t));
+  }
+  return slots;
+}
+const CT_MIN = {
+  // Sun–Thurs
+  "0600": { st: 8, fs: 8 },
+  "0700": { st: 14, fs: 14 },
+  "0800": { st: 16, fs: 16 },
+  "0900": { st: 16, fs: 16 },
+  "1000": { st: 17, fs: 17 },
+  "1100": { st: 17, fs: 17 },
+  "1200": { st: 17, fs: 17 },
+  "1300": { st: 17, fs: 17 },
+  "1400": { st: 19, fs: 19 },
+  "1500": { st: 19, fs: 19 },
+  "1600": { st: 19, fs: 19 },
+  "1700": { st: 19, fs: 19 },
+  "1800": { st: 19, fs: 19 },
+  "1900": { st: 19, fs: 19 },
+  "2000": { st: 19, fs: 19 },
+  "2100": { st: 19, fs: 19 },
+
+  // Overnight
+  "2200": { st: 12, fs: 15 },
+  "2300": { st: 12, fs: 15 },
+  "0000": { st: 12, fs: 15 },
+  "0100": { st: 12, fs: 15 },
+  "0200": { st: 9, fs: 10 },
+  "0300": { st: 9, fs: 10 },
+  "0400": { st: 9, fs: 10 },
+  "0500": { st: 9, fs: 10 }
+};
+
+function slotLabelHHMM(timeStr){
+  // "06:30" -> "630", "10:00" -> "1000"
+  const [hh,mm] = String(timeStr).split(":");
+  const h = String(parseInt(hh,10));
+  return mm==="00" ? `${h}00` : `${h}${mm}`;
+}
+
+// Days Off sorting + day-off check
+const DAY_INDEX = Object.fromEntries(DAYS.map((d,i)=>[d.toLowerCase(), i]));
+const ABBR_TO_DAY = {
+  "MON":"Monday","TUE":"Tuesday","WED":"Wednesday","THU":"Thursday","FRI":"Friday","SAT":"Saturday","SUN":"Sunday"
+};
+function firstOffAbbr(pattern){
+  if(!pattern) return null;
+  const raw = String(pattern).trim();
+  if(!raw) return null;
+  const parts = raw.replace(/[,|]/g,"/").split("/").map(s=>s.trim()).filter(Boolean);
+  if(!parts.length) return null;
+  let first = parts[0].toUpperCase();
+  if(first === "S") return "SAT";
+  if(first.startsWith("SA")) return "SAT";
+  if(first.startsWith("SU")) return "SUN";
+  first = first.replace(/[^A-Z]/g,"");
+  if(first.length < 3) return null;
+  return first.slice(0,3);
+}
+function parseOffAbbrs(pattern){
+  if(!pattern) return [];
+  const raw = String(pattern).trim();
+  if(!raw) return [];
+  const parts = raw.replace(/[,|]/g,"/").split("/").map(s=>s.trim()).filter(Boolean);
+  const out=[];
+  let sCount=0;
+  for(let p of parts){
+    const up = p.toUpperCase();
+    if(up==="S") {
+      sCount++;
+      out.push(sCount===1 ? "SAT" : "SUN");
+      continue;
+    }
+    const clean = up.replace(/[^A-Z]/g,"");
+    if(clean.startsWith("SA")) out.push("SAT");
+    else if(clean.startsWith("SU")) out.push("SUN");
+    else if(clean.length>=3) out.push(clean.slice(0,3));
+  }
+  return out;
+}
+function isDayOff(daysOffPattern, selectedDay){
+  const sel = selectedDay.slice(0,3).toUpperCase();
+  return parseOffAbbrs(daysOffPattern).includes(sel);
+}
+function techScore(selectedDay, daysOffPattern){
+  const abbr = firstOffAbbr(daysOffPattern);
+  if(!abbr) return 999;
+  const offDay = ABBR_TO_DAY[abbr];
+  if(!offDay) return 999;
+  const offIdx = DAY_INDEX[offDay.toLowerCase()];
+  const selIdx = DAY_INDEX[selectedDay.toLowerCase()];
+  if(!Number.isInteger(offIdx) || !Number.isInteger(selIdx)) return 999;
+  const friIdx = (offIdx + 6) % 7;
+  return (friIdx - selIdx + 7) % 7;
+}
+function sortPeople(list, selectedDay){
+  return list.slice().sort((a,b)=>{
+    // First: arrivals for the block (4 + 1/2 together, 2/2 last)
+    const ka = `${a.Employee}||${a.Seniority}`;
+    const kb = `${b.Employee}||${b.Seniority}`;
+    const ra = hoursRank(getHoursSetting(ka));
+    const rb = hoursRank(getHoursSetting(kb));
+    if(ra !== rb) return ra - rb;
+
+    // Next: "technical Friday" proximity to next day off
+    const sa = techScore(selectedDay, a.DaysOff);
+    const sb = techScore(selectedDay, b.DaysOff);
+    if(sa !== sb) return sa - sb;
+
+    // Tie-breakers
+    const na = Number(a.Seniority), nb = Number(b.Seniority);
+    if(na !== nb) return na - nb;
+    return String(a.Employee).localeCompare(String(b.Employee));
+  });
+}
+function escapeHtml(s){ return String(s ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m])); }
+function up(s){ return String(s||"").toUpperCase(); }
+
+function positionsOptions(current){
+  const all = Array.from(new Set([...POSITIONS, "OUT", ...BASE.map(r=>String(r.Position||"DISPATCHER").toUpperCase())]));
+  return all.map(p=>`<option value="${p}" ${p===current?"selected":""}>${p}</option>`).join("");
+}
+
+function hoursOptions(current){
+  const opts = [
+    {v:"4", t:"4"},
+    {v:"1/2", t:"1/2"},
+    {v:"2/2", t:"2/2"}
+  ];
+  return opts.map(function(o){
+    return "<option value=\""+o.v+"\" "+(o.v===current?"selected":"")+">"+o.t+"</option>";
+  }).join("");
+}
+
+function hoursRank(v){
+  // For EXTRAS sorting: treat 4 and 1/2 together (both present at the start of the block).
+  // Only 2/2 goes last (arrives for the second half).
+  if(v==="2/2") return 1;
+  return 0;
+}
+function hoursSuffix(v){
+  if(v==="1/2" || v==="2/2") return ' <span class="hrsAfter">'+v+'</span>';
+  return '';
+}
+
+let _scopeOverride = null;
+function scopeKey(){
+  if(_scopeOverride) return _scopeOverride;
+  const mode = document.getElementById("modeSel").value;
+  const day = document.getElementById("daySel").value;
+  const block = document.getElementById("blockSel").value;
+  return `${mode}|${day}|${block}`;
+}
+function scopeKeyFor(mode, day, block){ return `${mode}|${day}|${block}`; }
+function withScope(mode, day, block, fn){
+  const prev = _scopeOverride;
+  _scopeOverride = scopeKeyFor(mode, day, block);
+  try { return fn(); } finally { _scopeOverride = prev; }
+}
+async function withScopeAsync(mode, day, block, fn){
+  const prev = _scopeOverride;
+  _scopeOverride = scopeKeyFor(mode, day, block);
+  try { return await fn(); } finally { _scopeOverride = prev; }
+}
+
+
+function loadHoursForScope(){
+  const all = loadJson(STORAGE_KEY_HOURS, {});
+  return all[scopeKey()] || {};
+}
+function saveHoursForScope(map){
+  const all = loadJson(STORAGE_KEY_HOURS, {});
+  all[scopeKey()] = map || {};
+  saveJson(STORAGE_KEY_HOURS, all);
+}
+function getHoursSetting(k){
+  const map = loadHoursForScope();
+  return map[k] || "4";
+}
+function setHoursSetting(k, val){
+  const map = loadHoursForScope();
+  map[k] = val;
+  saveHoursForScope(map);
+}
+
+
+
+function applyHoursVisual(selectEl){
+  const td = selectEl && selectEl.closest ? selectEl.closest('td.hrsCol') : null;
+  if(!td) return;
+  td.classList.remove('hrs-all','hrs-first','hrs-second');
+  const v = selectEl.value;
+  if(v === '1/2') td.classList.add('hrs-first');
+  else if(v === '2/2') td.classList.add('hrs-second');
+  else td.classList.add('hrs-all');
+}
+
+function applyAllHoursVisuals(){
+  document.querySelectorAll("select.hrsSel[data-action='hrsChange']").forEach(applyHoursVisual);
+}
+function loadExtrasForScope(){
+  // Prefer shared Firestore extras for this scope; fallback to localStorage
+  if(Array.isArray(_sharedExtrasCache)) return _sharedExtrasCache;
+  const all = loadJson(STORAGE_KEY_EXTRAS, {});
+  return all[scopeKey()] || [];
+}
+function saveExtrasForScope(list){
+  // Save for everyone (Firestore) + keep local fallback copy
+  _sharedExtrasCache = Array.isArray(list) ? list : [];
+  const all = loadJson(STORAGE_KEY_EXTRAS, {});
+  all[scopeKey()] = _sharedExtrasCache;
+  saveJson(STORAGE_KEY_EXTRAS, all);
+  // Persist to Firestore under breakScopes/{scopeKey}
+  runTransaction(_db, async (tx)=>{
+    const ref = _scopeRef();
+    const snap = await tx.get(ref);
+    const cur = snap.exists() ? (snap.data()||{}) : {};
+    tx.set(ref, { ...cur, extras: _sharedExtrasCache }, { merge: true });
+  }).catch((e)=>{ console.error(e); toast("Couldn't save extras to Firebase."); });
+}
+
+// Break selections are stored in Firebase Firestore (shared).
+function renderExtrasTable(){
+  const extras = loadExtrasForScope();
+  const tbody = document.getElementById("extrasTbody");
+  if(!extras.length){
+    tbody.innerHTML = `<tr><td class="muted" colspan="3">No extras added for this day/block.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = extras.map((e,idx)=>`
+    <tr>
+      <td>${escapeHtml(up(e.Employee))}</td>
+      <td class="mono">${escapeHtml(up(e.Position))}</td>
+      <td><button class="secondary" data-ex-del="${idx}" style="padding:8px 10px; border-radius:10px;">Remove</button></td>
+    </tr>
+  `).join("");
+  tbody.querySelectorAll("[data-ex-del]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      if(isLocked()){ toast("Editing is locked."); return; }
+      const i = Number(btn.getAttribute("data-ex-del"));
+      const cur = loadExtrasForScope();
+      cur.splice(i,1);
+      saveExtrasForScope(cur);
+      renderExtrasTable();
+      render();
+    });
+  });
+}
+
+function initApp(){
+  // Default to LOCKED on EVERY load (deterrent lock for the top editing tools).
+  // This ensures the page always starts in a safe, view-only mode for the TOP section.
+  // (Break selectors below remain usable.)
+  setLocked(true);
+
+  // Shared roster (position overrides) for everyone
+  attachRosterListener();
+
+  const daySel = document.getElementById("daySel");
+  daySel.innerHTML = DAYS.map(d=>`<option value="${d}">${d}</option>`).join("");
+  // Apply shared landing view (if set), otherwise default to Monday
+  const _ls = window.__landingState || null;
+
+  const modeSel = document.getElementById("modeSel");
+  const blockSel = document.getElementById("blockSel");
+
+  // Normalize mode coming from Firestore so it matches your select values (e.g., Night -> nights, Day -> days)
+  function normMode(m){
+    if(!m) return "";
+    const s = String(m).trim().toLowerCase();
+    if(s.startsWith("night")) return "nights";
+    if(s.startsWith("day")) return "days";
+    return String(m).trim();
+  }
+
+  // Day
+  if(_ls && _ls.day && DAYS.includes(_ls.day)) daySel.value = _ls.day;
+  else daySel.value = "Monday";
+
+  // Mode (set before syncing blocks)
+  if(modeSel){
+    const wanted = normMode(_ls && _ls.mode ? _ls.mode : "");
+    if(wanted && [...modeSel.options].some(o=>o.value===wanted)) modeSel.value = wanted;
+  }
+
+  // Blocks depend on mode
+  syncBlockOptions();
+
+  // Block
+  if(blockSel){
+    const wantedB = (_ls && _ls.block) ? String(_ls.block).trim() : "";
+    if(wantedB && [...blockSel.options].some(o=>o.value===wantedB)) blockSel.value = wantedB;
+  }
+
+  document.getElementById("employeeDatalist").innerHTML = BASE
+    .slice().sort((a,b)=>String(a.Employee).localeCompare(String(b.Employee)))
+    .map(r=>`<option value="${escapeHtml(up(r.Employee))}"></option>`).join("");
+
+  document.getElementById("extraPos").innerHTML = positionsOptions("CALLTAKER");
+
+  document.getElementById("modeSel").addEventListener("change", ()=>{ syncBlockOptions(); attachFirestoreListener(); renderExtrasTable(); render(); });
+  daySel.addEventListener("change", ()=>{ attachFirestoreListener(); renderExtrasTable(); render(); });
+  document.getElementById("blockSel").addEventListener("change", ()=>{ attachFirestoreListener(); renderExtrasTable(); render(); });
+  document.getElementById("searchBox").addEventListener("input", render);
+
+  document.getElementById("exportCsv").addEventListener("click", exportCsv);
+  document.getElementById("resetPositions").addEventListener("click", ()=>{
+    if(isLocked()){ toast("Editing is locked."); return; }
+    localStorage.removeItem(STORAGE_KEY_POS);
+    savePosOverrides({});
+    toast("Saved positions cleared for everyone.");
+    render();
+  });
+  document.getElementById("printBtn").addEventListener("click", ()=>window.print());
+
+  document.getElementById("lockBtn").addEventListener("click", async ()=>{
+    if(!isLocked()){
+      setLocked(true);
+      applyLockState();
+      toast("Editing locked (view-only).");
+      // Save current landing view for everyone (so the homepage opens on this same view)
+      try {
+        if(window.__setLandingView){
+          const ok = await window.__setLandingView(
+            document.getElementById("modeSel")?.value,
+            document.getElementById("daySel")?.value,
+            document.getElementById("blockSel")?.value
+          );
+          if(!ok) toast("Landing view did NOT save (check Firestore Rules for appState).");
+        }
+      } catch(e) {
+        toast("Landing view did NOT save (check Firestore Rules for appState).");
+      }
+      return;
+    }
+    const code = prompt("Enter passcode to unlock editing:");
+    if(code === LOCK_PASSCODE){
+      setLocked(false);
+      applyLockState();
+      toast("Editing unlocked.");
+      renderExtrasTable();
+      render();
+    } else {
+      toast("Incorrect passcode.");
+    }
+  });
+
+  document.getElementById("addExtra").addEventListener("click", addExtraFromInput);
+  document.getElementById("clearExtras").addEventListener("click", ()=>{
+    if(isLocked()){ toast("Editing is locked."); return; }
+    saveExtrasForScope([]);
+    toast("Extras cleared for this day/block.");
+    renderExtrasTable();
+    render();
+  });
+
+  renderExtrasTable();
+  attachFirestoreListener();
+  render();
+  applyLockState();
+}
+
+function syncBlockOptions(){
+  const mode = document.getElementById("modeSel").value;
+  const blocks = blocksForMode(mode);
+  const blockSel = document.getElementById("blockSel");
+  const cur = blockSel.value;
+  blockSel.innerHTML = blocks.map(b=>`<option value="${b.id}">${b.label}</option>`).join("");
+  blockSel.value = blocks.some(b=>b.id===cur) ? cur : blocks[0].id;
+}
+
+function exportCsv(){
+  const posOverrides = loadPosOverrides();
+  const header = ["Employee","Seniority","Position","DaysOff","Present",...DAYS];
+  const esc = (v)=>{
+    const s = String(v ?? "");
+    if(/[,"\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+    return s;
+  };
+  const lines = [header.join(",")];
+  for(const r of BASE){
+    const row = [
+      up(r.Employee), r.Seniority, getPosition(r,posOverrides), r.DaysOff, r.Present,
+      r.Schedule.MONDAY, r.Schedule.TUESDAY, r.Schedule.WEDNESDAY, r.Schedule.THURSDAY, r.Schedule.FRIDAY, r.Schedule.SATURDAY, r.Schedule.SUNDAY
+    ];
+    lines.push(row.map(esc).join(","));
+  }
+  const csv = lines.join("\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "positions_and_schedules.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function addExtraFromInput(){
+  if(isLocked()){ toast("Editing is locked."); return; }
+  const input = document.getElementById("extraEmployee").value.trim();
+  if(!input) { toast("Type/select an employee name first."); return; }
+  const name = input; // may be uppercase
+  const rec = BASE.find(r=>up(r.Employee) === up(name));
+  if(!rec) { toast("That name was not found in the database."); return; }
+
+  const pos = document.getElementById("extraPos").value.toUpperCase();
+  const extras = loadExtrasForScope();
+
+  if(extras.some(e=>up(e.Employee)===up(rec.Employee))) {
+    toast("Already added as an extra for this day/block.");
+    return;
+  }
+
+  extras.push({
+    Employee: rec.Employee,
+    Seniority: rec.Seniority,
+    DaysOff: rec.DaysOff,
+    Position: pos
+  });
+  saveExtrasForScope(extras);
+  document.getElementById("extraEmployee").value = "";
+  toast("Added to extras.");
+  renderExtrasTable();
+  render();
+}
+
+function renderCoverageMini(pos, rows, selectedDay, mode, block){
+  const hrs = hoursForBlock(block);
+
+  // Count scheduled on each hour within the block
+  const byHour = hrs.map((h,i)=>{
+    let scheduled = 0;
+    for(const r of rows){
+      const k = `${r.Employee}||${r.Seniority}`;
+      const sel = getHoursSetting(k);
+      let worksPortion = true;
+      if(sel === "1/2") worksPortion = i < 2;
+      else if(sel === "2/2") worksPortion = i >= 2;
+      if(!worksPortion) continue;
+
+      if(r._extra){
+        scheduled += 1;
+        continue;
+      }
+      const sched = r.Schedule;
+      const shift = parseShift(sched);
+      if(overlapsHour(shift, h)) scheduled += 1;
+    }
+
+    const adequate = Number(adequateFor(pos, selectedDay, mode, h) ?? 0);
+    const delta = scheduled - adequate;
+    const cls = delta < 0 ? 'deltaShort' : (delta > 0 ? 'deltaOver' : 'deltaEven');
+    const label = delta < 0 ? `SHORT ${Math.abs(delta)}` : (delta > 0 ? `OVER ${delta}` : 'STAFFED');
+    return { h, adequate, scheduled, cls, label };
+  });
+
+  const minAdeq = Math.min(...byHour.map(x=>x.adequate));
+  const maxAdeq = Math.max(...byHour.map(x=>x.adequate));
+  const adequateLine = (minAdeq===maxAdeq) ? `${minAdeq}` : `${minAdeq}–${maxAdeq}`;
+
+  const worst = byHour.reduce((acc,x)=>{
+    const d = x.scheduled - x.adequate;
+    if(d < acc.delta) return {delta:d, label:x.label};
+    return acc;
+  }, {delta:0, label:'OK'});
+  const best = byHour.reduce((acc,x)=>{
+    const d = x.scheduled - x.adequate;
+    if(d > acc.delta) return {delta:d, label:x.label};
+    return acc;
+  }, {delta:0, label:'OK'});
+
+  let periodStatus = 'OK';
+  let periodCls = 'deltaEven';
+  if(worst.delta < 0){ periodStatus = `SHORT (max) ${Math.abs(worst.delta)}`; periodCls = 'deltaShort'; }
+  else if(best.delta > 0){ periodStatus = `OVER (max) ${best.delta}`; periodCls = 'deltaOver'; }
+
+  return `
+    <div class="covMini">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:22%">Hour</th>
+            <th style="width:26%">Adequate</th>
+            <th style="width:26%">Scheduled</th>
+            <th style="width:26%">Status</th>
+          </tr>
+        </thead>
+        <tbody>          ${byHour.map(x=>`
+            <tr>
+              <td class="mono">${String(x.h).padStart(2,'0')}00</td>
+              <td class="mono">${x.adequate}</td>
+              <td class="mono">${x.scheduled}</td>
+              <td class="mono ${x.cls}">${escapeHtml(x.label)}</td>
+            </tr>
+          `).join('')}        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderPosTable(pos, rows, selectedDay, mode, posOverrides, block){
+  const pretty = pos[0] + pos.slice(1).toLowerCase();
+  return `
+    <div>
+      <div class="muted" style="font-size:12px;margin:0 0 6px 2px;">${pretty} • ${rows.length}</div>
+      ${renderCoverageMini(pos, rows, selectedDay, mode, block)}
+      <div class="posWithHours">
+        <table>
+          <thead>
+            <tr>
+              <th class="hrsCol">Hrs</th>
+              <th style="width:34%">Employee</th>
+              <th style="width:18%">Shift</th>
+              <th style="width:16%">Days Off</th>
+              <th style="width:10%">Days Off In</th>
+              <th style="width:10%">Seniority</th>
+              <th style="width:12%">Pos</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(r=>{
+              const score = techScore(selectedDay, r.DaysOff);
+              const k = `${r.Employee}||${r.Seniority}`;
+              const cur = getHoursSetting(k);
+              const curPos = r._extra ? r.Position : getPosition(r, posOverrides);
+              const shift = r._extra ? "EXTRA" : r.Schedule;
+              const badge = r._extra ? (r._dayOff ? ' <span class="muted">(EXTRA • DAY OFF)</span>' : ' <span class="muted">(EXTRA)</span>') : '';
+              return `
+                <tr>
+                  <td class="hrsCol">
+                    <select class="hrsSel" data-action="hrsChange" data-key="${escapeHtml(k)}" data-extra="${r._extra ? "1" : "0"}" data-extra-index="${r._extraIndex ?? ""}">
+                      ${hoursOptions(cur)}
+                    </select>
+                  </td>
+                  <td>${escapeHtml(up(r.Employee))}${hoursSuffix(cur)}${badge}</td>
+                  <td class="mono">${escapeHtml(up(shift))}</td>
+                  <td class="mono">${escapeHtml(up(r.DaysOff||""))}</td>
+                  <td class="mono">${score===999 ? "—" : String(score)}</td>
+                  <td class="mono">${Number(r.Seniority)}</td>
+                  <td>
+                    <select class="posSel" data-action="posChange" data-key="${escapeHtml(k)}" data-extra="${r._extra ? "1" : "0"}" data-extra-index="${r._extraIndex ?? ""}">
+                      ${positionsOptions(curPos)}
+                    </select>
+                  </td>
+                </tr>
+              `;
+            }).join("")}
+          </tbody>
+        </table>
+
+        </div>
+    </div>
+  `;
+}
+
+
+// Dispatcher daily assignments: show all 3 blocks for the selected day
+
+function renderDispatcherDayAssignments(selectedDay, mode, posOverrides){
+  const grid = document.getElementById("dpDailyAssignmentsGrid");
+  if(!grid) return;
+
+  const _token = Date.now();
+  renderDispatcherDayAssignments._token = _token;
+
+  const assignmentsFixed = ["NORTH","EAST","SOUTH","WEST","NORTHWEST","CENTRAL","DC1","DC2","R1","R2"];
+
+  function keyForRec(r){
+    return String(up(r.Employee||"")) + "||" + String(r.Seniority||"");
+  }
+
+  function sortExtrasLocal(list){
+    return list.slice().sort((a,b)=>{
+      const ka = `${a.Employee}||${a.Seniority}`;
+      const kb = `${b.Employee}||${b.Seniority}`;
+      const ra = hoursRank(getHoursSetting(ka));
+      const rb = hoursRank(getHoursSetting(kb));
+      if(ra !== rb) return ra - rb;
+      const sa = techScore(selectedDay, a.DaysOff);
+      const sb = techScore(selectedDay, b.DaysOff);
+      if(sa !== sb) return sa - sb;
+      const na = Number(a.Seniority), nb = Number(b.Seniority);
+      if(na !== nb) return na - nb;
+      return String(a.Employee).localeCompare(String(b.Employee));
+    });
+  }
+
+  // Use canonical blocks (includes start/end minutes) so we can filter by who
+  // actually works during each 4-hour time frame.
+  const blocks = blocksForMode(mode);
+
+  // Render using cached scope data when possible
+  grid.innerHTML = blocks.map(block=>{
+    const sk = scopeKeyFor(mode, selectedDay, block.id);
+    const cached = _scopeCache[sk] || null;
+
+    if(!cached){
+      _ensureScopeCached(mode, selectedDay, block.id).then(()=>{
+        if(renderDispatcherDayAssignments._token === _token){
+          try { render(); } catch {}
+        }
+      });
+    }
+
+    const vMap = cached && cached.dpVisual ? cached.dpVisual : {};
+    const vLocked = cached ? !!cached.dpVisualLocked : false;
+
+    // Build the list of scheduled dispatchers for this day *and* this 4-hour block
+    // (only show whoever actually works during this time frame)
+    const normal = BASE.map(r=>{
+      const sched = (r.Schedule||{})[selectedDay.toUpperCase()];
+      const shift = parseShift(sched);
+      if(!shift) return null;
+      if(!overlapsInterval(shift, block)) return null;
+      return {
+        ...r,
+        Position: up(getPosition(r, posOverrides)),
+        _extra:false,
+        _dayOff: isDayOff(r.DaysOff, selectedDay)
+      };
+    }).filter(Boolean).filter(r=> up(r.Position)==="DISPATCHER");
+
+    const exArr = (cached && Array.isArray(cached.extras)) ? cached.extras : [];
+    const extras = exArr.map((e,idx)=>({
+      Employee:e.Employee, Seniority:e.Seniority, DaysOff:e.DaysOff,
+      Position: up(e.Position||"CALLTAKER"), Schedule:"",
+      _extra:true, _extraIndex: idx, _dayOff: isDayOff(e.DaysOff, selectedDay)
+    })).filter(x=>up(x.Position)==="DISPATCHER");
+
+    const people = sortPeople(normal, selectedDay)
+      .concat(sortExtrasLocal(extras.filter(x=>x._dayOff)))
+      .concat(sortExtrasLocal(extras.filter(x=>!x._dayOff)));
+
+    const optionsBase = people.map(r=>{
+      const k = keyForRec(r);
+      const nm = up(r.Employee||"");
+      const badge = r._extra ? (r._dayOff ? " (EXTRA • DAY OFF)" : " (EXTRA)") : "";
+      return { key:k, label: `${nm}${badge}` };
+    });
+
+    // Used selections to keep uniqueness (one dispatcher per channel) within this scope
+    const usedKeys = new Set(Object.entries(vMap).filter(([_,v])=>v).map(([_,v])=>String(v)));
+
+    function buildSelect(label){
+      const cur = String(vMap[label] || "");
+      const usedMinusCur = new Set([...usedKeys]);
+      if(cur) usedMinusCur.delete(cur);
+
+      // If cur isn't scheduled anymore, include it so you can see what was picked
+      let curOpt = "";
+      if(cur && !optionsBase.some(o=>o.key===cur)){
+        curOpt = `<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} (not scheduled)</option>`;
+      }
+
+      const opts = [
+        `<option value="">— Blank / Clear —</option>`,
+        curOpt,
+        ...optionsBase.map(o=>{
+          const taken = usedMinusCur.has(o.key) && o.key !== cur;
+          return `<option value="${escapeHtml(o.key)}" ${o.key===cur?"selected":""} >${escapeHtml(o.label)}${taken?" (swap)":""}</option>`;
+        })
+      ].filter(Boolean).join("");
+
+      return `<select class="dpAssignSel" data-vdp-block="${escapeHtml(block.id)}" data-vdp-label="${escapeHtml(label)}" ${vLocked?"disabled":""}>${opts}</select>`;
+    }
+
+    const rows = assignmentsFixed.map(lbl=>`
+      <tr>
+        <td style="width:40%; font-weight:900;">${escapeHtml(lbl)}</td>
+        <td>${buildSelect(lbl)}</td>
+      </tr>
+    `).join("");
+
+    const lockText = vLocked ? "Locked" : "Unlocked";
+    const resetDis = vLocked ? "disabled" : "";
+
+    return `
+      
+
+<div class="dpDailyCard">
+        <div class="hdr">
+          <div class="lbl">${escapeHtml(block.label)}</div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button class="secondary vdpResetBtn" data-vdp-block="${escapeHtml(block.id)}" ${resetDis}>Reset</button>
+            <button class="secondary vdpLockBtn" data-vdp-block="${escapeHtml(block.id)}">${lockText}</button>
+            <button id="copyDispatcherAssignments" class="secondary vdpCopyBtn">Copy</button>
+    
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th style="width:40%;">ASSIGNMENT</th><th>DISPATCHER</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  }).join("");
+
+  // Wire up change handlers
+  grid.querySelectorAll("select[data-vdp-block]").forEach(sel=>{
+    sel.addEventListener("change", async (e)=>{
+      const blockId = e.target.getAttribute("data-vdp-block");
+      const label = e.target.getAttribute("data-vdp-label");
+      const val = e.target.value || "";
+
+// Prevent assigning anyone marked as UNSCHEDULED
+const chosenTxt = (e.target.options && e.target.selectedIndex >= 0)
+  ? String(e.target.options[e.target.selectedIndex].textContent||"")
+  : "";
+if(chosenTxt.toUpperCase().includes("UNSCHEDULED")){
+  e.target.value = "";
+  toast("Not allowed: UNSCHEDULED employees cannot be assigned here.");
+  render();
+  return;
+}
+      await withScopeAsync(mode, selectedDay, blockId, async ()=>{
+        if(isDpVisualLockedForScope()){
+          toast("This 4-hour block is locked (view only).");
+          render();
+          return;
+        }
+        const map = loadDpVisualForScope();
+
+        // Allow swaps: if the chosen person is already assigned to another label,
+        // swap their assignment with the current label's prior value.
+        const prior = String(map[label] || "");
+        if(val){
+          let otherLabel = "";
+          for(const [lab, empKey] of Object.entries(map)){
+            if(lab !== label && String(empKey||"") === String(val)){
+              otherLabel = lab;
+              break;
+            }
+          }
+          if(otherLabel){
+            if(prior) map[otherLabel] = prior;
+            else delete map[otherLabel];
+          }
+          map[label] = val;
+        } else {
+          delete map[label];
+        }
+
+        await saveDpVisualForScope(map);
+
+        // IMPORTANT: keep the per-scope cache in sync so the top 3-block view
+        // updates immediately (otherwise it can look like changes won't apply).
+        try{
+          const sk = scopeKeyFor(mode, selectedDay, blockId);
+          if(_scopeCache && _scopeCache[sk]){
+            _scopeCache[sk].dpVisual = _normalizeDpVisual(map);
+          }
+        }catch(e){}
+      });
+      render();
+    });
+  });
+
+  // Reset buttons
+  grid.querySelectorAll("button.vdpResetBtn").forEach(btn=>{
+    btn.addEventListener("click", async (e)=>{
+      const blockId = btn.getAttribute("data-vdp-block");
+      await withScopeAsync(mode, selectedDay, blockId, async ()=>{
+        if(isDpVisualLockedForScope()){
+          toast("This 4-hour block is locked (view only).");
+          return;
+        }
+        await clearDpVisualForScope();
+
+        // Sync cache so UI reflects reset immediately
+        try{
+          const sk = scopeKeyFor(mode, selectedDay, blockId);
+          if(_scopeCache && _scopeCache[sk]){
+            _scopeCache[sk].dpVisual = {};
+          }
+        }catch(e){}
+      });
+      render();
+    });
+  });
+
+  // Lock buttons
+  grid.querySelectorAll("button.vdpLockBtn").forEach(btn=>{
+    btn.addEventListener("click", async (e)=>{
+      const blockId = btn.getAttribute("data-vdp-block");
+      await withScopeAsync(mode, selectedDay, blockId, async ()=>{
+        const cur = isDpVisualLockedForScope();
+        if(cur){
+          const pass = prompt("Enter passcode to unlock:");
+          if(String(pass||"").trim() !== LOCK_PASSCODE){
+            toast("Incorrect passcode.");
+            return;
+          }
+          await setDpVisualLockedForScope(false);
+        } else {
+          await setDpVisualLockedForScope(true);
+        }
+
+        // Sync cache so the disabled state updates immediately
+        try{
+          const sk = scopeKeyFor(mode, selectedDay, blockId);
+          if(_scopeCache && _scopeCache[sk]){
+            _scopeCache[sk].dpVisualLocked = isDpVisualLockedForScope();
+          }
+        }catch(e){}
+      });
+      render();
+    });
+  });
+}
+
+
+function render(){
+  const mode = document.getElementById("modeSel").value;
+  const selectedDay = document.getElementById("daySel").value;
+  const blockId = document.getElementById("blockSel").value;
+  const q = document.getElementById("searchBox").value.trim().toLowerCase();
+  const posOverrides = loadPosOverrides();
+  const block = blocksForMode(mode).find(b=>b.id===blockId) || blocksForMode(mode)[0];
+
+  // Top section: dispatcher assignments across all 3 blocks for the selected day
+  renderDispatcherDayAssignments(selectedDay, mode, posOverrides);
+
+
+  const normal = [];
+  for(const r of BASE){
+    const present = String(r.Present||"YES").toUpperCase() !== "NO";
+    if(!present) continue;
+    const sched = r.Schedule[selectedDay.toUpperCase()];
+    const shift = parseShift(sched);
+    if(!shift) continue;
+    if(q && !up(r.Employee).toLowerCase().includes(q)) continue;
+    if(!overlapsInterval(shift, block)) continue;
+    const _pos = getPosition(r,posOverrides);
+    if(_pos === "OUT") continue;
+    normal.push({
+      Employee:r.Employee, Seniority:r.Seniority, DaysOff:r.DaysOff,
+      Schedule:sched, Position:_pos, _extra:false
+    });
+  }
+
+  const extrasRaw = loadExtrasForScope();
+  const extras = extrasRaw.map((e,idx)=>({
+    Employee:e.Employee,
+    Seniority:e.Seniority,
+    DaysOff:e.DaysOff,
+    Position:up(e.Position||"CALLTAKER"),
+    Schedule:"",
+    _extra:true,
+    _extraIndex: idx,
+    _dayOff: isDayOff(e.DaysOff, selectedDay)
+  })).filter(r=> !q || up(r.Employee).toLowerCase().includes(q));
+
+  const normalSet = new Set(normal.map(r=>up(r.Employee)+"||"+r.Seniority));
+  const extrasFiltered = extras.filter(r=> !normalSet.has(up(r.Employee)+"||"+r.Seniority));
+
+  function bucketize(list){
+    const b={CALLTAKER:[], DISPATCHER:[], PIC:[]};
+    for(const r of list){
+      const p=up(r.Position||"CALLTAKER");
+      if(b[p]) b[p].push(r);
+    }
+    return b;
+  }
+  const nb = bucketize(normal);
+  const eb = bucketize(extrasFiltered);
+
+  // Extra rule: extras working on their day off go at the top of the EXTRAS section (after regular staff).
+  // Within EXTRAS: 4 and 1/2 together (both present at the start of the block), then 2/2 last.
+  function sortExtras(list){
+    return list.slice().sort((a,b)=>{
+      const ka = `${a.Employee}||${a.Seniority}`;
+      const kb = `${b.Employee}||${b.Seniority}`;
+      const ra = hoursRank(getHoursSetting(ka));
+      const rb = hoursRank(getHoursSetting(kb));
+      if(ra !== rb) return ra - rb;
+      const sa = techScore(selectedDay, a.DaysOff);
+      const sb = techScore(selectedDay, b.DaysOff);
+      if(sa !== sb) return sa - sb;
+      const na = Number(a.Seniority), nb = Number(b.Seniority);
+      if(na !== nb) return na - nb;
+      return String(a.Employee).localeCompare(String(b.Employee));
+    });
+  }
+
+  function mergeByRule(pos){
+    const extraDayOff = eb[pos].filter(r=>r._dayOff);
+    const extraOther  = eb[pos].filter(r=>!r._dayOff);
+    return sortPeople(nb[pos], selectedDay)
+      .concat(sortExtras(extraDayOff))
+      .concat(sortExtras(extraOther));
+  }
+
+  const ct = mergeByRule("CALLTAKER");
+  const dp = mergeByRule("DISPATCHER");
+  const pc = mergeByRule("PIC");
+
+  const total = ct.length + dp.length + pc.length;
+
+  document.getElementById("content").innerHTML = `
+    <div class="sectionTitle">
+      <h2>Lists for ${block.label} • ${selectedDay} • ${mode==="days" ? "Days" : "Nights"}</h2>
+      <div class="pill">${total} total</div>
+    </div>
+    <div class="posGrid">
+      ${renderPosTable("CALLTAKER", ct, selectedDay, mode, posOverrides, block)}
+      ${renderPosTable("DISPATCHER", dp, selectedDay, mode, posOverrides, block)}
+      ${renderPosTable("PIC", pc, selectedDay, mode, posOverrides, block)}
+    </div>
+  `;
+
+  document.querySelectorAll("[data-action='posChange']").forEach(sel=>{
+    sel.addEventListener("change", (e)=>{
+      if(isLocked()){ toast("Editing is locked."); render(); return; }
+      const k = e.target.getAttribute("data-key");
+      const val = e.target.value.toUpperCase();
+      const posOverridesBefore = loadPosOverrides();
+      let oldPos = null;
+      try {
+        const rec = BASE.find(r => baseKey(r) === k);
+        if(rec) oldPos = getPosition(rec, posOverridesBefore);
+        else oldPos = (posOverridesBefore[k] || '').toUpperCase();
+      } catch { oldPos = (posOverridesBefore[k] || '').toUpperCase(); }
+      const isExtra = e.target.getAttribute("data-extra")==="1";
+      if(isExtra){
+        const idx = Number(e.target.getAttribute("data-extra-index"));
+        const ex = loadExtrasForScope();
+        if(ex[idx]) ex[idx].Position = val;
+        saveExtrasForScope(ex);
+        renderExtrasTable();
+        render();
+        return;
+      }
+      // OUT is shift-wide and stored separately (not per-block)
+      if(val === "OUT"){
+        // Clear any override and mark OUT globally
+        const map = loadPosOverrides();
+        try{ delete map[k]; }catch{}
+        savePosOverrides(map);
+        setOutStatus(k, true);
+        clearKeyFromScope(k).catch((e)=>{ console.error(e); });
+        render();
+        return;
+      } else {
+        // Coming back from OUT (or normal change)
+        setOutStatus(k, false);
+        const map = loadPosOverrides();
+        // If selecting base position, remove override; otherwise set override
+        let basePos = "DISPATCHER";
+        try{
+          const rec = BASE.find(r => baseKey(r) === k);
+          if(rec) basePos = String(rec.Position||"DISPATCHER").toUpperCase();
+        }catch{}
+        if(val === basePos) { try{ delete map[k]; }catch{} }
+        else { map[k] = val; }
+        savePosOverrides(map);
+      }
+      if(oldPos && oldPos !== val){
+        // If employee moved between roles, clear any old assignment/break in the CURRENT scope to prevent blocking.
+        clearKeyFromScope(k).catch((e)=>{ console.error(e); });
+      }
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-action='hrsChange']").forEach(sel=>{
+    sel.addEventListener("change", (e)=>{
+      if(isLocked()){ toast("Editing is locked."); render(); return; }
+      const k = e.target.getAttribute("data-key");
+      const val = e.target.value;
+      setHoursSetting(k, val);
+      applyHoursVisual(e.target);
+      render();
+    });
+
+  // Ensure Hours badges reflect current selections
+  applyAllHoursVisuals();
+  });
+
+  _lastCtx = { selectedDay, mode, block, buckets: {CALLTAKER:ct, DISPATCHER:dp, PIC:pc} };
+
+  renderPrintSheets(selectedDay, mode, block, {CALLTAKER:ct, DISPATCHER:dp, PIC:pc});
+  renderBreakPicker(selectedDay, mode, block, {CALLTAKER:ct, DISPATCHER:dp, PIC:pc});
+  applyLockState();
+}
+
+function buildSlotRows(people, slots, perSlot){
+  const rows=[];
+  let idx=0;
+  for(const t of slots){
+    for(let k=0;k<perSlot;k++) {
+      rows.push({time:t, name: (idx < people.length) ? people[idx].Employee : "", daysOff: (idx < people.length) ? people[idx].DaysOff : ""});
+      if(idx < people.length) idx++;
+    }
+  }
+  const overflow = Math.max(0, people.length - (slots.length * perSlot));
+  return {rows, overflow};
+}
+
+function renderSheetSection(title, rows, overflow){
+  return `
+    <div class="printSection">
+      <div class="printSectionTitle">${title}${overflow>0 ? ` • (+${overflow} not shown)` : ""}</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:30%">BREAK</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r=>`
+            <tr>
+              <td>${escapeHtml(up(r.name))} ${extraNote(r) ? "[" + extraNote(r) + "]" : ""} ${extraNote(r) ? "[" + extraNote(r) + "]" : ""} ${r.daysOff ? `(${escapeHtml(up(r.daysOff))})` : ""} ${escapeHtml(extraNote(r) ? "[" + extraNote(r) + "]" : "")}</td>
+              <td>${r.time ? escapeHtml(slotLabelHHMM(r.time)) : 'OPEN'}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function extraNote(rec){
+  if(!rec) return "";
+  if(!rec._extra) return "";
+  const parts = ["EXTRA"];
+  if(rec._dayOff) parts.push("WORKING DAY OFF");
+  parts.push("OVERTIME");
+  return parts.join(" - ");
+}
+
+function renderDpPicTwoColumn(title, people, slots, picksByTime, perSlot){
+  // Left: up to 10 names (including extras), with notes.
+  // Right: break times with RELIEF columns filled from picks; OPEN for empty.
+  const capped = (people||[]).slice(0,10);
+  const padCount = Math.max(0, 10 - capped.length);
+  for(let i=0;i<padCount;i++) capped.push({Employee:"", DaysOff:"", _extra:false, _dayOff:false});
+
+  const colLabels = perSlot===2 ? ["RELIEF 1","RELIEF 2"] : ["RELIEF 1"];
+
+  return `
+    <div class="printSection">
+      <div class="printSectionTitle">${title}</div>
+      <div class="dpPrintWrap">
+        <div class="dpNames">
+          <table class="dpMiniTable">
+            <thead>
+              <tr>
+                <th style="width:30%">NOTES</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${capped.map(p=>{
+                const nm = p.Employee ? up(p.Employee) : "";
+                const note = extraNote(p);
+                return `
+                  <tr>
+                    <td>${escapeHtml(nm)}</td>
+                    <td>${escapeHtml(note)}</td>
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="dpTimes">
+          <table class="dpMiniTable">
+            <thead>
+              <tr>
+                <th style="width:32%">TIME</th>
+                <th style="width:${perSlot===2 ? '34' : '68'}%">${colLabels[0]}</th>
+                ${perSlot===2 ? `<th style="width:34%">${colLabels[1]}</th>` : ``}
+              </tr>
+            </thead>
+            <tbody>
+              ${slots.map((t,i)=>{
+                const tm = t;
+                const names = (picksByTime && picksByTime.get(tm)) ? picksByTime.get(tm) : [];
+                // Even split across RELIEF 1 / RELIEF 2: if only one person picked a time, alternate columns by row.
+                let n1 = "OPEN";
+                let n2 = "OPEN";
+                if(perSlot===2){
+                  if(names.length>=2){
+                    n1 = escapeHtml(names[0]);
+                    n2 = escapeHtml(names[1]);
+                  } else if(names.length===1){
+                    const nm = escapeHtml(names[0]);
+                    if(i % 2 === 0) n1 = nm; else n2 = nm;
+                  }
+                } else {
+                  n1 = names[0] ? escapeHtml(names[0]) : "OPEN";
+                }
+                return `
+                  <tr>
+                    <td>${escapeHtml(slotLabelHHMM(tm))}</td>
+                    <td>${n1}</td>
+                    ${perSlot===2 ? `<td>${n2}</td>` : ``}
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+        </table>
+      </div>
+      <div class="smallNote" style="padding:6px 8px; width:88%; margin:0 auto;"></div>
+    </div>
+  `;
+}
+
+
+
+function renderDispatcherPrint(title, people, slots, breaksByKey, assignmentsMap){
+  // Summary at top: NAME | ASSIGNMENT | SELECTED TIME
+  const capped = (people||[]).slice(0, 10);
+  const summaryRows = capped.map(p=>{
+    const key = `${up(p.Employee||"")}||${Number(p.Seniority)}`;
+    const nm = up(p.Employee||"");
+    const asg = (assignmentsMap && Object.prototype.hasOwnProperty.call(assignmentsMap, key)) ? String(assignmentsMap[key]||"") : "";
+    const tm = (breaksByKey && breaksByKey.get(key)) ? String(breaksByKey.get(key) || "") : "";
+    return { key, nm, asg, tm };
+  });
+
+  // Sort by selected time (soonest to latest), blanks last
+  summaryRows.sort((a,b)=>{
+    const ta = (a.tm||'');
+    const tb = (b.tm||'');
+    if(!ta && !tb) return 0;
+    if(!ta) return 1;
+    if(!tb) return -1;
+    // times are 'HHMM' strings
+    return ta.localeCompare(tb);
+  });
+
+
+  // Names list (10 rows) with assignment next to name
+  const nameRows = capped.slice();
+  while(nameRows.length < 10) nameRows.push({Employee:"", Seniority:""});
+
+  // Relief columns intentionally left BLANK (no OPEN). Reliefs fill these in by hand.
+  return `
+    <div class="printSection">
+      <div class="printSectionTitle">${title}</div>
+
+      <div style="width:88%; margin:0 auto 10px;">
+        <table class="dpMiniTable" style="width:100%;">
+          <thead>
+            <tr>
+              <th style="width:48%">NAME</th>
+              <th style="width:26%">SELECTED TIME</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${summaryRows.map(r=>`
+              <tr>
+                <td>${escapeHtml(r.nm)}</td>
+                <td>${escapeHtml(r.asg)}</td>
+                <td>${r.tm ? escapeHtml(slotLabelHHMM(r.tm)) : ''}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div style="width:88%; margin:0 auto 10px;">
+        <table class="dpMiniTable" style="width:100%;">
+            <thead>
+              <tr>
+                <th style="width:32%">TIME</th>
+                <th>RELIEF 1</th><th>RELIEF 2</th></tr>
+            </thead>
+            <tbody>
+              ${slots.map(tm=>`
+                <tr>
+                  <td>${escapeHtml(slotLabelHHMM(tm))}</td>
+                  <td></td>
+                  <td></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+      </div>
+      <div class="smallNote" style="padding:6px 8px; width:88%; margin:0 auto;"></div>
+    </div>
+  `;
+}
+function renderReliefTable(title, slots, picksByTime, perSlot){
+  const colLabels = perSlot===2 ? ["RELIEF 1","RELIEF 2"] : ["RELIEF 1"];
+  return `
+    <div class="printSection dpReliefHalf">
+      <div class="printSectionTitle">${title}</div>
+      <table class="dpMiniTable" style="width:100%; margin:0 auto;">
+        <thead>
+          <tr>
+            <th style="width:32%">TIME</th>
+            <th style="width:${perSlot===2 ? '34' : '68'}%">${colLabels[0]}</th>
+            ${perSlot===2 ? `<th style="width:34%">${colLabels[1]}</th>` : ``}
+          </tr>
+        </thead>
+        <tbody>
+          ${slots.map(tm=>{
+            const names = (picksByTime && picksByTime.get(tm)) ? picksByTime.get(tm) : [];
+            const n1 = names[0] ? escapeHtml(names[0]) : "OPEN";
+            const n2 = perSlot===2 ? (names[1] ? escapeHtml(names[1]) : "OPEN") : "";
+            return `
+              <tr>
+                <td>${escapeHtml(slotLabelHHMM(tm))}</td>
+                <td>${n1}</td>
+                ${perSlot===2 ? `<td>${n2}</td>` : ``}
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderPrintSheets(selectedDay, mode, block, buckets){
+  const slots = breakSlotsForBlock(block);
+  const meta = `${mode==="days" ? "Days" : "Nights"} • ${selectedDay} • Block ${block.label}`;
+
+  const calltakers = buckets.CALLTAKER || [];
+  const dispatchers = buckets.DISPATCHER || [];
+  const pics = buckets.PIC || [];
+
+  const breaks = loadBreaksForScope();
+  const assigns = loadAssignmentsForScope();
+  const keyForPrint = (r)=>`${up(r.Employee)}||${Number(r.Seniority)}`;
+
+  function timeByKey(pos){
+    const mp = new Map();
+    for(const s of (breaks[pos]||[])){
+      if(s && s.key) mp.set(String(s.key), String(s.time||""));
+    }
+    return mp;
+  }
+
+  // Condensed CALLTAKER: one row per person, show selected time or OPEN
+  const ctTimes = timeByKey("CALLTAKER");
+  const ct = {
+    rows: calltakers.map(r=>({
+      time: ctTimes.get(keyForPrint(r)) || "",
+      name: r.Employee || "",
+      daysOff: r.DaysOff || "",
+      _extra: !!r._extra,
+      _dayOff: !!r._dayOff
+    })),
+    overflow: 0
+  };
+
+  function namesByTime(pos, people){
+    const mp = new Map();
+    const tbk = timeByKey(pos);
+    const seen = new Set();
+
+    // Prefer current bucket order
+    for(const r of (people||[])){
+      const k = keyForPrint(r);
+      const t = tbk.get(k) || "";
+      if(!t) continue;
+      const nm = up(r.Employee||"");
+      if(!nm) continue;
+      if(!mp.has(t)) mp.set(t, []);
+      mp.get(t).push(nm);
+      seen.add(nm + "@@" + t);
+    }
+
+    // Include any saved selections not in the current bucket (if any)
+    for(const s of (breaks[pos]||[])){
+      if(!s || !s.time) continue;
+      const t = String(s.time);
+      const nm = up(String(s.name||"")) || "";
+      if(!nm) continue;
+      const sig = nm + "@@" + t;
+      if(seen.has(sig)) continue;
+      if(!mp.has(t)) mp.set(t, []);
+      mp.get(t).push(nm);
+      seen.add(sig);
+    }
+    return mp;
+  }
+
+  const dpTimesByKey = timeByKey("DISPATCHER");
+  const dpByTime = namesByTime("DISPATCHER", dispatchers);
+  const picByTime = namesByTime("PIC", pics);
+
+  const page1 = `
+    <div class="printPage pageBreakAfter">
+      <div class="printTitle">CALL TAKER BREAKS (${block.label.replace("–","-")})</div>
+      <div class="printMeta">${escapeHtml(meta)}</div>
+      ${renderSheetSection("CALL TAKER", ct.rows, ct.overflow)}
+    </div>
+  `;
+
+  const page2 = `
+    <div class="printPage">
+      <div class="printTitle">DISPATCHER BREAKS (${block.label.replace("–","-")})</div>
+      <div class="printMeta">${escapeHtml(meta)}</div>
+      ${renderDispatcherPrint("DISPATCHER", dispatchers, slots, dpTimesByKey, (assigns && assigns.DISPATCHER) ? assigns.DISPATCHER : {})}
+      </div>
+  `;
+
+  document.getElementById("printCard").innerHTML = page1 + page2;
+}
+
+// Interactive break picker
+function renderBreakPicker(selectedDay, mode, block, buckets){
+  const card = document.getElementById("breakPickerCard");
+  if(!card) return;
+
+  const slots = breakSlotsForBlock(block);
+  const slotOpts = slots.map(t=>({value:t, label: slotLabelHHMM(t)}));
+
+  const ctSeatOpts = Array.from({length:30}, (_,i)=>`CT${i+1}`);
+  const dpSeatOpts = DP_ASSIGN_OPTS;
+  const picSeatOpts = ['TELETYPES','REPORTS','RADIO','EXTRA'];
+
+
+  const breaks = loadBreaksForScope();
+  const assigns = loadAssignmentsForScope();
+
+  // Normalize current selections: array of {key,name,time}
+  for(const p of ["CALLTAKER","DISPATCHER","PIC"]){
+    breaks[p] = (breaks[p]||[]).filter(x=>x && x.key);
+  }
+
+  const peopleByPos = {
+    CALLTAKER: (buckets.CALLTAKER||[]),
+    DISPATCHER: (buckets.DISPATCHER||[]),
+    PIC: (buckets.PIC||[])
+  };
+
+  function keyFor(r){
+    return `${up(r.Employee)}||${Number(r.Seniority)}`;
+  }
+
+  function selectionMap(pos){
+    const m = new Map();
+    for(const s of (breaks[pos]||[])) m.set(s.key, s.time || "");
+    return m;
+  }
+
+  function countsFor(pos, exceptKey){
+    const c = new Map();
+    for(const s of (breaks[pos]||[])){
+      if(!s.time) continue;
+      if(exceptKey && s.key===exceptKey) continue;
+      c.set(s.time, (c.get(s.time)||0)+1);
+    }
+    return c;
+  }
+
+  function renderPosPicker(pos){
+    const capDefault = _CAPS[pos];
+    const people = peopleByPos[pos] || [];
+    const sel = selectionMap(pos);
+    const assignments = loadAssignmentsForScope();
+
+    // sequential unlocking: only first unselected (or first) is enabled.
+    let unlocked = true;
+    return `
+      <div style="margin-top:10px;">
+        <div class="sectionTitle" style="margin:0 2px 8px;">
+          <h2>${pos}</h2>
+          <div class="pill">${people.length} names • ${capDefault} per slot</div>
+        </div>
+        <div style="overflow:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:30%">Break time</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${people.map((r,idx)=>{
+                const k = keyFor(r);
+                const cur = sel.get(k) || "";
+                const enabled = unlocked;
+                // Highlight ONLY the single person whose turn it is next:
+                // enabled (in the unlocked chain) AND has not yet picked a break.
+                const isNext = enabled && !cur;
+                if(!cur) unlocked = false;
+                const counts = countsFor(pos, k);
+                const options = [
+                  `<option value="">— Blank / Clear —</option>`,
+                  ...slotOpts.map(o=>{
+                    const used = counts.get(o.value)||0;
+                    const capThis = capFor(pos, o.value);
+                    const full = used >= capThis;
+                    const dis = (full && o.value!==cur) ? "disabled" : "";
+                    const suffix = full && o.value!==cur ? " (full)" : (capThis>1 ? ` (${capThis-used}/${capThis} left)` : "");
+                    return `<option value="${escapeHtml(o.value)}" ${o.value===cur?"selected":""} ${dis}>${escapeHtml(o.label + suffix)}</option>`;
+                  })
+                ].join("");
+
+                const badge = r._extra ? (r._dayOff ? ' <span class="muted">(EXTRA • DAY OFF)</span>' : ' <span class="muted">(EXTRA)</span>') : "";
+                return `
+                  <tr class="${isNext ? 'next-up' : ''}">
+                    <td>${escapeHtml(up(r.Employee))}${hoursSuffix(cur)}${badge}</td>
+                    <td>
+                      ${(() => {
+                        const seatOpts = (pos==='CALLTAKER') ? ctSeatOpts : (pos==='DISPATCHER' ? dpSeatOpts : picSeatOpts);
+                        const curSeat = (assignments[pos] && assignments[pos][k]) ? assignments[pos][k] : '';
+                        // Unique assignment: only one person may hold a given seat/assignment per scope.
+                        const usedSeats = new Set(Object.entries((assignments[pos]||{}))
+                          .filter(([kk, v]) => kk !== k && v)
+                          .map(([_, v]) => v)
+                        );
+                        const seatOptions = [
+                          `<option value="">— Blank / Clear —</option>`,
+                          ...seatOpts.map(s => {
+                            const taken = usedSeats.has(s) && s !== curSeat;
+                            const dis = taken ? 'disabled' : '';
+                            const tag = taken ? ' (taken)' : '';
+                            return `<option value="${escapeHtml(s)}" ${s===curSeat?'selected':''} ${dis}>${escapeHtml(s)}${tag}</option>`;
+                          })
+                        ].join('');
+                        // Dispatcher seat/assignment is PRIMARY from the top 3-block tables.
+                        // If it's already set there, keep it locked here so it "stays that way".
+                        const lockSeatHere = (!isNext) || (pos==='DISPATCHER' && !!curSeat);
+                        return `<select class="seatSel" data-seat-pos="${pos}" data-seat-key="${escapeHtml(k)}" data-seat-name="${escapeHtml(up(r.Employee))}" ${lockSeatHere?"disabled":""}>${seatOptions}</select>`;
+                      })()}
+                    </td>
+                    <td>
+                      <select class="posSel" data-break-pos="${pos}" data-break-key="${escapeHtml(k)}" data-break-name="${escapeHtml(up(r.Employee))}" ${ (isNext && ((assignments[pos]||{})[k])) ? "" : "disabled"}>
+                        ${options}
+                      </select>
+                    </td>
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  // Build message-friendly summary
+  function summaryLines(){
+    const out=[];
+    const assignments = loadAssignmentsForScope();
+
+    // Helper: how many picks are using each slot for a position
+    function slotCountsFor(pos){
+      const sel = selectionMap(pos);
+      const counts = new Map();
+      for(const t of sel.values()){
+        if(!t) continue;
+        counts.set(t, (counts.get(t)||0) + 1);
+      }
+      return counts;
+    }
+
+    for(const pos of ["CALLTAKER","DISPATCHER","PIC"]){
+      const people = peopleByPos[pos] || [];
+      const sel = selectionMap(pos);
+      const aMap = (assignments && assignments[pos]) ? assignments[pos] : {};
+      const lines = [];
+
+      // Selected breaks (sorted by selected time, then seniority as tie-breaker)
+      const picked = [];
+      for(const r of people){
+        const k = keyFor(r);
+        const t = sel.get(k) || "";
+        if(!t) continue;
+        const a = (aMap && aMap[k]) ? aMap[k] : "";
+        picked.push({ a, r, t });
+      }
+      picked.sort((x,y)=>{
+        if(x.t !== y.t) return String(x.t).localeCompare(String(y.t));
+        const sx = Number(x.r.Seniority), sy = Number(y.r.Seniority);
+        if(sx !== sy) return sx - sy;
+        return String(x.r.Employee).localeCompare(String(y.r.Employee));
+      });
+      for(const item of picked){
+        lines.push(`${item.a}	${up(item.r.Employee)}	${slotLabelHHMM(item.t)}`.trim());
+      }
+
+
+      // Open breaks (remaining capacity)
+      const counts = slotCountsFor(pos);
+      const openLines = [];
+      for(const s of slots){
+        const used = counts.get(s) || 0;
+        const cap = capFor(pos, s);
+        if(used < cap){
+          const left = cap - used;
+          const suffix = cap > 1 ? ` (${left} open)` : "";
+          // Put OPEN under NAME column
+          openLines.push(`	OPEN	${slotLabelHHMM(s)}${suffix}`.trimEnd());
+        }
+      }
+
+      if(lines.length || openLines.length){
+        out.push(pos);
+        out.push("ASSIGN	NAME	BREAK");
+        if(lines.length) out.push(...lines);
+        if(openLines.length){
+          out.push("");
+          out.push("	OPEN	".trim());
+          out.push(...openLines);
+        }
+        out.push("");
+      }
+    }
+    return out.join("\n").trim();
+
+  }
+  card.innerHTML = `
+    <div class="sectionTitle" style="margin:0 2px 8px;">
+      <h2 class="break-header">PICK YOUR BREAKS</h2>
+      <div style="display:flex; gap:10px; align-items:center;"><div class="pill">Per-slot limits are adjustable (defaults: CT=3, DP=2, PIC=1)</div><button id="clearBreakSummary" class="secondary" style="padding:8px 10px; border-radius:10px;">Reset breaks</button></div>
+    </div>
+
+    <div id="slotCapsManager" style="margin:12px 0 6px; padding:12px; border:1px solid var(--border); border-radius:14px; background:rgba(255,255,255,0.03);">
+      <div class="sectionTitle" style="margin:0 2px 8px;">
+        <h2 style="font-size:16px;">Adjust per-slot limits (admin)</h2>
+        <div class="muted" style="font-size:12px;">Use ▲/▼ to increase/decrease how many people can select a specific time. Set to 0 to block a time.</div>
+      </div>
+      <div style="overflow:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:18%">Time</th>
+              <th>Calltaker</th>
+              <th>Dispatcher</th>
+              <th>PIC</th>
+            </tr>
+          </thead>
+          <tbody id="slotCapsTbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="muted" style="font-size:12px;margin:0 2px 10px;">Only the first person in each list can pick at first. After they pick, the next person unlocks (and can only choose from what’s left).</div>
+    ${renderPosPicker("CALLTAKER")}
+    ${renderPosPicker("DISPATCHER")}
+    ${renderPosPicker("PIC")}
+
+    <div style="margin-top:12px;">
+      <div class="sectionTitle" style="margin:0 2px 8px;">
+        <h2>Copy/paste list</h2>
+        <div style="display:flex; gap:8px;">
+          <button id="copyBreakSummary" style="padding:8px 10px; border-radius:10px;">Copy</button>
+          
+        </div>
+      </div>
+      <textarea id="breakSummary" class="mono" style="width:100%; min-height:140px; background:#0c1320; border:1px solid var(--border); color:var(--text); padding:10px; border-radius:12px; resize:vertical;" readonly></textarea>
+    </div>
+  `;
+
+  const summaryEl = document.getElementById("breakSummary");
+  if(summaryEl) summaryEl.value = summaryLines();
+
+
+  // Slot cap manager (admin): show only when unlocked
+  function renderSlotCapsManager(){
+    const wrap = document.getElementById('slotCapsManager');
+    const tbody = document.getElementById('slotCapsTbody');
+    if(!wrap || !tbody) return;
+
+    if(isLocked()){
+      wrap.style.display = 'none';
+      return;
+    }
+    wrap.style.display = 'block';
+
+    const rows = slots.map(t=>{
+      function cell(pos){
+        const val = capFor(pos, t);
+        const downDis = val <= 0 ? 'disabled' : '';
+        return `
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button class="secondary capBtn" data-cap-dir="down" data-cap-pos="${pos}" data-cap-time="${escapeHtml(t)}" ${downDis} style="padding:6px 10px; border-radius:10px;">−</button>
+            <span class="mono" style="min-width:24px; text-align:center; display:inline-block;">${val}</span>
+            <button class="secondary capBtn" data-cap-dir="up" data-cap-pos="${pos}" data-cap-time="${escapeHtml(t)}" style="padding:6px 10px; border-radius:10px;">+</button>
+          </div>`;
+      }
+      return `
+        <tr>
+          <td class="mono">${escapeHtml(slotLabelHHMM(t))}</td>
+          <td>${cell('CALLTAKER')}</td>
+          <td>${cell('DISPATCHER')}</td>
+          <td>${cell('PIC')}</td>
+        </tr>`;
+    }).join('');
+
+    tbody.innerHTML = rows;
+
+    tbody.querySelectorAll('button[data-cap-dir]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        if(isLocked()) return;
+        const dir = btn.getAttribute('data-cap-dir');
+        const pos = btn.getAttribute('data-cap-pos');
+        const time = btn.getAttribute('data-cap-time');
+
+        const cur = capFor(pos, time);
+        let next = cur + (dir==='up' ? 1 : -1);
+        next = Math.max(0, Math.min(20, next));
+
+        // prevent shrinking below already-used
+        const breaksNow = loadBreaksForScope();
+        const used = (breaksNow[pos]||[]).filter(x=>x && x.time===time).length;
+        if(next < used){
+          toast(`Can’t set ${pos} ${slotLabelHHMM(time)} below ${used} (already selected).`);
+          return;
+        }
+
+        const sc = loadSlotCapsForScope();
+        sc[pos] = sc[pos] || {};
+        if(next === _CAPS[pos]){
+          delete sc[pos][time];
+        } else {
+          sc[pos][time] = next;
+        }
+
+        try{
+          await saveSlotCapsForScope(sc);
+          renderBreakPicker(selectedDay, mode, block, buckets);
+        }catch(e){
+          console.warn(e);
+          toast('Could not update per-slot limits.');
+        }
+      });
+    });
+  }
+
+  renderSlotCapsManager();
+
+  // Wire up seat handlers
+  card.querySelectorAll("[data-seat-pos]").forEach(seatEl=>{
+    seatEl.addEventListener("change", ()=>{
+      const pos = seatEl.getAttribute("data-seat-pos");
+      const key = seatEl.getAttribute("data-seat-key");
+      const val = seatEl.value || "";
+      const curA = loadAssignmentsForScope();
+      curA[pos] = curA[pos] || {};
+      if(val){ curA[pos][key] = val; }
+      else { delete curA[pos][key]; }
+      saveAssignmentsForScope(curA);
+      renderBreakPicker(selectedDay, mode, block, buckets);
+    });
+  });
+
+  // Wire up change handlers
+  card.querySelectorAll("[data-break-pos]").forEach(selEl=>{
+    selEl.addEventListener("change", ()=>{
+      const pos = selEl.getAttribute("data-break-pos");
+      const key = selEl.getAttribute("data-break-key");
+      const name = selEl.getAttribute("data-break-name") || "";
+      const val = selEl.value;
+      const cur = loadBreaksForScope();
+      cur[pos] = Array.isArray(cur[pos]) ? cur[pos] : [];
+
+      // Build ordered list for this position to enforce sequential clearing.
+      const people = peopleByPos[pos] || [];
+      const order = people.map(r=>keyFor(r));
+      const idx = order.indexOf(key);
+
+      // Remove existing entry for this key
+      cur[pos] = cur[pos].filter(x=>x.key!==key);
+      if(val){
+        cur[pos].push({key, name, time: val});
+      } else {
+        // If cleared, also clear everyone after them.
+        if(idx>=0){
+          const tail = new Set(order.slice(idx));
+          cur[pos] = cur[pos].filter(x=>!tail.has(x.key));
+        }
+      }
+
+      // Keep stored list small and deterministic
+      cur[pos].sort((a,b)=>order.indexOf(a.key)-order.indexOf(b.key));
+      saveBreaksForScope(cur);
+      renderBreakPicker(selectedDay, mode, block, buckets);
+    });
+  });
+
+  const copyBtn = document.getElementById("copyBreakSummary");
+  if(copyBtn){
+    copyBtn.addEventListener("click", async ()=>{
+      const text = (document.getElementById("breakSummary")?.value || "").trim();
+      if(!text){ toast("Nothing to copy yet."); return; }
+      try{
+        await navigator.clipboard.writeText(text);
+        toast("Copied.");
+      }catch{
+        // Fallback
+        const ta = document.getElementById("breakSummary");
+        if(ta){
+          ta.focus(); ta.select();
+          document.execCommand("copy");
+          toast("Copied.");
+        }
+      }
+    });
+  }
+
+  const clearBtn = document.getElementById("clearBreakSummary");
+  if(clearBtn){
+    clearBtn.addEventListener("click", async ()=>{
+      if(isLocked()){ toast("Unlock editing to reset breaks."); return; }
+      await clearAssignmentsForScope();
+      await clearBreaksForScope();
+      renderBreakPicker(selectedDay, mode, block, buckets);
+      toast("Reset complete for this day/block.");
+    });
+  }
+}
+
+// Boot after Firebase module is ready and landing view is loaded
+(async function boot(){
+  // wait for module to expose helpers
+  for(let i=0;i<200;i++){
+    if(window.__getLandingView && window.__setLandingView) break;
+    await new Promise(r=>setTimeout(r,25));
+  }
+  let state = null;
+  if(window.__getLandingView) state = await window.__getLandingView();
+  window.__landingState = state;
+  initApp();
+})();
+
+// Copy Dispatcher Assignments (top 3 dispatcher visual tables) to clipboard
+document.addEventListener("click", async (evt)=>{
+  const btn = evt.target && (evt.target.closest ? evt.target.closest(".vdpCopyBtn") : null);
+  if(!btn) return;
+
+  try{
+    const cards = document.querySelectorAll(".dpDailyCard");
+    let out = [];
+
+    cards.forEach(card=>{
+      const title = card.querySelector(".hdr .lbl")?.textContent?.trim() || "";
+      if(title) out.push(title);
+
+      const rows = card.querySelectorAll("tbody tr");
+      rows.forEach(tr=>{
+        const tds = tr.querySelectorAll("td");
+        if(tds.length >= 2){
+          const assign = (tds[0].textContent||"").trim();
+          // second cell is the select; prefer selected option text
+          let person = "";
+          const sel = tds[1].querySelector("select");
+          if(sel){
+            person = (sel.options[sel.selectedIndex]?.textContent||"").trim();
+          } else {
+            person = (tds[1].textContent||"").trim();
+          }
+          // Skip empty lines (including the blank/clear placeholder)
+          if(assign && person && person !== "— Blank / Clear —" && person !== "— Select —"){
+            out.push(assign + "\t" + person);
+          }
+        }
+      });
+
+      out.push("");
+    });
+
+    const text = out.join("\n").trim();
+    if(!text){
+      toast("Nothing to copy.");
+      return;
+    }
+
+    await navigator.clipboard.writeText(text);
+    toast("Dispatcher assignments copied.");
+  }catch(e){
+    console.error(e);
+    toast("Copy failed.");
+  }
+});
+
+</script>
+
+  <!-- BreakOPS footer -->
+  <footer id="breakopsFooter" style="text-align:center; font-size:14px; color:#cfe6ff; margin:30px 0 10px; font-weight:700; letter-spacing:0.2px;">
+    Built and maintained by T. Martinez &nbsp; <span style="opacity:0.9; font-weight:700;">Version 7.1</span>
+  </footer>
+</body>
+</html>
