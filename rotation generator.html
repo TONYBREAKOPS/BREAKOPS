@@ -1,0 +1,4318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RotationOps v7</title>
+<style>
+  :root {
+    --bg:#0b0f16; --panel:#111826; --panel2:#0f1622; --line:#2a3446; --text:#e6edf7;
+    --muted:#a8b3c7; --btn:#1f6feb; --btn2:#233047; --danger:#d94848;
+    --chip:#1a2436;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: radial-gradient(1200px 800px at 30% 10%, #172234 0%, var(--bg) 55%);
+    color:var(--text);
+  }
+  .wrap{max-width:1500px; margin:10px auto; padding:0 10px;}
+  h1{margin:0; font-size:26px; letter-spacing:.2px; font-weight:800;}
+  .topbar{display:flex; gap:8px; align-items:center; padding:8px 10px; border:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+    border-radius:8px;
+  }
+  select, input[type="text"], input[type="date"]{
+    background:var(--panel2); border:1px solid var(--line); color:var(--text);
+    border-radius:8px; padding:8px 10px; outline:none; min-width: 120px; font-size:13px;
+  }
+  label{color:var(--muted); font-size:12px; margin-right:6px}
+  .btn{background:var(--btn); color:white; border:none; padding:8px 12px; border-radius:8px;
+    cursor:pointer; font-weight:700; font-size:13px; box-shadow: 0 6px 18px rgba(31,111,235,.22);
+  }
+  .btn.secondary{background:var(--btn2); box-shadow:none; border:1px solid var(--line);}
+  .btn.danger{background:transparent; color:#ffb4b4; border:1px solid rgba(217,72,72,.6);}
+  .btn:active{transform:translateY(1px)}
+
+  .btn-copy-block:hover{background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.18);}
+  .btn-copy-block:active{transform:translateY(1px);}
+
+  .layout{display:flex; flex-direction:column; gap:8px; margin-top:8px}
+  .subgrid{display:grid; grid-template-columns: 1fr 1fr; gap:8px}
+  @media (max-width: 980px){
+    .subgrid{grid-template-columns: 1fr}
+  }
+  .card{background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:8px; padding:8px;}
+  .card h2{margin:0 0 8px; font-size:14px; color:var(--muted); font-weight:700; letter-spacing:.25px}
+  .small{font-size:11px; color:var(--muted);}
+
+  .vac-form{display:grid; grid-template-columns: 1fr; gap:8px}
+  .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  .row .grow{flex:1}
+  .list{margin-top:8px; border-top:1px solid var(--line); padding-top:8px; max-height:180px; overflow:auto}
+  .pill{display:flex; justify-content:space-between; align-items:center; gap:8px;
+    padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:var(--chip);
+    margin-bottom:6px; font-size:12px;
+  }
+  .pill .meta{color:var(--muted); font-size:11px}
+  .pill button{background:transparent; border:1px solid var(--line); color:var(--text); border-radius:6px; padding:4px 7px; cursor:pointer; font-size:11px;}
+
+  .tabs{display:flex; gap:6px; border-bottom:1px solid var(--line); padding-bottom:8px; margin-bottom:8px}
+  .tab{padding:7px 10px; border:1px solid var(--line); border-radius:8px; cursor:pointer; background:var(--panel2); color:var(--muted); font-weight:650; font-size:12px;}
+  .tab.active{background:rgba(31,111,235,.18); color:var(--text); border-color: rgba(31,111,235,.5);}
+
+  table{width:auto; border-collapse:collapse; overflow:hidden;}
+  th, td{padding:3px 4px; border:1px solid var(--line); text-align:center; font-size:11px}
+  th{background:rgba(255,255,255,.04); color:var(--muted); font-weight:800}
+
+  /* Day/night shift divider — 5th child = first night column (CHANNEL + 3 day blocks + 1) */
+  #dayTableWrap td:nth-child(5),
+  #dayTableWrap th:nth-child(5){border-left:4px solid rgba(255,255,255,.4);}
+  body.light #dayTableWrap td:nth-child(5),
+  body.light #dayTableWrap th:nth-child(5){border-left:4px solid rgba(0,0,0,.3);}
+
+  .assign-cell{border-radius:8px; padding:6px 10px; display:inline-block; min-width:110px; font-size:11px; font-weight:700; border:1px solid rgba(255,255,255,.14); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .assign-cell.violation{outline:2px solid #f59e0b; outline-offset:1px; box-shadow: 0 0 6px rgba(245,158,11,.5);}
+  .needed-badge{background:#dc2626!important; border:2px solid #fca5a5!important; color:#fff!important; font-weight:900!important; font-size:12px!important; letter-spacing:1px; animation:needPulse 1.2s ease-in-out infinite; text-shadow:0 1px 4px rgba(0,0,0,.5);}
+  @keyframes needPulse{0%,100%{box-shadow:0 0 4px rgba(220,38,38,.4);} 50%{box-shadow:0 0 14px rgba(220,38,38,.8), 0 0 24px rgba(220,38,38,.3);}}
+  @keyframes tipSlideUp{from{opacity:0; transform:translateX(-50%) translateY(20px);} to{opacity:1; transform:translateX(-50%) translateY(0);}}
+  .clickable-assign{cursor:pointer; transition: transform 0.1s, box-shadow 0.1s;}
+  .clickable-assign:hover{transform:scale(1.03); box-shadow: 0 2px 6px rgba(0,0,0,0.3);}
+
+  .actions{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap}
+
+  .two-col{display:grid; grid-template-columns: 1fr; gap:12px;}
+  .stats{display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:12px}
+  .stats .card{padding:12px}
+
+  .toast{position:fixed; left:18px; right:18px; bottom:18px; background:#101826; border:1px solid rgba(255,255,255,.15);
+    border-radius:14px; padding:12px 14px; display:none; max-width:1220px; margin:0 auto; color:#ffd6d6;}
+  .toast code{color:#ffe2a8}
+
+  .week-grid{display:grid; grid-template-columns: 110px repeat(7, 1fr); gap:6px; align-items:stretch;}
+  .week-head{font-size:12px; color:var(--muted); padding:6px 8px;}
+  .week-channel{font-weight:800; color:var(--muted); padding:8px;}
+  .wkcell{border:1px solid var(--line); border-radius:10px; padding:8px; background:rgba(255,255,255,.02);}
+  .dots{display:flex; gap:6px; flex-wrap:wrap}
+  .dot{width:10px; height:10px; border-radius:999px; border:1px solid rgba(255,255,255,.2);}
+  .badge{display:inline-block; padding:2px 7px; border-radius:999px; border:1px solid rgba(217,72,72,.55); color:#ffb4b4; font-size:11px; margin-left:8px;}
+
+  .month-grid{display:grid; grid-template-columns: repeat(7, 1fr); gap:8px;}
+  .mcell{border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,.02); padding:8px; min-height:86px; cursor:pointer;}
+  .mdate{display:flex; justify-content:space-between; align-items:center; color:var(--muted); font-size:12px; margin-bottom:6px}
+  .mblocks{display:flex; flex-wrap:wrap; gap:6px}
+  .mblock{font-size:10px; padding:3px 6px; border-radius:999px; border:1px solid rgba(255,255,255,.15); color:var(--muted);}
+  .mblock.bad{border-color: rgba(217,72,72,.65); color:#ffb4b4;}
+
+  .ctlist{display:flex; flex-direction:column; gap:4px; align-items:center;}
+  .ctitem{padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.14); background:rgba(220,220,230,.15); color:rgba(255,255,255,.7); font-size:11px; font-weight:700; line-height:1.2; min-width:110px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .ctitem.repeat{border-color: rgba(217,72,72,.9); box-shadow: 0 0 0 2px rgba(217,72,72,.45), 0 10px 26px rgba(217,72,72,.18);}
+
+  /* Sync pill styles */
+  .sync-pill{display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; border:1px solid var(--line); background:var(--chip); margin-left:auto;}
+  .sync-pill.synced{border-color:rgba(52,211,153,.40); background:rgba(52,211,153,.10); color:#d7ffe9;}
+  .sync-pill.error{border-color:rgba(251,113,133,.45); background:rgba(251,113,133,.10); color:#ffd5dd;}
+  .sync-pill.syncing{border-color:rgba(74,163,255,.45); background:rgba(74,163,255,.10); color:#a5d4ff; animation:syncPulse 1s ease-in-out infinite;}
+  @keyframes syncPulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+  /* Theme toggle */
+  #btnDayPrev:hover, #btnDayNext:hover{background:rgba(255,255,255,.08); border-color:var(--text);}
+  #btnDayPrev:active, #btnDayNext:active{transform:translateY(1px);}
+  body.light #btnDayPrev:hover, body.light #btnDayNext:hover{background:rgba(0,0,0,.06);}
+  .theme-toggle{background:transparent; border:1px solid var(--line); border-radius:8px; padding:6px 10px; cursor:pointer; color:var(--muted); font-size:12px; display:flex; align-items:center; gap:5px;}
+  .theme-toggle:hover{background:rgba(255,255,255,.05); color:var(--text);}
+  body.light{--bg:#f5f7fa; --panel:#ffffff; --panel2:#f0f2f5; --line:#d1d5db; --text:#1f2937; --muted:#6b7280; --chip:#e5e7eb;}
+  body.light .wrap{background:transparent;}
+  body.light{background:linear-gradient(180deg, #e8ecf3 0%, #f5f7fa 100%);}
+  body.light .card{background:rgba(0,0,0,.02); border-color:var(--line);}
+  body.light .topbar{background:linear-gradient(180deg, rgba(0,0,0,.02), rgba(0,0,0,.01));}
+  body.light select, body.light input[type="text"], body.light input[type="date"]{background:#fff; border-color:var(--line); color:var(--text);}
+  body.light .tab{background:#fff; color:var(--muted);}
+  body.light .tab.active{background:rgba(31,111,235,.12); color:#1f6feb;}
+  body.light th{background:rgba(0,0,0,.04);}
+  body.light .assign-cell{border-color:rgba(0,0,0,.12);}
+  body.light .pill{background:#fff; border-color:var(--line);}
+  body.light .toast{background:#fff; border-color:var(--line); color:#b91c1c;}
+  body.light .how-it-works-box{background:rgba(0,0,0,.04)!important; border-color:rgba(0,0,0,.12)!important; color:#374151!important;}
+  body.light .stat-card{background:rgba(0,0,0,.03); border-color:rgba(0,0,0,.08);}
+  body.light .stats-panel{background:rgba(0,0,0,.02);}
+  body.light .sticky-col{background:rgba(255,255,255,.98)!important;}
+  /* Light mode: darken all text for visibility */
+  body.light .assign-cell{color:#1f2937!important;}
+  body.light .ctitem{background:rgba(180,180,190,.2)!important; color:#374151!important; border-color:rgba(0,0,0,.12)!important;}
+  body.light .ctitem.repeat{border-color:rgba(217,72,72,.9)!important;}
+  body.light .cellbtn.ct, body.light .assign-cell.ct{background:rgba(180,180,190,.2)!important; color:#374151!important; border-color:rgba(0,0,0,.12)!important;}
+  body.light td b{color:#1f2937;}
+  body.light .needed-badge{color:#fff!important;}
+  /* Stats panel */
+  .stats-panel{display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:8px; padding:10px; background:rgba(255,255,255,.02); border:1px solid var(--line); border-radius:8px; margin-top:8px;}
+  .stat-card{text-align:center; padding:10px; background:rgba(255,255,255,.03); border-radius:6px; border:1px solid rgba(255,255,255,.08);}
+  .stat-value{font-size:24px; font-weight:800; color:#4aa3ff;}
+  .stat-label{font-size:10px; color:var(--muted); text-transform:uppercase; margin-top:4px;}
+  .stat-card.good .stat-value{color:#22c55e;}
+  .stat-card.warn .stat-value{color:#f59e0b;}
+  .stat-card.bad .stat-value{color:#ef4444;}
+
+  /* Employee management modal */
+  .modal-overlay{position:fixed; inset:0; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; z-index:1000;}
+  .modal-overlay.show{display:flex;}
+  .modal-content{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px; max-width:600px; width:90%; max-height:80vh; overflow:auto;}
+  .modal-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;}
+  .modal-header h3{margin:0; font-size:16px;}
+  .modal-close{background:transparent; border:none; color:var(--muted); font-size:20px; cursor:pointer; padding:5px;}
+  .emp-list{max-height:300px; overflow:auto; border:1px solid var(--line); border-radius:8px;}
+  .emp-row{display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-bottom:1px solid var(--line); font-size:12px;}
+  .emp-row:last-child{border-bottom:none;}
+  .emp-row:hover{background:rgba(255,255,255,.03);}
+  .emp-row .emp-info{display:flex; gap:12px; align-items:center;}
+  .emp-row .emp-name{font-weight:700; min-width:100px;}
+  .emp-row .emp-pos{color:var(--muted); font-size:11px;}
+  .emp-row .emp-days{color:var(--muted); font-size:10px;}
+  .emp-add-form{display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:15px; padding-top:15px; border-top:1px solid var(--line);}
+  .emp-add-form input, .emp-add-form select{padding:8px; font-size:12px;}
+
+  /* Swap history */
+  .history-list{max-height:200px; overflow:auto; font-size:11px;}
+  .history-item{padding:6px 8px; border-bottom:1px solid var(--line); display:flex; gap:8px; align-items:center;}
+  .history-item:last-child{border-bottom:none;}
+  .history-time{color:var(--muted); font-size:10px; min-width:70px;}
+  .history-action{flex:1;}
+
+  /* Mobile styles */
+  @media (max-width: 768px) {
+    .wrap{padding:0 5px;}
+    h1{font-size:18px !important;}
+    .topbar{flex-wrap:wrap; padding:6px;}
+    .topbar .row{flex:1; min-width:100px;}
+    .tabs{flex-wrap:wrap;}
+    .tab{padding:5px 8px; font-size:11px;}
+    .sync-pill{font-size:10px; padding:3px 8px;}
+    .theme-toggle{padding:4px 8px; font-size:11px;}
+    .assign-cell{min-width:80px; padding:4px 6px; font-size:10px;}
+    .stats-panel{grid-template-columns: repeat(2, 1fr);}
+    .stat-value{font-size:18px;}
+    .modal-content{padding:15px; max-width:95%;}
+    table{font-size:10px;}
+    th, td{padding:2px 3px;}
+    .btn{padding:6px 10px; font-size:12px;}
+    .header-controls{flex-wrap:wrap; gap:6px !important;}
+  }
+  @media (max-width: 480px) {
+    .topbar{flex-direction:column; align-items:stretch;}
+    .topbar .row{width:100%;}
+    .stats-panel{grid-template-columns: 1fr 1fr;}
+    .assign-cell{min-width:60px; font-size:9px;}
+    .emp-add-form{grid-template-columns: 1fr;}
+  }
+  .matrix-wrap{max-height:520px; overflow:auto; border-radius:12px;}
+  .matrix-wrap table{min-width:980px;}
+  .sticky-head thead th{position:sticky; top:0; z-index:2;}
+  .sticky-col{position:sticky; left:0; z-index:3; background:rgba(15,22,34,.98);}
+
+  .wknames{margin-top:8px; display:grid; gap:4px; font-size:11px; line-height:1.15}
+  .wkline{display:flex; justify-content:space-between; gap:8px; white-space:nowrap; overflow:hidden}
+  .wkline .lbl{color:var(--muted); flex:0 0 auto}
+  .wkline .nm{color:var(--text); flex:1 1 auto; overflow:hidden; text-overflow:ellipsis}
+
+
+  .scroll-x{overflow-x:auto; width:100%; padding-bottom:6px}
+  .wide-table th{white-space:nowrap}
+  .wide-table td{min-width:70px; vertical-align:top}
+  .wide-table .subhead{font-size:10px; color:var(--muted); font-weight:800; text-transform:none}
+  .wide-table .dayhead{font-size:11px; color:var(--muted); font-weight:900; text-align:center}
+  .wide-table .assign-cell{width:70px; min-width:70px; padding:4px 5px; font-size:10px; min-height:19px}
+
+  .mroster-scroll{overflow-x:auto; width:100%; padding-bottom:8px}
+  table.mroster-table{border-collapse:separate; border-spacing:0; width:max-content; min-width:100%}
+  .mroster-table th,.mroster-table td{border:1px solid rgba(255,255,255,.08); padding:6px 6px}
+  .mroster-table th{background:rgba(12,14,20,.92); position:sticky; top:0; z-index:4; white-space:nowrap}
+  .mroster-table th.sticky-left{left:0; z-index:6}
+  .mroster-table td.sticky-left{position:sticky; left:0; z-index:3; background:rgba(12,14,20,.98); white-space:nowrap}
+  .cellbtn{display:inline-flex; align-items:center; justify-content:center; width:70px; min-height:38px; padding:8px 5px; border-radius:10px; border:1px solid rgba(255,255,255,.10); font-weight:900; font-size:11px; cursor:default; user-select:none}
+  .cellbtn.off{background:rgba(255,255,255,.05); color:rgba(255,255,255,.55)}
+
+/* CT buttons styling override */
+.cellbtn.ct,
+.assign-cell.ct {
+  background: rgba(220,220,230,.15) !important;
+  color: rgba(255,255,255,.7) !important;
+  border-color: rgba(220,220,230,.25) !important;
+  box-shadow: none !important;
+}
+
+/* Search highlight styles */
+.search-match {
+  outline: 3px solid #22c55e !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.5) !important;
+}
+.search-dim {
+  opacity: 0.25;
+}
+.search-active .assign-cell:not(.search-match) {
+  opacity: 0.25;
+}
+
+/* Print styles */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 10px !important;
+  }
+  .wrap {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .topbar, .tabs, .actions, .btn, .card:has(h2:contains("Excluded")),
+  .card:has(h2:contains("Trainees")), .card:has(h2:contains("Add New")),
+  .subgrid, .toast, #monthSearch {
+    display: none !important;
+  }
+  .card {
+    border: 1px solid #ccc !important;
+    background: white !important;
+    page-break-inside: avoid;
+    margin-bottom: 10px !important;
+  }
+  table {
+    border: 1px solid #333 !important;
+    font-size: 9px !important;
+  }
+  th, td {
+    border: 1px solid #666 !important;
+    padding: 4px !important;
+    color: black !important;
+  }
+  th {
+    background: #eee !important;
+  }
+  .assign-cell {
+    border: 1px solid #333 !important;
+    color: black !important;
+    padding: 2px 4px !important;
+    font-size: 8px !important;
+  }
+  .cellbtn {
+    border: 1px solid #333 !important;
+    color: black !important;
+    background: #f5f5f5 !important;
+  }
+  .cellbtn.off {
+    background: #ddd !important;
+  }
+  h1 {
+    font-size: 16px !important;
+    margin-bottom: 5px !important;
+  }
+  h2 {
+    font-size: 12px !important;
+  }
+  .small {
+    font-size: 8px !important;
+  }
+  /* Show current tab content */
+  #tab_day, #tab_week, #tab_month, #tab_mroster {
+    display: block !important;
+  }
+  #tab_day:not(.print-active),
+  #tab_week:not(.print-active),
+  #tab_month:not(.print-active),
+  #tab_mroster:not(.print-active) {
+    display: none !important;
+  }
+}
+
+@keyframes spinArrows{
+  0%{transform:rotate(0deg)}
+  100%{transform:rotate(360deg)}
+}
+@keyframes logoPulse{
+  0%,100%{opacity:.8}
+  50%{opacity:1}
+}
+.rotation-logo{
+  animation:logoPulse 3s ease-in-out infinite;
+}
+.rotation-logo .arrows{
+  transform-origin:32px 32px;
+  animation:spinArrows 4s linear infinite;
+}
+
+/* Login overlay */
+#loginOverlay{
+  position:fixed; inset:0; background:var(--bg); z-index:100000;
+  display:flex; align-items:center; justify-content:center;
+}
+#loginOverlay.hidden{ display:none; }
+.login-box{
+  background:var(--panel); border:1px solid var(--line); border-radius:16px;
+  padding:32px 40px; width:100%; max-width:360px; box-shadow:0 8px 32px rgba(0,0,0,.3);
+}
+.login-box h2{ margin:0 0 8px; font-size:24px; text-align:center; color:var(--text); }
+.login-box .subtitle{ text-align:center; color:var(--muted); font-size:13px; margin-bottom:24px; }
+.login-box label{ display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+.login-box input[type="email"],
+.login-box input[type="password"]{
+  width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--line);
+  background:var(--panel2); color:var(--text); font-size:14px; margin-bottom:16px; outline:none; box-sizing:border-box;
+}
+.login-box input:focus{ border-color:var(--btn); box-shadow:0 0 0 3px rgba(31,111,235,.15); }
+.login-box .btn-login{
+  width:100%; padding:12px; border-radius:10px; border:none; background:var(--btn);
+  color:#fff; font-size:14px; font-weight:700; cursor:pointer; margin-top:8px;
+}
+.login-box .btn-login:hover{ background:#3b8fd9; }
+.login-box .btn-login:disabled{ opacity:.6; cursor:not-allowed; }
+.login-box .login-error{
+  background:rgba(255,95,95,.12); border:1px solid rgba(255,95,95,.3); color:#ff6b6b;
+  padding:10px 12px; border-radius:8px; font-size:13px; margin-bottom:16px; display:none;
+}
+.login-box .login-error.show{ display:block; }
+#userInfo{ display:flex; align-items:center; gap:10px; font-size:12px; color:var(--muted); }
+#userInfo .user-email{ color:var(--text); font-weight:600; }
+#btnLogout{
+  padding:4px 10px; border-radius:6px; border:1px solid var(--line); background:transparent;
+  color:var(--muted); font-size:11px; cursor:pointer;
+}
+#btnLogout:hover{ background:rgba(255,255,255,.06); }
+
+</style>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script>
+  // Firebase configuration (same as CommandOps)
+  const firebaseConfig = {
+    apiKey: "AIzaSyA6KELmSyotefK0zhahQZ0-mbYur8_nTsg",
+    authDomain: "commandops-93846.firebaseapp.com",
+    databaseURL: "https://commandops-93846-default-rtdb.firebaseio.com",
+    projectId: "commandops-93846",
+    storageBucket: "commandops-93846.firebasestorage.app",
+    messagingSenderId: "262613721964",
+    appId: "1:262613721964:web:478a694d357234e3be4949"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+
+  // Auth state – resolved once onAuthStateChanged fires with a user
+  let authResolve;
+  let authReady = new Promise(r => { authResolve = r; });
+
+  auth.onAuthStateChanged((user) => {
+    const overlay = document.getElementById('loginOverlay');
+    const userInfo = document.getElementById('userInfo');
+    const userEmail = document.getElementById('userEmail');
+
+    if (user) {
+      if (overlay) overlay.classList.add('hidden');
+      if (userInfo) userInfo.style.display = 'flex';
+      if (userEmail) userEmail.textContent = user.email;
+      authResolve();
+    } else {
+      if (overlay) overlay.classList.remove('hidden');
+      if (userInfo) userInfo.style.display = 'none';
+      if (userEmail) userEmail.textContent = '';
+    }
+  });
+
+  // Login form handler
+  document.addEventListener('DOMContentLoaded', () => {
+    const loginForm = document.getElementById('loginForm');
+    const loginError = document.getElementById('loginError');
+    const btnLogin = document.getElementById('btnLogin');
+    const btnLogout = document.getElementById('btnLogout');
+
+    if (loginForm) loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+
+      loginError.classList.remove('show');
+      btnLogin.disabled = true;
+      btnLogin.textContent = 'Signing in...';
+
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+      } catch (err) {
+        let msg = 'Sign in failed';
+        if (err.code === 'auth/user-not-found') msg = 'No account found with this email';
+        else if (err.code === 'auth/wrong-password') msg = 'Incorrect password';
+        else if (err.code === 'auth/invalid-email') msg = 'Invalid email address';
+        else if (err.code === 'auth/too-many-requests') msg = 'Too many attempts. Try again later.';
+        else if (err.code === 'auth/invalid-credential') msg = 'Invalid email or password';
+        loginError.textContent = msg;
+        loginError.classList.add('show');
+      }
+
+      btnLogin.disabled = false;
+      btnLogin.textContent = 'Sign In';
+    });
+
+    if (btnLogout) btnLogout.addEventListener('click', () => {
+      auth.signOut();
+    });
+  });
+
+  // ===== Firebase Sync Functions =====
+  let autoSaveTimer = null;
+  let realtimeUnsubscribe = null;
+  let lastSavedAt = null;
+  let isSyncing = false;
+  let initialLoadDone = false; // blocks onSnapshot until first load completes
+
+  function setSyncStatus(status, state = null) {
+    const pill = document.getElementById("syncPill");
+    if (!pill) return;
+    pill.textContent = "SYNC: " + status.toUpperCase();
+    pill.classList.remove("synced", "error", "syncing");
+    if (state === "good") pill.classList.add("synced");
+    else if (state === "bad") pill.classList.add("error");
+    else if (state === "pending") pill.classList.add("syncing");
+  }
+
+  async function saveRotationToFirebase() {
+    await authReady;
+    if (!auth.currentUser) { console.error("SAVE: No auth user"); return false; }
+
+    const plan = JSON.parse(localStorage.getItem("rotation_plan_v2") || "null");
+    const vac = JSON.parse(localStorage.getItem("rotation_vac_ranges_v2") || "[]");
+    const training = JSON.parse(localStorage.getItem("rotation_training_v2") || "[]");
+
+    if (!plan || !plan.meta) { console.error("SAVE: No plan or plan.meta"); return false; }
+
+    const docId = `rotation_${plan.meta.year}_${plan.meta.monthIndex}`;
+    console.log("SAVE: Writing to docId:", docId);
+    try {
+      // Use set WITHOUT merge to fully replace the document
+      await db.collection('rotation_plans').doc(docId).set({
+        plan: plan,
+        vacations: vac,
+        trainers: training,
+        savedAt: new Date().toISOString()
+      });
+      console.log("SAVE: SUCCESS for", docId);
+
+      // Verify the write by reading it back from the server
+      const verify = await db.collection('rotation_plans').doc(docId).get({ source: 'server' });
+      if (!verify.exists) {
+        console.error("SAVE: Verification FAILED — doc not found after save");
+        return false;
+      }
+      console.log("SAVE: Verified on server ✓", docId);
+      return true;
+    } catch (err) {
+      console.error("SAVE: Firebase error:", err);
+      return false;
+    }
+  }
+
+  async function loadRotationFromFirebase(year, monthIndex) {
+    await authReady;
+    if (!auth.currentUser) return false;
+
+    const docId = `rotation_${year}_${monthIndex}`;
+    console.log("LOAD: Reading docId:", docId);
+    try {
+      // Force read from server, not local cache
+      const doc = await db.collection('rotation_plans').doc(docId).get({ source: 'server' });
+      if (doc.exists) {
+        const data = doc.data();
+        console.log("LOAD: Got doc, savedAt:", data.savedAt);
+        if (data.plan) localStorage.setItem("rotation_plan_v2", JSON.stringify(data.plan));
+        if (data.vacations) localStorage.setItem("rotation_vac_ranges_v2", JSON.stringify(data.vacations));
+        if (data.trainers) localStorage.setItem("rotation_training_v2", JSON.stringify(data.trainers));
+        return true;
+      }
+      console.log("LOAD: Doc does not exist for", docId);
+    } catch (err) {
+      console.warn("LOAD: Firebase error (trying cache fallback):", err);
+      // If server read fails (offline), try cache
+      try {
+        const doc = await db.collection('rotation_plans').doc(docId).get({ source: 'cache' });
+        if (doc.exists) {
+          const data = doc.data();
+          if (data.plan) localStorage.setItem("rotation_plan_v2", JSON.stringify(data.plan));
+          if (data.vacations) localStorage.setItem("rotation_vac_ranges_v2", JSON.stringify(data.vacations));
+          if (data.trainers) localStorage.setItem("rotation_training_v2", JSON.stringify(data.trainers));
+          return true;
+        }
+      } catch (_) {}
+    }
+    return false;
+  }
+
+  function scheduleAutoSave() {
+    if (!initialLoadDone) return; // Don't auto-save during page load
+    if (autoSaveTimer) clearTimeout(autoSaveTimer);
+    setSyncStatus("PENDING...", "pending");
+
+    autoSaveTimer = setTimeout(async () => {
+      setSyncStatus("SAVING...", "pending");
+      isSyncing = true;
+      const ok = await saveRotationToFirebase();
+      isSyncing = false;
+
+      if (ok) {
+        lastSavedAt = Date.now();
+        setSyncStatus("SYNCED", "good");
+      } else {
+        setSyncStatus("FAILED", "bad");
+      }
+    }, 1500);
+  }
+
+  async function startRealtimeSync(year, monthIndex) {
+    await authReady;
+    if (!auth.currentUser) return;
+    if (realtimeUnsubscribe) realtimeUnsubscribe();
+
+    const docId = `rotation_${year}_${monthIndex}`;
+    realtimeUnsubscribe = db.collection('rotation_plans').doc(docId).onSnapshot((doc) => {
+      if (!doc.exists) return;
+      if (!initialLoadDone) { console.log("REALTIME: SKIPPED (initial load not done)"); return; }
+      if (isSyncing) return;
+      if (lastSavedAt && (Date.now() - lastSavedAt) < 2000) return;
+
+      const data = doc.data();
+      if (!data) return;
+
+      console.log("REALTIME: update received for", docId, "savedAt:", data.savedAt, "fromCache:", doc.metadata.fromCache);
+      // Skip cached snapshots — only trust server data
+      if (doc.metadata.fromCache) {
+        console.log("REALTIME: SKIPPED (from cache, not server)");
+        return;
+      }
+
+      // Skip if this is the same data we already have (prevents circular save loop)
+      const currentPlan = JSON.parse(localStorage.getItem("rotation_plan_v2") || "null");
+      if (currentPlan && currentPlan.meta && data.plan && data.plan.meta
+          && JSON.stringify(currentPlan.meta) === JSON.stringify(data.plan.meta)
+          && data.savedAt === (currentPlan._savedAt || "")) {
+        console.log("REALTIME: SKIPPED (same data already loaded)");
+        setSyncStatus("LIVE", "good");
+        return;
+      }
+
+      setSyncStatus("UPDATING...", "pending");
+
+      // Tag the plan with savedAt so we can detect duplicates
+      if (data.plan) {
+        data.plan._savedAt = data.savedAt;
+        localStorage.setItem("rotation_plan_v2", JSON.stringify(data.plan));
+      }
+      if (data.vacations) localStorage.setItem("rotation_vac_ranges_v2", JSON.stringify(data.vacations));
+      if (data.trainers) localStorage.setItem("rotation_training_v2", JSON.stringify(data.trainers));
+
+      // Refresh views
+      const dayKey = document.getElementById("dayPick")?.value;
+      if (dayKey && typeof renderDay === "function") {
+        renderDay(dayKey);
+        renderWeek(dayKey);
+      }
+      if (typeof renderMonth === "function") renderMonth(year, monthIndex);
+
+      setSyncStatus("LIVE", "good");
+    }, (err) => {
+      console.error("Realtime sync error:", err);
+      setSyncStatus("ERROR", "bad");
+    });
+  }
+
+  // Hook into localStorage to auto-save on changes
+  const originalSetItem = localStorage.setItem;
+  localStorage.setItem = function(key, value) {
+    originalSetItem.call(this, key, value);
+    if (key.startsWith("rotation_") && key !== "rotation_ui_v2") {
+      scheduleAutoSave();
+    }
+  };
+</script>
+</head>
+<body>
+
+<!-- Login Overlay -->
+<div id="loginOverlay">
+  <div class="login-box">
+    <h2>RotationOps</h2>
+    <p class="subtitle">Sign in to continue</p>
+    <div id="loginError" class="login-error"></div>
+    <form id="loginForm">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="you@example.com" required autocomplete="email"/>
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="Enter password" required autocomplete="current-password"/>
+      <button type="submit" class="btn-login" id="btnLogin">Sign In</button>
+    </form>
+  </div>
+</div>
+
+  <div class="wrap">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;" class="header-controls">
+      <span id="channelFlash" style="font-size:18px;font-weight:900;color:#4aa3ff;width:38px;text-align:center;font-family:system-ui;letter-spacing:1px;display:inline-block;perspective:100px;overflow:hidden;height:24px;line-height:24px;">
+        <span id="channelInner" style="display:inline-block;width:38px;text-align:center;"></span>
+      </span>
+      <h1 style="font-size:22px;margin:0;font-weight:800;">RotationOps</h1>
+      <span id="syncPill" class="sync-pill">SYNC: OFFLINE</span>
+      <button id="btnThemeToggle" class="theme-toggle" title="Toggle theme">
+        <span id="themeIcon">☀️</span> <span id="themeLabel">LIGHT</span>
+      </button>
+      <button id="btnSwapHistory" class="btn secondary" style="font-size:11px; padding:6px 10px;">HISTORY</button>
+      <div style="position:relative; display:inline-block;">
+        <button id="btnFairnessStats" class="btn secondary" style="font-size:11px; padding:6px 10px;">HOW IT WORKS</button>
+        <div id="fairnessPopup" style="display:none; position:absolute; top:calc(100% + 6px); right:0; z-index:999; width:560px; max-height:75vh; overflow-y:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; box-shadow:0 8px 30px rgba(0,0,0,.4);">
+          <div id="fairnessPopupContent"></div>
+        </div>
+      </div>
+      <div style="position:relative; display:inline-block;">
+        <button id="btnChannelTotals" class="btn secondary" style="font-size:11px; padding:6px 10px;">CHANNEL TOTALS</button>
+        <div id="channelTotalsPopup" style="display:none; position:absolute; top:calc(100% + 6px); right:0; z-index:999; width:560px; max-height:75vh; overflow-y:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; box-shadow:0 8px 30px rgba(0,0,0,.4);">
+          <div id="channelTotalsPopupContent"></div>
+        </div>
+      </div>
+      <div id="userInfo" style="margin-left:auto;display:none;">
+        <span class="user-email" id="userEmail"></span>
+        <button id="btnLogout" type="button">Sign Out</button>
+      </div>
+    </div>
+
+    <div class="topbar">
+      <div class="row">
+        <label for="monthSel">Month:</label>
+        <select id="monthSel"></select>
+      </div>
+      <div class="row">
+        <label for="yearSel">Year:</label>
+        <select id="yearSel"></select>
+      </div>
+      <button class="btn" id="btnRandomize">Randomize Month</button>
+    </div>
+
+    <div class="layout">
+      <div class="card">
+        <input id="dayPick" type="date" style="display:none;" />
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <h2 style="margin:0; white-space:nowrap;">Day Assignments –</h2>
+            <button id="btnDayPrev" style="background:none; border:1px solid var(--line); border-radius:6px; padding:4px 8px; cursor:pointer; color:var(--text); font-size:14px; line-height:1;">&#9664;</button>
+            <span id="dayTitle" style="font-size:14px; font-weight:800; color:var(--text); white-space:nowrap; min-width:130px; text-align:center;"></span>
+            <button id="btnDayNext" style="background:none; border:1px solid var(--line); border-radius:6px; padding:4px 8px; cursor:pointer; color:var(--text); font-size:14px; line-height:1;">&#9654;</button>
+          </div>
+        </div>
+
+        <div class="tabs" style="margin-top:12px; align-items:center;">
+          <div class="tab active" data-tab="day">Day</div>
+          <div class="tab" data-tab="week">Week</div>
+          <div class="tab" data-tab="month">Month</div>
+          <div class="tab" data-tab="mroster">Roster</div>
+          <div id="violationStats" style="display:none; margin-left:12px; padding:6px 10px; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); border-radius:8px; font-size:11px; align-items:center;">
+            <span style="font-weight:700;">VIOLATIONS:</span> <span id="violationCount">0</span> <span style="color:#888;">(<span id="violationPeople">0</span>)</span><span id="violationBest" style="margin-left:6px; color:#22c55e; display:none;">BEST!</span>
+          </div>
+          <div class="tab" data-tab="exceptions" style="margin-left:auto;">Monthly Exceptions</div>
+        </div>
+
+        <div id="tab_day">
+          <div id="dayTableWrap"></div>
+
+        </div>
+
+        
+        <div id="tab_mroster" style="display:none">
+  <div class="card" style="padding:12px; margin-bottom:12px">
+    <h2 style="margin:0 0 8px">Day Shift – Roster</h2>
+    <div id="mRosterWrapDay"></div>
+  </div>
+
+  <div class="card" style="padding:12px">
+    <h2 style="margin:0 0 8px">Night Shift – Roster</h2>
+    <div id="mRosterWrapNight"></div>
+  </div>
+</div>
+
+<div id="tab_week" style="display:none">
+          <div style="margin-bottom:8px;">
+            <input id="weekSearch" type="text" placeholder="SEARCH EMPLOYEE..." style="min-width:200px;" />
+          </div>
+          <div id="weekWrap"></div>
+        </div>
+
+        <div id="tab_month" style="display:none">
+          <div class="row" style="margin-bottom:10px; gap:12px; align-items:center;">
+            <input id="monthSearch" type="text" placeholder="SEARCH EMPLOYEE..." style="min-width:200px;" />
+          </div>
+          <div id="monthWrap"></div>
+        </div>
+
+        <div id="tab_exceptions" style="display:none">
+          <div id="exceptionsWrap"></div>
+        </div>
+
+        </div>
+
+
+<div class="toast" id="toast"></div>
+
+<!-- Swap tip bubble -->
+<div id="swapTip" style="display:none; position:fixed; bottom:70px; left:50%; transform:translateX(-50%); background:rgba(31,111,235,.92); color:#fff; padding:12px 20px; border-radius:12px; font-size:13px; font-weight:600; z-index:999; box-shadow:0 8px 30px rgba(0,0,0,.4); cursor:pointer; text-align:center; max-width:400px; animation:tipSlideUp .4s ease-out;">
+  Click any name to swap assignments
+  <div style="font-size:10px; font-weight:400; margin-top:4px; opacity:.8;">tap to dismiss</div>
+</div>
+
+<!-- Swap Assignment Modal -->
+<div id="callOffModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:20px; min-width:320px; max-width:420px;">
+    <h3 style="margin:0 0 15px;" id="callOffModalTitle">SWAP ASSIGNMENT</h3>
+    <p id="callOffModalInfo" style="margin:0 0 15px; font-size:14px;"></p>
+    <div style="margin-bottom:15px;">
+      <label style="font-size:12px; font-weight:700; display:block; margin-bottom:6px;">SWAP WITH:</label>
+      <select id="swapSelect" style="width:100%; padding:8px; font-size:13px; border-radius:6px; border:1px solid var(--line); background:var(--panel2); color:var(--text);"></select>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="btn" id="btnModalSwap">SWAP</button>
+      <button class="btn secondary" id="btnModalCancel">CANCEL</button>
+    </div>
+    <div id="callOffModalResult" style="margin-top:15px; font-size:13px;"></div>
+  </div>
+</div>
+
+
+<!-- Swap History Modal -->
+<div id="historyModal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>SWAP HISTORY</h3>
+      <button class="modal-close" id="btnCloseHistoryModal">&times;</button>
+    </div>
+    <div class="history-list" id="historyList">
+      <div style="color:var(--muted); text-align:center; padding:20px;">NO SWAPS RECORDED YET</div>
+    </div>
+    <div style="margin-top:15px; display:flex; gap:10px;">
+      <button class="btn danger" id="btnClearHistory">CLEAR HISTORY</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+
+// --- Guard: ensure blocksWorkedForSchedule exists (prevents undefined if any earlier script aborts) ---
+if (typeof window.blocksWorkedForSchedule !== "function") {
+  window.parseShiftToBlocks = window.parseShiftToBlocks || function(shiftStr){
+    const ss = String(shiftStr||"").trim().toUpperCase();
+    if (!ss || ss==="OFF") return new Set();
+    if (ss==="6A-6P") return new Set(["0600-1000","1000-1400","1400-1800"]);
+    if (ss==="6P-6A") return new Set(["1800-2200","2200-0200","0200-0600"]);
+    if (ss==="6A-2P") return new Set(["0600-1000","1000-1400"]);
+    if (ss==="10A-6P") return new Set(["1000-1400","1400-1800"]);
+    if (ss==="2P-10P") return new Set(["1400-1800","1800-2200"]);
+    if (ss==="6P-2A") return new Set(["1800-2200","2200-0200"]);
+    if (ss==="10P-6A") return new Set(["2200-0200","0200-0600"]);
+    if (ss==="2A-10A") return new Set(["0200-0600","0600-1000"]);
+    try { return new Set((window.BLOCKS||[]).map(b=>b.key)); } catch(e) { return new Set(); }
+  };
+  window.blocksWorkedForSchedule = function(scheduleStr, shiftFilter){
+    const worked = window.parseShiftToBlocks(scheduleStr);
+    const allowed = new Set((shiftFilter==="DAY") ? ["0600-1000","1000-1400","1400-1800"]
+                      : (shiftFilter==="NIGHT") ? ["1800-2200","2200-0200","0200-0600"]
+                      : ((window.BLOCKS||[]).map(b=>b.key)));
+    const out = new Set();
+    for (const k of worked) if (allowed.has(k)) out.add(k);
+    return out;
+  };
+}
+// Also expose as local name if needed
+const blocksWorkedForSchedule = window.blocksWorkedForSchedule;
+
+// CT fairness globals (rebuilt each month)
+let ctCapBase = 0;
+let ctCapByName = new Map();
+
+/** DATA — loaded from Firestore employees collection */
+let BASE = [];
+
+/** Derive DaysOff string from schedule (e.g. "Sat/Sun") */
+function deriveDaysOff(emp) {
+  const days = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
+  const labels = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const off = [];
+  for (let i = 0; i < days.length; i++) {
+    const v = String(emp[days[i]] || "").trim().toUpperCase();
+    if (!v || v === "OFF") off.push(labels[i]);
+  }
+  return off.join("/") || "";
+}
+
+/** Load DISPATCHER employees from Firestore and populate BASE */
+async function loadEmployeesFromFirestore() {
+  await authReady;
+  if (!auth.currentUser) return false;
+  try {
+    const snap = await db.collection('employees').get();
+    BASE = snap.docs.map(doc => {
+      const r = doc.data();
+      const pos = String(r.POSITION ?? r.Position ?? "").toUpperCase();
+      const emp = {
+        Employee: (r.Employee || doc.id).toString().trim().toUpperCase(),
+        Seniority: Number(r.SENIORITY ?? r.Seniority ?? 0),
+        Position: pos,
+        Present: "YES",
+        MONDAY: r.MONDAY ?? "OFF",
+        TUESDAY: r.TUESDAY ?? "OFF",
+        WEDNESDAY: r.WEDNESDAY ?? "OFF",
+        THURSDAY: r.THURSDAY ?? "OFF",
+        FRIDAY: r.FRIDAY ?? "OFF",
+        SATURDAY: r.SATURDAY ?? "OFF",
+        SUNDAY: r.SUNDAY ?? "OFF"
+      };
+      emp.DaysOff = deriveDaysOff(emp);
+      return emp;
+    }).filter(r => r.Employee && r.Position === "DISPATCHER");
+    console.log("Loaded " + BASE.length + " dispatchers from Firestore");
+    return true;
+  } catch (err) {
+    console.error("Failed to load employees from Firestore:", err);
+    return false;
+  }
+}
+
+
+const CHANNELS = ["North","South","East","West","Central","Northwest","Relief 1","Relief 2","DC1","DC2"];
+// 7th channel only active on Fri/Sat nights (2200-0300)
+const SEVENTH_CHANNEL = "7th";
+const SEVENTH_BLOCKS = new Set(["2200-0200","0200-0600"]); // Block(s) where 7th channel is active
+
+// --- Special Detail (SD) settings ---
+// Only these names may ever be assigned SD.
+const SD_ELIGIBLE = new Set(["RAMIREZ","FOWLERL","GROUNDS","GUIDRY","BROWNC","MARZAHN","CLEMENT"]);
+
+// Tracking + scoring maps (reinitialized each time a plan is built)
+let sdWeekHours = new Map();          // weekKey -> Map(name -> SD hours)
+let overflowScoreByDay = new Map();   // YYYY-MM-DD -> total overflow score for that day
+let overflowMaxByWeek = new Map();    // weekKey -> max overflow score in that week
+const BLOCKS = [
+  {key:"0600-1000", label:"6 AM — 10 AM", start:6, end:10},
+  {key:"1000-1400", label:"10 AM — 2 PM", start:10, end:14},
+  {key:"1400-1800", label:"2 PM — 6 PM", start:14, end:18},
+  {key:"1800-2200", label:"6 PM — 10 PM", start:18, end:22},
+  {key:"2200-0200", label:"10 PM — 2 AM", start:22, end:26},
+  {key:"0200-0600", label:"2 AM — 6 AM", start:26, end:30},
+];
+
+
+function parseShiftToBlocks(shiftStr) {
+  const s = String(shiftStr||"").trim().toUpperCase();
+  if (!s || s === "OFF") return new Set();
+  if (s === "6A-6P") return new Set(["0600-1000","1000-1400","1400-1800"]);
+  if (s === "6P-6A") return new Set(["1800-2200","2200-0200","0200-0600"]);
+  if (s === "6A-2P") return new Set(["0600-1000","1000-1400"]);
+  if (s === "10A-6P") return new Set(["1000-1400","1400-1800"]);
+  if (s === "2P-10P") return new Set(["1400-1800","1800-2200"]);
+  if (s === "6P-2A") return new Set(["1800-2200","2200-0200"]);
+  if (s === "10P-6A") return new Set(["2200-0200","0200-0600"]);
+  if (s === "2A-10A") return new Set(["0200-0600","0600-1000"]);
+  return new Set(BLOCKS.map(b=>b.key));
+}
+
+function blocksWorkedForScheduleCanonical(scheduleStr, shiftFilter) {
+  const worked = parseShiftToBlocks(scheduleStr);
+  const allowed = new Set((shiftFilter==="DAY") ? ["0600-1000","1000-1400","1400-1800"]
+                    : (shiftFilter==="NIGHT") ? ["1800-2200","2200-0200","0200-0600"]
+                    : BLOCKS.map(b=>b.key));
+  const out = new Set();
+  for (const k of worked) if (allowed.has(k)) out.add(k);
+  return out;
+}
+// Preferred name used across the app
+// Backward-compatible name used in some views
+// Shift code -> hours (used for scheduled-hours reporting)
+const SHIFT_HOURS = {
+  "6A-2P": 8, "6A-6P": 12,
+  "10A-6P": 8, "10A-10P": 12,
+  "2P-10P": 8,
+  "6P-2A": 8, "6P-6A": 12,
+  "10P-6A": 8,
+  "OFF": 0, "": 0
+};
+
+function scheduledWeeklyHoursByName(name) {
+  const nm = String(name || "").trim().toUpperCase();
+  if (!nm) return 0;
+  const base = normalizeBase();
+  const row = base.find(r => String(r.Employee||"").trim().toUpperCase() === nm);
+  if (!row) return 0;
+  let tot = 0;
+  const days = ["SATURDAY","SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY"];
+  for (const d of days) {
+    const v = String(row[d] || "").trim().toUpperCase();
+    tot += (SHIFT_HOURS[v] ?? 0);
+  }
+  return tot;
+}
+const STORAGE = {
+  plan: "rotation_plan_v2",
+  vac: "rotation_vac_ranges_v2",
+  hires: "rotation_new_hires_v2",
+  training: "rotation_training_v2",
+  ui: "rotation_ui_v2",
+  employees: "rotation_employees_v2",
+  swapHistory: "rotation_swap_history_v2",
+  theme: "rotation_theme_v2"
+};
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.style.display = "block";
+  t.innerHTML = msg;
+  clearTimeout(showToast._tm);
+  showToast._tm = setTimeout(()=>t.style.display="none", 9000);
+}
+function safeParseJSON(str, fallback) { try { return JSON.parse(str); } catch(e) { return fallback; } }
+function loadJSON(key, fallback) {
+  const raw = localStorage.getItem(key);
+  if (!raw) return fallback;
+  const val = safeParseJSON(raw, null);
+  if (val === null || val === undefined) { localStorage.removeItem(key); return fallback; }
+  return val;
+}
+function saveJSON(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+function pad2(n) { return String(n).padStart(2,"0"); }
+function ymd(d) { return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+function parseYMD(s) {
+  if (!s) return null;
+  const [y,m,d] = s.split("-").map(Number);
+  if (!y||!m||!d) return null;
+  return new Date(y, m-1, d, 12,0,0,0);
+}
+function dayName(d) { return ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"][d.getDay()]; }
+
+function weekKeyFromDate(dateObj) {
+  // Week starts on Saturday
+  const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), 12,0,0,0);
+  const dow = d.getDay(); // 0 Sun ... 6 Sat
+  const offsetToSat = (dow - 6 + 7) % 7;
+  const start = new Date(d.getFullYear(), d.getMonth(), d.getDate() - offsetToSat, 12,0,0,0);
+  return ymd(start); // key by week start date
+}
+function monthName(i) { return ["January","February","March","April","May","June","July","August","September","October","November","December"][i]; }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m])); }
+
+function normalizeBase() {
+  const b = Array.isArray(BASE) ? BASE : [];
+  return b.filter(x => {
+    const p = String(x.Present || "").trim().toUpperCase();
+    return (p === "YES" || p === "Y" || p === "TRUE" || p === "1");
+  });
+}
+function getNewHires() {
+  const hires = loadJSON(STORAGE.hires, []);
+  return Array.isArray(hires) ? hires : [];
+}
+function getVacRanges() {
+  const v = loadJSON(STORAGE.vac, []);
+  return Array.isArray(v) ? v : [];
+}
+function getTrainerRanges() {
+  const t = loadJSON(STORAGE.training, []);
+  if (!Array.isArray(t)) return [];
+  // Support old format (plain strings) and new format (objects with name, from, to)
+  return t.map(item => {
+    if (typeof item === 'string') return { name: item.trim().toUpperCase(), from: '', to: '' };
+    return { name: String(item.name||'').trim().toUpperCase(), from: item.from||'', to: item.to||'' };
+  }).filter(r => r.name);
+}
+function getTrainees() {
+  // Returns just the names for backward compatibility
+  return getTrainerRanges().map(r => r.name);
+}
+function isTrainee(name, dayKey) {
+  const ranges = getTrainerRanges();
+  const nm = String(name || "").trim().toUpperCase();
+  const dateObj = dayKey ? parseYMD(dayKey) : null;
+  const dt = dateObj ? dateObj.getTime() : null;
+  return ranges.some(r => {
+    if (!r || !r.name) return false;
+    if (r.name.toUpperCase() !== nm) return false;
+    // If no dates specified, always applies
+    if (!r.from && !r.to) return true;
+    if (!dt) return true;
+    const fromT = r.from ? new Date(r.from + "T00:00:00").getTime() : -Infinity;
+    const toT = r.to ? new Date(r.to + "T23:59:59").getTime() : Infinity;
+    return dt >= fromT && dt <= toT;
+  });
+}
+function isExcluded(name, dateObj) {
+  const ranges = getVacRanges();
+  const nm = String(name||"").trim().toUpperCase();
+  const dt = dateObj ? dateObj.getTime() : null;
+  return ranges.some(r => {
+    if (!r || !r.name) return false;
+    if (String(r.name).trim().toUpperCase() !== nm) return false;
+    if (!r.from && !r.to) return true; // month-wide
+    const f = r.from ? parseYMD(r.from) : null;
+    const t = r.to ? parseYMD(r.to) : null;
+    const ft = f ? f.getTime() : -Infinity;
+    const tt = t ? t.getTime() : Infinity;
+    return dt !== null && dt >= ft && dt <= tt;
+  });
+}
+
+function buildDispatcherPoolForDate(dateObj) {
+  const base = normalizeBase();
+  const hires = getNewHires().map(n => String(n).trim()).filter(Boolean);
+  const dispatchers = base.filter(r => String(r.Position||"").toUpperCase()==="DISPATCHER")
+    .map(r => ({ name: String(r.Employee||"").trim(), seniority: Number(r.Seniority||0), sched: r }))
+    .filter(r => r.name);
+
+  const hireObjs = hires
+    .filter(n => dispatchers.every(d => d.name.toUpperCase() !== n.toUpperCase()))
+    .map(n => ({ name:n, seniority:0, sched:null, isHire:true }));
+
+  return dispatchers.concat(hireObjs).filter(d => !isExcluded(d.name, dateObj));
+}
+
+function worksBlock(disp, dateObj, block) {
+  if (disp.isHire && !disp.sched) return false; // new hires must be scheduled before being assigned
+  const sched = disp.sched || {};
+  const dn = dayName(dateObj);
+  const val = String(sched[dn] || "").toUpperCase().trim();
+  if (!val || val==="OFF") return false;
+  const map = {
+    "6A-2P":[6,14],
+    "6A-6P":[6,18],
+    "10A-6P":[10,18],
+    "10A-10P":[10,22],
+    "2P-10P":[14,22],
+    "6P-2A":[18,26],
+    "6P-6A":[18,30],
+    "10P-6A":[22,30],
+  };
+  const rng = map[val];
+  if (!rng) return false;
+  const [s,e] = rng;
+  return (block.start >= s && block.end <= e);
+}
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i=a.length-1; i>0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function loadPlan() {
+  const p = loadJSON(STORAGE.plan, null);
+  return (p && typeof p==="object") ? p : null;
+}
+function savePlan(p) { saveJSON(STORAGE.plan, p); }
+
+function buildEmptyPlan(year, monthIndex) {
+  // reset per-month helper maps
+  overflowScoreByDay = new Map();
+  overflowMaxByWeek = new Map();
+  sdWeekHours = new Map();
+
+  const plan = { meta: {year, monthIndex, created: Date.now()}, days: {} };
+  const daysInMonth = new Date(year, monthIndex+1, 0).getDate();
+
+  // CT cap pre-scan totals
+  let totalCTSlotsMonth = 0;
+  let workedBlocksByName = new Map();
+
+  // --- Pre-pass: compute where CT overflow is highest (per day, per week) ---
+  for (let day=1; day<=daysInMonth; day++) {
+    const dateObj = new Date(year, monthIndex, day, 12,0,0,0);
+    const dayKey = ymd(dateObj);
+    const wk = weekKeyFromDate(dateObj);
+    const poolAll = buildDispatcherPoolForDate(dateObj);
+    let score = 0;
+    for (let bi=0; bi<BLOCKS.length; bi++) {
+      const b = BLOCKS[bi];
+      const available = poolAll.filter(d => worksBlock(d, dateObj, b));
+      const overflowSlots = Math.max(0, available.length - 10);
+      score += overflowSlots;
+      totalCTSlotsMonth += overflowSlots;
+      for (const d of available) workedBlocksByName.set(d.name, (workedBlocksByName.get(d.name)||0) + 1);
+    }
+    overflowScoreByDay.set(dayKey, score);
+    const prevMax = overflowMaxByWeek.get(wk) || 0;
+    if (score > prevMax) overflowMaxByWeek.set(wk, score);
+  }
+
+  // --- Compute hard monthly CT caps (as even as possible) ---
+  const activeNames = Array.from(workedBlocksByName.keys());
+  const activeCount = Math.max(1, activeNames.length);
+  // CT hard cap (fixed)
+  ctCapBase = 10;
+  ctCapByName = new Map(activeNames.map(n => [n, ctCapBase]));
+
+  for (let day=1; day<=daysInMonth; day++) {
+    const d = new Date(year, monthIndex, day, 12,0,0,0);
+    const key = ymd(d);
+    plan.days[key] = {};
+    for (const b of BLOCKS) plan.days[key][b.key] = { assignments:{}, sd:[], ct:[], filled:0, needed:10 };
+  }
+  return plan;
+}
+
+function randomizeMonth(year, monthIndex) {
+  const plan = buildEmptyPlan(year, monthIndex);
+
+  // Track last channel (prevents immediate back-to-back repeats)
+  const lastAssign = new Map();
+  function forbiddenBackToBack(prev, next) {
+    // DC1/DC2 never back-to-back
+    if ((prev==="DC1" && next==="DC2") || (prev==="DC2" && next==="DC1")) return true;
+    // R1, R2, CT never back-to-back in any order
+    const ctrSet = new Set(["RELIEF 1","RELIEF 2","CT","R1","R2"]);
+    const pU = String(prev||"").toUpperCase();
+    const nU = String(next||"").toUpperCase();
+    if (ctrSet.has(pU) && ctrSet.has(nU)) return true;
+    return false;
+  }
+
+
+  // Track per-person channel cycle (prevents repeating a channel until they've hit all 10)
+  // name -> Set(channels used in current cycle)
+  const channelCycle = new Map();
+
+  // Light balancing helper (keeps total assignments per person more even)
+  const channelCounts = new Map();
+
+  // CT fairness tracking (per month + per week + back-to-back exception)
+  const ctWeekCounts = new Map();   // weekKey -> Map(name -> ctCountThisWeek)
+  const ctMonthCounts = new Map();  // name -> ctCountThisMonth
+  const lastCTAt = new Map();       // name -> {dayKey, blockIdx} for back-to-back rule
+
+  // Violation fairness: track violations per person (max 1 per person if possible)
+  const violationCount = new Map();  // name -> number of violations this month
+  function hasViolation(name) { return (violationCount.get(String(name).toUpperCase()) || 0) > 0; }
+  function addViolation(name) {
+    const n = String(name).toUpperCase();
+    violationCount.set(n, (violationCount.get(n) || 0) + 1);
+  }
+
+  // Track people assigned R1/R2 who work next block - they get GUARANTEED channel priority
+  // This prevents Relief->CT violations when Pass 4 must fill R1/R2 with someone working next block
+  const mustGetChannelNextBlock = new Set(); // names that MUST get a channel (not CT) next block
+
+  // ctCapByName is global (rebuilt in buildEmptyPlan)
+  const ctOverCapUsedByWeek = new Map(); // weekKey -> Set(names who used 1 over-cap allowance)
+  const lastCTGlobalIdx = new Map();     // name -> global block index of last CT (for back-to-back rule)
+
+  const daysInMonth = new Date(year, monthIndex+1, 0).getDate();
+
+  // ========== SD PRE-ASSIGNMENT (32 hrs/MONTH = 8 blocks/MONTH MAX per person) ==========
+  // Pre-assign SD to SD-eligible employees before filling channels
+  // Track: sdPreAssigned[weekKey][dayKey][blockKey] = [names assigned to SD]
+  const sdPreAssigned = new Map(); // weekKey -> Map(dayKey -> Map(blockKey -> [names]))
+  const sdRemainingBlocks = new Map(); // weekKey -> Map(name -> remaining channel blocks to fill)
+  const sdMonthlyCount = new Map(); // name -> total SD blocks this month (MAX 8 = 32 hrs)
+
+  // Initialize monthly SD counts
+  for (const sdName of SD_ELIGIBLE) {
+    sdMonthlyCount.set(sdName, 0);
+  }
+
+  // Group days by week and find days with most dispatchers for SD priority
+  const weekDays = new Map(); // weekKey -> [{dayKey, dateObj, dispatcherCount}]
+  for (let day=1; day<=daysInMonth; day++) {
+    const dateObj = new Date(year, monthIndex, day, 12,0,0,0);
+    const dayKey = ymd(dateObj);
+    const wk = weekKeyFromDate(dateObj);
+    if (!weekDays.has(wk)) weekDays.set(wk, []);
+
+    // Count total dispatcher availability for this day
+    const poolAll = buildDispatcherPoolForDate(dateObj);
+    let totalAvail = 0;
+    for (const b of BLOCKS) {
+      const available = poolAll.filter(d => worksBlock(d, dateObj, b));
+      totalAvail += available.length;
+    }
+    weekDays.get(wk).push({dayKey, dateObj, dispatcherCount: totalAvail});
+  }
+
+  // For each week, pre-assign SD (respecting monthly cap of 8 blocks = 32 hrs per person)
+  for (const [wk, days] of weekDays.entries()) {
+    // Sort days by dispatcher count descending (prioritize days with most dispatchers)
+    days.sort((a, b) => b.dispatcherCount - a.dispatcherCount);
+
+    sdPreAssigned.set(wk, new Map());
+    sdRemainingBlocks.set(wk, new Map());
+    const sdMap = sdPreAssigned.get(wk);
+
+    // Track blocks assigned per SD employee this week
+    const sdBlocksThisWeek = new Map(); // name -> blocks assigned this week
+
+    // For each SD-eligible employee, initialize to 0
+    for (const sdName of SD_ELIGIBLE) {
+      sdBlocksThisWeek.set(sdName, 0);
+      sdRemainingBlocks.get(wk).set(sdName, 0); // will calculate after
+    }
+
+    // Distribute SD assignments across the week
+    for (const {dayKey, dateObj} of days) {
+      if (!sdMap.has(dayKey)) sdMap.set(dayKey, new Map());
+      const dayMap = sdMap.get(dayKey);
+
+      const poolAll = buildDispatcherPoolForDate(dateObj);
+
+      for (const b of BLOCKS) {
+        if (!dayMap.has(b.key)) dayMap.set(b.key, []);
+
+        // Find SD-eligible people working this block who haven't hit monthly cap
+        for (const sdName of SD_ELIGIBLE) {
+          const monthlyBlocks = sdMonthlyCount.get(sdName) || 0;
+          if (monthlyBlocks >= 8) continue; // HARD CAP: 8 blocks (32 hrs) per MONTH
+
+          // Check if this person works this block
+          const disp = poolAll.find(d => String(d.name).toUpperCase() === sdName);
+          if (!disp) continue;
+          if (!worksBlock(disp, dateObj, b)) continue;
+
+          // Assign to SD
+          dayMap.get(b.key).push(sdName);
+          sdBlocksThisWeek.set(sdName, (sdBlocksThisWeek.get(sdName) || 0) + 1);
+          sdMonthlyCount.set(sdName, monthlyBlocks + 1);
+        }
+      }
+    }
+
+    // Calculate remaining channel blocks for each SD employee
+    // (Total scheduled blocks - SD blocks = remaining for channels)
+    for (const sdName of SD_ELIGIBLE) {
+      let totalScheduledBlocks = 0;
+      for (const {dayKey, dateObj} of days) {
+        const poolAll = buildDispatcherPoolForDate(dateObj);
+        const disp = poolAll.find(d => String(d.name).toUpperCase() === sdName);
+        if (!disp) continue;
+        for (const b of BLOCKS) {
+          if (worksBlock(disp, dateObj, b)) totalScheduledBlocks++;
+        }
+      }
+      const sdBlocks = sdBlocksThisWeek.get(sdName) || 0;
+      const remainingBlocks = Math.max(0, totalScheduledBlocks - sdBlocks);
+      sdRemainingBlocks.get(wk).set(sdName, remainingBlocks);
+    }
+  }
+  // ========== END SD PRE-ASSIGNMENT ==========
+
+// Weekly quota targets (after SD):
+// - 24 hrs (6 blocks) from N/E/S/W/C/NW
+// - 8 hrs (2 blocks) from CT or R1/R2
+// - 8 hrs (2 blocks) from DC1/DC2
+const PRIMARY_SET = new Set(["NORTH","EAST","SOUTH","WEST","CENTRAL","NORTHWEST"]);
+const DC_SET = new Set(["DC1","DC2"]);
+const CTR_SET = new Set(["CT","R1","R2"]);
+
+// wk -> Map(name -> {primary:int, ctr:int, dc:int})
+const weekNeeds = new Map();
+function getNeeds(wkKey, name){
+  if (!weekNeeds.has(wkKey)) weekNeeds.set(wkKey, new Map());
+  const m = weekNeeds.get(wkKey);
+  if (!m.has(name)) m.set(name, {primary:6, ctr:2, dc:2}); // default 40hr week (10 blocks)
+  return m.get(name);
+}
+
+// Keep channel chunks up to 8 hours (2 blocks) when possible
+const sameChanStreak = new Map(); // name -> {ch, len}
+// Hard constraint: never more than 8 hours (2 blocks) in CT/R1/R2 bucket back-to-back
+const ctrStreakLen = new Map(); // name -> consecutive blocks in {CT,R1,R2}
+
+function updateStreaks(name, assignedChannel){
+  // same channel streak
+  const prev = sameChanStreak.get(name);
+  if (prev && prev.ch === assignedChannel) sameChanStreak.set(name, {ch: assignedChannel, len: Math.min(2, prev.len+1)});
+  else sameChanStreak.set(name, {ch: assignedChannel, len: 1});
+
+  // CT-bucket streak
+  if (CTR_SET.has(assignedChannel)) ctrStreakLen.set(name, (ctrStreakLen.get(name)||0)+1);
+  else ctrStreakLen.set(name, 0);
+}
+
+
+
+  // Track which channels each person has already worked TODAY (to prevent same channel twice in same day)
+  const dayChannelsWorked = new Map(); // dayKey -> Map(name -> Set of channels)
+
+  for (let day=1; day<=daysInMonth; day++) {
+    const dateObj = new Date(year, monthIndex, day, 12,0,0,0);
+    const dayKey = ymd(dateObj);
+        const wk = weekKeyFromDate(dateObj);
+    if (!ctWeekCounts.has(wk)) ctWeekCounts.set(wk, new Map());
+
+    // Initialize daily channel tracking for this day
+    if (!dayChannelsWorked.has(dayKey)) dayChannelsWorked.set(dayKey, new Map());
+    const todayChannels = dayChannelsWorked.get(dayKey); // Map(name -> Set of channels)
+
+const poolAll = buildDispatcherPoolForDate(dateObj);
+
+    for (let bi=0; bi<BLOCKS.length; bi++) {
+      const b = BLOCKS[bi];
+      const available = poolAll.filter(d => worksBlock(d, dateObj, b));
+      const shuffled = shuffle(available);
+
+      // Balance: prefer people with fewer total assignments so far
+      // HIGHEST PRIORITY: People who were just on CT/R1/R2 must get a channel to avoid back-to-back
+      shuffled.sort((a,b2)=>{
+        // ABSOLUTE PRIORITY: People marked as must-get-channel (from Pass 4 R1/R2 assignment)
+        const aMustGet = mustGetChannelNextBlock.has(a.name);
+        const bMustGet = mustGetChannelNextBlock.has(b2.name);
+        if (aMustGet && !bMustGet) return -1; // a goes first (GUARANTEED)
+        if (bMustGet && !aMustGet) return 1;  // b goes first (GUARANTEED)
+
+        // Check if either person was just on CT/R1/R2 (needs priority for channel)
+        const lastA = lastAssign.get(a.name);
+        const lastB = lastAssign.get(b2.name);
+        const ctrNames = new Set(["CT","RELIEF 1","RELIEF 2","R1","R2"]);
+        const aWasOnCTR = lastA && ctrNames.has(String(lastA).toUpperCase());
+        const bWasOnCTR = lastB && ctrNames.has(String(lastB).toUpperCase());
+
+        // SECOND: People who were just on CT/R1/R2 get top priority for channels
+        if (aWasOnCTR && !bWasOnCTR) return -1; // a goes first
+        if (bWasOnCTR && !aWasOnCTR) return 1;  // b goes first
+
+        const ma = channelCounts.get(a.name) || new Map();
+        const mb = channelCounts.get(b2.name) || new Map();
+        const ta = Array.from(ma.values()).reduce((s,v)=>s+v,0);
+        const tb = Array.from(mb.values()).reduce((s,v)=>s+v,0);
+
+        // CT fairness: if someone has already been sent to CT more often, pull them onto a channel first
+        const wmap = ctWeekCounts.get(wk) || new Map();
+        const cwa = wmap.get(a.name) || 0;
+        const cwb = wmap.get(b2.name) || 0;
+
+        const cma = ctMonthCounts.get(a.name) || 0;
+        const cmb = ctMonthCounts.get(b2.name) || 0;
+
+        // Priority order:
+        // 1) Higher CT this week gets channel priority (reduces repeat CT in the same week)
+        // 2) Higher CT this month gets channel priority (evens CT across the month)
+        // 3) Then balance total channel work so one person doesn't do everything
+        if (cwa !== cwb) return cwb - cwa;
+        if (cma !== cmb) return cmb - cma;
+        if (ta !== tb) return ta - tb;
+        return 0;
+      });
+
+      const assignments = {};
+      const usedNames = new Set();
+
+      // ========== ADD PRE-ASSIGNED SD TO THIS BLOCK ==========
+      // Get pre-assigned SD for this block and add to usedNames
+      const sdForBlock = [];
+      const wkSdMap = sdPreAssigned.get(wk);
+      if (wkSdMap && wkSdMap.has(dayKey)) {
+        const dayMap = wkSdMap.get(dayKey);
+        if (dayMap && dayMap.has(b.key)) {
+          for (const sdName of dayMap.get(b.key)) {
+            sdForBlock.push(sdName);
+            usedNames.add(sdName); // Exclude from channel assignment this block
+          }
+        }
+      }
+      // ========== END PRE-ASSIGNED SD ==========
+
+      // Check if an SD employee still has remaining channel blocks to fill
+      // If so, prioritize them for primary channels (N,E,S,W,NW,C) and one DC
+      const sdRemainingMap = sdRemainingBlocks.get(wk) || new Map();
+      function isSDEmployeeNeedingChannel(name) {
+        const nm = String(name).toUpperCase();
+        return SD_ELIGIBLE.has(nm) && (sdRemainingMap.get(nm) || 0) > 0 && !usedNames.has(nm);
+      }
+
+      // Training restriction: trainees can only be assigned to E, S, W, C
+      const TRAINEE_ALLOWED_CHANNELS = new Set(["EAST","SOUTH","WEST","CENTRAL"]);
+      function canTraineeWork(candName, channelUpper) {
+        if (!isTrainee(candName, dayKey)) return true; // Non-trainees can work any channel
+        return TRAINEE_ALLOWED_CHANNELS.has(channelUpper);
+      }
+
+      for (const ch of CHANNELS) {
+  let pick = null;
+  const CH = String(ch).toUpperCase();
+
+  // Determine which quota bucket this channel satisfies
+  const bucket = DC_SET.has(CH) ? "dc" : (PRIMARY_SET.has(CH) ? "primary" : (CTR_SET.has(CH) ? "ctr" : "primary"));
+
+  function candScore(cand){
+    const needs = getNeeds(wk, cand.name);
+    const needVal = needs[bucket] || 0;
+
+    const last = lastAssign.get(cand.name);
+    const lastUpper = last ? String(last).toUpperCase() : "";
+    const streak = sameChanStreak.get(cand.name);
+    const sameBonus = (last && lastUpper===CH && streak && streak.len < 2) ? 50 : 0;
+
+    const m = channelCounts.get(cand.name) || new Map();
+    const total = Array.from(m.values()).reduce((s,v)=>s+v,0);
+
+    // CRITICAL: People who were just on CTR (CT, R1, R2) MUST get a non-CTR channel
+    // Give them massive priority so they always win
+    let ctrPriorityBonus = 0;
+    const wasCTR = lastUpper === "CT" || lastUpper === "RELIEF 1" || lastUpper === "RELIEF 2" || lastUpper === "R1" || lastUpper === "R2";
+    if (wasCTR) {
+      // They were on CTR - they NEED a non-CTR channel now
+      if (CH !== "RELIEF 1" && CH !== "RELIEF 2") {
+        ctrPriorityBonus = 5000; // Massive bonus for non-R1/R2 channels
+      }
+    }
+
+    // Also check if they had CTR today - they shouldn't get R1/R2 or go to CT
+    const candDayChans = todayChannels.get(cand.name);
+    const hadCTRToday = candDayChans && (candDayChans.has("CT") || candDayChans.has("RELIEF 1") || candDayChans.has("RELIEF 2"));
+    if (hadCTRToday && CH !== "RELIEF 1" && CH !== "RELIEF 2") {
+      ctrPriorityBonus += 3000; // Additional bonus if they already had CTR today
+    }
+
+    // SD employee priority: give big bonus for primary channels (N,E,S,W,NW,C) and DC1/DC2
+    // Their remaining 8 hrs should go to these channels
+    let sdBonus = 0;
+    if (isSDEmployeeNeedingChannel(cand.name)) {
+      if (PRIMARY_SET.has(CH) || DC_SET.has(CH)) {
+        sdBonus = 200; // High priority for SD employees to get primary/DC channels
+      } else {
+        sdBonus = -100; // Discourage R1/R2 for SD employees
+      }
+    }
+
+    // R1/R2 penalty: If assigning R1 or R2, heavily penalize people who work the next block
+    // This prevents R1/R2 -> CT violations
+    let r1r2Penalty = 0;
+    if (CH === "RELIEF 1" || CH === "RELIEF 2") {
+      const nextBlockIdx = bi + 1;
+      if (nextBlockIdx < BLOCKS.length) {
+        // Check if this person works the next block today
+        if (worksBlock(cand, dateObj, BLOCKS[nextBlockIdx])) {
+          r1r2Penalty = -500; // Heavy penalty - prefer someone whose shift ends
+        }
+      }
+      // Also check if they work the first block of the next day
+      if (bi === BLOCKS.length - 1) {
+        const nextDay = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate() + 1, 12, 0, 0, 0);
+        if (worksBlock(cand, nextDay, BLOCKS[0])) {
+          r1r2Penalty = -500; // Heavy penalty for cross-day continuation
+        }
+      }
+    }
+
+    // Big push to satisfy weekly quotas, then prefer 8-hour chunks, then keep totals even
+    return (needVal*100) + sameBonus + sdBonus + r1r2Penalty + ctrPriorityBonus - (total*0.25);
+  }
+
+  // Helper: check if candidate works next block (for R1/R2 restriction)
+  function worksNextBlock(cand) {
+    const nextBlockIdx = bi + 1;
+    if (nextBlockIdx < BLOCKS.length) {
+      if (worksBlock(cand, dateObj, BLOCKS[nextBlockIdx])) return true;
+    }
+    if (bi === BLOCKS.length - 1) {
+      const nextDay = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate() + 1, 12, 0, 0, 0);
+      if (worksBlock(cand, nextDay, BLOCKS[0])) return true;
+    }
+    return false;
+  }
+
+  // Pass 1: STRICT – quota-driven + no immediate repeat + respect channel cycle + respect CT-bucket streak rule
+  let best = null, bestScore = -1e9;
+  for (const cand of shuffled) {
+    if (usedNames.has(cand.name)) continue;
+
+    // Training restriction: trainees can only work E, S, W, C
+    if (!canTraineeWork(cand.name, CH)) continue;
+
+    // R1/R2 restriction: In Pass 1, skip people who work next block
+    if ((CH === "RELIEF 1" || CH === "RELIEF 2") && worksNextBlock(cand)) continue;
+
+    // Same-day channel restriction: don't assign same channel twice in one day
+    const candDayChannels = todayChannels.get(cand.name);
+    if (candDayChannels && candDayChannels.has(CH)) continue;
+
+    // init/roll cycle
+    if (!channelCycle.has(cand.name)) channelCycle.set(cand.name, new Set());
+    const cyc = channelCycle.get(cand.name);
+    if (cyc.size >= CHANNELS.length) cyc.clear();
+
+    const last = lastAssign.get(cand.name);
+    if (last && (String(last).toUpperCase() === CH || forbiddenBackToBack(String(last).toUpperCase(), CH))) continue;
+    if (cyc.has(ch)) continue;
+
+    // Hard rule: never more than 2 consecutive blocks in CT/R1/R2 bucket
+    if (bucket === "ctr" && (ctrStreakLen.get(cand.name)||0) >= 2) continue;
+
+    const sc = candScore(cand);
+    if (sc > bestScore) { bestScore=sc; best=cand; }
+  }
+  pick = best;
+
+  // Pass 2: RELAX cycle (if staffing is too tight) – still enforce CT-bucket streak
+  if (!pick) {
+    best = null; bestScore = -1e9;
+    for (const cand of shuffled) {
+      if (usedNames.has(cand.name)) continue;
+
+      // Training restriction: trainees can only work E, S, W, C
+      if (!canTraineeWork(cand.name, CH)) continue;
+
+      // R1/R2 restriction: In Pass 2, still skip people who work next block
+      if ((CH === "RELIEF 1" || CH === "RELIEF 2") && worksNextBlock(cand)) continue;
+
+      // Same-day channel restriction: don't assign same channel twice in one day
+      const candDayChannels = todayChannels.get(cand.name);
+      if (candDayChannels && candDayChannels.has(CH)) continue;
+
+      const last = lastAssign.get(cand.name);
+      if (last && (String(last).toUpperCase() === CH || forbiddenBackToBack(String(last).toUpperCase(), CH))) continue;
+
+      if (bucket === "ctr" && (ctrStreakLen.get(cand.name)||0) >= 2) continue;
+
+      const sc = candScore(cand) - 15; // slight penalty vs strict
+      if (sc > bestScore) { bestScore=sc; best=cand; }
+    }
+    pick = best;
+  }
+
+  // Pass 3: LAST RESORT – any available person (still enforce CT-bucket streak)
+  if (!pick) {
+    for (const cand of shuffled) {
+      if (usedNames.has(cand.name)) continue;
+      // Training restriction: trainees can only work E, S, W, C
+      if (!canTraineeWork(cand.name, CH)) continue;
+      // R1/R2 restriction: CRITICAL - still skip people who work next block even in Pass 3
+      // This prevents Relief->CT back-to-back violations
+      if ((CH === "RELIEF 1" || CH === "RELIEF 2") && worksNextBlock(cand)) continue;
+      // Same-day channel restriction: don't assign same channel twice in one day
+      const candDayChannels = todayChannels.get(cand.name);
+      if (candDayChannels && candDayChannels.has(CH)) continue;
+      // Check forbiddenBackToBack even in Pass 3
+      const last = lastAssign.get(cand.name);
+      if (last && forbiddenBackToBack(String(last).toUpperCase(), CH)) continue;
+      if (bucket === "ctr" && (ctrStreakLen.get(cand.name)||0) >= 2) continue;
+      pick = cand; break;
+    }
+  }
+
+  // If no pick found, skip this channel but continue with others
+  // (Especially important for R1/R2 which may be skipped to prevent violations)
+  if (!pick) continue;
+
+  assignments[ch] = pick.name;
+  usedNames.add(pick.name);
+  lastAssign.set(pick.name, ch);
+
+  // Track channel worked today (to prevent same channel twice in one day)
+  if (!todayChannels.has(pick.name)) todayChannels.set(pick.name, new Set());
+  todayChannels.get(pick.name).add(CH);
+
+  // update cycle tracking
+  if (!channelCycle.has(pick.name)) channelCycle.set(pick.name, new Set());
+  const cyc = channelCycle.get(pick.name);
+  if (cyc.size >= CHANNELS.length) cyc.clear();
+  cyc.add(ch);
+
+  // decrement weekly need if still owed
+  const nd = getNeeds(wk, pick.name);
+  if (nd[bucket] > 0) nd[bucket] -= 1;
+
+  // update streaks
+  updateStreaks(pick.name, String(ch).toUpperCase());
+
+  // update balancing counts
+  if (!channelCounts.has(pick.name)) channelCounts.set(pick.name, new Map());
+  const m = channelCounts.get(pick.name);
+  m.set(ch, (m.get(ch)||0)+1);
+
+  // Track SD employee channel usage (decrement remaining blocks)
+  const pickUpper = String(pick.name).toUpperCase();
+  if (SD_ELIGIBLE.has(pickUpper) && sdRemainingMap.has(pickUpper)) {
+    const rem = sdRemainingMap.get(pickUpper) || 0;
+    if (rem > 0) sdRemainingMap.set(pickUpper, rem - 1);
+  }
+
+  // Remove from must-get-channel list (they got their channel)
+  mustGetChannelNextBlock.delete(pick.name);
+
+  // If R1/R2 assigned and they work next block, they MUST get a channel next block
+  // (This applies to Pass 1-3 as well, not just Pass 4)
+  if ((CH === "RELIEF 1" || CH === "RELIEF 2") && worksNextBlock(pick)) {
+    mustGetChannelNextBlock.add(pick.name);
+  }
+}
+
+// ========== PASS 4: FILL ANY EMPTY CHANNELS ==========
+// Multiple sub-passes with decreasing strictness to minimize violations
+for (const ch of CHANNELS) {
+  if (assignments[ch]) continue; // Already filled
+
+  const CH = String(ch).toUpperCase();
+  let pick = null;
+
+  // Pass 4a: All checks - ideal candidate
+  for (const cand of shuffled) {
+    if (usedNames.has(cand.name)) continue;
+    if (!canTraineeWork(cand.name, CH)) continue;
+    if ((CH === "RELIEF 1" || CH === "RELIEF 2") && worksNextBlock(cand)) continue;
+    const last = lastAssign.get(cand.name);
+    if (last && forbiddenBackToBack(String(last).toUpperCase(), CH)) continue;
+    const candDayChannels = todayChannels.get(cand.name);
+    if (candDayChannels && candDayChannels.has(CH)) continue;
+    pick = cand;
+    break;
+  }
+
+  // Pass 4b: Skip worksNextBlock, keep forbiddenBackToBack and same-day
+  // For R1/R2, prefer people without violations (they'll likely get a Relief->CT violation)
+  if (!pick) {
+    const candidates4b = shuffled.filter(cand => {
+      if (usedNames.has(cand.name)) return false;
+      if (!canTraineeWork(cand.name, CH)) return false;
+      const last = lastAssign.get(cand.name);
+      if (last && forbiddenBackToBack(String(last).toUpperCase(), CH)) return false;
+      const candDayChannels = todayChannels.get(cand.name);
+      if (candDayChannels && candDayChannels.has(CH)) return false;
+      return true;
+    });
+    // Sort: people without violations first (for R1/R2 that may cause violation)
+    if ((CH === "RELIEF 1" || CH === "RELIEF 2")) {
+      candidates4b.sort((a, b) => (violationCount.get(a.name.toUpperCase())||0) - (violationCount.get(b.name.toUpperCase())||0));
+    }
+    if (candidates4b.length > 0) pick = candidates4b[0];
+  }
+
+  // Pass 4c: Skip worksNextBlock and same-day, KEEP forbiddenBackToBack (most important)
+  if (!pick) {
+    const candidates4c = shuffled.filter(cand => {
+      if (usedNames.has(cand.name)) return false;
+      if (!canTraineeWork(cand.name, CH)) return false;
+      const last = lastAssign.get(cand.name);
+      if (last && forbiddenBackToBack(String(last).toUpperCase(), CH)) return false;
+      return true;
+    });
+    // Sort: people without violations first
+    if ((CH === "RELIEF 1" || CH === "RELIEF 2")) {
+      candidates4c.sort((a, b) => (violationCount.get(a.name.toUpperCase())||0) - (violationCount.get(b.name.toUpperCase())||0));
+    }
+    if (candidates4c.length > 0) pick = candidates4c[0];
+  }
+
+  // Pass 4d: Last resort - anyone available (channel MUST be filled)
+  // Even here, prefer people without violations
+  if (!pick) {
+    const candidates4d = shuffled.filter(cand => {
+      if (usedNames.has(cand.name)) return false;
+      if (!canTraineeWork(cand.name, CH)) return false;
+      return true;
+    });
+    candidates4d.sort((a, b) => (violationCount.get(a.name.toUpperCase())||0) - (violationCount.get(b.name.toUpperCase())||0));
+    if (candidates4d.length > 0) pick = candidates4d[0];
+  }
+
+  if (pick) {
+    assignments[ch] = pick.name;
+    usedNames.add(pick.name);
+    lastAssign.set(pick.name, ch);
+
+    if (!todayChannels.has(pick.name)) todayChannels.set(pick.name, new Set());
+    todayChannels.get(pick.name).add(CH);
+
+    if (!channelCycle.has(pick.name)) channelCycle.set(pick.name, new Set());
+    channelCycle.get(pick.name).add(ch);
+
+    if (!channelCounts.has(pick.name)) channelCounts.set(pick.name, new Map());
+    const m = channelCounts.get(pick.name);
+    m.set(ch, (m.get(ch)||0)+1);
+
+    updateStreaks(pick.name, CH);
+
+    // Remove from must-get-channel list if they were in it (they got a channel now)
+    mustGetChannelNextBlock.delete(pick.name);
+
+    // If R1/R2 assigned to someone who works next block, they MUST get a channel next block
+    if ((CH === "RELIEF 1" || CH === "RELIEF 2") && worksNextBlock(pick)) {
+      mustGetChannelNextBlock.add(pick.name);
+    }
+  }
+}
+// ========== END PASS 4 ==========
+
+const filled = Object.keys(assignments).length;
+
+      // ========== 7TH CHANNEL (Fri/Sat nights 2200-0300) ==========
+      // On Friday (day 5) and Saturday (day 6), add an additional "7th" dispatcher channel
+      const dayOfWeek = dateObj.getDay(); // 0=Sun, 5=Fri, 6=Sat
+      const isFriOrSat = (dayOfWeek === 5 || dayOfWeek === 6);
+      const is7thBlock = SEVENTH_BLOCKS.has(b.key);
+
+      if (isFriOrSat && is7thBlock && filled >= 10) {
+        // Find someone for 7th channel from remaining available
+        const remaining7th = shuffled.filter(c => !usedNames.has(c.name) && !isTrainee(c.name, dayKey));
+
+        // Sort by fewest total assignments (fairness)
+        remaining7th.sort((a,b2)=>{
+          const ma = channelCounts.get(a.name) || new Map();
+          const mb = channelCounts.get(b2.name) || new Map();
+          const ta = Array.from(ma.values()).reduce((s,v)=>s+v,0);
+          const tb = Array.from(mb.values()).reduce((s,v)=>s+v,0);
+          return ta - tb;
+        });
+
+        if (remaining7th.length > 0) {
+          const pick7 = remaining7th[0];
+          assignments[SEVENTH_CHANNEL] = pick7.name;
+          usedNames.add(pick7.name);
+          lastAssign.set(pick7.name, SEVENTH_CHANNEL);
+
+          // Track 7th channel worked today (to prevent same channel twice in one day)
+          if (!todayChannels.has(pick7.name)) todayChannels.set(pick7.name, new Set());
+          todayChannels.get(pick7.name).add("7TH");
+
+          // Update balancing counts for 7th
+          if (!channelCounts.has(pick7.name)) channelCounts.set(pick7.name, new Map());
+          const m7 = channelCounts.get(pick7.name);
+          m7.set(SEVENTH_CHANNEL, (m7.get(SEVENTH_CHANNEL)||0)+1);
+        }
+      }
+      // ========== END 7TH CHANNEL ==========
+
+      // SD (Special Detail): Use pre-assigned SD from earlier calculation
+      // SD is now assigned FIRST (32 hrs mandatory/week) before channels are filled
+      const sd = sdForBlock.slice(); // Copy pre-assigned SD for this block
+
+      // CT overflow: show as a vertical list later; CT does NOT count as a channel in cycle tracking
+      const ct = [];
+
+
+if (available.length > 10) {
+  // CT overflow with HARD monthly caps:
+  // - We try to keep CT split as evenly as possible across the month.
+  // - If CT is unavoidable after caps are hit, we allow a controlled "repeat":
+  //     * MAX once per week per person
+  //     * MUST be back-to-back (consecutive 4-hr blocks)
+    const wmap = ctWeekCounts.get(wk) || new Map();
+  const globalIdx = (day-1) * BLOCKS.length + bi;
+
+  function capFor(name){
+    // HARD CAP: nobody can be assigned to CT more than 10 times per month
+    return 10;
+  }
+  function canTakeChannel(name, ch){
+    const last = lastAssign.get(name);
+    if (last && (last === ch || forbiddenBackToBack(last, ch))) return false;
+    // Also check daily same-channel restriction
+    const candDayChannels = todayChannels.get(name);
+    const chUpper = String(ch).toUpperCase();
+    if (candDayChannels && candDayChannels.has(chUpper)) return false;
+    return true;
+  }
+  function atOrOverCap(name){
+    return (ctMonthCounts.get(name) || 0) >= capFor(name);
+  }
+
+  // CRITICAL: First, ensure anyone in mustGetChannelNextBlock gets a channel (to avoid Relief->CT)
+  // These people were on R1/R2 last block and MUST get a channel now
+  let remaining = shuffled.filter(c => !usedNames.has(c.name));
+
+  const mustGetPeople = remaining.filter(c => mustGetChannelNextBlock.has(c.name));
+  for (const cand of mustGetPeople) {
+    // Try to swap them into any channel
+    for (const ch of CHANNELS) {
+      const cur = assignments[ch];
+      if (!cur) continue; // Empty channel - shouldn't happen but skip
+      if (!canTakeChannel(cand.name, ch)) continue;
+
+      // Check if current holder can go to CT (not on CTR recently)
+      const holderLast = lastAssign.get(cur);
+      const holderLastUpper = holderLast ? String(holderLast).toUpperCase() : "";
+      const ctrSet = new Set(["CT","RELIEF 1","RELIEF 2","R1","R2"]);
+      if (ctrSet.has(holderLastUpper)) continue; // Holder can't go to CT
+      if (mustGetChannelNextBlock.has(cur)) continue; // Holder also needs a channel
+
+      // Swap: cand gets channel, cur goes to CT pool
+      assignments[ch] = cand.name;
+      usedNames.add(cand.name);
+      usedNames.delete(cur);
+      lastAssign.set(cand.name, ch);
+
+      const chUpper = String(ch).toUpperCase();
+      if (!todayChannels.has(cand.name)) todayChannels.set(cand.name, new Set());
+      todayChannels.get(cand.name).add(chUpper);
+
+      if (!channelCounts.has(cand.name)) channelCounts.set(cand.name, new Map());
+      channelCounts.get(cand.name).set(ch, (channelCounts.get(cand.name).get(ch)||0)+1);
+
+      mustGetChannelNextBlock.delete(cand.name); // They got their channel
+      break;
+    }
+    remaining = shuffled.filter(c => !usedNames.has(c.name));
+  }
+
+  // If someone is capped, try to swap them into a channel (so they don't land in CT),
+  // pushing a non-capped person into overflow instead.
+  remaining = shuffled.filter(c => !usedNames.has(c.name));
+
+  const cappedNow = remaining.filter(c => atOrOverCap(c.name));
+  for (const cand of cappedNow) {
+    let swapped = false;
+
+    for (const ch of CHANNELS) {
+      const cur = assignments[ch];
+      if (!cur) continue;
+
+      // only swap out someone who is NOT capped
+      if (atOrOverCap(cur)) continue;
+      if (!canTakeChannel(cand.name, ch)) continue;
+
+      // swap
+      assignments[ch] = cand.name;
+      usedNames.add(cand.name);
+      usedNames.delete(cur);
+
+      // keep lastAssign consistent for cand
+      lastAssign.set(cand.name, ch);
+
+      // Track swapped-in channel worked today
+      const swapCH = String(ch).toUpperCase();
+      if (!todayChannels.has(cand.name)) todayChannels.set(cand.name, new Set());
+      todayChannels.get(cand.name).add(swapCH);
+
+      // update balancing counts for cand
+      if (!channelCounts.has(cand.name)) channelCounts.set(cand.name, new Map());
+      const mm = channelCounts.get(cand.name);
+      mm.set(ch, (mm.get(ch) || 0) + 1);
+
+      swapped = true;
+      break;
+    }
+
+    if (swapped) {
+      remaining = shuffled.filter(c => !usedNames.has(c.name));
+    }
+  }
+
+  // Now assign CT STRICTLY under the hard cap.
+  // Weekly soft cap: prefer people with fewer CT this week (spread across month)
+  const CT_WEEKLY_SOFT_CAP = 3; // Soft cap: try to limit CT to 3 per person per week
+  remaining = shuffled.filter(c => !usedNames.has(c.name));
+
+  // Sort priority: under weekly soft cap > under monthly cap > lowest CT counts
+  remaining.sort((a,b2)=>{
+    const ca = ctMonthCounts.get(a.name)||0;
+    const cb = ctMonthCounts.get(b2.name)||0;
+    const oa = ca >= capFor(a.name);
+    const ob = cb >= capFor(b2.name);
+
+    // Weekly CT counts for spreading across month
+    const wca = wmap.get(a.name)||0;
+    const wcb = wmap.get(b2.name)||0;
+    const woa = wca >= CT_WEEKLY_SOFT_CAP;
+    const wob = wcb >= CT_WEEKLY_SOFT_CAP;
+
+    // Priority: under monthly cap first
+    if (oa !== ob) return oa ? 1 : -1;
+    // Then prefer under weekly soft cap (spread CT across weeks)
+    if (woa !== wob) return woa ? 1 : -1;
+    // Then prefer lowest weekly CT (spread within week)
+    if (wca !== wcb) return wca - wcb;
+    // Then prefer lowest monthly CT
+    if (ca !== cb) return ca - cb;
+    return 0;
+  });
+
+  for (const cand of remaining) {
+    const name = cand.name;
+    // Training restriction: trainees should not be assigned to CT
+    if (isTrainee(name, dayKey)) { continue; }
+
+    // STRICT: R1, R2, CT should NEVER be back-to-back in any order
+    const lastCh = lastAssign.get(name);
+    if (lastCh) {
+      const lastUpper = String(lastCh).toUpperCase();
+      if (lastUpper === "CT" || lastUpper === "RELIEF 1" || lastUpper === "RELIEF 2" || lastUpper === "R1" || lastUpper === "R2") {
+        continue; // Skip - they were just on R1/R2/CT
+      }
+    }
+
+    // STRICT: CT/R1/R2 should NOT repeat in the same day in any combination
+    const candDayChannels = todayChannels.get(name);
+    if (candDayChannels) {
+      if (candDayChannels.has("CT") || candDayChannels.has("RELIEF 1") || candDayChannels.has("RELIEF 2")) {
+        continue; // Skip - they already had CT/R1/R2 today
+      }
+    }
+
+    const needs = getNeeds(wk, name);
+    // Weekly mix rule: CT counts toward the CT/R1/R2 bucket (2 blocks / 8 hrs target)
+    if ((needs.ctr || 0) <= 0) { continue; }
+
+    const cur = ctMonthCounts.get(name) || 0;
+    const cap = capFor(name);
+
+    if (cur >= cap) {
+      continue;
+    }
+
+    // Soft weekly cap: skip if over soft cap AND others are available
+    const weekCt = wmap.get(name)||0;
+    const othersUnderWeeklyCap = remaining.some(c =>
+      c.name !== name &&
+      !ct.includes(c.name) &&
+      (wmap.get(c.name)||0) < CT_WEEKLY_SOFT_CAP &&
+      (ctMonthCounts.get(c.name)||0) < capFor(c.name)
+    );
+    if (weekCt >= CT_WEEKLY_SOFT_CAP && othersUnderWeeklyCap) {
+      continue; // Skip this person, let someone else take CT
+    }
+
+    ct.push(name);
+    // decrement weekly CT/R bucket need
+    if ((needs.ctr||0) > 0) needs.ctr -= 1;
+    updateStreaks(name, "CT");
+    lastAssign.set(name, "CT"); // Track CT assignment for back-to-back prevention
+
+    // Track CT in daily channels to prevent same-day repeat
+    if (!todayChannels.has(name)) todayChannels.set(name, new Set());
+    todayChannels.get(name).add("CT");
+
+    wmap.set(name, (wmap.get(name) || 0) + 1);
+    ctMonthCounts.set(name, cur + 1);
+    lastCTAt.set(name, {dayKey, blockIdx: bi});
+    lastCTGlobalIdx.set(name, globalIdx);
+  }
+
+  ctWeekCounts.set(wk, wmap);
+}
+
+// SAFETY NET: Anyone who is available but wasn't assigned to a channel or CT
+// For people who were on CT/R1/R2, we MUST get them a channel to avoid back-to-back
+const unassigned = available.filter(d => !usedNames.has(d.name));
+const ctrNames = new Set(["CT","RELIEF 1","RELIEF 2","R1","R2"]);
+
+for (const u of unassigned) {
+  if (ct.includes(u.name)) continue;
+
+  const lastCh = lastAssign.get(u.name);
+  const lastUpper = lastCh ? String(lastCh).toUpperCase() : "";
+  const wasOnCTR = ctrNames.has(lastUpper);
+
+  // Also check if they had any CTR today (not just last block)
+  const uDayChans = todayChannels.get(u.name);
+  const hadCTRToday = uDayChans && (uDayChans.has("CT") || uDayChans.has("RELIEF 1") || uDayChans.has("RELIEF 2"));
+
+  if (wasOnCTR || hadCTRToday) {
+    // They were on CT/R1/R2 - MUST get a channel, not CT
+    // Try to find an empty channel first
+    let foundChannel = false;
+    for (const ch of CHANNELS) {
+      if (assignments[ch]) continue; // Already filled
+      const chUpper = String(ch).toUpperCase();
+      if (chUpper === "RELIEF 1" || chUpper === "RELIEF 2") continue; // Can't do R1/R2
+      // Check daily same-channel restriction
+      const uDayChannels = todayChannels.get(u.name);
+      if (uDayChannels && uDayChannels.has(chUpper)) continue;
+      if (!forbiddenBackToBack(lastUpper, chUpper)) {
+        assignments[ch] = u.name;
+        usedNames.add(u.name);
+        lastAssign.set(u.name, ch);
+        // Track channel worked today
+        if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+        todayChannels.get(u.name).add(chUpper);
+        foundChannel = true;
+        break;
+      }
+    }
+
+    // If no empty channel, SWAP with someone who CAN go to CT (prefer no violations)
+    if (!foundChannel) {
+      const swapCands1 = [];
+      for (const ch of CHANNELS) {
+        const currentHolder = assignments[ch];
+        if (!currentHolder) continue;
+        const chUpper = String(ch).toUpperCase();
+        if (chUpper === "RELIEF 1" || chUpper === "RELIEF 2") continue;
+        if (forbiddenBackToBack(lastUpper, chUpper)) continue;
+        const uDayChannels = todayChannels.get(u.name);
+        if (uDayChannels && uDayChannels.has(chUpper)) continue;
+
+        const holderLast = lastAssign.get(currentHolder);
+        const holderLastUpper = holderLast ? String(holderLast).toUpperCase() : "";
+        const holderWasOnCTR = ctrNames.has(holderLastUpper);
+        const holderDayChannels = todayChannels.get(currentHolder);
+        const holderHadCTToday = holderDayChannels && holderDayChannels.has("CT");
+        const holderCTCount = ctMonthCounts.get(currentHolder) || 0;
+        const holderAtCap = holderCTCount >= 10;
+
+        if (!holderWasOnCTR && !holderHadCTToday && !holderAtCap) {
+          const holderViol = violationCount.get(currentHolder.toUpperCase()) || 0;
+          swapCands1.push({ ch, chUpper, currentHolder, holderCTCount, holderViol });
+        }
+      }
+      // Sort: no violations first, then lowest CT
+      swapCands1.sort((a, b) => {
+        if (a.holderViol !== b.holderViol) return a.holderViol - b.holderViol;
+        return a.holderCTCount - b.holderCTCount;
+      });
+      if (swapCands1.length > 0) {
+        const best = swapCands1[0];
+        assignments[best.ch] = u.name;
+        usedNames.add(u.name);
+        lastAssign.set(u.name, best.ch);
+        if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+        todayChannels.get(u.name).add(best.chUpper);
+
+        ct.push(best.currentHolder);
+        lastAssign.set(best.currentHolder, "CT");
+        updateStreaks(best.currentHolder, "CT");
+        if (!todayChannels.has(best.currentHolder)) todayChannels.set(best.currentHolder, new Set());
+        todayChannels.get(best.currentHolder).add("CT");
+        ctMonthCounts.set(best.currentHolder, best.holderCTCount + 1);
+        const wkMap = ctWeekCounts.get(wk) || new Map();
+        wkMap.set(best.currentHolder, (wkMap.get(best.currentHolder) || 0) + 1);
+        ctWeekCounts.set(wk, wkMap);
+
+        foundChannel = true;
+      }
+    }
+
+    // If still no channel, try harder to swap - find ANY channel holder who can go to CT (prefer no violations)
+    if (!foundChannel) {
+      const swapCands2 = [];
+      for (const ch of CHANNELS) {
+        const currentHolder = assignments[ch];
+        if (!currentHolder) continue;
+        const chUpper = String(ch).toUpperCase();
+        if (chUpper === "RELIEF 1" || chUpper === "RELIEF 2") continue;
+        if (forbiddenBackToBack(lastUpper, chUpper)) continue;
+        const uDayChannels = todayChannels.get(u.name);
+        if (uDayChannels && uDayChannels.has(chUpper)) continue;
+
+        const holderLast = lastAssign.get(currentHolder);
+        const holderLastUpper = holderLast ? String(holderLast).toUpperCase() : "";
+        const holderWasOnCTR = ctrNames.has(holderLastUpper);
+        const holderDayChannels = todayChannels.get(currentHolder);
+        const holderHadCTRToday = holderDayChannels && (holderDayChannels.has("CT") || holderDayChannels.has("RELIEF 1") || holderDayChannels.has("RELIEF 2"));
+        const holderCTCount2 = ctMonthCounts.get(currentHolder) || 0;
+        const holderAtCap2 = holderCTCount2 >= 10;
+
+        if (!holderWasOnCTR && !holderHadCTRToday && !holderAtCap2) {
+          const holderViol = violationCount.get(currentHolder.toUpperCase()) || 0;
+          swapCands2.push({ ch, chUpper, currentHolder, holderCTCount2, holderViol });
+        }
+      }
+      // Sort: no violations first, then lowest CT
+      swapCands2.sort((a, b) => {
+        if (a.holderViol !== b.holderViol) return a.holderViol - b.holderViol;
+        return a.holderCTCount2 - b.holderCTCount2;
+      });
+      if (swapCands2.length > 0) {
+        const best = swapCands2[0];
+        assignments[best.ch] = u.name;
+        usedNames.add(u.name);
+        lastAssign.set(u.name, best.ch);
+        if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+        todayChannels.get(u.name).add(best.chUpper);
+
+        ct.push(best.currentHolder);
+        lastAssign.set(best.currentHolder, "CT");
+        updateStreaks(best.currentHolder, "CT");
+        if (!todayChannels.has(best.currentHolder)) todayChannels.set(best.currentHolder, new Set());
+        todayChannels.get(best.currentHolder).add("CT");
+        ctMonthCounts.set(best.currentHolder, best.holderCTCount2 + 1);
+        const wkMap2 = ctWeekCounts.get(wk) || new Map();
+        wkMap2.set(best.currentHolder, (wkMap2.get(best.currentHolder) || 0) + 1);
+        ctWeekCounts.set(wk, wkMap2);
+
+        foundChannel = true;
+      }
+    }
+
+    // THIRD ATTEMPT: Allow swapping with someone OVER cap (uneven CT is better than violation)
+    // Sort by CT count to prefer swapping with lowest CT person even if over cap
+    if (!foundChannel) {
+      const swapCandidates = [];
+      for (const ch of CHANNELS) {
+        const currentHolder = assignments[ch];
+        if (!currentHolder) continue;
+        const chUpper = String(ch).toUpperCase();
+        if (chUpper === "RELIEF 1" || chUpper === "RELIEF 2") continue;
+        if (forbiddenBackToBack(lastUpper, chUpper)) continue;
+        const uDayChannels = todayChannels.get(u.name);
+        if (uDayChannels && uDayChannels.has(chUpper)) continue;
+
+        const holderLast = lastAssign.get(currentHolder);
+        const holderLastUpper = holderLast ? String(holderLast).toUpperCase() : "";
+        const holderWasOnCTR = ctrNames.has(holderLastUpper);
+        const holderDayChannels = todayChannels.get(currentHolder);
+        const holderHadCTRToday = holderDayChannels && (holderDayChannels.has("CT") || holderDayChannels.has("RELIEF 1") || holderDayChannels.has("RELIEF 2"));
+
+        // Allow over-cap, but skip if they were on CTR or had CTR today (would cause violation)
+        if (!holderWasOnCTR && !holderHadCTRToday) {
+          const holderCT = ctMonthCounts.get(currentHolder) || 0;
+          swapCandidates.push({ ch, chUpper, currentHolder, holderCT });
+        }
+      }
+
+      // Sort by: 1) no violations first, 2) lowest CT count
+      swapCandidates.sort((a, b) => {
+        const aViol = violationCount.get(a.currentHolder.toUpperCase()) || 0;
+        const bViol = violationCount.get(b.currentHolder.toUpperCase()) || 0;
+        if (aViol !== bViol) return aViol - bViol; // Prefer no violations
+        return a.holderCT - b.holderCT;
+      });
+
+      if (swapCandidates.length > 0) {
+        const best = swapCandidates[0];
+        assignments[best.ch] = u.name;
+        usedNames.add(u.name);
+        lastAssign.set(u.name, best.ch);
+        if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+        todayChannels.get(u.name).add(best.chUpper);
+
+        ct.push(best.currentHolder);
+        lastAssign.set(best.currentHolder, "CT");
+        updateStreaks(best.currentHolder, "CT");
+        if (!todayChannels.has(best.currentHolder)) todayChannels.set(best.currentHolder, new Set());
+        todayChannels.get(best.currentHolder).add("CT");
+        ctMonthCounts.set(best.currentHolder, best.holderCT + 1);
+        const wkMap3 = ctWeekCounts.get(wk) || new Map();
+        wkMap3.set(best.currentHolder, (wkMap3.get(best.currentHolder) || 0) + 1);
+        ctWeekCounts.set(wk, wkMap3);
+
+        foundChannel = true;
+      }
+    }
+
+    // Last resort: if still no channel, assign CT (violation is unavoidable)
+    if (!foundChannel) {
+      ct.push(u.name);
+      lastAssign.set(u.name, "CT");
+      updateStreaks(u.name, "CT");
+      if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+      todayChannels.get(u.name).add("CT");
+      // UPDATE CT COUNTS
+      ctMonthCounts.set(u.name, (ctMonthCounts.get(u.name) || 0) + 1);
+      const wkMapLR = ctWeekCounts.get(wk) || new Map();
+      wkMapLR.set(u.name, (wkMapLR.get(u.name) || 0) + 1);
+      ctWeekCounts.set(wk, wkMapLR);
+      // TRACK VIOLATION (Relief->CT back-to-back)
+      addViolation(u.name);
+    }
+  } else {
+    // They weren't on CT/R1/R2 - check if they already had any CTR today
+    const uDayChannels = todayChannels.get(u.name);
+    const uHadCTRToday = uDayChannels && (uDayChannels.has("CT") || uDayChannels.has("RELIEF 1") || uDayChannels.has("RELIEF 2"));
+    // Also check if they're at or over monthly CT cap
+    const uCTCount = ctMonthCounts.get(u.name) || 0;
+    if (!uHadCTRToday && uCTCount < 10) {
+      ct.push(u.name);
+      lastAssign.set(u.name, "CT");
+      updateStreaks(u.name, "CT");
+      if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+      todayChannels.get(u.name).add("CT");
+      // UPDATE CT COUNTS
+      ctMonthCounts.set(u.name, uCTCount + 1);
+      const wkMapElse = ctWeekCounts.get(wk) || new Map();
+      wkMapElse.set(u.name, (wkMapElse.get(u.name) || 0) + 1);
+      ctWeekCounts.set(wk, wkMapElse);
+    }
+    // If they already had CTR today or at cap, force CT anyway — unassigned is never acceptable
+    if (!ct.includes(u.name) && !usedNames.has(u.name)) {
+      ct.push(u.name);
+      lastAssign.set(u.name, "CT");
+      if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+      todayChannels.get(u.name).add("CT");
+      ctMonthCounts.set(u.name, (ctMonthCounts.get(u.name) || 0) + 1);
+      const wkMapForce = ctWeekCounts.get(wk) || new Map();
+      wkMapForce.set(u.name, (wkMapForce.get(u.name) || 0) + 1);
+      ctWeekCounts.set(wk, wkMapForce);
+    }
+  }
+}
+
+// FINAL SWEEP: Catch anyone still not assigned (trainees, edge cases) — force to CT
+const finalUnassigned = available.filter(d => !usedNames.has(d.name) && !ct.includes(d.name) && !sd.includes(d.name));
+for (const u of finalUnassigned) {
+  ct.push(u.name);
+  lastAssign.set(u.name, "CT");
+  if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+  todayChannels.get(u.name).add("CT");
+  ctMonthCounts.set(u.name, (ctMonthCounts.get(u.name) || 0) + 1);
+  const wkMapFinal = ctWeekCounts.get(wk) || new Map();
+  wkMapFinal.set(u.name, (wkMapFinal.get(u.name) || 0) + 1);
+  ctWeekCounts.set(wk, wkMapFinal);
+}
+
+      plan.days[dayKey][b.key] = { assignments, sd, ct, filled, needed: 10 };
+    }
+  }
+
+  savePlan(plan);
+
+  // Count ALL violations by scanning the final schedule (same logic as CSV export)
+  const violationsFound = new Map(); // name -> count
+  const ctrSet2 = new Set(["CT","RELIEF 1","RELIEF 2","R1","R2"]);
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateObj = new Date(year, monthIndex, day, 12, 0, 0, 0);
+    const dayKey = ymd(dateObj);
+    const dayData = plan.days[dayKey];
+    if (!dayData) continue;
+
+    // Track assignments per person for this day
+    const personAssignments = new Map(); // name -> [{blockIdx, channel}]
+
+    for (let bi = 0; bi < BLOCKS.length; bi++) {
+      const b = BLOCKS[bi];
+      const blockData = dayData[b.key];
+      if (!blockData) continue;
+
+      // Collect all assignments for this block
+      for (const [ch, name] of Object.entries(blockData.assignments || {})) {
+        if (!name) continue;
+        const nameUpper = String(name).toUpperCase();
+        if (!personAssignments.has(nameUpper)) personAssignments.set(nameUpper, []);
+        personAssignments.get(nameUpper).push({ blockIdx: bi, channel: ch.toUpperCase(), blockKey: b.key });
+      }
+      for (const name of (blockData.ct || [])) {
+        const nameUpper = String(name).toUpperCase();
+        if (!personAssignments.has(nameUpper)) personAssignments.set(nameUpper, []);
+        personAssignments.get(nameUpper).push({ blockIdx: bi, channel: "CT", blockKey: b.key });
+      }
+    }
+
+    // Check for violations per person
+    for (const [name, assignments] of personAssignments) {
+      assignments.sort((a, b) => a.blockIdx - b.blockIdx);
+      const dayChannels = new Map(); // channel -> count
+
+      for (let i = 0; i < assignments.length; i++) {
+        const curr = assignments[i];
+        const chUpper = curr.channel;
+
+        // Same channel twice in day (except SD)
+        if (dayChannels.has(chUpper) && chUpper !== "SD") {
+          violationsFound.set(name, (violationsFound.get(name) || 0) + 1);
+        }
+        dayChannels.set(chUpper, (dayChannels.get(chUpper) || 0) + 1);
+
+        // CTR back-to-back
+        if (i > 0) {
+          const prev = assignments[i - 1];
+          const prevChUpper = prev.channel;
+          if (curr.blockIdx === prev.blockIdx + 1 && ctrSet2.has(chUpper) && ctrSet2.has(prevChUpper)) {
+            violationsFound.set(name, (violationsFound.get(name) || 0) + 1);
+          }
+        }
+      }
+    }
+  }
+
+  let totalViolations = 0;
+  for (const count of violationsFound.values()) {
+    totalViolations += count;
+  }
+  const uniquePeopleWithViolations = violationsFound.size;
+
+  // Store violation stats for display
+  window.lastRandomizeStats = {
+    totalViolations,
+    uniquePeopleWithViolations,
+    violationsByPerson: Object.fromEntries(violationsFound)
+  };
+
+  return plan;
+}
+
+const channelColor = (()=>{
+  const pal = [
+    "rgba(245, 158, 11, .25)",
+    "rgba(16, 185, 129, .25)",
+    "rgba(59, 130, 246, .25)",
+    "rgba(239, 68, 68, .25)",
+    "rgba(168, 85, 247, .25)",
+    "rgba(14, 165, 233, .25)",
+    "rgba(244, 63, 94, .25)",
+    "rgba(34, 197, 94, .25)",
+    "rgba(250, 204, 21, .25)",
+    "rgba(99, 102, 241, .25)",
+  ];
+  const map={};
+  CHANNELS.forEach((c,i)=>map[c]=pal[i%pal.length]);
+  // 7th channel color (distinct cyan)
+  map[SEVENTH_CHANNEL] = "rgba(6, 182, 212, .35)";
+  return map;
+})();
+
+function renderDay(dayKey) {
+  const plan = loadPlan();
+  const dayTitle = document.getElementById("dayTitle");
+  const wrap = document.getElementById("dayTableWrap");
+  if (!plan || !plan.days || !plan.days[dayKey]) {
+    dayTitle.textContent = "No month plan yet – click Randomize Month";
+    wrap.innerHTML = "";
+    return;
+  }
+  const d = parseYMD(dayKey);
+  dayTitle.textContent = d ? `${monthName(d.getMonth())} ${d.getDate()}, ${d.getFullYear()}` : dayKey;
+
+  // ========== VIOLATION DETECTION FOR DAY ==========
+  const ctrSet = new Set(["CT","RELIEF 1","RELIEF 2","R1","R2"]);
+  const personAssignments = new Map();
+  const violationCells = new Set();
+
+  // Get previous day's last block for cross-day detection
+  const prevDate = d ? new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1) : null;
+  const prevDayKey = prevDate ? ymd(prevDate) : null;
+  const prevDayBlocks = prevDayKey && plan.days[prevDayKey] ? plan.days[prevDayKey] : null;
+  const prevLastBlockEntry = prevDayBlocks ? prevDayBlocks[BLOCKS[BLOCKS.length - 1].key] : null;
+
+  // Collect assignments for today
+  BLOCKS.forEach((b, bi) => {
+    const entry = plan.days[dayKey][b.key];
+    if (!entry) return;
+    if (entry.assignments) {
+      for (const [ch, nm] of Object.entries(entry.assignments)) {
+        if (!nm) continue;
+        const nameUpper = String(nm).toUpperCase();
+        if (!personAssignments.has(nameUpper)) personAssignments.set(nameUpper, []);
+        personAssignments.get(nameUpper).push({blockKey: b.key, blockIdx: bi, channel: ch});
+      }
+    }
+    if (entry.ct && entry.ct.length) {
+      for (const nm of entry.ct) {
+        const nameUpper = String(nm).toUpperCase();
+        if (!personAssignments.has(nameUpper)) personAssignments.set(nameUpper, []);
+        personAssignments.get(nameUpper).push({blockKey: b.key, blockIdx: bi, channel: "CT"});
+      }
+    }
+  });
+
+  // Detect violations
+  for (const [name, assignments] of personAssignments) {
+    assignments.sort((a, b) => a.blockIdx - b.blockIdx);
+    const dayChannels = new Map();
+
+    // Check if first block continues from previous day's CTR
+    if (assignments.length > 0 && assignments[0].blockIdx === 0 && prevLastBlockEntry) {
+      const firstCh = String(assignments[0].channel).toUpperCase();
+      if (ctrSet.has(firstCh)) {
+        // Check prev day's last block for this person
+        let prevAssignCh = null;
+        if (prevLastBlockEntry.assignments) {
+          for (const [ch, nm] of Object.entries(prevLastBlockEntry.assignments)) {
+            if (String(nm).toUpperCase() === name) prevAssignCh = ch;
+          }
+        }
+        if (!prevAssignCh && prevLastBlockEntry.ct) {
+          if (prevLastBlockEntry.ct.some(n => String(n).toUpperCase() === name)) prevAssignCh = "CT";
+        }
+        if (prevAssignCh && ctrSet.has(String(prevAssignCh).toUpperCase())) {
+          violationCells.add(`${dayKey}|${assignments[0].blockKey}|${name}`);
+        }
+      }
+    }
+
+    for (let i = 0; i < assignments.length; i++) {
+      const curr = assignments[i];
+      const chUpper = String(curr.channel).toUpperCase();
+      // Same channel twice in day is a violation (except SD which can repeat)
+      if (dayChannels.has(chUpper) && chUpper !== "SD") {
+        violationCells.add(`${dayKey}|${curr.blockKey}|${name}`);
+      }
+      dayChannels.set(chUpper, (dayChannels.get(chUpper) || 0) + 1);
+      if (i > 0) {
+        const prev = assignments[i - 1];
+        const prevChUpper = String(prev.channel).toUpperCase();
+        if (curr.blockIdx === prev.blockIdx + 1 && ctrSet.has(chUpper) && ctrSet.has(prevChUpper)) {
+          violationCells.add(`${dayKey}|${curr.blockKey}|${name}`);
+          violationCells.add(`${dayKey}|${prev.blockKey}|${name}`);
+        }
+      }
+    }
+  }
+  // ========== END VIOLATION DETECTION ==========
+
+  // Channel abbreviations for display
+  const chAbbrev = {"North":"N","South":"S","East":"E","West":"W","Central":"C","Northwest":"NW","Relief 1":"R1","Relief 2":"R2","DC1":"DC1","DC2":"DC2"};
+
+  const dayNames = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+  const dayOfWeekName = d ? dayNames[d.getDay()] : '';
+
+  let html = "<table style='table-layout:fixed; width:100%;'><thead>";
+
+  // Row 1: Day of the week
+  html += `<tr><th colspan="${BLOCKS.length + 1}" style="text-align:center; padding:0; border:none;">
+    <div style="font-size:15px; font-weight:900; letter-spacing:3px; color:var(--muted); padding:8px 0 2px;">${dayOfWeekName}</div>
+  </th></tr>`;
+
+  // Row 2: Day Shift / Night Shift banners
+  html += `<tr>`;
+  html += `<th style="border:none;"></th>`;
+  html += `<th colspan="3" style="padding:6px 0; border:1px solid var(--line); border-bottom:none; border-right:4px solid rgba(255,255,255,.4); font-size:11px; font-weight:800; letter-spacing:1.5px; color:#e2c87a; background:rgba(250,204,21,.06);">&#9788; DAY SHIFT</th>`;
+  html += `<th colspan="3" style="padding:6px 0; border:1px solid var(--line); border-bottom:none; border-left:none; font-size:11px; font-weight:800; letter-spacing:1.5px; color:#94a3c4; background:rgba(100,116,160,.06);">&#9790; NIGHT SHIFT</th>`;
+  html += `</tr>`;
+
+  // Row 3: CHANNEL + block time labels
+  html += `<tr><th style='width:90px;'>CHANNEL</th>`;
+  for (const b of BLOCKS) html += `<th>${b.label}</th>`;
+  html += "</tr>";
+
+  // Row 4: COPY FOR BOARD buttons
+  html += "<tr><th></th>";
+  for (const b of BLOCKS) html += `<th style="text-align:center;"><button class="btn-copy-block" data-day="${dayKey}" data-block="${b.key}" title="Copy names for ${b.label}" style="padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.12); background:#0c1320; color:#e6edf7; cursor:pointer; font-weight:700; font-size:11px;">COPY FOR BOARD</button></th>`;
+  html += "</tr></thead><tbody>";
+
+  for (let ci=0; ci<CHANNELS.length; ci++) {
+    const ch = CHANNELS[ci];
+    html += `<tr><td><b>${ch.toUpperCase()}</b></td>`;
+    for (let bi=0; bi<BLOCKS.length; bi++) {
+      const b = BLOCKS[bi];
+      const entry = plan.days[dayKey][b.key];
+      const nm = (entry.assignments||{})[ch] || "";
+      const bg = channelColor[ch] || "rgba(255,255,255,.08)";
+      const isViolation = nm && violationCells.has(`${dayKey}|${b.key}|${nm.toUpperCase()}`);
+      const abbr = chAbbrev[ch] || ch;
+      html += `<td>${ nm ? `<span class="assign-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" style="background:${bg}; cursor:pointer;"><b>${abbr}</b> ${escapeHtml(nm.toUpperCase())}</span>` : `<span class="assign-cell needed-badge" style="cursor:default;"><b>${abbr}</b> NEEDED</span>` }</td>`;
+    }
+    html += "</tr>";
+  }
+
+  // 7th channel row (Fri/Sat nights only)
+  const dayDate = parseYMD(dayKey);
+  const dayOfWeek = dayDate ? dayDate.getDay() : -1;
+  const showSeventhRow = (dayOfWeek === 5 || dayOfWeek === 6);
+  if (showSeventhRow) {
+    html += `<tr><td><b>${SEVENTH_CHANNEL}</b></td>`;
+    for (let bi=0; bi<BLOCKS.length; bi++) {
+      const b = BLOCKS[bi];
+      const entry = plan.days[dayKey][b.key];
+      const nm = (entry.assignments||{})[SEVENTH_CHANNEL] || "";
+      const bg = channelColor[SEVENTH_CHANNEL] || "rgba(255,255,255,.08)";
+      const show7th = SEVENTH_BLOCKS.has(b.key);
+      const isViolation = nm && violationCells.has(`${dayKey}|${b.key}|${nm.toUpperCase()}`);
+      html += `<td>${ (nm && show7th) ? `<span class="assign-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="${SEVENTH_CHANNEL}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" style="background:${bg}; cursor:pointer;"><b>7th</b> ${escapeHtml(nm.toUpperCase())}</span>` : (show7th ? `<span class="assign-cell needed-badge" style="cursor:default;"><b>7th</b> NEEDED</span>` : "<span class='small'>–</span>") }</td>`;
+    }
+    html += "</tr>";
+  }
+
+  html += `<tr><td><b>CT</b></td>`;
+  let prevCT = new Set();
+  for (let bi=0; bi<BLOCKS.length; bi++) {
+    const b = BLOCKS[bi];
+    const entry = plan.days[dayKey][b.key];
+    const list = entry.ct || [];
+    const curCT = new Set(list);
+    const inner = list.length
+      ? `<div class="ctlist">${list.map(n=>{
+          const nameUpper = String(n).toUpperCase();
+          const isRepeat = prevCT.has(n);
+          const isViolation = violationCells.has(`${dayKey}|${b.key}|${nameUpper}`);
+          const cls = (isRepeat || isViolation) ? "ctitem repeat" : "ctitem";
+          const title = isRepeat ? ' title="Back-to-back CT (unavoidable)"' : (isViolation ? ' title="Violation: R1/CT/R2 back-to-back"' : "");
+          return `<div class="${cls} clickable-assign" data-day="${dayKey}" data-block="${b.key}" data-channel="CT" data-name="${escapeHtml(nameUpper)}" data-type="ct" style="cursor:pointer;"${title}>${escapeHtml(nameUpper)}</div>`;
+        }).join("")}</div>`
+      : "";
+    html += `<td>${inner}</td>`;
+    prevCT = curCT;
+  }
+  html += "</tr>";
+
+  html += `<tr><td><b>SD</b></td>`;
+  for (let bi=0; bi<BLOCKS.length; bi++) {
+    const b = BLOCKS[bi];
+    const entry = plan.days[dayKey][b.key];
+    const list = entry.sd || [];
+    const inner = list.length
+      ? `<div class="ctlist">${list.map(n=>{
+          return `<div class="ctitem clickable-assign" data-day="${dayKey}" data-block="${b.key}" data-channel="SD" data-name="${escapeHtml(String(n).toUpperCase())}" data-type="sd" style="background:rgba(200,170,255,.15); color:rgba(200,170,255,.8); border-color:rgba(200,170,255,.25); cursor:pointer;">${escapeHtml(String(n).toUpperCase())}</div>`;
+        }).join("")}</div>`
+      : "";
+    html += `<td>${inner}</td>`;
+  }
+  html += "</tr>";
+
+  // VACATION row: dispatchers excluded (on vacation) for this day
+  {
+    const allDispatchers = normalizeBase()
+      .filter(r => String(r.Position||"").trim().toUpperCase() === "DISPATCHER")
+      .map(r => String(r.Employee||"").trim()).filter(Boolean);
+    const vacNames = allDispatchers.filter(n => isExcluded(n, d)).map(n => n.toUpperCase()).sort();
+    html += `<tr><td><b style="color:#7dd3fc;">VACATION</b></td>`;
+    if (vacNames.length) {
+      const items = vacNames.map(n =>
+        `<div style="margin:1px 0;"><span class="assign-cell" style="background:rgba(125,211,252,.15); color:#7dd3fc; font-weight:700; font-size:10px; border:1px solid rgba(125,211,252,.3); cursor:default;">${escapeHtml(n)}</span></div>`
+      ).join("");
+      html += `<td colspan="${BLOCKS.length}">${items}</td>`;
+    } else {
+      html += `<td colspan="${BLOCKS.length}" style="color:var(--muted); font-size:10px;">None</td>`;
+    }
+    html += "</tr>";
+  }
+
+  // UNASSIGNED row: people scheduled to work but not in any channel/CT/SD
+  html += `<tr><td><b style="color:rgba(200,200,210,.7);">UNASSIGNED</b></td>`;
+  for (let bi=0; bi<BLOCKS.length; bi++) {
+    const b = BLOCKS[bi];
+    const entry = plan.days[dayKey][b.key];
+    const assignedNames = new Set();
+    if (entry) {
+      for (const nm of Object.values(entry.assignments||{})) { if (nm) assignedNames.add(String(nm).trim().toUpperCase()); }
+      for (const nm of (entry.sd||[])) { if (nm) assignedNames.add(String(nm).trim().toUpperCase()); }
+      for (const nm of (entry.ct||[])) { if (nm) assignedNames.add(String(nm).trim().toUpperCase()); }
+    }
+    const pool = buildDispatcherPoolForDate(d);
+    const unassigned = pool.filter(p => worksBlock(p, d, b) && !assignedNames.has(String(p.name).trim().toUpperCase()));
+    if (unassigned.length) {
+      const items = unassigned.map(u =>
+        `<div style="margin:1px 0;"><span class="assign-cell" style="background:rgba(200,200,210,.15); color:rgba(200,200,210,.7); font-weight:700; font-size:10px; border:1px solid rgba(200,200,210,.25); cursor:default;">${escapeHtml(String(u.name).toUpperCase())}</span></div>`
+      ).join("");
+      html += `<td>${items}</td>`;
+    } else {
+      html += `<td></td>`;
+    }
+  }
+  html += "</tr>";
+
+  html += "</tbody></table>";
+  try { savePlan(plan); } catch(e) { console.warn(e); }
+  wrap.innerHTML = html;
+
+  renderInfoStats();
+}
+
+// Non-regular employees excluded from fairness stats
+const EXCLUDED_FROM_STATS = new Set(["RAMIREZ","CLEMENT","MARZAHN","BROWNC","FOWLERL","GUIDRY","GROUNDS"]);
+
+function computeTotals(plan) {
+  const channelTotals = new Map(CHANNELS.map(c=>[c,0]));
+  const dispatcherTotals = new Map();
+  const dispatcherTop = new Map();
+  const dispatcherChannelCounts = new Map();
+  const shortfalls = [];
+
+  for (const [dayKey, blocks] of Object.entries(plan.days||{})) {
+    for (let bi=0; bi<BLOCKS.length; bi++) {
+      const b = BLOCKS[bi];
+      const entry = blocks[b.key];
+      const filled = entry ? entry.filled : 0;
+      if (filled < 10) shortfalls.push({ dayKey, block: b.label, filled });
+      if (!entry) continue;
+      for (const [ch, nm] of Object.entries(entry.assignments||{})) {
+        const name = String(nm).trim().toUpperCase();
+        if (EXCLUDED_FROM_STATS.has(name)) continue;
+        channelTotals.set(ch, (channelTotals.get(ch)||0) + 1);
+        dispatcherTotals.set(name, (dispatcherTotals.get(name)||0) + 1);
+        if (!dispatcherTop.has(name)) dispatcherTop.set(name, new Map());
+        const m = dispatcherTop.get(name);
+        m.set(ch, (m.get(ch)||0)+1);
+        if (!dispatcherChannelCounts.has(name)) dispatcherChannelCounts.set(name, new Map());
+        const hm = dispatcherChannelCounts.get(name);
+        hm.set(ch, (hm.get(ch)||0) + 1);
+      }
+      for (const nm of (entry.sd||[])) {
+        const name = String(nm).trim().toUpperCase();
+        if (EXCLUDED_FROM_STATS.has(name)) continue;
+        dispatcherTotals.set(name, (dispatcherTotals.get(name)||0) + 1);
+        if (!dispatcherChannelCounts.has(name)) dispatcherChannelCounts.set(name, new Map());
+        const hm = dispatcherChannelCounts.get(name);
+        hm.set("SD", (hm.get("SD")||0) + 1);
+      }
+      for (const nm of (entry.ct||[])) {
+        const name = String(nm).trim().toUpperCase();
+        if (EXCLUDED_FROM_STATS.has(name)) continue;
+        dispatcherTotals.set(name, (dispatcherTotals.get(name)||0) + 1);
+        if (!dispatcherChannelCounts.has(name)) dispatcherChannelCounts.set(name, new Map());
+        const hm = dispatcherChannelCounts.get(name);
+        hm.set("CT", (hm.get("CT")||0) + 1);
+      }
+    }
+  }
+  return {channelTotals, dispatcherTotals, dispatcherTop, dispatcherChannelCounts, shortfalls};
+}
+
+function renderStatsHtml(plan) {
+  const {channelTotals, dispatcherTotals, dispatcherTop, dispatcherChannelCounts, shortfalls} = computeTotals(plan);
+
+  const cols = CHANNELS.concat([SEVENTH_CHANNEL,"CT","TOTAL"]);
+  const rows = Array.from(dispatcherTotals.entries()).sort((a,b)=>b[1]-a[1]);
+
+  let ctHtml = `<div class="matrix-wrap"><table class="sticky-head"><thead><tr>`;
+  ctHtml += `<th class="sticky-col">EMPLOYEE</th>`;
+  ctHtml += cols.map(c=>`<th style="text-align:right">${c.toUpperCase()}</th>`).join("");
+  ctHtml += `</tr></thead><tbody>`;
+
+  for (const [name, totalCount] of rows) {
+    const hm = dispatcherChannelCounts.get(name) || new Map();
+    ctHtml += `<tr><td class="sticky-col"><b>${escapeHtml(name.toUpperCase())}</b></td>`;
+    for (const c of CHANNELS) ctHtml += `<td style="text-align:right">${hm.get(c)||0}</td>`;
+    ctHtml += `<td style="text-align:right">${hm.get(SEVENTH_CHANNEL)||0}</td>`;
+    ctHtml += `<td style="text-align:right">${hm.get("CT")||0}</td>`;
+    ctHtml += `<td style="text-align:right"><b>${totalCount}</b></td></tr>`;
+  }
+
+  ctHtml += `</tbody></table></div>`;
+  return ctHtml;
+}
+
+
+
+function channelAbbrev(ch) {
+  const map = { "North":"N","South":"S","East":"E","West":"W","Central":"C","Northwest":"NW","Relief 1":"R1","Relief 2":"R2","DC1":"DC1","DC2":"DC2","SD":"SD","CT":"CT","7th":"7th" };
+  return map[ch] || ch;
+}
+function renderMonthRoster(mode, wrapId) {
+  // cumulative counts per employee per channel for this render
+  const countsByEmp = {};
+
+  let plan = loadPlan();
+  const wrap = document.getElementById(wrapId || "mRosterWrapDay");
+  if (!wrap) return;
+
+  // Ensure we have a plan for the currently selected month/year
+  const selM = Number(document.getElementById("monthSel").value);
+  const selY = Number(document.getElementById("yearSel").value);
+  if (!plan || !plan.meta || plan.meta.year !== selY || plan.meta.monthIndex !== selM) {
+    try { randomizeMonth(selY, selM); } catch(e) { console.error(e); }
+    plan = loadPlan();
+  }
+  if (!plan || !plan.meta) { wrap.innerHTML = "<div class='small'>Click <b>Randomize Month</b> to generate a plan.</div>"; return; }
+
+  const year = plan.meta.year;
+  const monthIndex = plan.meta.monthIndex;
+  const daysInMonth = new Date(year, monthIndex+1, 0).getDate();
+
+  const shift = (String(mode||"DAY").toUpperCase()==="NIGHT") ? "NIGHT" : "DAY";
+  const SELBLOCKS = (shift==="DAY") ? ["0600-1000","1000-1400","1400-1800"] : ["1800-2200","2200-0200","0200-0600"];
+  const blockLabels = {
+    "0600-1000":"6A-10A","1000-1400":"10A-2P","1400-1800":"2P-6P",
+    "1800-2200":"6P-10P","2200-0200":"10P-2A","0200-0600":"2A-6A"
+  };
+
+
+  function worksAnyInShift(rec){
+    if (!rec) return false;
+    const days = ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY","SUNDAY"];
+    for (const d of days){
+      const s = rec[d];
+      if (s && blocksWorkedForSchedule(s, shift).size) return true;
+    }
+    return false;
+  }
+  const baseAll = normalizeBase();
+  const dispatchers = baseAll
+    .filter(r => String(r.Position||"").trim().toUpperCase()==="DISPATCHER")
+    .map(r => ({ name: String(r.Employee||"").trim(), seniority: Number(r.Seniority||0), rec:r }))
+    .filter(d => d.name);
+
+  const hires = getNewHires().map(n=>String(n).trim()).filter(Boolean)
+    .filter(n => dispatchers.every(d => d.name.toUpperCase() !== n.toUpperCase()))
+    .map(n => ({ name:n, seniority:0, rec:null, isHire:true }));
+
+  let people = dispatchers.concat(hires).sort((a,b)=>{
+    const sa = (isFinite(a.seniority)?a.seniority:999999);
+    const sb = (isFinite(b.seniority)?b.seniority:999999);
+    if (sa !== sb) return sa - sb;
+    return a.name.localeCompare(b.name);
+  });
+  people = people.filter(p => p.isHire || worksAnyInShift(p.rec));
+
+  const cols = [];
+  for (let day=1; day<=daysInMonth; day++) {
+    const d = new Date(year, monthIndex, day, 12,0,0,0);
+    const dk = ymd(d);
+    const dn = dayName(d);
+    for (const bk of SELBLOCKS) cols.push({ dk, dn, bk, label: `${monthIndex+1}/${day} ${blockLabels[bk]}` });
+  }
+
+  const assignMap = {};
+  for (let day=1; day<=daysInMonth; day++) {
+    const d = new Date(year, monthIndex, day, 12,0,0,0);
+    const dk = ymd(d);
+    assignMap[dk] = {};
+    const dayBlocks = (plan.days && plan.days[dk]) ? plan.days[dk] : null;
+    for (const bk of SELBLOCKS) {
+      const map = new Map();
+      if (dayBlocks && dayBlocks[bk]) {
+        const entry = dayBlocks[bk];
+        for (const [ch, nm] of Object.entries(entry.assignments||{})) {
+          map.set(String(nm).trim().toUpperCase(), ch);
+        }
+        for (const nm of (entry.sd||[])) {
+          map.set(String(nm).trim().toUpperCase(), "SD");
+        }
+        for (const nm of (entry.ct||[])) {
+          map.set(String(nm).trim().toUpperCase(), "CT");
+        }
+      }
+      assignMap[dk][bk] = map;
+    }
+  }
+
+  let html = `<div class="mroster-scroll"><table class="mroster-table"><thead><tr>`;
+  html += `<th class="sticky-left">Employee</th>`;
+  for (const c of cols) html += `<th>${c.label}</th>`;
+  html += `</tr></thead><tbody>`;
+
+  for (const p of people) {
+    html += `<tr><td class="sticky-left"><b>${escapeHtml(p.name.toUpperCase())}</b></td>`;
+    for (const c of cols) {
+      const rec = p.rec;
+      const schedVal = rec ? String(rec[c.dn]||"").trim().toUpperCase() : "";
+      const worked = rec ? blocksWorkedForSchedule(schedVal, shift) : new Set();
+      const workingThisBlock = worked.has(c.bk);
+      if (!workingThisBlock) {
+        html += `<td><span class="cellbtn off">OFF</span></td>`;
+      } else if (isExcluded(p.name, new Date(c.dk + "T12:00:00"))) {
+        html += `<td><span class="cellbtn" style="background:rgba(168,85,247,.25); color:#c4b5fd; font-weight:700; font-size:9px; border:1px solid rgba(168,85,247,.4);">VAC</span></td>`;
+      } else {
+        let ch = assignMap[c.dk][c.bk].get(String(p.name).trim().toUpperCase()) || "";
+
+        const ab = ch ? channelAbbrev(ch) : "";
+        const bg = (ch === "CT" ? "#ffffff" : (ch ? (channelColor[ch] || "rgba(255,255,255,.08)") : "rgba(255,255,255,.06)"));
+
+        // Cumulative counts per employee per channel (increase left→right across the month)
+        if (!countsByEmp[p.name]) countsByEmp[p.name] = {};
+        if (ch) countsByEmp[p.name][ch] = (countsByEmp[p.name][ch] || 0) + 1;
+
+        const cnt = ch ? (countsByEmp[p.name][ch] || 0) : 0;
+        const label = ch ? `${ab} (${cnt})` : "";
+        const dataType = (ch === "CT") ? "ct" : (ch === "SD") ? "sd" : "channel";
+        html += `<td>${label ? `<span class="cellbtn clickable-assign" data-day="${c.dk}" data-block="${c.bk}" data-channel="${ch}" data-name="${escapeHtml(p.name.toUpperCase())}" data-type="${dataType}" style="background:${bg}; cursor:pointer; ${ch==="CT"?"color:#000 !important; border:2px solid #fff !important; box-shadow:none !important;":"color:var(--text);"}">${escapeHtml(label)}</span>` : `<span class="cellbtn" style="background:#facc15; color:#000; font-weight:900; font-size:10px; border:2px solid #eab308; animation:needPulse 1.2s ease-in-out infinite;">UN</span>`}</td>`;
+      }
+    }
+    html += `</tr>`;
+  }
+
+  html += `</tbody></table></div>`;
+  try { savePlan(plan); } catch(e) { console.warn(e); }
+  wrap.innerHTML = html;
+}
+
+function renderWeek(anchorDayKey) {
+  const plan = loadPlan();
+  const wrap = document.getElementById("weekWrap");
+  if (!plan) { wrap.innerHTML = "<div class='small'>Randomize a month first.</div>"; return; }
+
+  const anchor = parseYMD(anchorDayKey) || new Date(plan.meta.year, plan.meta.monthIndex, 1, 12,0,0,0);
+  const dow = anchor.getDay();
+  const offsetToSat = (dow - 6 + 7) % 7;
+  const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - offsetToSat, 12,0,0,0);
+
+  const daysListAll = [];
+  for (let i=0;i<7;i++) daysListAll.push(new Date(start.getFullYear(), start.getMonth(), start.getDate()+i, 12,0,0,0));
+  // Filter to only days that have data in the plan
+  const daysList = daysListAll.filter(d => plan.days[ymd(d)]);
+
+  // ========== VIOLATION DETECTION FOR WEEK ==========
+  const ctrSet = new Set(["CT","RELIEF 1","RELIEF 2","R1","R2"]);
+  const personAssignments = new Map();
+  const violationCells = new Set();
+
+  for (const d of daysList) {
+    const dayKey = ymd(d);
+    const blocks = plan.days[dayKey];
+    if (!blocks) continue;
+    BLOCKS.forEach((b, bi) => {
+      const entry = blocks[b.key];
+      if (!entry) return;
+      if (entry.assignments) {
+        for (const [ch, nm] of Object.entries(entry.assignments)) {
+          if (!nm) continue;
+          const nameUpper = String(nm).toUpperCase();
+          if (!personAssignments.has(nameUpper)) personAssignments.set(nameUpper, []);
+          personAssignments.get(nameUpper).push({dayKey, blockKey: b.key, blockIdx: bi, channel: ch, dayNum: d.getDate(), dayIdx: daysList.indexOf(d)});
+        }
+      }
+      if (entry.ct && entry.ct.length) {
+        for (const nm of entry.ct) {
+          const nameUpper = String(nm).toUpperCase();
+          if (!personAssignments.has(nameUpper)) personAssignments.set(nameUpper, []);
+          personAssignments.get(nameUpper).push({dayKey, blockKey: b.key, blockIdx: bi, channel: "CT", dayNum: d.getDate(), dayIdx: daysList.indexOf(d)});
+        }
+      }
+    });
+  }
+
+  for (const [name, assignments] of personAssignments) {
+    assignments.sort((a, b) => {
+      if (a.dayIdx !== b.dayIdx) return a.dayIdx - b.dayIdx;
+      return a.blockIdx - b.blockIdx;
+    });
+    const dayChannels = new Map();
+    for (let i = 0; i < assignments.length; i++) {
+      const curr = assignments[i];
+      const chUpper = String(curr.channel).toUpperCase();
+      if (!dayChannels.has(curr.dayKey)) dayChannels.set(curr.dayKey, new Map());
+      const dayCh = dayChannels.get(curr.dayKey);
+      // Same channel twice in day is a violation (except SD which can repeat)
+      if (dayCh.has(chUpper) && chUpper !== "SD") {
+        violationCells.add(`${curr.dayKey}|${curr.blockKey}|${name}`);
+      }
+      dayCh.set(chUpper, (dayCh.get(chUpper) || 0) + 1);
+      if (i > 0) {
+        const prev = assignments[i - 1];
+        const prevChUpper = String(prev.channel).toUpperCase();
+        const isConsecutive = (curr.dayKey === prev.dayKey && curr.blockIdx === prev.blockIdx + 1) ||
+                              (curr.dayIdx === prev.dayIdx + 1 && prev.blockIdx === BLOCKS.length - 1 && curr.blockIdx === 0);
+        if (isConsecutive && ctrSet.has(chUpper) && ctrSet.has(prevChUpper)) {
+          violationCells.add(`${curr.dayKey}|${curr.blockKey}|${name}`);
+          violationCells.add(`${prev.dayKey}|${prev.blockKey}|${name}`);
+        }
+      }
+    }
+  }
+  // ========== END VIOLATION DETECTION ==========
+
+  // Build a "daily-like" table: channels rows, (day x block) columns
+  let html = `<div class="scroll-x"><table class="wide-table"><thead>`;
+
+  // Row 1: day headers spanning 6 blocks each
+  html += `<tr><th rowspan="2">Channel</th>`;
+  for (const d of daysList) {
+    const key = ymd(d);
+    const lbl = `${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()]} ${d.getMonth()+1}/${d.getDate()}`;
+    html += `<th class="dayhead" colspan="${BLOCKS.length}" data-day="${key}" style="cursor:pointer" title="Click to load this day">${lbl}</th>`;
+  }
+  html += `</tr>`;
+
+  // Row 2: block labels
+  html += `<tr>`;
+  for (let di=0; di<daysList.length; di++) {
+    for (const b of BLOCKS) html += `<th class="subhead">${b.label}</th>`;
+  }
+  html += `</tr></thead><tbody>`;
+
+  // Channel rows
+  for (const ch of CHANNELS) {
+    html += `<tr><td><b>${ch.toUpperCase()}</b></td>`;
+    for (const d of daysList) {
+      const dayKey = ymd(d);
+      const blocks = plan.days[dayKey];
+      for (const b of BLOCKS) {
+        const entry = blocks ? blocks[b.key] : null;
+        const nm = entry && entry.assignments ? (entry.assignments[ch] || "") : "";
+        const bg = channelColor[ch] || "rgba(255,255,255,.08)";
+        const short = entry && (entry.filled||0) < 10;
+        const isViolation = nm && violationCells.has(`${dayKey}|${b.key}|${nm.toUpperCase()}`);
+        const abbr = channelAbbrev(ch);
+        html += `<td>${nm ? `<span class="assign-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" style="background:${bg}; cursor:pointer; ${short?'outline:2px solid rgba(217,72,72,.6); outline-offset:1px;':''}">${abbr} ${escapeHtml(nm.toUpperCase())}</span>` : `<span class="assign-cell needed-badge" style="cursor:default;">${abbr} NEEDED</span>`}</td>`;
+      }
+    }
+    html += `</tr>`;
+  }
+
+  // 7th channel row (Fri/Sat nights)
+  html += `<tr><td><b>${SEVENTH_CHANNEL}</b></td>`;
+  for (const d of daysList) {
+    const dayKey = ymd(d);
+    const dow = d.getDay();
+    const isFriSat = (dow === 5 || dow === 6);
+    const blocks = plan.days[dayKey];
+    for (const b of BLOCKS) {
+      const show7th = isFriSat && SEVENTH_BLOCKS.has(b.key);
+      if (!show7th) { html += `<td><span class="small">–</span></td>`; continue; }
+      const entry = blocks ? blocks[b.key] : null;
+      const nm = entry && entry.assignments ? (entry.assignments[SEVENTH_CHANNEL] || "") : "";
+      const bg = channelColor[SEVENTH_CHANNEL] || "rgba(255,255,255,.08)";
+      html += `<td>${nm ? `<span class="assign-cell clickable-assign" data-day="${dayKey}" data-block="${b.key}" data-channel="${SEVENTH_CHANNEL}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" style="background:${bg}; cursor:pointer;">7th ${escapeHtml(nm.toUpperCase())}</span>` : `<span class="assign-cell needed-badge" style="cursor:default;"><b>7th</b> NEEDED</span>`}</td>`;
+    }
+  }
+  html += `</tr>`;
+
+  // CT row
+  html += `<tr><td><b>CT</b></td>`;
+  for (const d of daysList) {
+    const dayKey = ymd(d);
+    const blocks = plan.days[dayKey];
+    for (const b of BLOCKS) {
+      const entry = blocks ? blocks[b.key] : null;
+      const list = entry && entry.ct ? entry.ct : [];
+      if (list && list.length) {
+        const items = list.map(n=>{
+          const nameUpper = String(n).toUpperCase();
+          const isViolation = violationCells.has(`${dayKey}|${b.key}|${nameUpper}`);
+          return `<div style="margin:1px 0"><span class="assign-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="CT" data-name="${escapeHtml(nameUpper)}" data-type="ct" style="background:rgba(220,220,230,.15); color:rgba(255,255,255,.7); border-color:rgba(220,220,230,.25); box-shadow:none; cursor:pointer;">CT ${escapeHtml(nameUpper)}</span></div>`;
+        }).join("");
+        html += `<td>${items}</td>`;
+      } else {
+        html += `<td></td>`;
+      }
+    }
+  }
+  html += `</tr>`;
+
+  // SD row
+  html += `<tr><td><b>SD</b></td>`;
+  for (const d of daysList) {
+    const dayKey = ymd(d);
+    const blocks = plan.days[dayKey];
+    for (const b of BLOCKS) {
+      const entry = blocks ? blocks[b.key] : null;
+      const list = entry && entry.sd ? entry.sd : [];
+      if (list && list.length) {
+        const items = list.map(n=>`<div style="margin:1px 0"><span class="assign-cell clickable-assign" data-day="${dayKey}" data-block="${b.key}" data-channel="SD" data-name="${escapeHtml(n.toUpperCase())}" data-type="sd" style="background:rgba(200,170,255,.15); color:rgba(200,170,255,.8); border-color:rgba(200,170,255,.25); cursor:pointer;">SD ${escapeHtml(n.toUpperCase())}</span></div>`).join("");
+        html += `<td>${items}</td>`;
+      } else {
+        html += `<td></td>`;
+      }
+    }
+  }
+  html += `</tr>`;
+
+  // VACATION row: dispatchers excluded (on vacation) for each day
+  html += `<tr><td class="sticky-col"><b style="color:#7dd3fc;">VACATION</b></td>`;
+  {
+    const allDispatchers = normalizeBase()
+      .filter(r => String(r.Position||"").trim().toUpperCase() === "DISPATCHER")
+      .map(r => String(r.Employee||"").trim()).filter(Boolean);
+    for (const d of daysList) {
+      const vacNames = allDispatchers.filter(n => isExcluded(n, d)).map(n => n.toUpperCase()).sort();
+      if (vacNames.length) {
+        const items = vacNames.map(n =>
+          `<div style="margin:1px 0;"><span class="assign-cell" style="background:rgba(125,211,252,.15); color:#7dd3fc; font-weight:700; font-size:10px; border:1px solid rgba(125,211,252,.3); cursor:default;">${escapeHtml(n)}</span></div>`
+        ).join("");
+        html += `<td colspan="${BLOCKS.length}">${items}</td>`;
+      } else {
+        html += `<td colspan="${BLOCKS.length}" style="color:var(--muted); font-size:10px;">—</td>`;
+      }
+    }
+  }
+  html += `</tr>`;
+
+  // UNASSIGNED row
+  html += `<tr><td><b style="color:rgba(200,200,210,.7);">UNASSIGNED</b></td>`;
+  for (const d of daysList) {
+    const dayKey = ymd(d);
+    const blocks = plan.days[dayKey];
+    for (const b of BLOCKS) {
+      const entry = blocks ? blocks[b.key] : null;
+      const assignedNames = new Set();
+      if (entry) {
+        for (const nm of Object.values(entry.assignments||{})) { if (nm) assignedNames.add(String(nm).trim().toUpperCase()); }
+        for (const nm of (entry.sd||[])) { if (nm) assignedNames.add(String(nm).trim().toUpperCase()); }
+        for (const nm of (entry.ct||[])) { if (nm) assignedNames.add(String(nm).trim().toUpperCase()); }
+      }
+      const pool = buildDispatcherPoolForDate(d);
+      const unassigned = pool.filter(p => worksBlock(p, d, b) && !assignedNames.has(String(p.name).trim().toUpperCase()));
+      if (unassigned.length) {
+        const items = unassigned.map(u => `<div style="margin:1px 0"><span class="assign-cell" style="background:rgba(200,200,210,.15); color:rgba(200,200,210,.7); font-weight:700; font-size:10px; border:1px solid rgba(200,200,210,.25); cursor:default;">${escapeHtml(String(u.name).toUpperCase())}</span></div>`).join("");
+        html += `<td>${items}</td>`;
+      } else {
+        html += `<td></td>`;
+      }
+    }
+  }
+  html += `</tr>`;
+
+  html += `</tbody></table></div>`;
+  try { savePlan(plan); } catch(e) { console.warn(e); }
+  wrap.innerHTML = html;
+
+  // Click day headers to load that day in Day tab
+  wrap.querySelectorAll("th.dayhead[data-day]").forEach(th=>{
+    th.addEventListener("click", ()=>{
+      const dk = th.getAttribute("data-day");
+      document.getElementById("dayPick").value = dk;
+      setActiveTab("day");
+      renderDay(dk);
+    });
+  });
+}
+
+
+
+function renderMonth(year, monthIndex) {
+  const plan = loadPlan();
+  const wrap = document.getElementById("monthWrap");
+  if (!plan) { wrap.innerHTML = "<div class='small'>Randomize a month first.</div>"; return; }
+
+  const daysInMonth = new Date(year, monthIndex+1, 0).getDate();
+  const daysList = [];
+  for (let day=1; day<=daysInMonth; day++) {
+    daysList.push(new Date(year, monthIndex, day, 12,0,0,0));
+  }
+
+  // ========== VIOLATION DETECTION ==========
+  // Build person assignment sequences and detect violations
+  const ctrSet = new Set(["CT","RELIEF 1","RELIEF 2","R1","R2"]);
+  const personAssignments = new Map(); // name -> [{dayKey, blockIdx, channel}]
+  const violationCells = new Set(); // "dayKey|blockKey|name" strings
+
+  // Collect all assignments per person
+  for (const d of daysList) {
+    const dayKey = ymd(d);
+    const blocks = plan.days[dayKey];
+    if (!blocks) continue;
+    BLOCKS.forEach((b, bi) => {
+      const entry = blocks[b.key];
+      if (!entry) return;
+      // Channel assignments
+      if (entry.assignments) {
+        for (const [ch, nm] of Object.entries(entry.assignments)) {
+          if (!nm) continue;
+          const nameUpper = String(nm).toUpperCase();
+          if (!personAssignments.has(nameUpper)) personAssignments.set(nameUpper, []);
+          personAssignments.get(nameUpper).push({dayKey, blockKey: b.key, blockIdx: bi, channel: ch, dayNum: d.getDate()});
+        }
+      }
+      // CT assignments
+      if (entry.ct && entry.ct.length) {
+        for (const nm of entry.ct) {
+          const nameUpper = String(nm).toUpperCase();
+          if (!personAssignments.has(nameUpper)) personAssignments.set(nameUpper, []);
+          personAssignments.get(nameUpper).push({dayKey, blockKey: b.key, blockIdx: bi, channel: "CT", dayNum: d.getDate()});
+        }
+      }
+    });
+  }
+
+  // Sort each person's assignments by day and block, then detect violations
+  for (const [name, assignments] of personAssignments) {
+    assignments.sort((a, b) => {
+      if (a.dayNum !== b.dayNum) return a.dayNum - b.dayNum;
+      return a.blockIdx - b.blockIdx;
+    });
+
+    // Track channels worked per day for same-channel violation
+    const dayChannels = new Map(); // dayKey -> Map(channelUpper -> count)
+
+    for (let i = 0; i < assignments.length; i++) {
+      const curr = assignments[i];
+      const chUpper = String(curr.channel).toUpperCase();
+
+      // Check same-channel-in-day violation (SD can repeat, but nothing else)
+      if (!dayChannels.has(curr.dayKey)) dayChannels.set(curr.dayKey, new Map());
+      const dayCh = dayChannels.get(curr.dayKey);
+      if (dayCh.has(chUpper) && chUpper !== "SD") {
+        // Violation! Same channel twice in same day
+        violationCells.add(`${curr.dayKey}|${curr.blockKey}|${name}`);
+      }
+      dayCh.set(chUpper, (dayCh.get(chUpper) || 0) + 1);
+
+      // Check R1/CT/R2 back-to-back violation (with previous assignment)
+      if (i > 0) {
+        const prev = assignments[i - 1];
+        const prevChUpper = String(prev.channel).toUpperCase();
+        // Check if consecutive (same day adjacent block OR day boundary)
+        const isConsecutive = (curr.dayKey === prev.dayKey && curr.blockIdx === prev.blockIdx + 1) ||
+                              (curr.dayNum === prev.dayNum + 1 && prev.blockIdx === BLOCKS.length - 1 && curr.blockIdx === 0);
+        if (isConsecutive && ctrSet.has(chUpper) && ctrSet.has(prevChUpper)) {
+          // Violation! R1/CT/R2 back-to-back
+          violationCells.add(`${curr.dayKey}|${curr.blockKey}|${name}`);
+          violationCells.add(`${prev.dayKey}|${prev.blockKey}|${name}`);
+        }
+      }
+    }
+  }
+  // ========== END VIOLATION DETECTION ==========
+
+  let html = `<div class="scroll-x"><table class="wide-table"><thead>`;
+
+  // Row 1: date headers spanning 6 blocks each
+  html += `<tr><th rowspan="2">CHANNEL</th>`;
+  for (const d of daysList) {
+    const key = ymd(d);
+    const lbl = `${monthIndex+1}/${d.getDate()}`;
+    html += `<th class="dayhead" colspan="${BLOCKS.length}" data-day="${key}" style="cursor:pointer" title="Click to load this day">${lbl}</th>`;
+  }
+  html += `</tr>`;
+
+  // Row 2: block labels
+  html += `<tr>`;
+  for (let di=0; di<daysList.length; di++) {
+    for (const b of BLOCKS) html += `<th class="subhead">${b.label}</th>`;
+  }
+  html += `</tr></thead><tbody>`;
+
+  // Channel rows
+  for (const ch of CHANNELS) {
+    const chAbbr = channelAbbrev(ch);
+    html += `<tr><td><b>${ch.toUpperCase()}</b></td>`;
+    for (const d of daysList) {
+      const dayKey = ymd(d);
+      const blocks = plan.days[dayKey];
+      for (const b of BLOCKS) {
+        const entry = blocks ? blocks[b.key] : null;
+        const nm = entry && entry.assignments ? (entry.assignments[ch] || "") : "";
+        const bg = channelColor[ch] || "rgba(255,255,255,.08)";
+        const short = entry && (entry.filled||0) < 10;
+        const isViolation = nm && violationCells.has(`${dayKey}|${b.key}|${nm.toUpperCase()}`);
+        html += `<td>${nm ? `<span class="assign-cell month-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" data-emp="${escapeHtml(nm.toUpperCase())}" style="background:${bg}; cursor:pointer; ${short?'outline:2px solid rgba(217,72,72,.6); outline-offset:1px;':''}"><b>${chAbbr}</b> ${escapeHtml(nm.toUpperCase())}</span>` : `<span class="assign-cell month-cell needed-badge" style="cursor:default;"><b>${chAbbr}</b> NEEDED</span>`}</td>`;
+      }
+    }
+    html += `</tr>`;
+  }
+
+  // 7th channel row (Fri/Sat nights)
+  html += `<tr><td><b>${SEVENTH_CHANNEL}</b></td>`;
+  for (const d of daysList) {
+    const dayKey = ymd(d);
+    const dow = d.getDay();
+    const isFriSat = (dow === 5 || dow === 6);
+    const blocks = plan.days[dayKey];
+    for (const b of BLOCKS) {
+      const show7th = isFriSat && SEVENTH_BLOCKS.has(b.key);
+      if (!show7th) { html += `<td><span class="small">–</span></td>`; continue; }
+      const entry = blocks ? blocks[b.key] : null;
+      const nm = entry && entry.assignments ? (entry.assignments[SEVENTH_CHANNEL] || "") : "";
+      const bg = channelColor[SEVENTH_CHANNEL] || "rgba(255,255,255,.08)";
+      html += `<td>${nm ? `<span class="assign-cell month-cell clickable-assign" data-day="${dayKey}" data-block="${b.key}" data-channel="${SEVENTH_CHANNEL}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" data-emp="${escapeHtml(nm.toUpperCase())}" style="background:${bg}; cursor:pointer;"><b>7th</b> ${escapeHtml(nm.toUpperCase())}</span>` : `<span class="assign-cell month-cell needed-badge" style="cursor:default;"><b>7th</b> NEEDED</span>`}</td>`;
+    }
+  }
+  html += `</tr>`;
+
+  // CT row
+  html += `<tr><td><b>CT</b></td>`;
+  for (const d of daysList) {
+    const dayKey = ymd(d);
+    const blocks = plan.days[dayKey];
+    for (const b of BLOCKS) {
+      const entry = blocks ? blocks[b.key] : null;
+      const list = entry && entry.ct ? entry.ct : [];
+      if (list && list.length) {
+        const items = list.map(n=>{
+          const nameUpper = String(n).toUpperCase();
+          const isViolation = violationCells.has(`${dayKey}|${b.key}|${nameUpper}`);
+          return `<div style="margin:2px 0"><span class="assign-cell month-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="CT" data-name="${escapeHtml(nameUpper)}" data-type="ct" data-emp="${escapeHtml(nameUpper)}" style="background:rgba(220,220,230,.15); color:rgba(255,255,255,.7); border-color:rgba(220,220,230,.25); box-shadow:none; cursor:pointer;"><b>CT</b> ${escapeHtml(nameUpper)}</span></div>`;
+        }).join("");
+        html += `<td>${items}</td>`;
+      } else {
+        html += `<td></td>`;
+      }
+    }
+  }
+  html += `</tr>`;
+
+  // SD row
+  html += `<tr><td><b>SD</b></td>`;
+  for (const d of daysList) {
+    const dayKey = ymd(d);
+    const blocks = plan.days[dayKey];
+    for (const b of BLOCKS) {
+      const entry = blocks ? blocks[b.key] : null;
+      const list = entry && entry.sd ? entry.sd : [];
+      if (list && list.length) {
+        const items = list.map(n=>`<div style="margin:2px 0"><span class="assign-cell month-cell clickable-assign" data-day="${dayKey}" data-block="${b.key}" data-channel="SD" data-name="${escapeHtml(String(n).toUpperCase())}" data-type="sd" data-emp="${escapeHtml(String(n).toUpperCase())}" style="background:rgba(200,170,255,.15); color:rgba(200,170,255,.8); border-color:rgba(200,170,255,.25); cursor:pointer;"><b>SD</b> ${escapeHtml(String(n).toUpperCase())}</span></div>`).join("");
+        html += `<td>${items}</td>`;
+      } else {
+        html += `<td></td>`;
+      }
+    }
+  }
+  html += `</tr>`;
+
+  // VACATION row: dispatchers excluded (on vacation) for each day
+  html += `<tr><td class="sticky-col"><b style="color:#7dd3fc;">VACATION</b></td>`;
+  {
+    const allDispatchers = normalizeBase()
+      .filter(r => String(r.Position||"").trim().toUpperCase() === "DISPATCHER")
+      .map(r => String(r.Employee||"").trim()).filter(Boolean);
+    for (const d of daysList) {
+      const vacNames = allDispatchers.filter(n => isExcluded(n, d)).map(n => n.toUpperCase()).sort();
+      if (vacNames.length) {
+        const items = vacNames.map(n =>
+          `<div style="margin:2px 0;"><span class="assign-cell month-cell" style="background:rgba(125,211,252,.15); color:#7dd3fc; font-weight:700; font-size:9px; border:1px solid rgba(125,211,252,.3); cursor:default;">${escapeHtml(n)}</span></div>`
+        ).join("");
+        html += `<td colspan="${BLOCKS.length}">${items}</td>`;
+      } else {
+        html += `<td colspan="${BLOCKS.length}" style="color:var(--muted); font-size:9px;">—</td>`;
+      }
+    }
+  }
+  html += `</tr>`;
+
+  // UNASSIGNED row
+  html += `<tr><td><b style="color:rgba(200,200,210,.7);">UNASSIGNED</b></td>`;
+  for (const d of daysList) {
+    const dayKey = ymd(d);
+    const blocks = plan.days[dayKey];
+    for (const b of BLOCKS) {
+      const entry = blocks ? blocks[b.key] : null;
+      const assignedNames = new Set();
+      if (entry) {
+        for (const nm of Object.values(entry.assignments||{})) { if (nm) assignedNames.add(String(nm).trim().toUpperCase()); }
+        for (const nm of (entry.sd||[])) { if (nm) assignedNames.add(String(nm).trim().toUpperCase()); }
+        for (const nm of (entry.ct||[])) { if (nm) assignedNames.add(String(nm).trim().toUpperCase()); }
+      }
+      const pool = buildDispatcherPoolForDate(d);
+      const unassigned = pool.filter(p => worksBlock(p, d, b) && !assignedNames.has(String(p.name).trim().toUpperCase()));
+      if (unassigned.length) {
+        const items = unassigned.map(u => `<div style="margin:2px 0"><span class="assign-cell month-cell" style="background:rgba(200,200,210,.15); color:rgba(200,200,210,.7); font-weight:700; font-size:9px; border:1px solid rgba(200,200,210,.25); cursor:default;">${escapeHtml(String(u.name).toUpperCase())}</span></div>`).join("");
+        html += `<td>${items}</td>`;
+      } else {
+        html += `<td></td>`;
+      }
+    }
+  }
+  html += `</tr>`;
+
+  html += `</tbody></table></div>`;
+  try { savePlan(plan); } catch(e) { console.warn(e); }
+  wrap.innerHTML = html;
+
+  // Click date headers to load day in Day tab
+  wrap.querySelectorAll("th.dayhead[data-day]").forEach(th=>{
+    th.addEventListener("click", ()=>{
+      const dk = th.getAttribute("data-day");
+      document.getElementById("dayPick").value = dk;
+      setActiveTab("day");
+      renderDay(dk);
+    });
+  });
+}
+
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); showToast("Copied to clipboard."); }
+  catch(e) { showToast("Copy failed. Try selecting and copying manually."); }
+}
+function buildDayText(dayKey) {
+  const plan = loadPlan();
+  if (!plan || !plan.days[dayKey]) return "NO PLAN YET.";
+  const lines = [];
+  lines.push(`DISPATCHER ROTATION – ${dayKey}`);
+  for (let bi=0; bi<BLOCKS.length; bi++) {
+      const b = BLOCKS[bi];
+    lines.push("");
+    lines.push(b.label.toUpperCase());
+    const entry = plan.days[dayKey][b.key];
+    // Main channels
+    for (const ch of CHANNELS) {
+      const nm = (entry.assignments[ch]||"");
+      lines.push(`${ch.toUpperCase()}: ${nm ? nm.toUpperCase() : "NEEDED"}`);
+    }
+    // 7th channel (Fri/Sat 2200-0200 only)
+    const dtxt = new Date(dayKey + "T12:00:00");
+    const dowTxt = dtxt.getDay();
+    if ((dowTxt === 5 || dowTxt === 6) && SEVENTH_BLOCKS.has(b.key)) {
+      const nm7 = (entry.assignments[SEVENTH_CHANNEL]||"");
+      lines.push(`7TH: ${nm7 ? nm7.toUpperCase() : "NEEDED"}`);
+    }
+    // SD
+    for (const nm of (entry.sd||[])) lines.push(`SD: ${nm.toUpperCase()}`);
+    // CT
+    for (const nm of (entry.ct||[])) lines.push(`CT: ${nm.toUpperCase()}`);
+  }
+  return lines.join("\n");
+}
+function buildDayCSV(dayKey) {
+  const plan = loadPlan();
+  if (!plan || !plan.days[dayKey]) return "";
+  const rows = [["DATE","BLOCK","CHANNEL","NAME"]];
+  for (let bi=0; bi<BLOCKS.length; bi++) {
+      const b = BLOCKS[bi];
+    const entry = plan.days[dayKey][b.key];
+    for (const ch of CHANNELS) {
+      const nm = entry.assignments[ch]||"";
+      rows.push([dayKey, b.label.toUpperCase(), ch.toUpperCase(), nm ? nm.toUpperCase() : "NEEDED"]);
+    }
+    // 7th channel (Fri/Sat 2200-0200 only)
+    const dcsv = new Date(dayKey + "T12:00:00");
+    const dowCsv = dcsv.getDay();
+    if ((dowCsv === 5 || dowCsv === 6) && SEVENTH_BLOCKS.has(b.key)) {
+      const nm7 = entry.assignments[SEVENTH_CHANNEL]||"";
+      rows.push([dayKey, b.label.toUpperCase(), "7TH", nm7 ? nm7.toUpperCase() : "NEEDED"]);
+    }
+    for (const nm of (entry.sd||[])) rows.push([dayKey, b.label.toUpperCase(), "SD", nm.toUpperCase()]);
+    for (const nm of (entry.ct||[])) rows.push([dayKey, b.label.toUpperCase(), "CT", nm.toUpperCase()]);
+  }
+  return rows.map(r => r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(",")).join("\n");
+}
+
+function setActiveTab(tab) {
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active", t.getAttribute("data-tab")===tab));
+  ["day","week","month","mroster","exceptions"].forEach(k => document.getElementById("tab_"+k).style.display = (k===tab) ? "" : "none");
+  if (tab === "exceptions") renderExceptions();
+  saveJSON(STORAGE.ui, {...loadJSON(STORAGE.ui, {}), tab});
+}
+
+function initSelectors() {
+  const monthSel = document.getElementById("monthSel");
+  const yearSel = document.getElementById("yearSel");
+  monthSel.innerHTML = "";
+  for (let i=0;i<12;i++) {
+    const opt = document.createElement("option");
+    opt.value = String(i);
+    opt.textContent = monthName(i);
+    monthSel.appendChild(opt);
+  }
+  yearSel.innerHTML = "";
+  const now = new Date();
+  const y0 = now.getFullYear()-1;
+  for (let y=y0; y<=y0+4; y++) {
+    const opt = document.createElement("option");
+    opt.value = String(y);
+    opt.textContent = String(y);
+    yearSel.appendChild(opt);
+  }
+  monthSel.value = String(now.getMonth());
+  yearSel.value = String(now.getFullYear());
+}
+
+function renderExceptions() {
+  const wrap = document.getElementById("exceptionsWrap");
+  if (!wrap) return;
+  const names = normalizeBase()
+    .filter(r => String(r.Position||"").trim().toUpperCase() === "DISPATCHER")
+    .map(r => String(r.Employee||"").trim()).filter(Boolean).sort();
+  const opts = '<option value="">— SELECT —</option>' + names.map(n =>
+    `<option value="${escapeHtml(n)}">${escapeHtml(n.toUpperCase())}</option>`
+  ).join("");
+  const vacRanges = getVacRanges();
+  const trainerRanges = getTrainerRanges();
+
+  let html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">';
+
+  // --- Vacation / Exclusion table ---
+  html += '<div>';
+  html += '<h2 style="margin:0 0 10px; font-size:13px; letter-spacing:.5px;">VACATION / EXCLUSION</h2>';
+  html += '<div style="display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; align-items:end;">';
+  html += `<div style="flex:1; min-width:120px;"><div style="font-size:9px; color:var(--muted); margin-bottom:2px;">EMPLOYEE</div><select id="vacName" style="width:100%; font-size:12px; padding:6px; border-radius:6px; box-sizing:border-box; background:var(--panel2); border:1px solid var(--line); color:var(--text);">${opts}</select></div>`;
+  html += '<div style="min-width:110px;"><div style="font-size:9px; color:var(--muted); margin-bottom:2px;">FROM</div><input id="vacFrom" type="date" style="width:100%; font-size:12px; padding:6px; border-radius:6px; box-sizing:border-box;" /></div>';
+  html += '<div style="min-width:110px;"><div style="font-size:9px; color:var(--muted); margin-bottom:2px;">TO (blank = rest of month)</div><input id="vacTo" type="date" style="width:100%; font-size:12px; padding:6px; border-radius:6px; box-sizing:border-box;" /></div>';
+  html += '<button class="btn secondary" id="btnAddVac" style="font-size:11px; padding:6px 12px; border-radius:6px; white-space:nowrap;">ADD</button>';
+  html += '</div>';
+  html += '<table style="width:100%; table-layout:fixed;"><thead><tr><th style="text-align:left; width:35%;">NAME</th><th style="width:25%;">FROM</th><th style="width:25%;">TO</th><th style="width:15%;"></th></tr></thead><tbody>';
+  if (vacRanges.length) {
+    vacRanges.forEach((r, idx) => {
+      html += `<tr><td style="text-align:left; font-weight:700;">${escapeHtml((r.name||"").toUpperCase())}</td><td>${r.from||"—"}</td><td>${r.to||"rest of month"}</td><td><button class="btn danger exc-del-vac" data-i="${idx}" style="font-size:10px; padding:3px 8px;">X</button></td></tr>`;
+    });
+  } else {
+    html += '<tr><td colspan="4" style="color:var(--muted); font-size:11px;">No exclusions.</td></tr>';
+  }
+  html += '</tbody></table></div>';
+
+  // --- Trainers table ---
+  html += '<div>';
+  html += '<h2 style="margin:0 0 10px; font-size:13px; letter-spacing:.5px;">TRAINERS</h2>';
+  html += '<div style="display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; align-items:end;">';
+  html += `<div style="flex:1; min-width:120px;"><div style="font-size:9px; color:var(--muted); margin-bottom:2px;">EMPLOYEE</div><select id="traineeName" style="width:100%; font-size:12px; padding:6px; border-radius:6px; box-sizing:border-box; background:var(--panel2); border:1px solid var(--line); color:var(--text);">${opts}</select></div>`;
+  html += '<div style="min-width:110px;"><div style="font-size:9px; color:var(--muted); margin-bottom:2px;">FROM</div><input id="traineeFrom" type="date" style="width:100%; font-size:12px; padding:6px; border-radius:6px; box-sizing:border-box;" /></div>';
+  html += '<div style="min-width:110px;"><div style="font-size:9px; color:var(--muted); margin-bottom:2px;">TO (blank = rest of month)</div><input id="traineeTo" type="date" style="width:100%; font-size:12px; padding:6px; border-radius:6px; box-sizing:border-box;" /></div>';
+  html += '<button class="btn secondary" id="btnAddTrainee" style="font-size:11px; padding:6px 12px; border-radius:6px; white-space:nowrap;">ADD</button>';
+  html += '</div>';
+  html += '<table style="width:100%; table-layout:fixed;"><thead><tr><th style="text-align:left; width:35%;">NAME</th><th style="width:25%;">FROM</th><th style="width:25%;">TO</th><th style="width:15%;"></th></tr></thead><tbody>';
+  if (trainerRanges.length) {
+    trainerRanges.forEach((r, idx) => {
+      html += `<tr><td style="text-align:left; font-weight:700;">${escapeHtml((r.name||"").toUpperCase())}</td><td>${r.from||"—"}</td><td>${r.to||"rest of month"}</td><td><button class="btn danger exc-del-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px;">X</button></td></tr>`;
+    });
+  } else {
+    html += '<tr><td colspan="4" style="color:var(--muted); font-size:11px;">No trainers.</td></tr>';
+  }
+  html += '</tbody></table></div>';
+
+  html += '</div>';
+  wrap.innerHTML = html;
+
+  // Wire delete buttons for vacations
+  wrap.querySelectorAll(".exc-del-vac").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const i = Number(btn.getAttribute("data-i"));
+      const v = getVacRanges(); v.splice(i,1); saveJSON(STORAGE.vac, v);
+      renderExceptions(); renderInfoStats();
+      const dk = document.getElementById("dayPick").value;
+      if (dk) renderDay(dk);
+    });
+  });
+  // Wire delete buttons for trainers
+  wrap.querySelectorAll(".exc-del-tr").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const i = Number(btn.getAttribute("data-ti"));
+      const t = getTrainerRanges(); t.splice(i,1); saveJSON(STORAGE.training, t);
+      renderExceptions(); renderInfoStats();
+    });
+  });
+}
+
+function renderVacList() {
+  const list = document.getElementById("vacList");
+  if (!list) return;
+  const ranges = getVacRanges();
+  if (!ranges.length) { list.innerHTML = "<div class='small'>NO EXCLUSIONS.</div>"; return; }
+  list.innerHTML = ranges.map((r, idx)=>{
+    const from = r.from ? r.from : "–";
+    const to = r.to ? r.to : "–";
+    return `<div class="pill">
+      <div><b>${escapeHtml((r.name||"").toUpperCase())}</b><div class="meta">FROM: ${from} &nbsp; TO: ${to}</div></div>
+      <button data-i="${idx}">X</button>
+    </div>`;
+  }).join("");
+  list.querySelectorAll("button[data-i]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const i = Number(btn.getAttribute("data-i"));
+      const v = getVacRanges(); v.splice(i,1); saveJSON(STORAGE.vac, v);
+      renderVacList();
+      const dk = document.getElementById("dayPick").value;
+      if (dk) renderDay(dk);
+    });
+  });
+}
+
+function renderTraineeList() {
+  const list = document.getElementById("traineeList");
+  if (!list) return;
+  const ranges = getTrainerRanges();
+  if (!ranges.length) { list.innerHTML = "<div class='small'>NO TRAINERS.</div>"; return; }
+  list.innerHTML = ranges.map((r, idx)=>{
+    const from = r.from ? r.from : "–";
+    const to = r.to ? r.to : "–";
+    return `<div class="pill">
+      <div><b>${escapeHtml(r.name.toUpperCase())}</b><div class="meta">FROM: ${from} TO: ${to}</div></div>
+      <button data-ti="${idx}">X</button>
+    </div>`;
+  }).join("");
+  list.querySelectorAll("button[data-ti]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const i = Number(btn.getAttribute("data-ti"));
+      const t = getTrainerRanges(); t.splice(i,1); saveJSON(STORAGE.training, t);
+      renderTraineeList();
+    });
+  });
+}
+
+// ========== FAIRNESS STATS ==========
+function calculateFairnessStats() {
+  const plan = loadPlan();
+  if (!plan || !plan.days) return null;
+
+  const empStats = new Map();
+  const channelCounts = {};
+  let totalAssignments = 0;
+
+  // Count eligible blocks per employee across the month (accounts for vacation/exclusion)
+  const eligibleBlocks = new Map(); // name -> count of blocks they could have worked
+  for (const dayKey of Object.keys(plan.days)) {
+    const dateObj = parseYMD(dayKey);
+    if (!dateObj) continue;
+    const pool = buildDispatcherPoolForDate(dateObj);
+    for (const disp of pool) {
+      const nm = String(disp.name).trim().toUpperCase();
+      if (EXCLUDED_FROM_STATS.has(nm)) continue;
+      let blocksThisDay = 0;
+      for (const b of BLOCKS) {
+        if (worksBlock(disp, dateObj, b)) blocksThisDay++;
+      }
+      eligibleBlocks.set(nm, (eligibleBlocks.get(nm) || 0) + blocksThisDay);
+    }
+  }
+
+  for (const [dayKey, dayData] of Object.entries(plan.days)) {
+    const dateObj2 = parseYMD(dayKey);
+    for (const [blockKey, blockData] of Object.entries(dayData)) {
+      if (!blockData || typeof blockData !== 'object') continue;
+
+      for (const [ch, name] of Object.entries(blockData.assignments || {})) {
+        if (!name) continue;
+        const nm = name.toUpperCase();
+        if (EXCLUDED_FROM_STATS.has(nm)) continue;
+        // Skip assignments on days the person is on vacation
+        if (dateObj2 && isExcluded(name, dateObj2)) continue;
+        totalAssignments++;
+        if (!empStats.has(nm)) empStats.set(nm, { total: 0, channels: {}, ct: 0, sd: 0 });
+        empStats.get(nm).total++;
+        empStats.get(nm).channels[ch] = (empStats.get(nm).channels[ch] || 0) + 1;
+        channelCounts[ch] = (channelCounts[ch] || 0) + 1;
+      }
+
+      for (const name of (blockData.ct || [])) {
+        if (!name) continue;
+        const nm = name.toUpperCase();
+        if (EXCLUDED_FROM_STATS.has(nm)) continue;
+        if (dateObj2 && isExcluded(name, dateObj2)) continue;
+        if (!empStats.has(nm)) empStats.set(nm, { total: 0, channels: {}, ct: 0, sd: 0 });
+        empStats.get(nm).ct++;
+      }
+
+      for (const name of (blockData.sd || [])) {
+        if (!name) continue;
+        const nm = name.toUpperCase();
+        if (EXCLUDED_FROM_STATS.has(nm)) continue;
+        if (dateObj2 && isExcluded(name, dateObj2)) continue;
+        if (!empStats.has(nm)) empStats.set(nm, { total: 0, channels: {}, ct: 0, sd: 0 });
+        empStats.get(nm).sd++;
+      }
+    }
+  }
+
+  // Compute expected assignments per person proportional to their eligible blocks
+  const totalEligible = Array.from(eligibleBlocks.values()).reduce((a, b) => a + b, 0);
+  // Store expected on each empStats entry
+  for (const [nm, s] of empStats) {
+    const eb = eligibleBlocks.get(nm) || 0;
+    s.eligibleBlocks = eb;
+    s.expected = totalEligible > 0 ? totalAssignments * (eb / totalEligible) : 0;
+  }
+
+  const totals = Array.from(empStats.values()).map(s => s.total);
+  const avg = totals.length ? totals.reduce((a,b) => a+b, 0) / totals.length : 0;
+
+  // Spread is now based on adjusted diff (actual - expected) instead of raw totals
+  const diffs = Array.from(empStats.values()).map(s => s.total - s.expected);
+  const maxDiff = Math.max(...diffs, 0);
+  const minDiff = Math.min(...diffs, 0);
+  const spread = Math.round((maxDiff - minDiff) * 10) / 10;
+
+  return {
+    empStats,
+    eligibleBlocks,
+    channelCounts,
+    totalAssignments,
+    avgPerPerson: avg,
+    maxDiff,
+    minDiff,
+    spread,
+    fairnessScore: spread <= 5 ? 'EXCELLENT' : spread <= 10 ? 'GOOD' : spread <= 20 ? 'FAIR' : 'POOR'
+  };
+}
+
+function renderInfoStats() {
+  const plan = loadPlan();
+  const stats = calculateFairnessStats();
+
+  // FAIRNESS STATS popup content (includes HOW IT WORKS at top)
+  let fairHtml = '';
+
+  fairHtml += `<div class="how-it-works-box" style="padding:10px 14px; margin-bottom:10px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); border-radius:8px; font-size:11px; line-height:1.7; color:var(--muted);">
+    <div style="font-weight:800; font-size:12px; color:var(--text); margin-bottom:6px;">HOW IT WORKS</div>
+    <div>The system builds the entire month's rotation automatically by running up to <b style="color:var(--text);">500 randomized attempts</b> and keeping the most balanced result. Each attempt fills every 4-hour block across all 10 channels, always picking the person with the fewest assignments first. It skips anyone on vacation, keeps trainees on East/South/West/Central only, prevents CT or Relief from being assigned back-to-back, and won't repeat the same channel twice in one day. A 7th channel is added on Friday and Saturday nights. The <b style="color:var(--text);">FAIRNESS %</b> column shows how close each person's assignments are to what they should have gotten based on their availability. 100% means perfectly even. The closer to 100%, the fairer it is. <span style="color:#22c55e">Green</span> = 90%+ (fair), <span style="color:#f59e0b">yellow</span> = 80\u201389% (slightly off), <span style="color:#ef4444">red</span> = below 80% (noticeably off). Every employee is treated equally by the algorithm.</div>
+  </div>`;
+
+  if (stats) {
+    const scoreClass = stats.fairnessScore === 'EXCELLENT' ? 'good' : stats.fairnessScore === 'GOOD' ? 'good' : stats.fairnessScore === 'FAIR' ? 'warn' : 'bad';
+    const sorted = Array.from(stats.empStats.entries()).sort((a,b) => b[1].total - a[1].total);
+
+    fairHtml += `<div style="display:flex; gap:8px; margin-bottom:10px;">
+      <div class="stat-card" style="flex:1; padding:6px 8px;">
+        <div class="stat-value" style="font-size:16px;">${stats.totalAssignments}</div>
+        <div class="stat-label" style="font-size:9px;">TOTAL</div>
+      </div>
+      <div class="stat-card" style="flex:1; padding:6px 8px;">
+        <div class="stat-value" style="font-size:16px;">${stats.empStats.size}</div>
+        <div class="stat-label" style="font-size:9px;">EMPLOYEES</div>
+      </div>
+      <div class="stat-card" style="flex:1; padding:6px 8px;">
+        <div class="stat-value" style="font-size:16px;">${stats.avgPerPerson.toFixed(1)}</div>
+        <div class="stat-label" style="font-size:9px;">AVG/PERSON</div>
+      </div>
+      <div class="stat-card ${scoreClass}" style="flex:1; padding:6px 8px;">
+        <div class="stat-value" style="font-size:16px;">${stats.fairnessScore}</div>
+        <div class="stat-label" style="font-size:9px;">SPREAD: ${stats.spread}</div>
+      </div>
+    </div>`;
+
+    fairHtml += '<div style="overflow:auto; max-height:360px;">';
+    fairHtml += '<table style="width:100%; font-size:11px;"><thead><tr><th>NAME</th><th>TOTAL</th><th>EXPECTED</th><th>7TH</th><th>CT</th><th>FAIRNESS %</th></tr></thead><tbody>';
+    sorted.forEach(([name, s]) => {
+      const fairPct = s.expected > 0 ? Math.round(100 - (Math.abs(s.total - s.expected) / s.expected) * 100) : 100;
+      const clampedPct = Math.max(0, Math.min(100, fairPct));
+      const pctClass = clampedPct >= 90 ? 'color:#22c55e' : clampedPct >= 80 ? 'color:#f59e0b' : 'color:#ef4444';
+      const seventh = s.channels[SEVENTH_CHANNEL] || 0;
+      fairHtml += `<tr>
+        <td style="text-align:left; font-weight:600;">${escapeHtml(name)}</td>
+        <td>${s.total}</td>
+        <td>${s.expected.toFixed(1)}</td>
+        <td>${seventh}</td>
+        <td>${s.ct}</td>
+        <td style="${pctClass}; font-weight:700;">${clampedPct}%</td>
+      </tr>`;
+    });
+    fairHtml += '</tbody></table></div>';
+  } else {
+    fairHtml = '<div style="text-align:center; color:var(--muted); padding:20px;">NO DATA — RANDOMIZE A MONTH FIRST</div>';
+  }
+
+  // CHANNEL TOTALS popup content
+  let chTotalsHtml = '';
+  if (plan && plan.days) {
+    chTotalsHtml = renderStatsHtml(plan);
+  } else {
+    chTotalsHtml = '<div style="text-align:center; color:var(--muted); padding:20px;">NO DATA — RANDOMIZE A MONTH FIRST</div>';
+  }
+
+  // Write to popups
+  const fairEl = document.getElementById("fairnessPopupContent");
+  if (fairEl) fairEl.innerHTML = fairHtml;
+  const chEl = document.getElementById("channelTotalsPopupContent");
+  if (chEl) chEl.innerHTML = chTotalsHtml;
+}
+
+function boot() {
+  normalizeBase();
+  initSelectors();
+  const ui = loadJSON(STORAGE.ui, {});
+  if (ui && ui.tab) setActiveTab(ui.tab);
+
+  // ===== Channel Flash Text =====
+  const channelInner = document.getElementById("channelInner");
+  if (channelInner) {
+    const channels = ["N","E","S","W","NW","C","DC1","DC2","R1","R2","CT"];
+    let ci = 0;
+    channelInner.textContent = channels[0];
+    channelInner.style.transition = "transform .2s ease-in";
+    setInterval(() => {
+      channelInner.style.transform = "rotateX(90deg)";
+      setTimeout(() => {
+        ci = (ci + 1) % channels.length;
+        channelInner.textContent = channels[ci];
+        channelInner.style.transition = "none";
+        channelInner.style.transform = "rotateX(-90deg)";
+        requestAnimationFrame(() => {
+          channelInner.style.transition = "transform .2s ease-out";
+          channelInner.style.transform = "rotateX(0deg)";
+        });
+      }, 200);
+    }, 500);
+  }
+
+  const now = new Date();
+  document.getElementById("dayPick").value = ymd(now);
+
+  // Pill popup toggles (HOW IT WORKS, FAIRNESS STATS, CHANNEL TOTALS)
+  const popups = [
+    { btn: "btnFairnessStats", popup: "fairnessPopup" },
+    { btn: "btnChannelTotals", popup: "channelTotalsPopup" }
+  ];
+  popups.forEach(({ btn: btnId, popup: popupId }) => {
+    const btn = document.getElementById(btnId);
+    const popup = document.getElementById(popupId);
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      // Close other popups first
+      popups.forEach(p => {
+        if (p.popup !== popupId) document.getElementById(p.popup).style.display = "none";
+      });
+      popup.style.display = popup.style.display === "none" ? "block" : "none";
+      // Re-populate stats when opening
+      if (popup.style.display === "block") renderInfoStats();
+    });
+  });
+  document.addEventListener("click", (e) => {
+    popups.forEach(({ btn: btnId, popup: popupId }) => {
+      const btn = document.getElementById(btnId);
+      const popup = document.getElementById(popupId);
+      if (!popup.contains(e.target) && e.target !== btn) {
+        popup.style.display = "none";
+      }
+    });
+  });
+
+  // Event delegation for btnAddVac and btnAddTrainee
+  document.addEventListener("click", (e)=>{
+    if (e.target && e.target.id === "btnAddVac") {
+      const sel = document.getElementById("vacName");
+      const name = sel.value.trim();
+      const from = document.getElementById("vacFrom").value || "";
+      const to = document.getElementById("vacTo").value || "";
+      if (!name) return showToast("Select a name first.");
+      const v = getVacRanges(); v.push({name, from, to}); saveJSON(STORAGE.vac, v);
+      sel.selectedIndex = 0;
+      document.getElementById("vacFrom").value = "";
+      document.getElementById("vacTo").value = "";
+      renderExceptions(); renderInfoStats(); showToast("Added exclusion.");
+    }
+    if (e.target && e.target.id === "btnAddTrainee") {
+      const sel = document.getElementById("traineeName");
+      const name = sel.value.trim().toUpperCase();
+      const from = document.getElementById("traineeFrom").value || "";
+      const to = document.getElementById("traineeTo").value || "";
+      if (!name) return showToast("Select a trainer first.");
+      const ranges = getTrainerRanges();
+      ranges.push({name, from, to});
+      saveJSON(STORAGE.training, ranges);
+      sel.selectedIndex = 0;
+      document.getElementById("traineeFrom").value = "";
+      document.getElementById("traineeTo").value = "";
+      renderExceptions(); renderInfoStats();
+      showToast("Added trainer. They will only be assigned E, S, W, C.");
+    }
+  });
+
+  // ========== SWAP TIP BUBBLE ==========
+  function showSwapTip() {
+    const tip = document.getElementById("swapTip");
+    if (!tip) return;
+    tip.style.display = "block";
+    tip.onclick = () => { tip.style.display = "none"; };
+  }
+
+  // ========== CLICK-TO-CHANGE MODAL ==========
+  let currentCallOffData = null;
+
+  function showCallOffModal(dayKey, blockKey, channel, name, type) {
+    currentCallOffData = { dayKey, blockKey, channel, name, type };
+    const blockLabel = BLOCKS.find(b => b.key === blockKey)?.label || blockKey;
+    document.getElementById("callOffModalTitle").textContent = `SWAP: ${name}`;
+    document.getElementById("callOffModalInfo").innerHTML = `
+      <strong>DATE:</strong> ${dayKey}<br>
+      <strong>BLOCK:</strong> ${blockLabel}<br>
+      <strong>CURRENT:</strong> ${channel}
+    `;
+
+    // Populate swap dropdown with all assignments in this block
+    const plan = loadPlan();
+    const blockData = plan.days[dayKey]?.[blockKey];
+    const swapSelect = document.getElementById("swapSelect");
+    swapSelect.innerHTML = "";
+
+    if (blockData) {
+      // Add channel assignments
+      for (const [ch, nm] of Object.entries(blockData.assignments || {})) {
+        if (nm && nm.toUpperCase() !== name.toUpperCase()) {
+          const opt = document.createElement("option");
+          opt.value = `channel|${ch}|${nm}`;
+          opt.textContent = `${channelAbbrev(ch)}: ${nm.toUpperCase()}`;
+          swapSelect.appendChild(opt);
+        }
+      }
+      // Add CT assignments
+      for (const nm of (blockData.ct || [])) {
+        if (nm && nm.toUpperCase() !== name.toUpperCase()) {
+          const opt = document.createElement("option");
+          opt.value = `ct|CT|${nm}`;
+          opt.textContent = `CT: ${nm.toUpperCase()}`;
+          swapSelect.appendChild(opt);
+        }
+      }
+      // Add SD assignments
+      for (const nm of (blockData.sd || [])) {
+        if (nm && nm.toUpperCase() !== name.toUpperCase()) {
+          const opt = document.createElement("option");
+          opt.value = `sd|SD|${nm}`;
+          opt.textContent = `SD: ${nm.toUpperCase()}`;
+          swapSelect.appendChild(opt);
+        }
+      }
+    }
+
+    if (swapSelect.options.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "-- NO OTHER ASSIGNMENTS --";
+      swapSelect.appendChild(opt);
+    }
+
+    document.getElementById("callOffModalResult").innerHTML = "";
+    document.getElementById("callOffModal").style.display = "flex";
+  }
+
+  function hideCallOffModal() {
+    document.getElementById("callOffModal").style.display = "none";
+    currentCallOffData = null;
+  }
+
+  // Event delegation for clickable assignments
+  document.addEventListener("click", (e) => {
+    const target = e.target.closest(".clickable-assign");
+    if (!target) return;
+
+    const dayKey = target.getAttribute("data-day");
+    const blockKey = target.getAttribute("data-block");
+    const channel = target.getAttribute("data-channel");
+    const name = target.getAttribute("data-name");
+    const type = target.getAttribute("data-type");
+
+    if (dayKey && blockKey && name) {
+      showCallOffModal(dayKey, blockKey, channel, name, type);
+    }
+  });
+
+  // Modal buttons
+  document.getElementById("btnModalCancel").addEventListener("click", hideCallOffModal);
+  document.getElementById("callOffModal").addEventListener("click", (e) => {
+    if (e.target.id === "callOffModal") hideCallOffModal(); // Click outside to close
+  });
+
+  document.getElementById("btnModalSwap").addEventListener("click", () => {
+    if (!currentCallOffData) return;
+    const { dayKey, blockKey, channel, name, type } = currentCallOffData;
+
+    const swapSelect = document.getElementById("swapSelect");
+    const swapValue = swapSelect.value;
+    if (!swapValue) { showToast("NO ASSIGNMENT SELECTED TO SWAP."); return; }
+
+    const [swapType, swapChannel, swapName] = swapValue.split("|");
+
+    const plan = loadPlan();
+    const blockData = plan.days[dayKey]?.[blockKey];
+    if (!blockData) return hideCallOffModal();
+
+    // Get current person's name and swap target's name
+    const personA = name.toUpperCase();
+    const personB = swapName.toUpperCase();
+
+    // Perform the swap based on types
+    // Remove personA from their current position
+    if (type === "channel") {
+      blockData.assignments[channel] = personB;
+    } else if (type === "ct") {
+      const idx = blockData.ct.findIndex(n => String(n).toUpperCase() === personA);
+      if (idx !== -1) blockData.ct[idx] = personB;
+    } else if (type === "sd") {
+      const idx = blockData.sd.findIndex(n => String(n).toUpperCase() === personA);
+      if (idx !== -1) blockData.sd[idx] = personB;
+    }
+
+    // Put personA in personB's position
+    if (swapType === "channel") {
+      blockData.assignments[swapChannel] = personA;
+    } else if (swapType === "ct") {
+      const idx = blockData.ct.findIndex(n => String(n).toUpperCase() === personB);
+      if (idx !== -1) blockData.ct[idx] = personA;
+    } else if (swapType === "sd") {
+      const idx = blockData.sd.findIndex(n => String(n).toUpperCase() === personB);
+      if (idx !== -1) blockData.sd[idx] = personA;
+    }
+
+    savePlan(plan);
+
+    // Record swap in history
+    const blockLabel = BLOCKS.find(b => b.key === blockKey)?.label || blockKey;
+    addSwapHistory({
+      name1: personA,
+      name2: personB,
+      date: dayKey,
+      block: blockLabel
+    });
+
+    hideCallOffModal();
+
+    // Refresh views
+    const dk = document.getElementById("dayPick").value;
+    const m = Number(document.getElementById("monthSel").value);
+    const y = Number(document.getElementById("yearSel").value);
+    renderDay(dk); renderWeek(dk); renderMonth(y, m);
+    showToast(`SWAPPED ${personA} ↔ ${personB}`);
+  });
+  // ========== END CLICK-TO-CHANGE MODAL ==========
+
+  // Track best violation count for this session
+  let bestViolationCount = Infinity;
+
+  function updateViolationDisplay() {
+    const stats = window.lastRandomizeStats;
+    if (!stats) return;
+
+    document.getElementById("violationStats").style.display = "inline-flex";
+    document.getElementById("violationCount").textContent = stats.totalViolations;
+    document.getElementById("violationPeople").textContent = stats.uniquePeopleWithViolations;
+
+    if (stats.totalViolations < bestViolationCount) {
+      bestViolationCount = stats.totalViolations;
+      document.getElementById("violationBest").style.display = "inline";
+      document.getElementById("violationStats").style.background = "rgba(34,197,94,0.15)";
+      document.getElementById("violationStats").style.borderColor = "rgba(34,197,94,0.4)";
+    } else {
+      document.getElementById("violationBest").style.display = "none";
+      document.getElementById("violationStats").style.background = "rgba(239,68,68,0.15)";
+      document.getElementById("violationStats").style.borderColor = "rgba(239,68,68,0.4)";
+    }
+  }
+
+  // ========== RANDOMIZE & SAVE ==========
+  document.getElementById("btnRandomize").addEventListener("click", async ()=>{
+    const pwd = prompt("ENTER PASSWORD TO RANDOMIZE:");
+    if (pwd !== "911911") { showToast("INCORRECT PASSWORD."); return; }
+    const m = Number(document.getElementById("monthSel").value);
+    const y = Number(document.getElementById("yearSel").value);
+    const btn = document.getElementById("btnRandomize");
+    bestViolationCount = Infinity;
+
+    btn.disabled = true;
+    btn.textContent = "RANDOMIZING...";
+
+    let attempts = 0;
+    let viol = Infinity;
+    const maxAttempts = 500;
+
+    while (viol >= 10 && attempts < maxAttempts) {
+      randomizeMonth(y, m);
+      viol = window.lastRandomizeStats?.totalViolations || 0;
+      attempts++;
+    }
+
+    updateViolationDisplay();
+    const dk = ymd(new Date());
+    document.getElementById("dayPick").value = dk;
+    renderDay(dk); renderWeek(dk); renderMonth(y,m); if (loadJSON(STORAGE.ui, {}).tab==="mroster") renderMonthRostersIfActive();
+    showSwapTip();
+
+    // Log what we're about to save
+    const savePlanCheck = loadPlan();
+    const saveFirstDay = savePlanCheck ? Object.keys(savePlanCheck.days || {})[0] : null;
+    const saveFirstBlock = saveFirstDay ? savePlanCheck.days[saveFirstDay] : null;
+    const saveFirstBlockKey = saveFirstBlock ? Object.keys(saveFirstBlock)[0] : null;
+    const saveFirstAssign = saveFirstBlockKey && saveFirstBlock[saveFirstBlockKey]?.assignments
+      ? Object.values(saveFirstBlock[saveFirstBlockKey].assignments).slice(0,3).join(", ")
+      : "none";
+    console.log("RANDOMIZE: About to save. First day assignments:", saveFirstDay, "→", saveFirstAssign);
+
+    // Save to Firebase immediately — block everything until done
+    btn.textContent = "SAVING TO FIREBASE...";
+    if (autoSaveTimer) clearTimeout(autoSaveTimer);
+    if (realtimeUnsubscribe) { realtimeUnsubscribe(); realtimeUnsubscribe = null; }
+    isSyncing = true;
+    setSyncStatus("SAVING...", "pending");
+
+    let ok = false;
+    try {
+      ok = await saveRotationToFirebase();
+    } catch (err) {
+      console.error("Save after randomize failed:", err);
+    }
+
+    isSyncing = false;
+    btn.disabled = false;
+    btn.textContent = "Randomize Month";
+
+    if (ok) {
+      lastSavedAt = Date.now();
+      setSyncStatus("SYNCED", "good");
+      const plan = loadPlan();
+      const docId = plan && plan.meta ? `rotation_${plan.meta.year}_${plan.meta.monthIndex}` : "unknown";
+      showToast(`SAVED & VERIFIED! Doc: ${docId} — ${viol} violations (${attempts} attempts)`);
+    } else {
+      setSyncStatus("SAVE FAILED", "bad");
+      alert("FAILED TO SAVE TO FIREBASE. Your rotation was NOT saved. Check your internet and try again.");
+    }
+
+    // Reconnect realtime sync now that Firebase has the new data
+    startRealtimeSync(y, m);
+  });
+
+  // When month/year changes, try to load from Firebase
+  const monthYearChanged = async () => {
+    const m = Number(document.getElementById("monthSel").value);
+    const y = Number(document.getElementById("yearSel").value);
+    setSyncStatus("LOADING...", "pending");
+    const loaded = await loadRotationFromFirebase(y, m);
+    if (loaded) {
+      setSyncStatus("SYNCED", "good");
+      const plan = loadPlan();
+      if (plan && plan.meta && plan.meta.year === y && plan.meta.monthIndex === m) {
+        const dk = ymd(new Date(y, m, 1, 12, 0, 0, 0));
+        document.getElementById("dayPick").value = dk;
+        renderDay(dk); renderWeek(dk); renderMonth(y, m);
+        if (loadJSON(STORAGE.ui, {}).tab === "mroster") renderMonthRostersIfActive();
+      }
+    } else {
+      setSyncStatus("LOCAL", null);
+    }
+    startRealtimeSync(y, m);
+  };
+  document.getElementById("monthSel").addEventListener("change", monthYearChanged);
+  document.getElementById("yearSel").addEventListener("change", monthYearChanged);
+
+  const btnRandomizeAgain = document.getElementById("btnRandomizeAgain");
+  if (btnRandomizeAgain) {
+    btnRandomizeAgain.addEventListener("click", ()=>{
+      const m = Number(document.getElementById("monthSel").value);
+      const y = Number(document.getElementById("yearSel").value);
+      randomizeMonth(y, m);
+      updateViolationDisplay();
+      const viol = window.lastRandomizeStats?.totalViolations || 0;
+      const isBest = viol <= bestViolationCount;
+      showToast(`Re-randomized ${monthName(m)} ${y}. Violations: ${viol}${isBest ? ' (Best!)' : ''}`);
+      const dk = document.getElementById("dayPick").value || ymd(new Date(y,m,1,12,0,0,0));
+      renderDay(dk); renderWeek(dk); renderMonth(y,m); if (loadJSON(STORAGE.ui, {}).tab==="mroster") renderMonthRostersIfActive();
+    });
+  }
+
+  const btnHardReset = document.getElementById("btnHardReset");
+  if (btnHardReset) {
+    btnHardReset.addEventListener("click", ()=>{
+      for (const k of Object.values(STORAGE)) localStorage.removeItem(k);
+      showToast("Cleared saved data. Reloading...");
+      setTimeout(()=>location.reload(), 600);
+    });
+  }
+
+  // ========== THEME TOGGLE ==========
+  function applyTheme(isLight) {
+    document.body.classList.toggle("light", isLight);
+    document.getElementById("themeIcon").textContent = isLight ? "🌙" : "☀️";
+    document.getElementById("themeLabel").textContent = isLight ? "DARK" : "LIGHT";
+    saveJSON(STORAGE.theme, isLight ? "light" : "dark");
+  }
+  document.getElementById("btnThemeToggle").addEventListener("click", () => {
+    applyTheme(!document.body.classList.contains("light"));
+  });
+  // Apply saved theme
+  if (loadJSON(STORAGE.theme, "dark") === "light") applyTheme(true);
+
+  // Employee management removed — employees are managed in the base data
+
+  // ========== SWAP HISTORY ==========
+  function getSwapHistory() {
+    return loadJSON(STORAGE.swapHistory, []);
+  }
+  function addSwapHistory(entry) {
+    const history = getSwapHistory();
+    history.unshift({ ...entry, timestamp: new Date().toISOString() });
+    if (history.length > 100) history.length = 100; // Keep last 100
+    saveJSON(STORAGE.swapHistory, history);
+  }
+  function renderSwapHistory() {
+    const list = document.getElementById("historyList");
+    const history = getSwapHistory();
+
+    if (history.length === 0) {
+      list.innerHTML = '<div style="color:var(--muted); text-align:center; padding:20px;">NO SWAPS RECORDED YET</div>';
+      return;
+    }
+
+    let html = '';
+    history.forEach(h => {
+      const time = new Date(h.timestamp).toLocaleString();
+      html += `<div class="history-item">
+        <span class="history-time">${escapeHtml(time.split(',')[0])}</span>
+        <span class="history-action"><b>${escapeHtml(h.name1)}</b> ↔ <b>${escapeHtml(h.name2)}</b> (${escapeHtml(h.date)} ${escapeHtml(h.block)})</span>
+      </div>`;
+    });
+    list.innerHTML = html;
+  }
+
+  document.getElementById("btnSwapHistory").addEventListener("click", () => {
+    document.getElementById("historyModal").classList.add("show");
+    renderSwapHistory();
+  });
+  document.getElementById("btnCloseHistoryModal").addEventListener("click", () => {
+    document.getElementById("historyModal").classList.remove("show");
+  });
+  document.getElementById("btnClearHistory").addEventListener("click", () => {
+    saveJSON(STORAGE.swapHistory, []);
+    renderSwapHistory();
+    showToast("HISTORY CLEARED");
+  });
+
+  // Close modals on overlay click
+  document.querySelectorAll('.modal-overlay').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.classList.remove('show');
+    });
+  });
+
+  document.getElementById("dayPick").addEventListener("change", ()=>{
+    const dk = document.getElementById("dayPick").value;
+    renderDay(dk); renderWeek(dk);
+  });
+
+  // Day arrow navigation
+  function shiftDay(offset) {
+    const picker = document.getElementById("dayPick");
+    const current = parseYMD(picker.value);
+    if (!current) return;
+    current.setDate(current.getDate() + offset);
+    const newKey = ymd(current);
+    picker.value = newKey;
+    renderDay(newKey); renderWeek(newKey);
+  }
+  document.getElementById("btnDayPrev").addEventListener("click", () => shiftDay(-1));
+  document.getElementById("btnDayNext").addEventListener("click", () => shiftDay(1));
+
+  document.querySelectorAll(".tab").forEach(t=>{
+    t.addEventListener("click", ()=>{
+      const tab = t.getAttribute("data-tab");
+      setActiveTab(tab);
+      const dk = document.getElementById("dayPick").value;
+      const m = Number(document.getElementById("monthSel").value);
+      const y = Number(document.getElementById("yearSel").value);
+      if (tab==="day") renderDay(dk);
+      if (tab==="week") renderWeek(dk);
+      if (tab==="month") renderMonth(y,m);
+      if (tab==="mroster") renderMonthRostersIfActive();
+    });
+  });
+
+  // Event delegation for per-block Copy buttons (dynamically created in renderDay)
+  document.addEventListener("click", (e)=>{
+    if (e.target && e.target.classList.contains("btn-copy-block")) {
+      const dayKey = e.target.getAttribute("data-day");
+      const blockKey = e.target.getAttribute("data-block");
+      const plan = loadPlan();
+      if (!plan || !plan.days[dayKey] || !plan.days[dayKey][blockKey]) {
+        showToast("No data for this block.");
+        return;
+      }
+      const entry = plan.days[dayKey][blockKey];
+      const names = [];
+      const chAbbr = {"North":"N","South":"S","East":"E","West":"W","Central":"C","Northwest":"NW","Relief 1":"R1","Relief 2":"R2","DC1":"DC1","DC2":"DC2"};
+      // Collect only main channels: North, South, East, West, Central, Northwest, Relief 1, Relief 2, DC1, DC2
+      for (const ch of CHANNELS) {
+        const nm = (entry.assignments||{})[ch];
+        names.push(nm ? nm.toUpperCase() : `${chAbbr[ch]||ch}: NEEDED`);
+      }
+      const text = names.join("\n");
+      copyText(text);
+    }
+  });
+
+  // Month Timeline search functionality
+  function applyMonthSearch() {
+    const searchVal = document.getElementById("monthSearch").value.trim().toUpperCase();
+    const wrap = document.getElementById("monthWrap");
+    const cells = wrap.querySelectorAll(".month-cell");
+
+    if (!searchVal) {
+      // Clear search - remove all highlights
+      wrap.classList.remove("search-active");
+      cells.forEach(cell => {
+        cell.classList.remove("search-match", "search-dim");
+      });
+      return;
+    }
+
+    // Apply search
+    wrap.classList.add("search-active");
+    let matchCount = 0;
+    cells.forEach(cell => {
+      const emp = cell.getAttribute("data-emp") || "";
+      if (emp.includes(searchVal)) {
+        cell.classList.add("search-match");
+        cell.classList.remove("search-dim");
+        matchCount++;
+      } else {
+        cell.classList.remove("search-match");
+        cell.classList.add("search-dim");
+      }
+    });
+
+    if (matchCount === 0 && searchVal) {
+      showToast(`No matches found for "${searchVal}"`);
+    }
+  }
+
+  document.getElementById("monthSearch").addEventListener("input", applyMonthSearch);
+  document.getElementById("monthSearch").addEventListener("keyup", (e) => {
+    if (e.key === "Escape") {
+      document.getElementById("monthSearch").value = "";
+      applyMonthSearch();
+    }
+  });
+
+  // Week Timeline search functionality
+  function applyWeekSearch() {
+    const searchVal = document.getElementById("weekSearch").value.trim().toUpperCase();
+    const wrap = document.getElementById("weekWrap");
+    const cells = wrap.querySelectorAll(".assign-cell");
+
+    if (!searchVal) {
+      cells.forEach(cell => { cell.style.opacity = "1"; });
+      return;
+    }
+
+    let matchCount = 0;
+    cells.forEach(cell => {
+      const text = cell.textContent.toUpperCase();
+      if (text.includes(searchVal)) {
+        cell.style.opacity = "1";
+        cell.style.outline = "2px solid #4aa3ff";
+        matchCount++;
+      } else {
+        cell.style.opacity = "0.25";
+        cell.style.outline = "none";
+      }
+    });
+
+    if (matchCount === 0 && searchVal) {
+      showToast(`NO MATCHES FOR "${searchVal}"`);
+    }
+  }
+
+  document.getElementById("weekSearch").addEventListener("input", applyWeekSearch);
+  document.getElementById("weekSearch").addEventListener("keyup", (e) => {
+    if (e.key === "Escape") {
+      document.getElementById("weekSearch").value = "";
+      applyWeekSearch();
+    }
+  });
+
+  // Roster (Day-only + Night-only) – always render both when the tab is active
+  function renderMonthRostersIfActive(){
+    const active = loadJSON(STORAGE.ui, {}).tab || "day";
+    if (active !== "mroster") return;
+    renderMonthRoster("DAY", "mRosterWrapDay");
+    renderMonthRoster("NIGHT", "mRosterWrapNight");
+  }
+
+  // Always load today's date
+  const today = ymd(new Date());
+  document.getElementById("dayPick").value = today;
+
+  // Try loading from Firebase first, then render
+  (async function initializeWithFirebase() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+
+    setSyncStatus("LOADING...", "pending");
+
+    // Load dispatcher employees from Firestore
+    const empLoaded = await loadEmployeesFromFirestore();
+    if (!empLoaded) {
+      console.warn("Could not load employees from Firestore — BASE is empty");
+    }
+
+    // Try to load rotation plan from Firebase
+    const firebaseLoaded = await loadRotationFromFirebase(year, month);
+
+    if (firebaseLoaded) {
+      setSyncStatus("SYNCED", "good");
+    } else {
+      setSyncStatus("LOCAL", null);
+    }
+
+    // Now render with whatever data we have
+    const plan = loadPlan();
+    if (plan && plan.meta) {
+      document.getElementById("monthSel").value = String(plan.meta.monthIndex);
+      document.getElementById("yearSel").value = String(plan.meta.year);
+
+      // Log first assignment so we can verify data survived
+      const firstDayKey = Object.keys(plan.days || {})[0];
+      const firstBlock = firstDayKey ? plan.days[firstDayKey] : null;
+      const firstBlockKey = firstBlock ? Object.keys(firstBlock)[0] : null;
+      const firstAssign = firstBlockKey && firstBlock[firstBlockKey]?.assignments
+        ? Object.values(firstBlock[firstBlockKey].assignments).slice(0,3).join(", ")
+        : "none";
+      console.log("INIT: First day assignments:", firstDayKey, "→", firstAssign);
+
+      document.getElementById("dayPick").value = today;
+      renderDay(today); renderWeek(today); renderMonth(plan.meta.year, plan.meta.monthIndex);
+      showSwapTip();
+    } else {
+      renderDay(today);
+    }
+
+    // NO realtime sync on page load — only the explicit load above is trusted
+    // Realtime sync will start after user interaction (randomize, month change, etc.)
+    initialLoadDone = true;
+    console.log("INIT: Complete. No realtime sync on load.");
+  })();
+}
+
+
+// Global error handler (shows on screen so you can screenshot it)
+window.addEventListener('error', (ev)=>{
+  try{
+    const msg = (ev && ev.error && ev.error.message) ? ev.error.message : (ev && ev.message) ? ev.message : 'Unknown error';
+    console.error(ev.error || ev);
+    const el = document.getElementById('debugBanner');
+    if (el) { el.style.display='block'; el.textContent = 'ERROR: ' + msg; }
+    if (typeof showToast === 'function') showToast('Error: ' + msg);
+  }catch(_){}
+});
+document.addEventListener("DOMContentLoaded", ()=>{
+  try { boot(); }
+  catch(e) {
+    console.error(e);
+    showToast("Fatal error: <code>" + escapeHtml(e && e.stack ? e.stack : String(e)) + "</code>");
+    alert(String(e && e.stack ? e.stack : e));
+  }
+});
+
+</script>
+</body>
+</html>
