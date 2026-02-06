@@ -577,7 +577,14 @@ textarea.copyBox,
 
   async function _setLandingView(mode, date, block){
     try {
-      await setDoc(_APPSTATE_DOC, { mode, date, block }, { merge: true });
+      // Derive day name from date so index.html (which reads "day") stays in sync
+      let day = "";
+      try {
+        const dt = new Date(String(date) + "T12:00:00");
+        const _DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+        day = _DAYS[(dt.getDay() + 6) % 7] || "";
+      } catch {}
+      await setDoc(_APPSTATE_DOC, { mode, date, day, block }, { merge: true });
       return true;
     } catch(e){
       console.warn("Landing view save failed", e);

@@ -433,15 +433,41 @@ body { padding-top: 12px !important; }
       const snap = await getDoc(_APPSTATE_DOC);
       if(!snap.exists()) return null;
       const d = snap.data() || {};
-      return { mode: String(d.mode||""), day: String(d.day||""), block: String(d.block||"") };
+      // Admin saves "date" (YYYY-MM-DD), index expects "day" (day name).
+      // Fall back to deriving day name from date if "day" field is missing.
+      let day = String(d.day || "");
+      if(!day && d.date){
+        try {
+          const dt = new Date(String(d.date) + "T12:00:00");
+          const _DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+          day = _DAYS[(dt.getDay() + 6) % 7] || "";
+        } catch {}
+      }
+      return { mode: String(d.mode||""), day, date: String(d.date||""), block: String(d.block||"") };
     } catch(e){
       return null;
     }
   }
 
-  async function _setLandingView(mode, day, block){
+  async function _setLandingView(mode, day, block, resolvedDate){
     try {
-      await setDoc(_APPSTATE_DOC, { mode, day, block }, { merge: true });
+      // Use the exact resolved date if provided (from _currentDate), otherwise derive from day name
+      let date = (resolvedDate && /^\d{4}-\d{2}-\d{2}$/.test(resolvedDate)) ? resolvedDate : "";
+      if(!date){
+        try {
+          const _DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+          const idx = _DAYS.indexOf(day);
+          if(idx >= 0){
+            const today = new Date();
+            const todayDow = (today.getDay() + 6) % 7;
+            const diff = idx - todayDow;
+            const target = new Date(today);
+            target.setDate(today.getDate() + diff);
+            date = `${target.getFullYear()}-${String(target.getMonth()+1).padStart(2,'0')}-${String(target.getDate()).padStart(2,'0')}`;
+          }
+        } catch {}
+      }
+      await setDoc(_APPSTATE_DOC, { mode, day, date, block }, { merge: true });
       return true;
     } catch(e){
       console.warn("Landing view save failed", e);
@@ -904,6 +930,11 @@ function positionsOptions(current){
   return all.map(p=>`<option value="${p}" ${p===current?"selected":""}>${p}</option>`).join("");
 }
 
+// Resolved date string (YYYY-MM-DD) that matches admin's date picker.
+// Set from the landing view on boot (exact admin date), then recomputed
+// whenever the day selector changes.
+let _currentDate = "";
+
 function getDateForDay(dayName){
   // Convert day name (e.g. "Wednesday") to YYYY-MM-DD date string
   // matching the admin's <input type="date"> format so both files
@@ -921,9 +952,10 @@ function getDateForDay(dayName){
 }
 function scopeKey(){
   const mode = document.getElementById("modeSel").value;
-  const day = document.getElementById("daySel").value;
   const block = document.getElementById("blockSel").value;
-  return `${mode}|${getDateForDay(day)}|${block}`;
+  // Use the resolved date directly (set from landing view or day selector change)
+  const date = _currentDate || getDateForDay(document.getElementById("daySel").value);
+  return `${mode}|${date}|${block}`;
 }
 function loadExtrasForScope(){
   // Prefer shared Firestore extras for this scope; fallback to localStorage
@@ -1000,9 +1032,16 @@ function initApp(){
     return String(m).trim();
   }
 
-  // Day
+  // Day + resolved date
   if(_ls && _ls.day && DAYS.includes(_ls.day)) daySel.value = _ls.day;
   else daySel.value = "Monday";
+  // Use exact date from admin's landing view if available (works for any date,
+  // not just the current week).  Fall back to computing from day name.
+  if(_ls && _ls.date && /^\d{4}-\d{2}-\d{2}$/.test(_ls.date)){
+    _currentDate = _ls.date;
+  } else {
+    _currentDate = getDateForDay(daySel.value);
+  }
 
   // Mode (set before syncing blocks)
   if(modeSel){
@@ -1026,7 +1065,7 @@ function initApp(){
   document.getElementById("extraPos").innerHTML = positionsOptions("CALLTAKER");
 
   document.getElementById("modeSel").addEventListener("change", ()=>{ syncBlockOptions(); attachFirestoreListener(); renderExtrasTable(); render(); });
-  daySel.addEventListener("change", ()=>{ attachFirestoreListener(); renderExtrasTable(); render(); });
+  daySel.addEventListener("change", ()=>{ _currentDate = getDateForDay(daySel.value); attachFirestoreListener(); renderExtrasTable(); render(); });
   document.getElementById("blockSel").addEventListener("change", ()=>{ attachFirestoreListener(); renderExtrasTable(); render(); });
   document.getElementById("searchBox").addEventListener("input", render);
 
@@ -1051,7 +1090,8 @@ function initApp(){
           const ok = await window.__setLandingView(
             document.getElementById("modeSel")?.value,
             document.getElementById("daySel")?.value,
-            document.getElementById("blockSel")?.value
+            document.getElementById("blockSel")?.value,
+            _currentDate
           );
           if(!ok) toast("Landing view did NOT save (check Firestore Rules for appState).");
         }
