@@ -619,6 +619,9 @@ body { padding-top: 12px !important; }
       _sharedSkippedTurnsCache = _normalizeSkippedTurns(data.skippedTurns);
       _sharedBreakStartedCache = _normalizeBreakStarted(data.breakStarted);
       _sharedExtrasCache = Array.isArray(data.extras) ? data.extras : [];
+      if(typeof data.skipDurationMs === "number" && data.skipDurationMs > 0){
+        SKIP_DURATION_MS = data.skipDurationMs;
+      }
       if(_lastCtx){
         renderBreakPicker(_lastCtx.selectedDay, _lastCtx.mode, _lastCtx.block, _lastCtx.buckets);
       }

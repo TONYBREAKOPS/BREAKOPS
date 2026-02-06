@@ -785,6 +785,9 @@ textarea.copyBox,
       _sharedTurnTimersCache = _normalizeTurnTimers(data.turnTimers);
       _sharedSkippedTurnsCache = _normalizeSkippedTurns(data.skippedTurns);
       _sharedBreakStartedCache = _normalizeBreakStarted(data.breakStarted);
+      if(typeof data.skipDurationMs === "number" && data.skipDurationMs > 0){
+        SKIP_DURATION_MS = data.skipDurationMs;
+      }
 
       // Keep a per-scope snapshot so other blocks (not currently selected) can
       // be rendered accurately in the top 3-block dispatcher assignment view.
@@ -3293,12 +3296,23 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
     const durSel = card.querySelector("#timerDuration");
     if(durSel){
       durSel.value = String(SKIP_DURATION_MS);
-      durSel.addEventListener("change", ()=>{
+      durSel.addEventListener("change", async ()=>{
         SKIP_DURATION_MS = Number(durSel.value);
         const mins = SKIP_DURATION_MS / 60000;
         const infoBox = card.querySelector("#timerInfoBox");
         if(infoBox) infoBox.innerHTML = "\u23F2 " + mins + "-MINUTE TIMER \u2014 Each person has " + mins + " minutes to pick their break once it\u2019s their turn. If the timer runs out, they are skipped and the next person gets to go. The skipped person will get a second chance after that person picks.";
-        toast("Timer set to " + mins + " minute" + (mins!==1?"s":""));
+        try {
+          const ref = _scopeRef();
+          await runTransaction(_db, async (tx)=>{
+            const snap = await tx.get(ref);
+            const cur = snap.exists() ? (snap.data()||{}) : {};
+            tx.set(ref, { ...cur, skipDurationMs: SKIP_DURATION_MS }, { merge: true });
+          });
+          toast("Timer set to " + mins + " minute" + (mins!==1?"s":""));
+        } catch(e){
+          console.error("Failed to save timer duration:", e);
+          toast("Timer set locally (" + mins + " min) but failed to sync");
+        }
       });
     }
   }
