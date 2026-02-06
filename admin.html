@@ -900,6 +900,10 @@ textarea.copyBox,
       if(!st[pos].includes(personKey)) st[pos].push(personKey);
       tx.set(ref, { ...cur, turnTimers: tt, skippedTurns: st }, { merge: true });
     });
+    // Update local caches immediately so the next render uses fresh data
+    _sharedTurnTimersCache[pos] = null;
+    if(!_sharedSkippedTurnsCache[pos]) _sharedSkippedTurnsCache[pos] = [];
+    if(!_sharedSkippedTurnsCache[pos].includes(personKey)) _sharedSkippedTurnsCache[pos].push(personKey);
   }
 
   async function unskipPersonForScope(pos, personKey){
@@ -2652,20 +2656,29 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       if(!skippedSet.has(k)){ nextUpKey = k; break; }
     }
 
-    // Check for second-chance: a skipped person who appears BEFORE nextUpKey in the unpicked list
-    // This means everyone between them and the skipped person has already picked (the person who jumped them picked)
+    // Check for second-chance: a skipped person gets their turn back only AFTER
+    // the person who jumped them (first non-skipped person after them in seniority) has picked.
     let secondChanceKey = null;
     if(nextUpKey){
-      const nextIdx = unpicked.indexOf(nextUpKey);
-      // Look for skipped people who appear before nextUpKey in seniority order
+      const originalOrder = people.map(r => keyFor(r));
+      const unpickedSet = new Set(unpicked);
       for(const k of unpicked){
         if(k === nextUpKey) break;
         if(skippedSet.has(k)){
-          // This skipped person is before the current nextUp in seniority.
-          // They get second chance only if the person who jumped them (the one right after the skipped person
-          // in original seniority) has already picked. Since they're not in unpicked[], they must have picked.
-          secondChanceKey = k;
-          break;
+          // Find the first non-skipped person after k in original seniority order
+          const kIdx = originalOrder.indexOf(k);
+          let jumperHasPicked = false;
+          for(let j = kIdx + 1; j < originalOrder.length; j++){
+            if(!skippedSet.has(originalOrder[j])){
+              // This is the person who jumped k — check if they've picked
+              jumperHasPicked = !unpickedSet.has(originalOrder[j]);
+              break;
+            }
+          }
+          if(jumperHasPicked){
+            secondChanceKey = k;
+            break;
+          }
         }
       }
     }
@@ -2833,17 +2846,19 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       // Sort earliest to latest
       lines.sort((a,b) => a.t.localeCompare(b.t));
 
-      // Open breaks (remaining capacity)
+      // Open breaks (remaining capacity) — skip for ANET
       const counts = slotCountsFor(pos);
       const openLines = [];
-      for(const s of slots){
-        const used = counts.get(s) || 0;
-        const cap = capFor(pos, s);
-        if(used < cap){
-          const left = cap - used;
-          const suffix = cap > 1 ? ` (${left} open)` : "";
-          // Put OPEN under NAME column
-          openLines.push(`	OPEN	${slotLabelHHMM(s)}${suffix}`.trimEnd());
+      if(pos !== "ANET"){
+        for(const s of slots){
+          const used = counts.get(s) || 0;
+          const cap = capFor(pos, s);
+          if(used < cap){
+            const left = cap - used;
+            const suffix = cap > 1 ? ` (${left} open)` : "";
+            // Put OPEN under NAME column
+            openLines.push(`	OPEN	${slotLabelHHMM(s)}${suffix}`.trimEnd());
+          }
         }
       }
 
@@ -2867,7 +2882,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       <h2 class="break-header">PICK YOUR BREAKS</h2>
       <div style="display:flex; gap:10px; align-items:center;"><div class="pill">Per-slot limits are adjustable (defaults: CT=3, DP=2, PIC=1, ANET=1)</div><button id="clearBreakSummary" class="secondary" style="padding:8px 10px; border-radius:10px;">Reset all breaks</button></div>
     </div>
-    <div style="display:flex; justify-content:center; margin:18px 0;">
+    <div style="display:flex; justify-content:center; gap:14px; margin:18px 0;">
       <button id="deployBreaks" style="
         padding:18px 48px;
         border-radius:16px;
@@ -2882,6 +2897,20 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         box-shadow:0 0 20px rgba(34,197,94,.3), 0 4px 15px rgba(0,0,0,.3);
         transition: all 0.2s ease;
       ">&#9654; DEPLOY BREAKS</button>
+      <button id="pauseAllBreaks" style="
+        padding:18px 36px;
+        border-radius:16px;
+        background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color:#fff;
+        border:2px solid #fbbf24;
+        font-weight:900;
+        cursor:pointer;
+        font-size:22px;
+        letter-spacing:1.5px;
+        text-transform:uppercase;
+        box-shadow:0 0 20px rgba(245,158,11,.3), 0 4px 15px rgba(0,0,0,.3);
+        transition: all 0.2s ease;
+      ">&#10074;&#10074; PAUSE ALL</button>
     </div>
 
     <div id="slotCapsManager" style="margin:12px 0 6px; padding:12px; border:1px solid var(--border); border-radius:14px; background:rgba(255,255,255,0.03);">
@@ -3187,6 +3216,40 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         deployBtn.style.borderColor = "#f87171";
         toast('Could not deploy breaks: ' + (e.message||'error'));
         setTimeout(()=> renderBreakPicker(selectedDay, mode, block, buckets), 1500);
+      }
+    });
+  }
+
+  // Wire up Pause All button
+  const pauseBtn = document.getElementById("pauseAllBreaks");
+  if(pauseBtn){
+    pauseBtn.addEventListener("mouseenter", ()=>{
+      pauseBtn.style.boxShadow = "0 0 35px rgba(245,158,11,.6), 0 0 60px rgba(245,158,11,.25), 0 4px 15px rgba(0,0,0,.3)";
+      pauseBtn.style.transform = "scale(1.04)";
+    });
+    pauseBtn.addEventListener("mouseleave", ()=>{
+      pauseBtn.style.boxShadow = "0 0 20px rgba(245,158,11,.3), 0 4px 15px rgba(0,0,0,.3)";
+      pauseBtn.style.transform = "scale(1)";
+    });
+    pauseBtn.addEventListener("click", async ()=>{
+      const bs = loadBreakStartedForScope();
+      const anyStarted = ["CALLTAKER","DISPATCHER","PIC","ANET"].some(p => bs[p]);
+      if(!anyStarted){ toast("Breaks are not running."); return; }
+
+      pauseBtn.disabled = true;
+      pauseBtn.innerHTML = "&#8987; PAUSING...";
+      try {
+        for(const pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
+          if(!bs[pos]) continue;
+          await saveBreakStartedForScope(pos, false);
+          await saveTurnTimerForScope(pos, null);
+        }
+        toast("All breaks paused. Click Deploy to resume.");
+        renderBreakPicker(selectedDay, mode, block, buckets);
+      } catch(e){
+        console.error('Pause breaks error:', e);
+        toast('Could not pause breaks: ' + (e.message||'error'));
+        renderBreakPicker(selectedDay, mode, block, buckets);
       }
     });
   }
