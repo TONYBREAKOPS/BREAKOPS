@@ -470,7 +470,7 @@ body { padding-top: 12px !important; }
   let _sharedSkippedTurnsCache = { CALLTAKER: [], DISPATCHER: [], PIC: [], ANET: [] };
   let _sharedBreakStartedCache = { CALLTAKER: false, DISPATCHER: false, PIC: false, ANET: false };
   let _timerIntervalId = null;
-  const SKIP_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+  let SKIP_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 
   let _lastCtx = null;
   let _unsub = null;
