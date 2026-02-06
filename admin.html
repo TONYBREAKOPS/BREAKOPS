@@ -610,7 +610,7 @@ textarea.copyBox,
   let _sharedBreakStartedCache = { CALLTAKER: false, DISPATCHER: false, PIC: false, ANET: false };
   let _timerIntervalId = null;
 
-  const SKIP_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+  let SKIP_DURATION_MS = 5 * 60 * 1000; // 5 minutes (configurable via dropdown)
 
 
   // Per-scope cache so the 3 dispatcher tables at the top stay synced to their
@@ -2911,6 +2911,25 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         box-shadow:0 0 20px rgba(245,158,11,.3), 0 4px 15px rgba(0,0,0,.3);
         transition: all 0.2s ease;
       ">&#10074;&#10074; PAUSE ALL</button>
+      <select id="timerDuration" style="
+        padding:8px 12px;
+        border-radius:10px;
+        background:#e0e7ff;
+        color:#000;
+        border:2px solid #818cf8;
+        font-weight:900;
+        cursor:pointer;
+        font-size:13px;
+        letter-spacing:1px;
+        text-transform:uppercase;
+      ">
+        <option value="60000">1 MIN</option>
+        <option value="120000">2 MIN</option>
+        <option value="180000">3 MIN</option>
+        <option value="300000" selected>5 MIN</option>
+        <option value="420000">7 MIN</option>
+        <option value="600000">10 MIN</option>
+      </select>
     </div>
 
     <div id="slotCapsManager" style="margin:12px 0 6px; padding:12px; border:1px solid var(--border); border-radius:14px; background:rgba(255,255,255,0.03);">
@@ -2934,7 +2953,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       </div>
     </div>
     <div class="muted" style="font-size:12px;margin:0 2px 10px;">Only the first person in each list can pick at first. After they pick, the next person unlocks (and can only choose from what's left).</div>
-    <div style="font-size:13px;margin:0 2px 10px;padding:10px 12px;border-radius:10px;background:rgba(239,68,68,.10);border:1px solid rgba(239,68,68,.35);color:#f87171;font-weight:700;">&#9202; 5-MINUTE TIMER &mdash; Each person has 5 minutes to pick their break once it&rsquo;s their turn. If the timer runs out, they are skipped and the next person gets to go. The skipped person will get a second chance after that person picks.</div>
+    <div id="timerInfoBox" style="font-size:13px;margin:0 2px 10px;padding:10px 12px;border-radius:10px;background:rgba(239,68,68,.10);border:1px solid rgba(239,68,68,.35);color:#f87171;font-weight:700;">&#9202; ${SKIP_DURATION_MS/60000}-MINUTE TIMER &mdash; Each person has ${SKIP_DURATION_MS/60000} minutes to pick their break once it&rsquo;s their turn. If the timer runs out, they are skipped and the next person gets to go. The skipped person will get a second chance after that person picks.</div>
     ${renderPosPicker("CALLTAKER")}
     ${renderPosPicker("DISPATCHER")}
     ${renderPosPicker("PIC")}
@@ -3269,6 +3288,21 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
     });
   }
 
+  // Wire up timer duration dropdown
+  {
+    const durSel = card.querySelector("#timerDuration");
+    if(durSel){
+      durSel.value = String(SKIP_DURATION_MS);
+      durSel.addEventListener("change", ()=>{
+        SKIP_DURATION_MS = Number(durSel.value);
+        const mins = SKIP_DURATION_MS / 60000;
+        const infoBox = card.querySelector("#timerInfoBox");
+        if(infoBox) infoBox.innerHTML = "\u23F2 " + mins + "-MINUTE TIMER \u2014 Each person has " + mins + " minutes to pick their break once it\u2019s their turn. If the timer runs out, they are skipped and the next person gets to go. The skipped person will get a second chance after that person picks.";
+        toast("Timer set to " + mins + " minute" + (mins!==1?"s":""));
+      });
+    }
+  }
+
   // Wire up per-position Reset buttons
   card.querySelectorAll(".resetPosBtn[data-reset-pos]").forEach(btn=>{
     btn.addEventListener("click", async ()=>{
@@ -3413,14 +3447,24 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       if(remaining < 60000) badge.classList.add('urgent');
       else badge.classList.remove('urgent');
 
-      // Timeout: skip this person
+      // Timeout: skip this person and immediately start timer for the next
       if(remaining <= 0){
         badge.textContent = "00:00";
         const personKey = timer.key;
-        // Skip and re-render
+        // Guard: prevent multiple skips firing from rapid interval ticks
+        if(badge.dataset.skipping) continue;
+        badge.dataset.skipping = "1";
         (async ()=>{
           try {
             await skipPersonForScope(pos, personKey);
+            // Immediately compute and start timer for next person
+            const sel = selectionMap(pos);
+            const people = peopleByPos[pos] || [];
+            const { nextUpKey, secondChanceKey } = _computeSkipState(pos, people, sel);
+            const nextKey = secondChanceKey || nextUpKey;
+            if(nextKey){
+              await saveTurnTimerForScope(pos, { key: nextKey, ts: Date.now() });
+            }
             toast(`${pos}: time expired — skipped to next person.`);
             renderBreakPicker(selectedDay, mode, block, buckets);
           } catch(e){ console.warn('Auto-skip error:', e); }
