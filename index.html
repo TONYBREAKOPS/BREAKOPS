@@ -475,6 +475,20 @@ body { padding-top: 12px !important; }
     }
   }
 
+  // Real-time listener on appState so index auto-follows admin's view changes
+  let _appStateUnsub = null;
+  function _attachAppStateListener(){
+    if(_appStateUnsub){ _appStateUnsub(); _appStateUnsub = null; }
+    _appStateUnsub = onSnapshot(_APPSTATE_DOC, (snap)=>{
+      if(!snap.exists()) return;
+      const d = snap.data() || {};
+      if(window.__onAppStateChange){
+        window.__onAppStateChange(d);
+      }
+    });
+  }
+  _attachAppStateListener();
+
   // Expose helpers for the non-module script
   window.__getLandingView = _getLandingView;
   window.__setLandingView = _setLandingView;
@@ -1120,6 +1134,45 @@ function initApp(){
     renderExtrasTable();
     render();
   });
+
+  // Live-follow: when admin changes date/block/mode, auto-switch the index view
+  window.__onAppStateChange = function(d){
+    let changed = false;
+
+    // Resolve mode
+    const newMode = normMode(String(d.mode||""));
+    if(newMode && modeSel.value !== newMode && [...modeSel.options].some(o=>o.value===newMode)){
+      modeSel.value = newMode;
+      syncBlockOptions();
+      changed = true;
+    }
+
+    // Resolve date → day
+    const newDate = String(d.date||"");
+    if(newDate && /^\d{4}-\d{2}-\d{2}$/.test(newDate) && newDate !== _currentDate){
+      _currentDate = newDate;
+      // Derive day name from date
+      try {
+        const dt = new Date(newDate + "T12:00:00");
+        const dayName = DAYS[(dt.getDay() + 6) % 7] || "";
+        if(dayName && daySel.value !== dayName) daySel.value = dayName;
+      } catch {}
+      changed = true;
+    }
+
+    // Resolve block
+    const newBlock = String(d.block||"");
+    if(newBlock && blockSel.value !== newBlock && [...blockSel.options].some(o=>o.value===newBlock)){
+      blockSel.value = newBlock;
+      changed = true;
+    }
+
+    if(changed){
+      attachFirestoreListener();
+      renderExtrasTable();
+      render();
+    }
+  };
 
   renderExtrasTable();
   attachFirestoreListener();

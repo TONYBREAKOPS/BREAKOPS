@@ -1562,9 +1562,20 @@ function initApp(){
 
   document.getElementById("extraPos").innerHTML = positionsOptions("CALLTAKER");
 
-  document.getElementById("modeSel").addEventListener("change", ()=>{ syncBlockOptions(); attachFirestoreListener(); renderExtrasTable(); render(); });
-  dateSel.addEventListener("change", ()=>{ attachFirestoreListener(); renderExtrasTable(); render(); });
-  document.getElementById("blockSel").addEventListener("change", ()=>{ attachFirestoreListener(); renderExtrasTable(); render(); });
+  // Broadcast current view to Firestore so index.html can follow in real-time
+  function broadcastView(){
+    if(window.__setLandingView){
+      window.__setLandingView(
+        document.getElementById("modeSel")?.value,
+        document.getElementById("dateSel")?.value,
+        document.getElementById("blockSel")?.value
+      ).catch(()=>{});
+    }
+  }
+
+  document.getElementById("modeSel").addEventListener("change", ()=>{ syncBlockOptions(); attachFirestoreListener(); renderExtrasTable(); render(); broadcastView(); });
+  dateSel.addEventListener("change", ()=>{ attachFirestoreListener(); renderExtrasTable(); render(); broadcastView(); });
+  document.getElementById("blockSel").addEventListener("change", ()=>{ attachFirestoreListener(); renderExtrasTable(); render(); broadcastView(); });
   document.getElementById("searchBox").addEventListener("input", render);
 
   document.getElementById("exportCsv").addEventListener("click", exportCsv);
