@@ -1868,13 +1868,15 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       const cap = caps[pos] || 1;
       const counts = slotCountsFor(pos);
       const openLines = [];
-      for(const s of slots){
-        const used = counts.get(s) || 0;
-        if(used < cap){
-          const left = cap - used;
-          const suffix = cap > 1 ? ` (${left} open)` : "";
-          // Put OPEN under NAME column
-          openLines.push(`	OPEN	${slotLabelHHMM(s)}${suffix}`.trimEnd());
+      if(pos !== "ANET"){
+        for(const s of slots){
+          const used = counts.get(s) || 0;
+          if(used < cap){
+            const left = cap - used;
+            const suffix = cap > 1 ? ` (${left} open)` : "";
+            // Put OPEN under NAME column
+            openLines.push(`	OPEN	${slotLabelHHMM(s)}${suffix}`.trimEnd());
+          }
         }
       }
 
