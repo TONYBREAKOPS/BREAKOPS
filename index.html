@@ -1691,9 +1691,24 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
     }
     let secondChanceKey = null;
     if(nextUpKey){
+      const originalOrder = people.map(r => keyFor(r));
+      const unpickedSet = new Set(unpicked);
       for(const k of unpicked){
         if(k === nextUpKey) break;
-        if(skippedSet.has(k)){ secondChanceKey = k; break; }
+        if(skippedSet.has(k)){
+          const kIdx = originalOrder.indexOf(k);
+          let jumperHasPicked = false;
+          for(let j = kIdx + 1; j < originalOrder.length; j++){
+            if(!skippedSet.has(originalOrder[j])){
+              jumperHasPicked = !unpickedSet.has(originalOrder[j]);
+              break;
+            }
+          }
+          if(jumperHasPicked){
+            secondChanceKey = k;
+            break;
+          }
+        }
       }
     }
     if(!nextUpKey && unpicked.length > 0){
