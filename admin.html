@@ -3239,10 +3239,25 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       pauseBtn.disabled = true;
       pauseBtn.innerHTML = "&#8987; PAUSING...";
       try {
+        // Single transaction to avoid conflicts with onSnapshot/initTimers
+        await runTransaction(_db, async (tx)=>{
+          const ref = _scopeRef();
+          const snap = await tx.get(ref);
+          const cur = snap.exists() ? (snap.data()||{}) : {};
+          const bsData = _normalizeBreakStarted(cur.breakStarted);
+          const tt = _normalizeTurnTimers(cur.turnTimers);
+          for(const pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
+            if(bsData[pos]){
+              bsData[pos] = false;
+              tt[pos] = null;
+            }
+          }
+          tx.set(ref, { ...cur, breakStarted: bsData, turnTimers: tt }, { merge: true });
+        });
+        // Update local caches
         for(const pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
-          if(!bs[pos]) continue;
-          await saveBreakStartedForScope(pos, false);
-          await saveTurnTimerForScope(pos, null);
+          _sharedBreakStartedCache[pos] = false;
+          _sharedTurnTimersCache[pos] = null;
         }
         toast("All breaks paused. Click Deploy to resume.");
         renderBreakPicker(selectedDay, mode, block, buckets);
