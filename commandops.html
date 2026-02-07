@@ -1543,9 +1543,18 @@ table.rosterTbl{
 .customSel--seat .customSelMenu {
   position: absolute !important;
   z-index: 99999 !important;
-  min-width:220px;
+  min-width:auto !important;
+  width:auto !important;
   white-space:nowrap;
   overflow-x:hidden;
+  max-height:300px !important;
+  overflow-y:auto !important;
+}
+/* Seat dropdown options: centered */
+.customSel--seat .customSelOpt{
+  text-align:center !important;
+  padding:8px 12px !important;
+  width:auto !important;
 }
 
 /* Prevent other controls from covering it */
@@ -4101,7 +4110,12 @@ function renderRoleOptions(selected){
 function renderSeatOptions(opts, selected){
   const cur=String(selected||"");
   const top = `<option value=""${cur===""?" selected":""}>—</option>`;
-  const rest = (opts||[]).map(v=>{
+  const sorted = (opts||[]).slice().sort((a,b)=>{
+    const na=parseInt(String(a).replace(/\D/g,''),10)||0;
+    const nb=parseInt(String(b).replace(/\D/g,''),10)||0;
+    return na-nb || String(a).localeCompare(String(b));
+  });
+  const rest = sorted.map(v=>{
     const s=String(v||"");
     return `<option value="${esc(s)}"${s===cur?" selected":""}>${esc(s)}</option>`;
   }).join("");
