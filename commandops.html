@@ -310,8 +310,7 @@ main{padding:14px 18px 50px}
 .tables{display:grid;grid-template-columns:1fr;gap:10px}
 
 table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;border:none;border-radius:0}
-.tblWrap{border:1px solid var(--border);border-radius:12px !important;overflow:hidden !important;background:#0c1320;isolation:isolate;}
-.tblWrap thead th{background:transparent !important;}
+.tblWrap{border:1px solid var(--border);border-radius:12px;overflow:visible;background:#0c1320;}
 body.light .tblWrap{background:var(--card);}
 th,td{padding:7px 8px;vertical-align:middle}
 th{
@@ -4631,7 +4630,6 @@ function enhanceSelects(root=document){
 
       // reset positioning each time
       menu.classList.remove('flipUp');
-      menu.style.position = 'fixed';
       menu.style.left = '0px';
       menu.style.top = '';
       menu.style.bottom = '';
@@ -4644,27 +4642,25 @@ function enhanceSelects(root=document){
       const tr = wrap.closest('tr');
       if(tr){ tr.style.zIndex = '5000'; tr.classList.add('rowMenuOpen'); }
 
-      // position fixed relative to button's viewport rect
+      // measure after open
       const btnRect = btn.getBoundingClientRect();
       const menuRect = menu.getBoundingClientRect();
 
       // Flip UP if there's not enough room below but there is room above
-      const roomBelow = window.innerHeight - btnRect.bottom - 6;
+      const roomBelow = window.innerHeight - menuRect.bottom;
       const roomAbove = btnRect.top;
-      if(roomBelow < menuRect.height && roomAbove > (menuRect.height + 8)){
+      if(roomBelow < 8 && roomAbove > (menuRect.height + 8)){
         menu.classList.add('flipUp');
-        menu.style.top = (btnRect.top - menuRect.height - 4) + 'px';
-      } else {
-        menu.style.top = (btnRect.bottom + 4) + 'px';
       }
 
-      // align left edge with button, prevent going off right edge
-      let menuLeft = btnRect.left;
-      const menuW = menu.getBoundingClientRect().width;
-      if(menuLeft + menuW > window.innerWidth - 8){
-        menuLeft = window.innerWidth - menuW - 8;
+      // prevent menu from going off the right edge
+      const rect2 = menu.getBoundingClientRect();
+      const overflowRight = rect2.right - window.innerWidth;
+      if(overflowRight > 8){
+        menu.style.left = `-${Math.min(overflowRight + 8, rect2.left - 8)}px`;
+      }else{
+        menu.style.left = '0px';
       }
-      menu.style.left = Math.max(8, menuLeft) + 'px';
     }
 
     menu.addEventListener('mousedown', (e)=>{ e.preventDefault(); });
