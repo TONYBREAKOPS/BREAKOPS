@@ -182,6 +182,11 @@ td.hrsCol.hrs-all .hrsSel{border-color:rgba(120,255,180,0.40); box-shadow:0 0 0 
     color:#fff;
     text-shadow:0 1px 2px rgba(0,0,0,.4);
     box-shadow:0 0 8px rgba(239,68,68,.5);
+    min-width:52px;
+    text-align:center;
+  }
+  .skip-timer:empty::after{
+    content:"\u00A0";
   }
   .skip-timer.urgent{
     animation: skipPulse 0.8s ease-in-out infinite;
@@ -3445,6 +3450,11 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
     for(const pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
       if(!bsState[pos]) continue; // skip if not started yet
+      const timers = loadTurnTimersForScope();
+      // Only keep existing timers running — never auto-create new ones.
+      // New timers are created by Deploy Breaks and the auto-skip handler.
+      if(!timers[pos]) continue;
+
       const people = peopleByPos[pos] || [];
       const sel = selMaps[pos];
       const { nextUpKey, secondChanceKey } = _computeSkipState(pos, people, sel);
@@ -3452,9 +3462,8 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
       if(!effectiveKey) continue;
 
-      const timers = loadTurnTimersForScope();
-      // If no timer exists for this person, start one
-      if(!timers[pos] || timers[pos].key !== effectiveKey){
+      // If the timer is for the wrong person (e.g. they picked), update it
+      if(timers[pos].key !== effectiveKey){
         try {
           await saveTurnTimerForScope(pos, { key: effectiveKey, ts: Date.now() });
         } catch(e){ console.warn('Timer init error:', e); }
