@@ -31,7 +31,6 @@ body.light{
   --warn:#d97706;
 }
 *,*::before,*::after{box-sizing:border-box}
-html,body{height:100%}
 body{
   margin:0;min-height:100vh;
   font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
@@ -276,7 +275,7 @@ body.light .absentPill .absentCount{color:#b91c1c;}
 body.light .absentPill.zero .absentCount{color:#222;}
 body.light .absentPill.otPill .absentCount{color:#b45309;}
 
-main{padding:14px 18px 50px}
+main{padding:14px 18px 0}
 .grid{
   display:grid;
   grid-template-columns:repeat(3, minmax(520px, 1fr));
@@ -307,10 +306,12 @@ main{padding:14px 18px 50px}
 .blockHdr{ text-align:center; justify-content:center !important; }
 
 .section{padding:12px 14px;border-bottom:1px solid var(--border)}
+.boardCard .section:last-child{border-bottom:none}
 .tables{display:grid;grid-template-columns:1fr;gap:10px}
 
 table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;border:none;border-radius:0}
 .tblWrap{border:1px solid var(--border);border-radius:12px;overflow:visible;background:#0c1320;}
+.boardCard .tblWrap:last-child{border-bottom-color:transparent}
 body.light .tblWrap{background:var(--card);}
 th,td{padding:7px 8px;vertical-align:middle}
 th{
@@ -511,7 +512,8 @@ thead th{
   padding:8px 10px;border-bottom:1px solid var(--border)
 }
 tbody td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06)}
-tbody tr:last-child td{border-bottom:none}
+tbody tr:last-child td{border-bottom:none !important}
+tbody tr:nth-last-child(2) td{border-bottom:none !important}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
 .statusOk{color:var(--ok);font-weight:800}
 .otRow{background:rgba(255,214,0,.08)}
@@ -1568,8 +1570,9 @@ table.rosterTbl{
 /* === v154 FIX: Ensure dropdown menu overlays rows below (table stacking) === */
 /* Give each row a stacking context so z-index can work */
 .rosterTbl tbody tr{ position:relative; z-index:0; }
-/* When any custom select menu is open in a row, lift that whole row above others */
+/* When any custom select menu or time editor is open in a row, lift that whole row above others */
 .rosterTbl tbody tr:has(.customSelMenu.open){ z-index: 99998 !important; }
+.rosterTbl tbody tr:has(.timeEdit.open){ z-index: 99998 !important; }
 /* Keep the open menu above everything */
 .customSelMenu.open{ z-index: 99999 !important; }
 /* Safety: don't let other buttons sit above the menu */
@@ -2326,9 +2329,9 @@ tr:has(.customSelMenu.open){
 /* Responsive column widths */
 .rosterTbl th.nameCol,  .rosterTbl td.nameCol  { width: clamp(110px, 22%, 160px) !important; }
 .rosterTbl th.roleCol,  .rosterTbl td.roleCol  { width: clamp(52px,  8%,  70px) !important; }
-.rosterTbl th.seatCol,  .rosterTbl td.seatCol  { width: clamp(70px, 12%, 110px) !important; }
-.rosterTbl th.workedCol,.rosterTbl td.workedCol{ width: clamp(86px, 16%, 130px) !important; }
-.rosterTbl th.hrsCol,   .rosterTbl td.hrsCol   { width: clamp(56px,  8%,  80px) !important; }
+.rosterTbl th.seatCol,  .rosterTbl td.seatCol  { width: 22% !important; }
+.rosterTbl th.workedCol,.rosterTbl td.workedCol{ width: clamp(68px, 10%, 100px) !important; padding-right:0 !important; }
+.rosterTbl th.hrsCol,   .rosterTbl td.hrsCol   { width: clamp(54px, 8%, 75px) !important; padding-left:28px !important; }
 .rosterTbl th.presCol,  .rosterTbl td.presCol  { width: 130px !important; min-width:130px !important; }
 
 /* Keep headers readable */
@@ -2634,6 +2637,11 @@ body.light .customSelBtn.typing-mode {
 }
 #btnLogout:hover{ background:rgba(255,255,255,.06); }
 
+/* === Seat button constrained to cell width === */
+.rosterTbl td.seatCol .customSel{ width:100% !important; max-width:100% !important; }
+.rosterTbl td.seatCol .customSelBtn{ width:100% !important; max-width:100% !important; overflow:hidden !important; }
+.rosterTbl td.seatCol .customSelBtn .lbl{ overflow:hidden !important; text-overflow:ellipsis !important; white-space:nowrap !important; display:block !important; }
+
 </style>
 
 <!-- Firebase SDK -->
@@ -2772,7 +2780,7 @@ body.light .customSelBtn.typing-mode {
     </div>
     <div id="userInfo" style="margin-left:auto;display:none;align-items:center;gap:10px;">
       <span class="pill" id="pillUnfilled" style="font-size:10px;padding:4px 8px;cursor:pointer;" title="Click for details">0 UNFILLED</span>
-      <span class="pill good" id="pillFirebase" style="font-size:10px;padding:4px 8px;">Firebase: connected</span>
+      <span class="pill good" id="pillFirebase" style="font-size:10px;padding:4px 8px;">Base: Connected</span>
       <span class="pill" id="pillSync" style="font-size:10px;padding:4px 8px;">Sync: idle</span>
       <span class="user-email" id="userEmail"></span>
       <button id="btnLogout" type="button">Sign Out</button>
@@ -2837,6 +2845,16 @@ body.light .customSelBtn.typing-mode {
 </footer>
 
 <script>
+// Keep main padding in sync with fixed footer height so content is never hidden behind it
+(function(){
+  const footer = document.querySelector('footer.diag');
+  const main = document.querySelector('main');
+  if(!footer || !main) return;
+  function sync(){ main.style.paddingBottom = (footer.offsetHeight + 16) + 'px'; }
+  sync();
+  new ResizeObserver(sync).observe(footer);
+})();
+
 // ===== XLSX loader =====
 function setErr(msg){
   const p=document.getElementById("pillErr");
@@ -4010,7 +4028,7 @@ function renderRoleTable(iso, shift, block, role, rows){
       </td>
       <td style="width:16px;max-width:16px;padding:0 2px;text-align:center"><button class="cmt-btn${(rowComments[cmtKey]||'').trim()?` has-cmt`:``}" title="Comment">&#128172;</button></td>
     </tr>
-    <tr class="cmt-row${(rowComments[cmtKey]||'').trim()?' open':''}">
+    <tr class="cmt-row">
       <td colspan="${isAbsent?7:8}"><div class="cmt-inner"><textarea data-cmtkey="${esc(cmtKey)}" placeholder="Comment…">${esc(rowComments[cmtKey]||'')}</textarea>${r.isOT?`<button class="otRemoveBtn" onclick="removeOT('${esc(key)}','${esc(r.emp)}')">Remove OT</button>`:''}</div></td>
     </tr>`;
   }
@@ -4082,7 +4100,7 @@ function renderOthTable(iso, shift, block, rows){
       </td>
       <td style="width:16px;max-width:16px;padding:0 2px;text-align:center"><button class="cmt-btn${(rowComments[cmtKey]||'').trim()?` has-cmt`:``}" title="Comment">&#128172;</button></td>
     </tr>
-    <tr class="cmt-row${(rowComments[cmtKey]||'').trim()?' open':''}">
+    <tr class="cmt-row">
       <td colspan="7"><div class="cmt-inner"><textarea data-cmtkey="${esc(cmtKey)}" placeholder="Comment…">${esc(rowComments[cmtKey]||'')}</textarea>${r.isOT?`<button class="otRemoveBtn" onclick="removeOT('${esc(key)}','${esc(r.emp)}')">Remove OT</button>`:''}</div></td>
     </tr>`;
   }
@@ -4683,8 +4701,8 @@ function enhanceSelects(root=document){
       e.stopPropagation();
       if(menu.classList.contains('open')){
         closeMenu();
-      } else if(sel.classList.contains('roleSel') || sel.classList.contains('presentSel')){
-        // Role and Present selectors: open on single click
+      } else if(sel.classList.contains('roleSel') || sel.classList.contains('seatSel') || sel.classList.contains('presentSel') || sel.classList.contains('absReasonSel') || sel.classList.contains('othTypeSel')){
+        // All selectors: open on single click
         openMenu();
       }
       // Other selectors: just focus for typing
