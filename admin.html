@@ -3490,8 +3490,9 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       if(!effectiveKey) continue;
 
       const timers = loadTurnTimersForScope();
-      // If no timer exists or it's for the wrong person, start/update it
-      if(!timers[pos] || timers[pos].key !== effectiveKey){
+      // Only create a timer if none exists. Never override an existing timer —
+      // the auto-skip handler sets the correct next person.
+      if(!timers[pos]){
         try {
           await saveTurnTimerForScope(pos, { key: effectiveKey, ts: Date.now() });
         } catch(e){ console.warn('Timer init error:', e); }
