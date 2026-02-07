@@ -2677,7 +2677,9 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
   function selectionMap(pos){
     const m = new Map();
-    for(const s of (breaks[pos]||[])) m.set(s.key, s.time || "");
+    // Read from live cache so auto-skip always sees latest picks
+    const liveBreaks = loadBreaksForScope();
+    for(const s of (liveBreaks[pos]||[])) m.set(s.key, s.time || "");
     return m;
   }
 
