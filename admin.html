@@ -3505,17 +3505,22 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       const timers = loadTurnTimersForScope();
       const people = peopleByPos[pos] || [];
       const sel = selMaps[pos];
+
+      // If timer exists, only update if it points to someone who already picked
+      if(timers[pos]){
+        const timerPersonPicked = !!(sel.get(timers[pos].key) || "");
+        if(!timerPersonPicked) continue; // timer points to valid unpicked person — leave it
+      }
+
       const { nextUpKey, secondChanceKey } = _computeSkipState(pos, people, sel);
       const effectiveKey = secondChanceKey || nextUpKey;
 
       if(!effectiveKey) continue;
 
-      // Skip if timer already exists AND points to the correct person
-      if(timers[pos] && timers[pos].key === effectiveKey) continue;
-
-      // Timer missing or pointing to someone who already picked — update it
       try {
-        await saveTurnTimerForScope(pos, { key: effectiveKey, ts: timers[pos] ? timers[pos].ts : Date.now() });
+        const newTs = Date.now();
+        _sharedTurnTimersCache[pos] = { key: String(effectiveKey), ts: newTs };
+        await saveTurnTimerForScope(pos, { key: effectiveKey, ts: newTs });
       } catch(e){ console.warn('Timer init error:', e); }
     }
   })();
