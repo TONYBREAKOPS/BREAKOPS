@@ -2661,13 +2661,13 @@ body.light .customSelBtn.typing-mode {
     appId: "1:262613721964:web:478a694d357234e3be4949"
   };
   firebase.initializeApp(firebaseConfig);
-  const appCheck = firebase.appCheck();
-  appCheck.activate(new firebase.appCheck.ReCaptchaEnterpriseProvider('6LeH6GMsAAAAAIjV9DPRrmSKfvNeNHVS9LI8JQVU'), true);
   const db = firebase.firestore();
   db.enablePersistence({synchronizeTabs:true}).catch(err=>{
     console.warn("Firestore persistence not enabled:", err.code);
   });
   const auth = firebase.auth();
+  const appCheck = firebase.appCheck();
+  appCheck.activate('6LeH6GMsAAAAAIjV9DPRrmSKfvNeNHVS9LI8JQVU', true);
 
   // Auth state listener
   let authReady = false;
