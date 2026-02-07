@@ -2795,8 +2795,8 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                 // Determine row state
                 const isSkipped = !cur && skippedSet.has(k);
                 const isSecondChance = (k === secondChanceKey) && !cur;
-                const isNext = (k === nextUpKey) && !cur && !secondChanceKey;
-                // Also mark as active (can pick) if second chance
+                const isNext = (k === nextUpKey) && !cur;
+                // Also mark as active (can pick) if next up or second chance
                 const isActive = isNext || isSecondChance;
 
                 if(!cur && !isSkipped) unlocked = false;
@@ -2820,9 +2820,9 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                 else if(isNext) rowClass = 'next-up';
                 else if(isSkipped) rowClass = 'skipped-turn';
 
-                // Timer badge (show on the active row)
+                // Timer badge (show on whoever the timer points to)
                 let timerBadge = '';
-                if(isActive && timers[pos] && timers[pos].key === k){
+                if(started && timers[pos] && timers[pos].key === k){
                   const _rem = Math.max(0, SKIP_DURATION_MS - (Date.now() - timers[pos].ts));
                   const _ts = Math.ceil(_rem / 1000);
                   const _tm = String(Math.floor(_ts / 60)).padStart(2,'0');
