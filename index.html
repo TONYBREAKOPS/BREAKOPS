@@ -1896,7 +1896,8 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                 const isSkipped = !cur && skippedSet.has(k);
                 const isSecondChance = (k === secondChanceKey) && !cur;
                 const isNext = (k === nextUpKey) && !cur;
-                const isActive = isNext || isSecondChance;
+                // Only one person active at a time: second-chance takes priority over next-up
+                const isActive = isSecondChance || (isNext && !secondChanceKey);
 
                 const enabled = unlocked;
                 if(!cur && !isSkipped) unlocked = false;
