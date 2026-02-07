@@ -3481,10 +3481,6 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
     for(const pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
       if(!bsState[pos]) continue; // skip if not started yet
-      const timers = loadTurnTimersForScope();
-      // Only keep existing timers running — never auto-create new ones.
-      // New timers are created by Deploy Breaks and the auto-skip handler.
-      if(!timers[pos]) continue;
 
       const people = peopleByPos[pos] || [];
       const sel = selMaps[pos];
@@ -3493,8 +3489,9 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
       if(!effectiveKey) continue;
 
-      // If the timer is for the wrong person (e.g. they picked), update it
-      if(timers[pos].key !== effectiveKey){
+      const timers = loadTurnTimersForScope();
+      // If no timer exists or it's for the wrong person, start/update it
+      if(!timers[pos] || timers[pos].key !== effectiveKey){
         try {
           await saveTurnTimerForScope(pos, { key: effectiveKey, ts: Date.now() });
         } catch(e){ console.warn('Timer init error:', e); }
