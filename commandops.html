@@ -2666,8 +2666,10 @@ body.light .customSelBtn.typing-mode {
     console.warn("Firestore persistence not enabled:", err.code);
   });
   const auth = firebase.auth();
-  const appCheck = firebase.appCheck();
-  appCheck.activate('6LeH6GMsAAAAAIjV9DPRrmSKfvNeNHVS9LI8JQVU', true);
+  try {
+    const appCheck = firebase.appCheck();
+    appCheck.activate('6LeH6GMsAAAAAIjV9DPRrmSKfvNeNHVS9LI8JQVU', true);
+  } catch(e){ console.warn('App Check init error:', e); }
 
   // Auth state listener
   let authReady = false;
