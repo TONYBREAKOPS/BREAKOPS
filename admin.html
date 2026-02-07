@@ -3520,7 +3520,16 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       const { nextUpKey, secondChanceKey } = _computeSkipState(pos, people, sel);
       const effectiveKey = secondChanceKey || nextUpKey;
 
-      if(!effectiveKey) continue;
+      // Nobody left to pick — clear any stale timer
+      if(!effectiveKey){
+        if(timers[pos]){
+          try {
+            _sharedTurnTimersCache[pos] = null;
+            await saveTurnTimerForScope(pos, null);
+          } catch(e){ console.warn('Timer clear error:', e); }
+        }
+        continue;
+      }
 
       try {
         const newTs = Date.now();
