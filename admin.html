@@ -2989,11 +2989,20 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         </div>
       </div>
       <textarea id="breakSummary" class="mono" style="width:100%; min-height:140px; background:#0c1320; border:1px solid var(--border); color:var(--text); padding:10px; border-radius:12px; resize:vertical;" readonly></textarea>
+      <div id="treeSaverInline" style="margin-top:10px; padding:8px 12px; background:#0c1320; border:1px solid var(--border); border-radius:12px; color:#2e7d32; font-size:13px; text-align:center;"></div>
     </div>
   `;
 
   const summaryEl = document.getElementById("breakSummary");
   if(summaryEl) summaryEl.value = summaryLines();
+
+  // Populate tree/paper counter
+  const _treeEl = document.getElementById("treeSaverInline");
+  if(_treeEl){
+    const _days = Math.max(0, Math.floor((Date.now() - new Date(2026,0,18)) / 86400000));
+    const _sheets = _days * 6;
+    _treeEl.innerHTML = "\uD83C\uDF33 " + _sheets.toLocaleString() + " sheets of paper saved since going digital (" + (_sheets/8333).toFixed(4) + " trees) #savethetrees";
+  }
 
 
   // Slot cap manager (admin): always visible, buttons disabled when locked
@@ -3488,18 +3497,39 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         badge.dataset.skipping = "1";
         (async ()=>{
           try {
-            await skipPersonForScope(pos, personKey);
-            // Immediately compute and start timer for next person
+            // Compute next person before the transaction
             const sel = selectionMap(pos);
             const people = peopleByPos[pos] || [];
             const { nextUpKey, secondChanceKey } = _computeSkipState(pos, people, sel);
             const nextKey = secondChanceKey || nextUpKey;
-            if(nextKey){
-              await saveTurnTimerForScope(pos, { key: nextKey, ts: Date.now() });
-            }
+            const nextTs = Date.now();
+
+            // Single transaction: skip person + start next timer
+            await runTransaction(_db, async (tx)=>{
+              const ref = _scopeRef();
+              const snap = await tx.get(ref);
+              const cur = snap.exists() ? (snap.data()||{}) : {};
+              const tt = _normalizeTurnTimers(cur.turnTimers);
+              // Guard: only skip if timer is still for this person
+              if(!tt[pos] || tt[pos].key !== personKey) return;
+              tt[pos] = nextKey ? { key: String(nextKey), ts: nextTs } : null;
+              const st = _normalizeSkippedTurns(cur.skippedTurns);
+              if(!st[pos].includes(personKey)) st[pos].push(personKey);
+              tx.set(ref, { ...cur, turnTimers: tt, skippedTurns: st }, { merge: true });
+            });
+
+            // Update local caches
+            _sharedTurnTimersCache[pos] = nextKey ? { key: String(nextKey), ts: nextTs } : null;
+            if(!_sharedSkippedTurnsCache[pos]) _sharedSkippedTurnsCache[pos] = [];
+            if(!_sharedSkippedTurnsCache[pos].includes(personKey)) _sharedSkippedTurnsCache[pos].push(personKey);
+
             toast(`${pos}: time expired — skipped to next person.`);
             renderBreakPicker(selectedDay, mode, block, buckets);
-          } catch(e){ console.warn('Auto-skip error:', e); }
+          } catch(e){
+            console.warn('Auto-skip error:', e);
+            delete badge.dataset.skipping;
+            renderBreakPicker(selectedDay, mode, block, buckets);
+          }
         })();
       }
     }
@@ -3575,5 +3605,22 @@ document.addEventListener("click", async (evt)=>{
   <footer id="breakopsFooter" style="text-align:center; font-size:12px; color:#888; margin:30px 0 10px;">
     Built &amp; Maintained by Tony
   </footer>
+  <script>
+  (function updateTreeCounter(){
+    const startDate = new Date(2026, 0, 18); // January 18, 2026
+    const sheetsPerDay = 6;
+    const sheetsPerTree = 8333;
+    function refresh(){
+      const now = new Date();
+      const days = Math.max(0, Math.floor((now - startDate) / 86400000));
+      const sheets = days * sheetsPerDay;
+      const trees = sheets / sheetsPerTree;
+      const el = document.getElementById("treeSaverInline");
+      if(el) el.innerHTML = "\uD83C\uDF33 " + sheets.toLocaleString() + " sheets of paper saved since going digital (" + trees.toFixed(4) + " trees) #savethetrees";
+    }
+    refresh();
+    setInterval(refresh, 4 * 60 * 60 * 1000);
+  })();
+  </script>
 </body>
 </html>
