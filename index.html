@@ -669,6 +669,25 @@ body { padding-top: 12px !important; }
       if(typeof data.skipDurationMs === "number" && data.skipDurationMs > 0){
         SKIP_DURATION_MS = data.skipDurationMs;
       }
+      // Skip re-render if a dropdown is currently open to avoid losing user's selection
+      const _activeSelect = document.activeElement;
+      if(_activeSelect && _activeSelect.tagName === 'SELECT' && _activeSelect.closest('#breakPickerCard')){
+        if(!_activeSelect._deferredRender){
+          _activeSelect._deferredRender = true;
+          _activeSelect.addEventListener('change', ()=>{
+            try { renderExtrasTable(); } catch(e){ console.warn(e); }
+            try { render(); } catch(e){ console.warn(e); }
+          }, { once: true });
+          _activeSelect.addEventListener('blur', ()=>{
+            if(_activeSelect._deferredRender){
+              _activeSelect._deferredRender = false;
+              try { renderExtrasTable(); } catch(e){ console.warn(e); }
+              try { render(); } catch(e){ console.warn(e); }
+            }
+          }, { once: true });
+        }
+        return;
+      }
       try { renderExtrasTable(); } catch(e){ console.warn("[index] onSnapshot renderExtrasTable error:", e); }
       try { render(); } catch(e){ console.warn("[index] onSnapshot render error:", e); }
     }, (err)=>{
@@ -2162,9 +2181,16 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
     const timers = loadTurnTimersForScope();
     const now = Date.now();
 
+    const bsState = loadBreakStartedForScope();
     for(const pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
       const badge = document.querySelector(`.skip-timer[data-timer-pos="${pos}"]`);
       if(!badge) continue;
+
+      // Don't run timer if position is pending (not deployed)
+      if(!bsState[pos]){
+        badge.textContent = "";
+        continue;
+      }
 
       const timer = timers[pos];
       if(!timer || !timer.ts){
