@@ -1896,8 +1896,11 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                 const isSkipped = !cur && skippedSet.has(k);
                 const isSecondChance = (k === secondChanceKey) && !cur;
                 const isNext = (k === nextUpKey) && !cur;
-                // Only one person active at a time: second-chance takes priority over next-up
-                const isActive = isSecondChance || (isNext && !secondChanceKey);
+                // Timer is the source of truth for who can pick right now.
+                // Only the person the timer points to is active.
+                // Fallback to computed state when no timer exists (e.g. right after deploy).
+                const timerKey = (started && timers[pos]) ? timers[pos].key : null;
+                const isActive = timerKey ? (timerKey === k && !cur) : (isSecondChance || isNext);
 
                 const enabled = unlocked;
                 if(!cur && !isSkipped) unlocked = false;
@@ -1914,10 +1917,10 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                   })
                 ].join("");
 
-                // Row CSS class
+                // Row CSS class — only show second-chance styling when it's actually their turn
                 let rowClass = '';
-                if(isSecondChance) rowClass = 'second-chance';
-                else if(isNext) rowClass = 'next-up';
+                if(isActive && isSecondChance) rowClass = 'second-chance';
+                else if(isActive) rowClass = 'next-up';
                 else if(isSkipped) rowClass = 'skipped-turn';
 
                 // Timer badge (show on whoever the timer points to)
