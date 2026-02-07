@@ -3503,10 +3503,6 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       if(!bsState[pos]) continue; // skip if not started yet
 
       const timers = loadTurnTimersForScope();
-      // Only create a timer if none exists. Never override an existing timer —
-      // the auto-skip handler sets the correct next person.
-      if(timers[pos]) continue;
-
       const people = peopleByPos[pos] || [];
       const sel = selMaps[pos];
       const { nextUpKey, secondChanceKey } = _computeSkipState(pos, people, sel);
@@ -3514,8 +3510,12 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
       if(!effectiveKey) continue;
 
+      // Skip if timer already exists AND points to the correct person
+      if(timers[pos] && timers[pos].key === effectiveKey) continue;
+
+      // Timer missing or pointing to someone who already picked — update it
       try {
-        await saveTurnTimerForScope(pos, { key: effectiveKey, ts: Date.now() });
+        await saveTurnTimerForScope(pos, { key: effectiveKey, ts: timers[pos] ? timers[pos].ts : Date.now() });
       } catch(e){ console.warn('Timer init error:', e); }
     }
   })();
