@@ -3506,12 +3506,38 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         badge.dataset.skipping = "1";
         (async ()=>{
           try {
-            // Compute next person before the transaction
+            // Update local skip cache BEFORE computing next person,
+            // so _computeSkipState sees this person as already skipped
+            _sharedTurnTimersCache[pos] = null;
+            if(!_sharedSkippedTurnsCache[pos]) _sharedSkippedTurnsCache[pos] = [];
+            if(!_sharedSkippedTurnsCache[pos].includes(personKey)) _sharedSkippedTurnsCache[pos].push(personKey);
+
             const sel = selectionMap(pos);
             const people = peopleByPos[pos] || [];
             const { nextUpKey, secondChanceKey } = _computeSkipState(pos, people, sel);
             const nextKey = secondChanceKey || nextUpKey;
             const nextTs = Date.now();
+
+            // Nobody left: everyone skipped — stop timer and set position back to pending
+            if(!nextKey){
+              await runTransaction(_db, async (tx)=>{
+                const ref = _scopeRef();
+                const snap = await tx.get(ref);
+                const cur = snap.exists() ? (snap.data()||{}) : {};
+                const tt = _normalizeTurnTimers(cur.turnTimers);
+                tt[pos] = null;
+                const st = _normalizeSkippedTurns(cur.skippedTurns);
+                if(!st[pos].includes(personKey)) st[pos].push(personKey);
+                const bs = _normalizeBreakStarted(cur.breakStarted);
+                bs[pos] = false;
+                tx.set(ref, { ...cur, turnTimers: tt, skippedTurns: st, breakStarted: bs }, { merge: true });
+              });
+              _sharedTurnTimersCache[pos] = null;
+              _sharedBreakStartedCache[pos] = false;
+              toast(`${pos}: all skipped — hit Deploy Breaks to restart.`);
+              renderBreakPicker(selectedDay, mode, block, buckets);
+              return;
+            }
 
             // Single transaction: skip person + start next timer
             await runTransaction(_db, async (tx)=>{
@@ -3521,16 +3547,14 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
               const tt = _normalizeTurnTimers(cur.turnTimers);
               // Guard: only skip if timer is still for this person
               if(!tt[pos] || tt[pos].key !== personKey) return;
-              tt[pos] = nextKey ? { key: String(nextKey), ts: nextTs } : null;
+              tt[pos] = { key: String(nextKey), ts: nextTs };
               const st = _normalizeSkippedTurns(cur.skippedTurns);
               if(!st[pos].includes(personKey)) st[pos].push(personKey);
               tx.set(ref, { ...cur, turnTimers: tt, skippedTurns: st }, { merge: true });
             });
 
-            // Update local caches
-            _sharedTurnTimersCache[pos] = nextKey ? { key: String(nextKey), ts: nextTs } : null;
-            if(!_sharedSkippedTurnsCache[pos]) _sharedSkippedTurnsCache[pos] = [];
-            if(!_sharedSkippedTurnsCache[pos].includes(personKey)) _sharedSkippedTurnsCache[pos].push(personKey);
+            // Update timer cache with the result (skip cache already updated above)
+            _sharedTurnTimersCache[pos] = { key: String(nextKey), ts: nextTs };
 
             toast(`${pos}: time expired — skipped to next person.`);
             renderBreakPicker(selectedDay, mode, block, buckets);
