@@ -820,6 +820,24 @@ textarea.copyBox,
       } catch {}
 
       if(_lastCtx){
+        // Skip re-render if a dropdown is currently open to avoid losing user's selection
+        const _activeSelect = document.activeElement;
+        if(_activeSelect && _activeSelect.tagName === 'SELECT' && _activeSelect.closest('#breakPickerCard')){
+          // Defer re-render until the dropdown loses focus
+          if(!_activeSelect._deferredRender){
+            _activeSelect._deferredRender = true;
+            _activeSelect.addEventListener('change', ()=>{
+              renderBreakPicker(_lastCtx.selectedDay, _lastCtx.mode, _lastCtx.block, _lastCtx.buckets);
+            }, { once: true });
+            _activeSelect.addEventListener('blur', ()=>{
+              if(_activeSelect._deferredRender){
+                _activeSelect._deferredRender = false;
+                renderBreakPicker(_lastCtx.selectedDay, _lastCtx.mode, _lastCtx.block, _lastCtx.buckets);
+              }
+            }, { once: true });
+          }
+          return;
+        }
         renderBreakPicker(_lastCtx.selectedDay, _lastCtx.mode, _lastCtx.block, _lastCtx.buckets);
       }
       try { renderExtrasTable(); } catch {}
@@ -2791,7 +2809,11 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                 // Timer badge (show on the active row)
                 let timerBadge = '';
                 if(isActive && timers[pos] && timers[pos].key === k){
-                  timerBadge = ` <span class="skip-timer" data-timer-pos="${pos}"></span>`;
+                  const _rem = Math.max(0, SKIP_DURATION_MS - (Date.now() - timers[pos].ts));
+                  const _ts = Math.ceil(_rem / 1000);
+                  const _tm = String(Math.floor(_ts / 60)).padStart(2,'0');
+                  const _tss = String(_ts % 60).padStart(2,'0');
+                  timerBadge = ` <span class="skip-timer" data-timer-pos="${pos}">${_tm}:${_tss}</span>`;
                 }
 
                 const hasSel = !!(cur || (assignments[pos] && assignments[pos][k]));
@@ -3484,9 +3506,16 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
     const timers = loadTurnTimersForScope();
     const now = Date.now();
 
+    const bsState = loadBreakStartedForScope();
     for(const pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
       const badge = document.querySelector(`.skip-timer[data-timer-pos="${pos}"]`);
       if(!badge) continue;
+
+      // Don't run timer if position is pending (not deployed)
+      if(!bsState[pos]){
+        badge.textContent = "";
+        continue;
+      }
 
       const timer = timers[pos];
       if(!timer || !timer.ts){
