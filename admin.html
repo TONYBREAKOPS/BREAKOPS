@@ -553,6 +553,7 @@ textarea.copyBox,
     onSnapshot,
     runTransaction
   } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+  import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app-check.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCnabvDHyrEYPjtGikTSC6eIQL2VEPWnn4",
@@ -564,6 +565,10 @@ textarea.copyBox,
   };
 
   const _fbApp = initializeApp(firebaseConfig);
+  initializeAppCheck(_fbApp, {
+    provider: new ReCaptchaEnterpriseProvider('6LeH6GMsAAAAAIjV9DPRrmSKfvNeNHVS9LI8JQVU'),
+    isTokenAutoRefreshEnabled: true
+  });
   const _db = getFirestore(_fbApp);
 
   // Shared landing view (mode/day/block) so everyone lands where you last locked

@@ -2648,6 +2648,7 @@ body.light .customSelBtn.typing-mode {
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-check-compat.js"></script>
 <script>
   // Firebase configuration
   const firebaseConfig = {
@@ -2660,6 +2661,8 @@ body.light .customSelBtn.typing-mode {
     appId: "1:262613721964:web:478a694d357234e3be4949"
   };
   firebase.initializeApp(firebaseConfig);
+  const appCheck = firebase.appCheck();
+  appCheck.activate(new firebase.appCheck.ReCaptchaEnterpriseProvider('6LeH6GMsAAAAAIjV9DPRrmSKfvNeNHVS9LI8JQVU'), true);
   const db = firebase.firestore();
   db.enablePersistence({synchronizeTabs:true}).catch(err=>{
     console.warn("Firestore persistence not enabled:", err.code);
