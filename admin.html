@@ -3366,14 +3366,22 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         curAssign[pos] = {};
         await saveAssignmentsForScope(curAssign);
 
-        // Clear timer, skipped turns, and breakStarted for this position only
-        await saveTurnTimerForScope(pos, null);
-        // Clear all skipped turns for this position
-        const sk = loadSkippedTurnsForScope();
-        for(const k of (sk[pos]||[])){
-          try { await unskipPersonForScope(pos, k); } catch(e){ console.warn(e); }
-        }
-        await saveBreakStartedForScope(pos, false);
+        // Clear timer, skipped turns, and breakStarted in one transaction
+        await runTransaction(_db, async (tx)=>{
+          const ref = _scopeRef();
+          const snap = await tx.get(ref);
+          const cur = snap.exists() ? (snap.data()||{}) : {};
+          const tt = _normalizeTurnTimers(cur.turnTimers);
+          tt[pos] = null;
+          const st = _normalizeSkippedTurns(cur.skippedTurns);
+          st[pos] = [];
+          const bs = _normalizeBreakStarted(cur.breakStarted);
+          bs[pos] = false;
+          tx.set(ref, { ...cur, turnTimers: tt, skippedTurns: st, breakStarted: bs }, { merge: true });
+        });
+        _sharedTurnTimersCache[pos] = null;
+        _sharedSkippedTurnsCache[pos] = [];
+        _sharedBreakStartedCache[pos] = false;
 
         toast(`${pos} breaks reset.`);
         renderBreakPicker(selectedDay, mode, block, buckets);
@@ -3515,7 +3523,9 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
             const sel = selectionMap(pos);
             const people = peopleByPos[pos] || [];
             const { nextUpKey, secondChanceKey } = _computeSkipState(pos, people, sel);
-            const nextKey = secondChanceKey || nextUpKey;
+            // Only use secondChanceKey if there are still non-skipped people.
+            // If everyone is skipped (nextUpKey is null), reset to pending.
+            const nextKey = nextUpKey ? (secondChanceKey || nextUpKey) : null;
             const nextTs = Date.now();
 
             // Nobody left: everyone skipped — stop timer and set position back to pending
