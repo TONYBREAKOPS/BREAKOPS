@@ -683,6 +683,7 @@ body { padding-top: 12px !important; }
         if(!_activeSelect._deferredRender){
           _activeSelect._deferredRender = true;
           _activeSelect.addEventListener('change', ()=>{
+            _activeSelect._deferredRender = false;
             try { renderExtrasTable(); } catch(e){ console.warn(e); }
             try { render(); } catch(e){ console.warn(e); }
           }, { once: true });
@@ -1721,7 +1722,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
   // Pending (unsaved) edits per scope so users can adjust freely until they press Enter.
   const pendingEdits = window.__pendingEdits || (window.__pendingEdits = {});
-  const scopeKey = `${mode}|${selectedDay}|${block}`;
+  const scopeKey = `${mode}|${selectedDay}|${block.id || block}`;
   pendingEdits[scopeKey] = pendingEdits[scopeKey] || { CALLTAKER:{}, DISPATCHER:{}, PIC:{}, ANET:{} };
 
   function getPending(pos, key){
@@ -1769,15 +1770,15 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
   }
 
   // Commit helpers (write to shared storage) when user presses Enter.
-  function commitAssignment(pos, key, seat){
+  async function commitAssignment(pos, key, seat){
     const curA = loadAssignmentsForScope();
     curA[pos] = curA[pos] || {};
     if(seat){ curA[pos][key] = seat; }
     else { delete curA[pos][key]; }
-    saveAssignmentsForScope(curA);
+    try { await saveAssignmentsForScope(curA); } catch(e){ console.warn('Save assignment error:', e); }
   }
 
-  function commitBreak(pos, key, name, time){
+  async function commitBreak(pos, key, name, time){
     const cur = loadBreaksForScope();
     cur[pos] = Array.isArray(cur[pos]) ? cur[pos] : [];
 
@@ -1800,7 +1801,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
     // Keep stored list small and deterministic
     cur[pos].sort((a,b)=>order.indexOf(a.key)-order.indexOf(b.key));
-    saveBreaksForScope(cur);
+    try { await saveBreaksForScope(cur); } catch(e){ console.warn('Save break error:', e); }
   }
 
 
@@ -1919,7 +1920,11 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                 // Timer badge (show on the active row)
                 let timerBadge = '';
                 if(isActive && timers[pos] && timers[pos].key === k){
-                  timerBadge = ` <span class="skip-timer" data-timer-pos="${pos}"></span>`;
+                  const _rem = Math.max(0, SKIP_DURATION_MS - (Date.now() - timers[pos].ts));
+                  const _ts = Math.ceil(_rem / 1000);
+                  const _tm = String(Math.floor(_ts / 60)).padStart(2,'0');
+                  const _tss = String(_ts % 60).padStart(2,'0');
+                  timerBadge = ` <span class="skip-timer" data-timer-pos="${pos}">${_tm}:${_tss}</span>`;
                 }
 
                 const badge = r._extra ? (r._dayOff ? ' <span class="muted">(EXTRA • DAY OFF)</span>' : ' <span class="muted">(EXTRA)</span>') : "";
@@ -2114,8 +2119,8 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
       // If clearing (both empty), clear both saved assignment and break for this key (and tail for breaks)
       if(!pend.seat && !pend.time){
-        commitAssignment(pos, key, "");
-        commitBreak(pos, key, name, "");
+        await commitAssignment(pos, key, "");
+        await commitBreak(pos, key, name, "");
         clearPending(pos, key);
         renderBreakPicker(selectedDay, mode, block, buckets);
         toast("Cleared.");
@@ -2133,8 +2138,8 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       }
 
       // Commit assignment, then break
-      commitAssignment(pos, key, pend.seat);
-      commitBreak(pos, key, name, pend.time);
+      await commitAssignment(pos, key, pend.seat);
+      await commitBreak(pos, key, name, pend.time);
       clearPending(pos, key);
       renderBreakPicker(selectedDay, mode, block, buckets);
       toast("Saved.");

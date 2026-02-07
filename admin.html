@@ -825,6 +825,8 @@ textarea.copyBox,
       } catch {}
 
       if(_lastCtx){
+        // Skip re-render during deploy to prevent DOM replacement mid-animation
+        if(window._deployInProgress) return;
         // Skip re-render if a dropdown is currently open to avoid losing user's selection
         const _activeSelect = document.activeElement;
         if(_activeSelect && _activeSelect.tagName === 'SELECT' && _activeSelect.closest('#breakPickerCard')){
@@ -832,6 +834,7 @@ textarea.copyBox,
           if(!_activeSelect._deferredRender){
             _activeSelect._deferredRender = true;
             _activeSelect.addEventListener('change', ()=>{
+              _activeSelect._deferredRender = false;
               renderBreakPicker(_lastCtx.selectedDay, _lastCtx.mode, _lastCtx.block, _lastCtx.buckets);
             }, { once: true });
             _activeSelect.addEventListener('blur', ()=>{
@@ -953,6 +956,10 @@ textarea.copyBox,
       st[pos] = st[pos].filter(k => k !== personKey);
       tx.set(ref, { ...cur, skippedTurns: st }, { merge: true });
     });
+    // Update local cache so next render uses fresh data
+    if(_sharedSkippedTurnsCache[pos]){
+      _sharedSkippedTurnsCache[pos] = _sharedSkippedTurnsCache[pos].filter(k => k !== personKey);
+    }
   }
 
   async function _ensureScopeCached(mode, day, block){
@@ -3228,6 +3235,9 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
     deployBtn.addEventListener("click", async ()=>{
       if(!isLocked()){ toast("Unable to start breaks — still editing. Lock first, then deploy."); return; }
 
+      // Block onSnapshot re-renders during deploy
+      window._deployInProgress = true;
+
       // --- Launch animation ---
       deployBtn.disabled = true;
       const origText = deployBtn.innerHTML;
@@ -3290,14 +3300,14 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         }
 
         toast("All breaks deployed!");
-        setTimeout(()=> renderBreakPicker(selectedDay, mode, block, buckets), 1500);
+        setTimeout(()=>{ window._deployInProgress = false; renderBreakPicker(selectedDay, mode, block, buckets); }, 1500);
       } catch(e){
         console.error('Deploy breaks error:', e);
         deployBtn.innerHTML = "&#10060; FAILED";
         deployBtn.style.background = "linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)";
         deployBtn.style.borderColor = "#f87171";
         toast('Could not deploy breaks: ' + (e.message||'error'));
-        setTimeout(()=> renderBreakPicker(selectedDay, mode, block, buckets), 1500);
+        setTimeout(()=>{ window._deployInProgress = false; renderBreakPicker(selectedDay, mode, block, buckets); }, 1500);
       }
     });
   }
@@ -3477,15 +3487,25 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
   // For each position, ensure a timer exists in Firestore for the effective active person
   // Only auto-start timers for positions where breaks have been started
   (async function initTimers(){
+    // Don't run if an auto-skip is in progress — it manages its own timers
+    const skipInProgress = document.querySelector('.skip-timer[data-skipping="1"]');
+    if(skipInProgress) return;
+
     const bsState = loadBreakStartedForScope();
-    const sel_ct = selectionMap("CALLTAKER");
-    const sel_dp = selectionMap("DISPATCHER");
-    const sel_pic = selectionMap("PIC");
-    const sel_an = selectionMap("ANET");
-    const selMaps = { CALLTAKER: sel_ct, DISPATCHER: sel_dp, PIC: sel_pic, ANET: sel_an };
+    const selMaps = {
+      CALLTAKER: selectionMap("CALLTAKER"),
+      DISPATCHER: selectionMap("DISPATCHER"),
+      PIC: selectionMap("PIC"),
+      ANET: selectionMap("ANET")
+    };
 
     for(const pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
       if(!bsState[pos]) continue; // skip if not started yet
+
+      const timers = loadTurnTimersForScope();
+      // Only create a timer if none exists. Never override an existing timer —
+      // the auto-skip handler sets the correct next person.
+      if(timers[pos]) continue;
 
       const people = peopleByPos[pos] || [];
       const sel = selMaps[pos];
@@ -3494,14 +3514,9 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
       if(!effectiveKey) continue;
 
-      const timers = loadTurnTimersForScope();
-      // Only create a timer if none exists. Never override an existing timer —
-      // the auto-skip handler sets the correct next person.
-      if(!timers[pos]){
-        try {
-          await saveTurnTimerForScope(pos, { key: effectiveKey, ts: Date.now() });
-        } catch(e){ console.warn('Timer init error:', e); }
-      }
+      try {
+        await saveTurnTimerForScope(pos, { key: effectiveKey, ts: Date.now() });
+      } catch(e){ console.warn('Timer init error:', e); }
     }
   })();
 
@@ -3582,12 +3597,14 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
               });
               _sharedTurnTimersCache[pos] = null;
               _sharedBreakStartedCache[pos] = false;
+              delete badge.dataset.skipping;
               toast(`${pos}: all skipped — hit Deploy Breaks to restart.`);
               renderBreakPicker(selectedDay, mode, block, buckets);
               return;
             }
 
             // Single transaction: skip person + start next timer
+            let didSkip = false;
             await runTransaction(_db, async (tx)=>{
               const ref = _scopeRef();
               const snap = await tx.get(ref);
@@ -3599,15 +3616,24 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
               const st = _normalizeSkippedTurns(cur.skippedTurns);
               if(!st[pos].includes(personKey)) st[pos].push(personKey);
               tx.set(ref, { ...cur, turnTimers: tt, skippedTurns: st }, { merge: true });
+              didSkip = true;
             });
 
-            // Update timer cache with the result (skip cache already updated above)
-            _sharedTurnTimersCache[pos] = { key: String(nextKey), ts: nextTs };
-
-            toast(`${pos}: time expired — skipped to next person.`);
+            if(didSkip){
+              _sharedTurnTimersCache[pos] = { key: String(nextKey), ts: nextTs };
+              toast(`${pos}: time expired — skipped to next person.`);
+            } else {
+              // Transaction guard prevented write — revert local cache
+              if(!wasSecondChance){
+                _sharedSkippedTurnsCache[pos] = (_sharedSkippedTurnsCache[pos]||[]).filter(k => k !== personKey);
+              }
+            }
+            delete badge.dataset.skipping;
             renderBreakPicker(selectedDay, mode, block, buckets);
           } catch(e){
             console.warn('Auto-skip error:', e);
+            // Revert local cache on error
+            _sharedSkippedTurnsCache[pos] = (_sharedSkippedTurnsCache[pos]||[]).filter(k => k !== personKey);
             delete badge.dataset.skipping;
             renderBreakPicker(selectedDay, mode, block, buckets);
           }
