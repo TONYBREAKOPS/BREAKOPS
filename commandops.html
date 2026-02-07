@@ -34,7 +34,7 @@ body.light{
 html,body{height:100%}
 body{
   margin:0;min-height:100vh;
-  font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
   color:var(--text);
   background:var(--bg);
 }
@@ -112,6 +112,10 @@ body.light .adeqBoxHead{
   background:rgba(0,0,0,.03) !important;
   border-color:var(--border) !important;
   color:#000 !important;
+}
+body.light .adeqBoxSub{
+  color:rgba(0,0,0,.40) !important;
+  border-color:var(--border) !important;
 }
 body.light .adeqTbl{ background:transparent !important; }
 body.light .adeqTbl th{ color:#222 !important; background:rgba(0,0,0,.02) !important; }
@@ -243,6 +247,34 @@ backdrop-filter:blur(10px)}
 @keyframes syncPulse{0%,100%{opacity:1}50%{opacity:.5}}
 #pillSync{transition:all .2s ease}
 #pillSync:not(.good):not(.bad){animation:syncPulse 1s ease-in-out infinite;border-color:rgba(74,163,255,.45);background:rgba(74,163,255,.10);color:#a5d4ff}
+#absentBar{
+  display:grid;
+  grid-template-columns:repeat(3, minmax(520px, 1fr));
+  gap:14px;
+  width:100%;
+  padding:0 18px;
+  box-sizing:border-box;
+}
+.absentCell{
+  display:flex;justify-content:flex-start;gap:6px;
+}
+.absentPill{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:5px 10px;border-radius:999px;font-size:11px;font-weight:800;
+  border:1px solid var(--border);
+  background:#0c1320;color:#cfe3ff;
+  letter-spacing:.04em;text-transform:uppercase;
+  width:auto;
+}
+.absentPill .absentCount{
+  font-weight:900;color:var(--bad);
+}
+.absentPill.zero .absentCount{color:#fff;}
+.absentPill.otPill .absentCount{color:#fde047;}
+body.light .absentPill{background:var(--card);border-color:var(--border);color:#222;}
+body.light .absentPill .absentCount{color:#b91c1c;}
+body.light .absentPill.zero .absentCount{color:#222;}
+body.light .absentPill.otPill .absentCount{color:#b45309;}
 
 main{padding:14px 18px 50px}
 .grid{
@@ -269,13 +301,18 @@ main{padding:14px 18px 50px}
   display:flex;
   justify-content:space-between;
   align-items:center;
+  border-top-left-radius:13px;
+  border-top-right-radius:13px;
 }
 .blockHdr{ text-align:center; justify-content:center !important; }
 
 .section{padding:12px 14px;border-bottom:1px solid var(--border)}
 .tables{display:grid;grid-template-columns:1fr;gap:10px}
 
-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;border:none;border-radius:0}
+.tblWrap{border:1px solid var(--border);border-radius:12px !important;overflow:hidden !important;background:#0c1320;isolation:isolate;}
+.tblWrap thead th{background:transparent !important;}
+body.light .tblWrap{background:var(--card);}
 th,td{padding:7px 8px;vertical-align:middle}
 th{
   color:var(--muted);
@@ -319,31 +356,24 @@ tbody tr:hover td{background:rgba(255,255,255,.04)}
   color:var(--text);
 }
 
-.otBar{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
-.otBar input, .otBar select{max-width:220px}
-.otBar button{padding:9px 12px;border-radius:12px}
-
-/* OT/EXTRA bar sizing (so it lays out clean at the bottom of each block) */
-.otBar .mini{flex:1 1 260px; min-width:220px;}
-.otBar .miniSm{flex:0 0 120px; min-width:110px;}
-@media (max-width: 900px){
-  .otBar .mini{flex:1 1 100%;}
-  .otBar .miniSm{flex:1 1 160px;}
-}
+.otBar{display:flex;flex-direction:column;gap:8px}
+.otBarRow{display:flex;gap:8px;align-items:end}
+.otBarRow .mini{flex:1 1 0;min-width:0}
+.otBarRow .miniSm{flex:0 0 auto;min-width:80px}
+.otBar input, .otBar select{max-width:none;width:100%;box-sizing:border-box}
+.otBar button{padding:9px 12px;border-radius:12px;white-space:nowrap}
 
 
 
 .statusBadge{
-  display:inline-block;
-  padding:4px 10px;
-  border-radius:999px;
-  font-size:13px;
-  font-weight:800;
-  margin-left:6px;
+  display:inline;
+  font-size:12px;
+  font-weight:900;
+  margin-left:4px;
 }
-.statusShort{background:#7f1d1d;color:#fecaca;}
-.statusStaffed{background:#78350f;color:#fde68a;}
-.statusOver{background:#064e3b;color:#a7f3d0;}
+.statusShort{color:var(--bad);}
+.statusStaffed{color:var(--warn);}
+.statusOver{color:var(--ok);}
 
 
 /* Hrs field tuning */
@@ -398,23 +428,46 @@ td select[onchange*="setRoleVal"]{
 }
 
 
-/* Adequate box */
-.adeqBox{margin-top:6px;border:1px solid var(--border);border-radius:14px;overflow:hidden;
-  background:var(--card);}
-.adeqBoxHead{padding:10px 12px;background:#0c1320;border-bottom:1px solid var(--border);
-  font-size:12px;font-weight:900;color:var(--text);}
-.adeqTbl{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px}
-.adeqTbl th,.adeqTbl td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.06);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.adeqTbl th{font-size:11px;color:rgba(255,255,255,.70);background:transparent;position:static}
-.adeqTbl td{color:rgba(255,255,255,.92)}
-.adeqHour{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-weight:800}
-.adeqSectionRow td{padding:10px 10px 6px 10px;border-bottom:none}
-.adeqSectionLabel{font-weight:900;letter-spacing:.3px;color:rgba(255,255,255,.90)}
-.adeqDivider{height:1px;background:linear-gradient(to right, transparent, rgba(255,255,255,.22), transparent);margin-top:6px}
-.statusPill{display:inline-block;padding:4px 10px;border-radius:999px;font-size:13px;font-weight:900;letter-spacing:.06em}
-.statusShort{background:rgba(239,68,68,.18);color:#ff6b6b}
-.statusStaffed{background:rgba(245,158,11,.18);color:#ffd166}
-.statusOver{background:rgba(34,197,94,.18);color:#34d399}
+/* Strip outer card for adeq — adeqBox IS the container */
+.roleCard-adeq{
+  border:none !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  padding:0 !important;
+  overflow:visible !important;
+}
+.roleCard-adeq h2.blockHdr{
+  background:transparent !important;
+  border:none !important;
+  padding:0 !important;
+  height:0 !important;
+  overflow:hidden !important;
+  margin:0 !important;
+}
+.roleCard-adeq .section{
+  border-bottom:none !important;
+  padding:0 !important;
+}
+/* Adequate box — covMini style (single clean container) */
+.adeqBox{margin:0;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#0c1320;}
+.adeqBoxHead{padding:7px 8px;background:rgba(255,255,255,0.03);border-bottom:1px solid var(--border);
+  font-size:12px;font-weight:900;color:#cfe3ff;text-align:center;letter-spacing:.06em;text-transform:uppercase;}
+.adeqBoxSub{padding:5px 8px;border-bottom:1px solid var(--border);
+  font-size:10px;font-weight:700;color:rgba(255,255,255,.45);text-align:center;letter-spacing:.08em;text-transform:uppercase;}
+.adeqTbl{width:100%;border-collapse:collapse;border:none;border-radius:0;font-size:12px}
+.adeqTbl th,.adeqTbl td{padding:7px 8px;border-bottom:1px solid var(--border);font-size:12px;text-align:center}
+.adeqTbl th{color:#cfe3ff;background:rgba(255,255,255,0.03);position:static;font-weight:600;text-align:center}
+.adeqTbl td{color:var(--text);text-align:center}
+.adeqTbl tr:last-child td{border-bottom:none}
+.adeqHour{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+.adeqSectionRow td{padding:8px 8px 4px 8px;border-bottom:none}
+.adeqSectionRow td{text-align:left !important}
+.adeqSectionLabel{font-weight:800;letter-spacing:.3px;font-size:12px;color:#cfe3ff}
+.adeqDivider{height:1px;background:linear-gradient(to right, transparent, rgba(255,255,255,.14), transparent);margin-top:4px}
+.statusPill{font-weight:900}
+.statusShort{color:#ff4d4d;font-weight:900}
+.statusStaffed{color:#fde047;font-weight:900}
+.statusOver{color:#86efac;font-weight:900}
 
 
 /* v108: stacked rows across blocks */
@@ -429,9 +482,9 @@ td select[onchange*="setRoleVal"]{
 
 /* Status = bold colored text only (no pill) */
 .statusPill{background:transparent !important;padding:0 !important;border-radius:0 !important;box-shadow:none !important;}
-.statusOver{color:var(--ok) !important;font-weight:900 !important;text-shadow:none !important;}
-.statusStaffed{color:var(--warn) !important;font-weight:900 !important;text-shadow:none !important;}
-.statusShort{color:var(--bad) !important;font-weight:900 !important;text-shadow:none !important;}
+.statusOver{color:#86efac !important;font-weight:900 !important;}
+.statusStaffed{color:#fde047 !important;font-weight:900 !important;}
+.statusShort{color:#ff4d4d !important;font-weight:900 !important;}
 
 /* Block layout */
 .blocksWrap{ align-items:start !important; }
@@ -460,10 +513,14 @@ thead th{
 }
 tbody td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06)}
 tbody tr:last-child td{border-bottom:none}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
 .statusOk{color:var(--ok);font-weight:800}
 .otRow{background:rgba(255,214,0,.08)}
 .otBadge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,214,0,.35);color:#ffeaa6;font-size:12px;margin-left:6px}
+.cmt-inner{display:flex;gap:8px;align-items:center}
+.cmt-inner textarea{flex:1}
+.otRemoveBtn{background:rgba(255,77,77,.12);border:1px solid rgba(255,77,77,.3);color:#ff4d4d;font-size:11px;font-weight:800;cursor:pointer;padding:5px 10px;border-radius:8px;white-space:nowrap}
+.otRemoveBtn:hover{background:rgba(255,77,77,.25)}
 
 .statusBad{color:var(--bad);font-weight:800}
 .pulsing{outline:3px solid rgba(255,214,0,.85); box-shadow:0 0 0 6px rgba(255,214,0,.15)}
@@ -528,7 +585,7 @@ a.help{color:var(--accent);text-decoration:none}
 .roleEdit select,.assignEdit select{ width:100%; min-width:120px; }
 
 /* BreakOps unified card/panel styling */
-.blockCard,.panel,.cardLike,.adeqBox,.listCard,.block,.sectionCard{
+.blockCard,.panel,.cardLike,.listCard,.block,.sectionCard{
   background:var(--card) !important;
   border:1px solid var(--border) !important;
   border-radius:14px !important;
@@ -608,7 +665,7 @@ button.primary,.primary,.btnPrimary{
   background:rgba(255,255,255,.02) !important;
 }
 /* Tables */
-table{border:1px solid var(--border) !important;border-radius:12px !important;overflow:hidden !important;}
+table{border:none !important;border-radius:0 !important;}
 thead th{
   color:var(--muted) !important;
   background:#0c1320 !important;
@@ -708,46 +765,16 @@ tbody td{border-bottom:1px solid rgba(255,255,255,.06) !important;}
 }
 
 
-/* v121: Bigger Adequate staffing text + ALL CAPS */
+/* v121: Adequate staffing — clean compact (admin-style) */
 .adeqBox,
 .adeqBox *{
   text-transform: uppercase !important;
 }
-
 .adeqTbl{
-  font-size:14px !important;
+  font-size:12px !important;
   border-spacing:0 !important;
 }
-
-.adeqTbl th{
-  font-size:13px !important;
-  font-weight:700 !important;
-  letter-spacing:.08em !important;
-  text-transform:uppercase !important;
-  color: rgba(255,255,255,.55) !important;
-  background: rgba(255,255,255,.05) !important;
-  padding:8px 12px !important;
-  border-bottom:2px solid rgba(255,255,255,.10) !important;
-}
-
-.adeqTbl td{
-  font-size:14px !important;
-  font-weight:600 !important;
-  padding:8px 12px !important;
-  vertical-align:middle !important;
-  border-bottom:1px solid rgba(255,255,255,.05) !important;
-}
-
-.adeqSectionLabel{
-  font-size:14px !important;
-  font-weight:900 !important;
-  letter-spacing:.10em !important;
-  text-transform:uppercase !important;
-}
-
 .adeqHour{
-  font-size:14px !important;
-  font-weight:800 !important;
   font-variant-numeric:tabular-nums !important;
 }
 
@@ -818,18 +845,14 @@ table, thead th, tbody td { text-transform: uppercase !important; }
   border-color:#f59e0b !important;
 }
 
-/* Adequate box: don't collapse/shorten words */
+/* Adequate box: clean word handling */
 .adeqTbl{
   table-layout:auto !important;
 }
 .adeqTbl th,.adeqTbl td{
-  white-space:normal !important;
+  white-space:nowrap !important;
   overflow:visible !important;
   text-overflow:clip !important;
-  word-break:keep-all !important;
-}
-.adeqTbl td:last-child{ /* Status column */
-  white-space:nowrap !important;
 }
 
 
@@ -1744,7 +1767,7 @@ tr:has(.customSelMenu.open){
 /* === v162: ABSENT REASON dropdown: no internal scroll + always on top === */
 
 /* Let popups escape the cards too */
-.card, .panel, .blockCard, .sectionCard, .listCard, .adeqBox{
+.card, .panel, .blockCard, .sectionCard, .listCard{
   overflow: visible !important;
 }
 
@@ -1795,14 +1818,16 @@ tr:has(.customSelMenu.open){
 
 
 
-/* v164: Rename Adequate header to STAFFING NUMBERS + center + smooth pop */
+/* v164: STAFFING NUMBERS header — clean compact */
 .adeqBoxHead{
   text-align:center !important;
-  letter-spacing:.10em !important;
-  background: #0c1320 !important;
-  border-bottom:1px solid rgba(255,255,255,.14) !important;
-  color: #ffffff !important;
+  letter-spacing:.06em !important;
+  background: rgba(255,255,255,0.03) !important;
+  border-bottom:1px solid var(--border) !important;
+  color: #cfe3ff !important;
   text-shadow: none !important;
+  font-size:12px !important;
+  padding:7px 8px !important;
 }
 
 /* === FINAL FIX: SUP role never clips (v168) === */
@@ -2340,10 +2365,9 @@ body.singlePanel #blocks .boardCard{
   background: rgba(255,224,51,.12) !important;
 }
 
-/* Darker adeq box background for contrast */
+/* Adeq box — clean compact override */
 .adeqBox {
-  background: var(--card) !important;
-  border: 1px solid var(--border) !important;
+  background: #0c1320 !important;
 }
 .adeqTbl {
   background: transparent !important;
@@ -2352,29 +2376,15 @@ body.singlePanel #blocks .boardCard{
   background: transparent !important;
 }
 
-/* Status text (clean, no glow) */
-.statusOver  { color: var(--ok) !important; font-weight: 900 !important; text-shadow:none !important; font-size:14px !important; }
-.statusStaffed { color: var(--warn) !important; font-weight: 900 !important; text-shadow:none !important; font-size:14px !important; }
-.statusShort { color: var(--bad) !important; font-weight: 900 !important; text-shadow:none !important; font-size:14px !important; }
+/* Status text (clean, no pill, just colored text like admin) */
+.statusOver  { color: #86efac !important; font-weight: 900 !important; font-size:12px !important; }
+.statusStaffed { color: #fde047 !important; font-weight: 900 !important; font-size:12px !important; }
+.statusShort { color: #ff4d4d !important; font-weight: 900 !important; font-size:12px !important; }
 
-/* Role-tinted section rows in adeq table */
-.adeqRole-CALLTAKER .adeqSectionLabel { color: rgba(255,255,255,.75) !important; }
-.adeqRole-CALLTAKER + tr td,
-.adeqRole-CALLTAKER + tr + tr td,
-.adeqRole-CALLTAKER + tr + tr + tr td,
-.adeqRole-CALLTAKER + tr + tr + tr + tr td { background: transparent !important; }
-
-.adeqRole-DISPATCHER .adeqSectionLabel { color: rgba(255,255,255,.75) !important; }
-.adeqRole-DISPATCHER + tr td,
-.adeqRole-DISPATCHER + tr + tr td,
-.adeqRole-DISPATCHER + tr + tr + tr td,
-.adeqRole-DISPATCHER + tr + tr + tr + tr td { background: transparent !important; }
-
-.adeqRole-PIC .adeqSectionLabel { color: rgba(255,255,255,.75) !important; }
-.adeqRole-PIC + tr td,
-.adeqRole-PIC + tr + tr td,
-.adeqRole-PIC + tr + tr + tr td,
-.adeqRole-PIC + tr + tr + tr + tr td { background: transparent !important; }
+/* Role section labels in adeq table */
+.adeqRole-CALLTAKER .adeqSectionLabel,
+.adeqRole-DISPATCHER .adeqSectionLabel,
+.adeqRole-PIC .adeqSectionLabel { color: #cfe3ff !important; }
 
 /* Card backgrounds for roster tables */
 .card.boardCard {
@@ -2635,6 +2645,9 @@ body.light .customSelBtn.typing-mode {
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
+  db.enablePersistence({synchronizeTabs:true}).catch(err=>{
+    console.warn("Firestore persistence not enabled:", err.code);
+  });
   const auth = firebase.auth();
 
   // Auth state listener
@@ -2749,7 +2762,10 @@ body.light .customSelBtn.typing-mode {
       <h1 style="text-align:left;font-size:28px;font-weight:900;letter-spacing:.04em;margin:0;">CommandOps</h1>
       <span style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:600;">All Stations, All Shifts</span>
     </div>
-    <div id="userInfo" style="margin-left:auto;display:none;">
+    <div id="userInfo" style="margin-left:auto;display:none;align-items:center;gap:10px;">
+      <span class="pill" id="pillUnfilled" style="font-size:10px;padding:4px 8px;cursor:pointer;" title="Click for details">0 UNFILLED</span>
+      <span class="pill good" id="pillFirebase" style="font-size:10px;padding:4px 8px;">Firebase: connected</span>
+      <span class="pill" id="pillSync" style="font-size:10px;padding:4px 8px;">Sync: idle</span>
       <span class="user-email" id="userEmail"></span>
       <button id="btnLogout" type="button">Sign Out</button>
     </div>
@@ -2783,7 +2799,7 @@ body.light .customSelBtn.typing-mode {
       <select id="panelViewSel">
         <option value="all">All 3 blocks</option>
       </select>
-      <input id="empSearch" type="text" placeholder="Search…" style="width:140px;padding:5px 8px;font-size:12px;border:1px solid var(--border);border-radius:12px;background:#0c1320;color:var(--text);" oninput="filterByEmployee(this.value)"/>
+      <input id="empSearch" type="text" placeholder="Search…" style="width:140px;padding:8px 8px;font-size:12px;border:1px solid var(--border);border-radius:12px;background:#0c1320;color:var(--text);" oninput="filterByEmployee(this.value)"/>
     </div>
 
     <div>
@@ -2802,14 +2818,13 @@ body.light .customSelBtn.typing-mode {
   <div id="blocks" class="grid"></div>
 </main>
 
-<footer class="diag" style="display:flex">
-  <span class="pill good" id="pillFirebase">Firebase: connected</span>
-  <span class="pill" id="pillSync">Sync: idle</span>
-  <span class="pill" id="pillXlsx">XLSX: …</span>
-  <span class="pill" id="pillDb">DB: not loaded</span>
-  <span class="pill" id="pillAdeq">Adequate: not loaded</span>
-  <span class="pill" id="pillSeats">Seats: not loaded</span>
-  <span class="pill" id="pillOt">Teams OT: not imported</span>
+<footer class="diag" style="display:block;">
+  <div id="absentBar"></div>
+  <span class="pill" id="pillXlsx" style="display:none">XLSX: …</span>
+  <span class="pill" id="pillDb" style="display:none">DB: not loaded</span>
+  <span class="pill" id="pillAdeq" style="display:none">Adequate: not loaded</span>
+  <span class="pill" id="pillSeats" style="display:none">Seats: not loaded</span>
+  <span class="pill" id="pillOt" style="display:none">Teams OT: not imported</span>
   <span class="pill err" id="pillErr" style="display:none">Error: <span id="errTxt"></span></span>
 </footer>
 
@@ -2933,8 +2948,27 @@ async function loadFromFirebase(){
   pDb.classList.remove("good","bad");
 
   try {
-    // 1. Load employees
-    const empSnap = await db.collection('employees').get();
+    // Fire ALL Firestore queries in parallel
+    const adeqMap = [
+      ["Calltaker_Adequate_Staffing", "CALLTAKER", "Calltaker Adequate staffing"],
+      ["Dispatcher_Adequate_Staffing", "DISPATCHER", "Dispatcher Adequate Staffing"],
+      ["PIC_Adequate_Staffing", "PIC", "PIC Adequate Staffing"],
+    ];
+    const seatMap = [
+      ["Calltaker_Seat_Assignments", "CALLTAKER"],
+      ["Dispatcher_Seat_Assignments", "DISPATCHER"],
+      ["PIC_Seat_Assignments", "PIC"],
+      ["Supervisor_seat_Assignments", "SUPERVISOR"],
+    ];
+
+    const [empSnap, ...otherSnaps] = await Promise.all([
+      db.collection('employees').get(),
+      ...adeqMap.map(([c])=> db.collection(c).get().catch(e=>{ console.warn("Failed to load "+c, e); return null; })),
+      ...seatMap.map(([c])=> db.collection(c).get().catch(e=>{ console.warn("Failed to load "+c, e); return null; })),
+      db.collection('Absent_Reason').get().catch(e=>{ console.warn("Failed to load Absent_Reason", e); return null; }),
+    ]);
+
+    // 1. Process employees
     BASE_EMP = empSnap.docs.map(doc => {
       const r = doc.data();
       return {
@@ -2955,86 +2989,61 @@ async function loadFromFirebase(){
     pDb.classList.toggle("good", BASE_EMP.length>0);
     if(!BASE_EMP.length) pDb.classList.add("bad");
 
-    // 2. Load adequate staffing
+    // 2. Process adequate staffing
     ADEQ={CALLTAKER:{},DISPATCHER:{},PIC:{},SUPERVISOR:{}};
-    const adeqMap = [
-      ["Calltaker_Adequate_Staffing", "CALLTAKER", "Calltaker Adequate staffing"],
-      ["Dispatcher_Adequate_Staffing", "DISPATCHER", "Dispatcher Adequate Staffing"],
-      ["PIC_Adequate_Staffing", "PIC", "PIC Adequate Staffing"],
-    ];
-    // Day column mapping
     const dayColMap = {
-      "Sun": "SUNDAY",
-      "Mon": "MONDAY",
-      "Tue": "TUESDAY",
-      "Wed": "WEDNESDAY",
-      "Thu": "THURSDAY",
-      "Fri": "FRIDAY",
-      "Sat": "SATURDAY"
+      "Sun": "SUNDAY", "Mon": "MONDAY", "Tue": "TUESDAY",
+      "Wed": "WEDNESDAY", "Thu": "THURSDAY", "Fri": "FRIDAY", "Sat": "SATURDAY"
     };
     let adeqLoaded = 0;
-    for(const [collection, role, timeField] of adeqMap){
-      try {
-        const snap = await db.collection(collection).get();
-        console.log(`Adequate ${collection}: ${snap.docs.length} docs`);
-        if(snap.docs.length > 0){
-          console.log(`First doc fields:`, Object.keys(snap.docs[0].data()));
-          console.log(`First doc data:`, snap.docs[0].data());
-        }
-        snap.docs.forEach(doc => {
-          const data = doc.data();
-          // Time is in field like "Calltaker Adequate staffing" with value like 600, 700, etc.
-          const timeVal = data[timeField];
-          // Skip header row (where timeVal === "Time")
-          if(timeVal === "Time" || timeVal === undefined || timeVal === null) return;
-          const hourKey = String(timeVal).replace(/[^0-9]/g,"").padStart(4,"0");
-          if(!hourKey || hourKey === "0000") return;
-
-          for(const [colName, dayName] of Object.entries(dayColMap)){
-            const val = data[colName];
-            if(val !== undefined && val !== null && val !== ""){
-              const num = Number(val);
-              if(Number.isFinite(num)){
-                if(!ADEQ[role][dayName]) ADEQ[role][dayName] = {};
-                ADEQ[role][dayName][hourKey] = num;
-                adeqLoaded++;
-              }
+    for(let ai=0; ai<adeqMap.length; ai++){
+      const [collection, role, timeField] = adeqMap[ai];
+      const snap = otherSnaps[ai];
+      if(!snap) continue;
+      snap.docs.forEach(doc => {
+        const data = doc.data();
+        const timeVal = data[timeField];
+        if(timeVal === "Time" || timeVal === undefined || timeVal === null) return;
+        const hourKey = String(timeVal).replace(/[^0-9]/g,"").padStart(4,"0");
+        if(!hourKey) return;
+        for(const [colName, dayName] of Object.entries(dayColMap)){
+          const val = data[colName];
+          if(val !== undefined && val !== null && val !== ""){
+            const num = Number(val);
+            if(Number.isFinite(num)){
+              if(!ADEQ[role][dayName]) ADEQ[role][dayName] = {};
+              ADEQ[role][dayName][hourKey] = num;
+              adeqLoaded++;
             }
           }
-        });
-      } catch(e){ console.warn("Failed to load "+collection, e); }
+        }
+      });
     }
     pA.textContent = adeqLoaded > 0 ? "Adequate: loaded" : "Adequate: not loaded";
     pA.classList.toggle("good", adeqLoaded > 0);
     if(adeqLoaded === 0) pA.classList.add("bad");
 
-    // 3. Load seat assignments
+    // 3. Process seat assignments
     SEATS={CALLTAKER:[],DISPATCHER:[],PIC:[],SUPERVISOR:[]};
-    const seatMap = [
-      ["Calltaker_Seat_Assignments", "CALLTAKER"],
-      ["Dispatcher_Seat_Assignments", "DISPATCHER"],
-      ["PIC_Seat_Assignments", "PIC"],
-      ["Supervisor_seat_Assignments", "SUPERVISOR"],
-    ];
     let seatsLoaded = 0;
-    for(const [collection, role] of seatMap){
-      try {
-        const snap = await db.collection(collection).get();
-        const vals = snap.docs.map(doc => {
-          const data = doc.data();
-          return Object.values(data)[0];
-        }).map(v => String(v||"").trim()).filter(Boolean);
-        if(vals.length){
-          SEATS[role] = vals;
-          seatsLoaded += vals.length;
-        }
-      } catch(e){ console.warn("Failed to load "+collection, e); }
+    for(let si=0; si<seatMap.length; si++){
+      const [collection, role] = seatMap[si];
+      const snap = otherSnaps[adeqMap.length + si];
+      if(!snap) continue;
+      const vals = snap.docs.map(doc => {
+        const data = doc.data();
+        return Object.values(data)[0];
+      }).map(v => String(v||"").trim()).filter(Boolean);
+      if(vals.length){
+        SEATS[role] = vals;
+        seatsLoaded += vals.length;
+      }
     }
 
-    // 4. Load absent reasons
+    // 4. Process absent reasons
     ABSENT_REASONS = [];
-    try {
-      const absSnap = await db.collection('Absent_Reason').get();
+    const absSnap = otherSnaps[adeqMap.length + seatMap.length];
+    if(absSnap){
       const seen = new Set();
       absSnap.docs.forEach(doc => {
         const data = doc.data();
@@ -3045,7 +3054,7 @@ async function loadFromFirebase(){
           ABSENT_REASONS.push(s);
         }
       });
-    } catch(e){ console.warn("Failed to load Absent_Reason", e); }
+    }
 
     const seatsOk = Object.values(SEATS).some(arr=>Array.isArray(arr)&&arr.length);
     const absOk = (ABSENT_REASONS && ABSENT_REASONS.length);
@@ -3058,9 +3067,6 @@ async function loadFromFirebase(){
       adeq: adeqLoaded,
       seats: seatsLoaded,
       absReasons: ABSENT_REASONS.length,
-      ADEQ: ADEQ,
-      SEATS: SEATS,
-      ABSENT_REASONS: ABSENT_REASONS
     });
     return true;
   } catch(err){
@@ -3478,7 +3484,7 @@ function hourSegments(block){
     return [
       {label:"2200", start:1320, end:1380},
       {label:"2300", start:1380, end:1440},
-      {label:"0000", start:1440, end:1500},
+      {label:"2400", start:1440, end:1500},
       {label:"0100", start:1500, end:1560},
     ];
   }
@@ -3803,19 +3809,20 @@ function renderStaffingTable(iso, shift, block, role){
     const aNum = Number(adeq);
     const sNum = Number(sched);
     if(!Number.isFinite(aNum) || !Number.isFinite(sNum)) return "";
-    if(sNum < aNum) return `<span class="statusBadge statusShort">SHORT ${aNum-sNum}</span>`;
-    if(sNum === aNum) return `<span class="statusBadge statusStaffed">STAFFED</span>`;
-    return `<span class="statusBadge statusOver">OVER +${sNum-aNum}</span>`;
+    if(sNum < aNum) return ` <span class="statusShort">SHORT ${aNum-sNum}</span>`;
+    if(sNum === aNum) return ` <span class="statusStaffed">STAFFED</span>`;
+    return ` <span class="statusOver">OVER ${sNum-aNum}</span>`;
   }
 
-  let html="<table><thead><tr><th class='compact'>Hr</th><th>Adeq</th><th>Sched</th></tr></thead><tbody>";
+  let html="<div class='tblWrap'><table><thead><tr><th class='compact'>Hr</th><th>Adeq</th><th>Sched</th></tr></thead><tbody>";
   for(let i=0;i<4;i++){
     const hk=segs[i].label;
-    const a=(ADEQ[role] && ADEQ[role][d] && ADEQ[role][d][hk]!==undefined) ? ADEQ[role][d][hk] : "";
+    const lookupKey = (hk==="2400") ? "0000" : hk;
+    const a=(ADEQ[role] && ADEQ[role][d] && ADEQ[role][d][lookupKey]!==undefined) ? ADEQ[role][d][lookupKey] : "";
     const b=badge(a, counts[i]);
     html += `<tr><td class='compact'>${hk}</td><td>${a!==""?a:""}</td><td>${counts[i]}${b}</td></tr>`;
   }
-  html+="</tbody></table>";
+  html+="</tbody></table></div>";
   return html;
 }
 
@@ -3929,7 +3936,7 @@ function renderRoleTable(iso, shift, block, role, rows){
   const seatOpts = isAbsent ? [] : (SEATS[role]||[]);
   let html = ``;
 
-  html += `<table class="rosterTbl"><thead><tr>
+  html += `<div class="tblWrap"><table class="rosterTbl"><thead><tr>
     <th class="nameCol">Name</th>
     ${isAbsent ? "" : '<th class="ctrlCol roleCol">Role</th>'}
     <th class="ctrlCol seatCol">${isAbsent ? "Reason" : "Seat"}</th>
@@ -3996,11 +4003,11 @@ function renderRoleTable(iso, shift, block, role, rows){
       <td style="width:16px;max-width:16px;padding:0 2px;text-align:center"><button class="cmt-btn${(rowComments[cmtKey]||'').trim()?` has-cmt`:``}" title="Comment">&#128172;</button></td>
     </tr>
     <tr class="cmt-row${(rowComments[cmtKey]||'').trim()?' open':''}">
-      <td colspan="${isAbsent?7:8}"><textarea data-cmtkey="${esc(cmtKey)}" placeholder="Comment…">${esc(rowComments[cmtKey]||'')}</textarea></td>
+      <td colspan="${isAbsent?7:8}"><div class="cmt-inner"><textarea data-cmtkey="${esc(cmtKey)}" placeholder="Comment…">${esc(rowComments[cmtKey]||'')}</textarea>${r.isOT?`<button class="otRemoveBtn" onclick="removeOT('${esc(key)}','${esc(r.emp)}')">Remove OT</button>`:''}</div></td>
     </tr>`;
   }
 
-  html += "</tbody></table>";
+  html += "</tbody></table></div>";
   return html;
 }
 
@@ -4008,7 +4015,7 @@ function renderOthTable(iso, shift, block, rows){
   const key=ctxKey(iso,shift,block.id);
   const count=rows.length;
 
-  let html = `<table class="rosterTbl"><thead><tr>
+  let html = `<div class="tblWrap"><table class="rosterTbl"><thead><tr>
     <th class="nameCol">Name</th>
     <th class="ctrlCol roleCol">Role</th>
     <th class="ctrlCol seatCol">Reason</th>
@@ -4068,11 +4075,11 @@ function renderOthTable(iso, shift, block, rows){
       <td style="width:16px;max-width:16px;padding:0 2px;text-align:center"><button class="cmt-btn${(rowComments[cmtKey]||'').trim()?` has-cmt`:``}" title="Comment">&#128172;</button></td>
     </tr>
     <tr class="cmt-row${(rowComments[cmtKey]||'').trim()?' open':''}">
-      <td colspan="7"><textarea data-cmtkey="${esc(cmtKey)}" placeholder="Comment…">${esc(rowComments[cmtKey]||'')}</textarea></td>
+      <td colspan="7"><div class="cmt-inner"><textarea data-cmtkey="${esc(cmtKey)}" placeholder="Comment…">${esc(rowComments[cmtKey]||'')}</textarea>${r.isOT?`<button class="otRemoveBtn" onclick="removeOT('${esc(key)}','${esc(r.emp)}')">Remove OT</button>`:''}</div></td>
     </tr>`;
   }
 
-  html += "</tbody></table>";
+  html += "</tbody></table></div>";
   return html;
 }
 
@@ -4119,34 +4126,38 @@ function renderAddOtBar(block){
   ).join("");
   return `
     <div class="otBar">
-      <div class="mini">
-        <label class="tag">Add OT (from roster)</label>
-        <select id="otEmp_${block.id}">${empOptions}</select>
+      <div class="otBarRow">
+        <div class="mini">
+          <label class="tag">Add OT (from roster)</label>
+          <select id="otEmp_${block.id}">${empOptions}</select>
+        </div>
+        <div class="mini">
+          <label class="tag">Or add Extra (type name)</label>
+          <input id="otExtra_${block.id}" type="text" placeholder="Extra name"/>
+        </div>
       </div>
-      <div class="mini">
-        <label class="tag">Or add Extra (type name)</label>
-        <input id="otExtra_${block.id}" type="text" placeholder="Extra name"/>
-      </div>
-      <div class="miniSm">
-        <label class="tag">Role</label>
-        <select id="otRole_${block.id}">
-          <option value="CALLTAKER">CT</option>
-          <option value="DISPATCHER">DP</option>
-          <option value="PIC">PIC</option>
-          <option value="SUPERVISOR">SUP</option>
-          <option value="OTH">OTH</option>
-        </select>
-      </div>
-      <div class="miniSm">
-        <label class="tag">Segment</label>
-        <select id="otSeg_${block.id}">
-          <option value="4/4">4/4</option>
-          <option value="1/2">1/2</option>
-          <option value="2/2">2/2</option>
-        </select>
-      </div>
-      <div class="miniSm">
-        <button class="primary" onclick="addOTForBlock('${block.id}')">Add</button>
+      <div class="otBarRow">
+        <div class="miniSm">
+          <label class="tag">Role</label>
+          <select id="otRole_${block.id}">
+            <option value="CALLTAKER">CT</option>
+            <option value="DISPATCHER">DP</option>
+            <option value="PIC">PIC</option>
+            <option value="SUPERVISOR">SUP</option>
+            <option value="OTH">OTH</option>
+          </select>
+        </div>
+        <div class="miniSm">
+          <label class="tag">Segment</label>
+          <select id="otSeg_${block.id}">
+            <option value="4/4">4/4</option>
+            <option value="1/2">1/2</option>
+            <option value="2/2">2/2</option>
+          </select>
+        </div>
+        <div class="miniSm">
+          <button class="primary" onclick="addOTForBlock('${block.id}')">Add</button>
+        </div>
       </div>
     </div>
   `;
@@ -4183,6 +4194,15 @@ function addOTForBlock(blockId){
   // reset inputs
   if(extra) extra.value="";
   if(empSel) empSel.value="";
+  renderAll();
+  scheduleAutoSave();
+}
+
+function removeOT(key, emp){
+  const arr = OT_BY_CTX.get(key)||[];
+  const idx = arr.findIndex(o=>o.emp===emp);
+  if(idx>=0) arr.splice(idx,1);
+  OT_BY_CTX.set(key,arr);
   renderAll();
   scheduleAutoSave();
 }
@@ -4363,6 +4383,8 @@ function adeqGet(role, day, hk){
   const n = parseInt(hk, 10);
   const candidates = [];
   if(hk) candidates.push(hk);
+  // "2400" is displayed for midnight but DB stores "0000" — try both
+  if(hk === "2400"){ candidates.push("0000"); candidates.push("0"); }
   if(Number.isFinite(n)) candidates.push(String(n));          // "0","100","200"
   if(hk && hk.length === 4) candidates.push(hk.slice(0,3));  // "000","010"
   if(hk && hk.length === 4) candidates.push(hk.replace(/^0+/, '') || "0"); // "0","100"
@@ -4413,7 +4435,11 @@ function buildAdeqRowsForRole(iso, shift, block, role){
     }
   }
 
-  const hours = segs.map(s => ((Math.floor((s.start%1440)/60))*100).toString().padStart(4,"0"));
+  const hours = segs.map(s => {
+    const m = s.start % 1440;
+    if(s.start >= 1440 && m === 0) return "2400";
+    return ((Math.floor(m/60))*100).toString().padStart(4,"0");
+  });
    const d0 = dayNameFromISO(iso);
    const d1 = dayNameFromISO(addDaysISO(iso, 1));
    const out=[];
@@ -4428,9 +4454,9 @@ function buildAdeqRowsForRole(iso, shift, block, role){
 
     let stTxt="", stCls="";
     if(Number.isFinite(adeq)){
-      if(sched < adeq){ stTxt=`SHORT ${adeq-sched}`; stCls="statusPill statusShort"; }
-      else if(sched === adeq){ stTxt="GOOD"; stCls="statusPill statusStaffed"; }
-      else { stTxt=`OVER +${sched-adeq}`; stCls="statusPill statusOver"; }
+      if(sched < adeq){ stTxt=`SHORT ${adeq-sched}`; stCls="statusShort"; }
+      else if(sched === adeq){ stTxt="STAFFED"; stCls="statusStaffed"; }
+      else { stTxt=`OVER ${sched-adeq}`; stCls="statusOver"; }
     }
     out.push({hour:hk, adeq:(Number.isFinite(adeq)?adeq:""), sched, stTxt, stCls});
   }
@@ -4444,8 +4470,10 @@ function renderAdequateBox(iso, shift, block){
     {key:"PIC", label:"PIC"},
   ];
 
+  const sLabel = String(shift||"").toUpperCase()==="DAY" ? "DAYS" : String(shift||"").toUpperCase()==="NIGHT" ? "NIGHTS" : String(shift||"").toUpperCase();
+
   let body = `<tr>
-    <th>Hour</th><th>Adequate</th><th>Scheduled</th><th>Status</th>
+    <th style="width:22%">Hour</th><th style="width:22%">Adequate</th><th style="width:22%">Scheduled</th><th style="width:34%">Status</th>
   </tr>`;
 
   for(const rd of roleDefs){
@@ -4458,15 +4486,16 @@ function renderAdequateBox(iso, shift, block){
     for(const r of rows){
       body += `<tr>
         <td class="adeqHour">${r.hour}</td>
-        <td>${r.adeq}</td>
-        <td>${r.sched}</td>
-        <td>${r.stTxt?`<span class="${r.stCls}">${r.stTxt}</span>`:""}</td>
+        <td class="adeqHour">${r.adeq}</td>
+        <td class="adeqHour">${r.sched}</td>
+        <td class="mono">${r.stTxt?`<span class="${r.stCls}">${r.stTxt}</span>`:""}</td>
       </tr>`;
     }
   }
 
   return `<div class="adeqBox">
-    <div class="adeqBoxHead">STAFFING NUMBERS</div>
+    <div class="adeqBoxHead">${sLabel} ${block.id}</div>
+    <div class="adeqBoxSub">STAFFING NUMBERS</div>
     <table class="adeqTbl"><thead></thead><tbody>${body}</tbody></table>
   </div>`;
 }
@@ -4602,6 +4631,7 @@ function enhanceSelects(root=document){
 
       // reset positioning each time
       menu.classList.remove('flipUp');
+      menu.style.position = 'fixed';
       menu.style.left = '0px';
       menu.style.top = '';
       menu.style.bottom = '';
@@ -4614,25 +4644,27 @@ function enhanceSelects(root=document){
       const tr = wrap.closest('tr');
       if(tr){ tr.style.zIndex = '5000'; tr.classList.add('rowMenuOpen'); }
 
-      // measure after open
+      // position fixed relative to button's viewport rect
       const btnRect = btn.getBoundingClientRect();
       const menuRect = menu.getBoundingClientRect();
 
       // Flip UP if there's not enough room below but there is room above
-      const roomBelow = window.innerHeight - menuRect.bottom;
+      const roomBelow = window.innerHeight - btnRect.bottom - 6;
       const roomAbove = btnRect.top;
-      if(roomBelow < 8 && roomAbove > (menuRect.height + 8)){
+      if(roomBelow < menuRect.height && roomAbove > (menuRect.height + 8)){
         menu.classList.add('flipUp');
+        menu.style.top = (btnRect.top - menuRect.height - 4) + 'px';
+      } else {
+        menu.style.top = (btnRect.bottom + 4) + 'px';
       }
 
-      // prevent menu from going off the right edge
-      const rect2 = menu.getBoundingClientRect();
-      const overflowRight = rect2.right - window.innerWidth;
-      if(overflowRight > 8){
-        menu.style.left = `-${Math.min(overflowRight + 8, rect2.left - 8)}px`;
-      }else{
-        menu.style.left = '0px';
+      // align left edge with button, prevent going off right edge
+      let menuLeft = btnRect.left;
+      const menuW = menu.getBoundingClientRect().width;
+      if(menuLeft + menuW > window.innerWidth - 8){
+        menuLeft = window.innerWidth - menuW - 8;
       }
+      menu.style.left = Math.max(8, menuLeft) + 'px';
     }
 
     menu.addEventListener('mousedown', (e)=>{ e.preventDefault(); });
@@ -4884,6 +4916,53 @@ function enhanceSelects(root=document){
 }
 
 
+function updateUnfilledCount(){
+  const pill = document.getElementById("pillUnfilled");
+  if(!pill) return;
+  try{
+    const iso = document.getElementById("workDate").value;
+    const shift = document.getElementById("shiftSel").value;
+    const blocks = getBlocks();
+    const blocksShown = (PANEL_VIEW==='all') ? blocks : blocks.filter(b=>b.id===PANEL_VIEW);
+    if(!iso || !BASE_EMP.length){ pill.innerHTML="0 UNFILLED"; pill.className="pill good"; return; }
+
+    let seats=0, reasons=0;
+    for(const b of blocksShown){
+      const key = ctxKey(iso, shift, b.id);
+      const rows = computeRowsForBlock(iso, shift, b);
+      // Unfilled seats: non-absent roles with empty assignment
+      for(const role of ["CALLTAKER","DISPATCHER","PIC","SUPERVISOR"]){
+        for(const r of (rows[role]||[])){
+          const ed = ensureEdit(key, r.emp);
+          if(!(ed.Assignment||r.assignment||"")) seats++;
+        }
+      }
+      // Unfilled absent reasons
+      for(const r of (rows.ABSENT||[])){
+        const ed = ensureEdit(key, r.emp);
+        if(r.isPartial){
+          if(!(ed.PartialReason||"")) reasons++;
+        } else {
+          if(!(ed.AbsenceReason||"")) reasons++;
+        }
+      }
+    }
+    const total = seats + reasons;
+    const parts = [];
+    if(seats) parts.push(seats+" seat"+(seats>1?"s":""));
+    if(reasons) parts.push(reasons+" reason"+(reasons>1?"s":""));
+    pill.innerHTML = total === 0 ? "0 UNFILLED" : `<span style="color:#ff4d4d;font-weight:900">${total}</span> UNFILLED!`;
+    pill.title = total === 0 ? "All fields filled" : parts.join(", ");
+    pill.className = total === 0 ? "pill good" : "pill bad";
+    pill._unfilledMsg = total === 0 ? "All fields filled!" : "Unfilled: " + parts.join(", ");
+  }catch(e){ console.warn("updateUnfilledCount:", e); }
+}
+
+document.addEventListener("click", function(e){
+  const pill = e.target.closest("#pillUnfilled");
+  if(pill && pill._unfilledMsg) alert(pill._unfilledMsg);
+});
+
 function renderAll(){
   clearErr();
   try{
@@ -4949,6 +5028,26 @@ function renderAll(){
     grid.innerHTML = out;
     enhanceSelects(grid);
 
+    // Update absent count bar in footer — match grid columns to blocks
+    const absentBar = document.getElementById("absentBar");
+    if(absentBar){
+      absentBar.style.gridTemplateColumns = `repeat(${blocksShown.length}, minmax(520px, 1fr))`;
+      let abHtml = "";
+      for(const b of blocksShown){
+        const cnt = (rowsByBlock[b.id].ABSENT||[]).length;
+        const cls = cnt === 0 ? "absentPill zero" : "absentPill";
+        let otCnt = 0;
+        for(const role of ["CALLTAKER","DISPATCHER","PIC","SUPERVISOR","ABSENT","OTH"]){
+          for(const r of (rowsByBlock[b.id][role]||[])) if(r.isOT) otCnt++;
+        }
+        const otCls = otCnt === 0 ? "absentPill zero" : "absentPill otPill";
+        abHtml += `<div class="absentCell"><span class="${cls}"><span class="absentCount">${cnt} ABSENT</span></span><span class="${otCls}"><span class="absentCount">${otCnt} OT</span></span></div>`;
+      }
+      absentBar.innerHTML = abHtml;
+    }
+
+    updateUnfilledCount();
+
   }catch(err){
     console.error(err);
     setErr("Render failed: " + (err && err.message ? err.message : err));
@@ -4991,6 +5090,27 @@ function renderCard(ctxKeyStr){
       while(wrapper.firstChild) card.appendChild(wrapper.firstChild);
       enhanceSelects(card);
     }
+
+    // Update absent count in footer for all visible blocks
+    const absentBar = document.getElementById("absentBar");
+    if(absentBar){
+      const blocksShown = (PANEL_VIEW==='all') ? blocks : blocks.filter(x=>x.id===PANEL_VIEW);
+      absentBar.style.gridTemplateColumns = `repeat(${blocksShown.length}, minmax(520px, 1fr))`;
+      let abHtml = "";
+      for(const blk of blocksShown){
+        const rr = computeRowsForBlock(iso, shift, blk);
+        const cnt = (rr.ABSENT||[]).length;
+        const cls = cnt === 0 ? "absentPill zero" : "absentPill";
+        let otCnt = 0;
+        for(const role of ["CALLTAKER","DISPATCHER","PIC","SUPERVISOR","ABSENT","OTH"]){
+          for(const r of (rr[role]||[])) if(r.isOT) otCnt++;
+        }
+        const otCls = otCnt === 0 ? "absentPill zero" : "absentPill otPill";
+        abHtml += `<div class="absentCell"><span class="${cls}"><span class="absentCount">${cnt} ABSENT</span></span><span class="${otCls}"><span class="absentCount">${otCnt} OT</span></span></div>`;
+      }
+      absentBar.innerHTML = abHtml;
+    }
+    updateUnfilledCount();
   }catch(err){
     console.error("renderCard fallback:", err);
     renderAll();
@@ -5358,7 +5478,7 @@ function saveXlsx(){
             setCell(ws, row, cs+2, ar.sched, sAdeqRow);
             const stStyle = ar.stTxt && ar.stTxt.includes("SHORT") ? sStatusShort :
                             ar.stTxt && ar.stTxt.includes("OVER") ? sStatusOver :
-                            ar.stTxt && ar.stTxt.includes("GOOD") ? sStatusGood : sAdeqRow;
+                            (ar.stTxt && (ar.stTxt.includes("GOOD") || ar.stTxt.includes("STAFFED"))) ? sStatusGood : sAdeqRow;
             setCell(ws, row, cs+3, ar.stTxt || "", stStyle);
             for(let c=cs+4;c<cs+blockCols;c++) setCell(ws, row, c, "", sAdeqRow);
           } else {
@@ -5529,22 +5649,20 @@ window.addEventListener('DOMContentLoaded', ()=>{
     ppSel.appendChild(o);
   });
 
-  /* Auto-select current pay period */
-  const todayMs = today.getTime();
-  const match = PAY_PERIODS.find(pp => todayMs >= pp.start.getTime() && todayMs <= pp.end.getTime());
+  /* Auto-select current pay period (compare date strings to avoid time-of-day boundary issues) */
+  const match = PAY_PERIODS.find(pp => isoToday >= toISODate(pp.start) && isoToday <= toISODate(pp.end));
   if(match) ppSel.value = toISODate(match.start);
 
   /* Auto-select week 1 or 2 based on today */
   if(match){
-    const ppStartMs = match.start.getTime();
-    const daysSinceStart = Math.floor((todayMs - ppStartMs) / 86400000);
+    const todayD = new Date(isoToday + "T00:00:00");
+    const daysSinceStart = Math.round((todayD.getTime() - match.start.getTime()) / 86400000);
     document.getElementById("weekSel").value = daysSinceStart >= 7 ? "2" : "1";
   }
 
   /* Build day dropdown and select today */
   buildDaySel();
   document.getElementById("daySel").value = isoToday;
-  applyDaySelection();
 
   /* PP change rebuilds day dropdown */
   ppSel.addEventListener("change", () => {
@@ -5573,7 +5691,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
   themeBtn.addEventListener("click", () => applyTheme(!document.body.classList.contains("light")));
   if(localStorage.getItem("sheetops_theme") === "light") applyTheme(true);
 
-  /* Auto-load from Firebase (primary) or localStorage (fallback) */
+  /* Auto-load from Firebase (primary) or localStorage (fallback), then select today */
   (async function(){
     const firebaseLoaded = await loadFromFirebase();
 
@@ -5592,13 +5710,8 @@ window.addEventListener('DOMContentLoaded', ()=>{
       }
     }
 
-    // Load saved edits for current date/shift
-    const iso = document.getElementById("workDate").value;
-    const shift = document.getElementById("shiftSel").value;
-    if(iso && shift){
-      await loadEditsFromFirebase(iso, shift);
-      startRealtimeSync(iso, shift);
-    }
+    // Now that DB is loaded, apply today's date selection and load edits
+    await applyDaySelection();
 
     updatePanelViewOptions();
     const pv=document.getElementById('panelViewSel');
@@ -5813,13 +5926,7 @@ th{background:#f0f0f0;font-weight:700}
     html += `<div class="emp-sheet" data-emp="${esc(name)}">`;
     html += `<h2>Timesheet</h2>`;
     html += `<div class="info-grid">
-      <div><b>Date:</b> ${todayISO}</div><div></div>
-      <div><b>Employee ID:</b> </div><div><b>Employee Record:</b> 0</div>
-      <div><b>Name:</b> ${esc(name.toUpperCase())}</div><div><b>Jobcode:</b></div>
-      <div><b>Department:</b> Emergency Communications</div><div></div>
-      <div><b>Full/part-Time:</b> Full-Time</div><div><b>Employee Type:</b> Hourly</div>
-      <div><b>Paygroup:</b> 100</div><div><b>HR Status:</b> Active</div>
-      <div><b>WorkGroup:</b> 100BASE</div><div><b>Regular/Temp:</b> Regular</div>
+      <div><b>Name:</b> ${esc(name.toUpperCase())}</div>
     </div>`;
 
     html += `<div><b>Timesheet Data:</b></div>`;
