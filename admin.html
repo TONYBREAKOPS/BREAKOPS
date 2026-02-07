@@ -3544,6 +3544,9 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         badge.dataset.skipping = "1";
         (async ()=>{
           try {
+            // Check if this person was already skipped (on a second chance) BEFORE updating cache
+            const wasSecondChance = (_sharedSkippedTurnsCache[pos]||[]).includes(personKey);
+
             // Update local skip cache BEFORE computing next person,
             // so _computeSkipState sees this person as already skipped
             _sharedTurnTimersCache[pos] = null;
@@ -3553,9 +3556,11 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
             const sel = selectionMap(pos);
             const people = peopleByPos[pos] || [];
             const { nextUpKey, secondChanceKey } = _computeSkipState(pos, people, sel);
-            // Only use secondChanceKey if there are still non-skipped people.
+            // If this person was on a second chance that expired, don't give them
+            // another — move to the next person.
             // If everyone is skipped (nextUpKey is null), reset to pending.
-            const nextKey = nextUpKey ? (secondChanceKey || nextUpKey) : null;
+            const nextKey = !nextUpKey ? null :
+              (wasSecondChance ? nextUpKey : (secondChanceKey || nextUpKey));
             const nextTs = Date.now();
 
             // Nobody left: everyone skipped — stop timer and set position back to pending
