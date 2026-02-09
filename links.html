@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Legitimous Command Center</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234da3ff'/%3E%3Cstop offset='1' stop-color='%233fe7b6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='32' cy='32' r='30' fill='%23070c16'/%3E%3Ccircle cx='32' cy='32' r='30' fill='none' stroke='url(%23g)' stroke-width='2'/%3E%3Cpath d='M32 12L32 32L48 22' fill='none' stroke='url(%23g)' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='32' cy='32' r='3' fill='%234da3ff'/%3E%3C/svg%3E"/>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  --bg: #0b0f14;
+  --bg2: #0e1319;
+  --card: #111826;
+  --card-hover: #182036;
+  --border: #233043;
+  --border-hover: rgba(74,163,255,.4);
+  --text: #e7eef8;
+  --muted: #9aa4b2;
+  --accent: #4aa3ff;
+  --accent2: #3fe7b6;
+  --glow-blue: rgba(74,163,255,.15);
+  --glow-green: rgba(63,231,182,.12);
+  --glow-amber: rgba(255,190,50,.12);
+  --glow-purple: rgba(167,139,250,.12);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  overflow-x: hidden;
+}
+
+/* ===== Animated background ===== */
+.bg-effects {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+}
+.bg-effects::before {
+  content: '';
+  position: absolute;
+  top: -30%; left: -10%;
+  width: 800px; height: 800px;
+  background: radial-gradient(circle, rgba(77,163,255,.08) 0%, transparent 70%);
+  animation: drift1 25s ease-in-out infinite;
+}
+.bg-effects::after {
+  content: '';
+  position: absolute;
+  bottom: -20%; right: -10%;
+  width: 700px; height: 700px;
+  background: radial-gradient(circle, rgba(63,231,182,.06) 0%, transparent 70%);
+  animation: drift2 30s ease-in-out infinite;
+}
+@keyframes drift1 {
+  0%, 100% { transform: translate(0, 0); }
+  33% { transform: translate(80px, 60px); }
+  66% { transform: translate(-40px, 30px); }
+}
+@keyframes drift2 {
+  0%, 100% { transform: translate(0, 0); }
+  33% { transform: translate(-60px, -40px); }
+  66% { transform: translate(50px, -20px); }
+}
+
+/* Grid pattern overlay */
+.grid-overlay {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(35,48,67,.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(35,48,67,.3) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black, transparent);
+}
+
+/* Scan line */
+.scanline {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: linear-gradient(180deg, transparent 0%, rgba(35,48,67,.08) 50%, transparent 100%);
+  background-size: 100% 4px;
+  animation: scanMove 8s linear infinite;
+  opacity: .5;
+}
+@keyframes scanMove {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 200%; }
+}
+
+/* ===== Layout ===== */
+.container {
+  position: relative; z-index: 1;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+/* ===== Header ===== */
+header {
+  position: relative; z-index: 2;
+  padding: 48px 0 0;
+}
+.header-inner {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.brand-icon {
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(77,163,255,.15), rgba(63,231,182,.1));
+  border: 1px solid rgba(77,163,255,.2);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 30px rgba(77,163,255,.1);
+}
+.brand-icon svg { width: 28px; height: 28px; }
+.brand h1 {
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: -.02em;
+  background: linear-gradient(135deg, #fff 0%, #a5c4e8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.1;
+}
+.brand .tagline {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 6px;
+}
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent2);
+  box-shadow: 0 0 8px var(--accent2), 0 0 20px rgba(63,231,182,.3);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--accent2), 0 0 20px rgba(63,231,182,.3); }
+  50% { opacity: .6; box-shadow: 0 0 4px var(--accent2), 0 0 10px rgba(63,231,182,.15); }
+}
+.status-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent2);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.header-time {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), rgba(74,163,255,.25), var(--border), transparent);
+  margin: 32px 0;
+}
+
+/* ===== Section title ===== */
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border), transparent);
+}
+
+/* ===== Tool Cards ===== */
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin-bottom: 48px;
+}
+@media (max-width: 860px) {
+  .tools-grid { grid-template-columns: 1fr; }
+  .container { padding: 0 20px; }
+}
+
+.tool-card {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: all .25s cubic-bezier(.4,0,.2,1);
+  overflow: hidden;
+  cursor: pointer;
+}
+.tool-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  opacity: 0;
+  transition: opacity .3s;
+  pointer-events: none;
+}
+.tool-card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-3px);
+  box-shadow: 0 20px 60px rgba(0,0,0,.5), 0 0 40px var(--card-glow, rgba(77,163,255,.08));
+}
+.tool-card:hover::before { opacity: 1; }
+.tool-card:active { transform: translateY(-1px); }
+
+/* Card glow variants */
+.tool-card.blue { --card-glow: rgba(77,163,255,.1); }
+.tool-card.blue::before { background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%), rgba(77,163,255,.06), transparent 40%); }
+.tool-card.blue .card-icon { background: var(--glow-blue); border-color: rgba(77,163,255,.2); color: var(--accent); }
+
+.tool-card.green { --card-glow: rgba(63,231,182,.1); }
+.tool-card.green::before { background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%), rgba(63,231,182,.06), transparent 40%); }
+.tool-card.green .card-icon { background: var(--glow-green); border-color: rgba(63,231,182,.2); color: var(--accent2); }
+
+.tool-card.amber { --card-glow: rgba(255,190,50,.08); }
+.tool-card.amber::before { background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%), rgba(255,190,50,.05), transparent 40%); }
+.tool-card.amber .card-icon { background: var(--glow-amber); border-color: rgba(255,190,50,.2); color: #ffbe32; }
+
+.tool-card.purple { --card-glow: rgba(167,139,250,.08); }
+.tool-card.purple::before { background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%), rgba(167,139,250,.05), transparent 40%); }
+.tool-card.purple .card-icon { background: var(--glow-purple); border-color: rgba(167,139,250,.2); color: #a78bfa; }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.card-icon {
+  width: 80px; height: 80px;
+  border-radius: 16px;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.card-icon svg { width: 64px; height: 64px; }
+/* Radar sweep for ShiftOps */
+@keyframes radarSweep { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+/* Rotation spin for RotationOps */
+@keyframes spinArrows { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+.card-title-group { flex: 1; }
+.card-title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  line-height: 1.2;
+}
+.card-subtitle {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.card-desc {
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 8px;
+}
+.card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.card-badge.live {
+  background: rgba(63,231,182,.1);
+  color: var(--accent2);
+  border: 1px solid rgba(63,231,182,.2);
+}
+.card-badge.live::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent2);
+  box-shadow: 0 0 6px var(--accent2);
+}
+.card-arrow {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .2s;
+}
+.tool-card:hover .card-arrow {
+  background: rgba(77,163,255,.15);
+  border-color: rgba(77,163,255,.3);
+  transform: translateX(3px);
+}
+.card-arrow svg { width: 14px; height: 14px; color: var(--muted); }
+.tool-card:hover .card-arrow svg { color: var(--accent); }
+
+/* Tags */
+.card-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.card-tag {
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.06);
+  color: var(--muted);
+}
+
+/* ===== Footer ===== */
+footer {
+  position: relative; z-index: 1;
+  padding: 32px 0;
+  text-align: center;
+}
+.footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.footer-inner .sep { opacity: .3; }
+.footer-brand {
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+</style>
+</head>
+<body>
+
+<div class="bg-effects"></div>
+<div class="grid-overlay"></div>
+<div class="scanline"></div>
+
+<div class="container">
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)">
+          <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/>
+          <line x1="12" y1="22" x2="12" y2="15.5"/>
+          <polyline points="22 8.5 12 15.5 2 8.5"/>
+          <polyline points="2 15.5 12 8.5 22 15.5"/>
+          <line x1="12" y1="2" x2="12" y2="8.5"/>
+        </svg>
+      </div>
+      <div>
+        <h1>LEGITIMOUS</h1>
+        <div class="tagline">Next-Gen Dispatch Operations</div>
+      </div>
+    </div>
+    <div class="header-status">
+      <div class="status-dot"></div>
+      <span class="status-text">Connected</span>
+      <span class="header-time" id="headerClock">--:--:--</span>
+    </div>
+  </div>
+</header>
+
+<div class="divider"></div>
+
+<main>
+  <div class="section-title">Operations Suite</div>
+
+  <div class="tools-grid">
+
+    <!-- ShiftOps -->
+    <a href="https://www.legitimous.com/commandops.html" class="tool-card blue">
+      <div class="card-header">
+        <div class="card-icon" style="background:rgba(11,15,20,.9); border-color:rgba(35,48,67,.6);">
+          <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+            <circle cx="32" cy="32" r="29" stroke="#233043" stroke-width="1.5" fill="none"/>
+            <circle cx="32" cy="32" r="20" stroke="#233043" stroke-width=".6" fill="none" opacity=".5"/>
+            <circle cx="32" cy="32" r="11" stroke="#233043" stroke-width=".6" fill="none" opacity=".35"/>
+            <line x1="32" y1="4" x2="32" y2="60" stroke="#233043" stroke-width=".5" opacity=".3"/>
+            <line x1="4" y1="32" x2="60" y2="32" stroke="#233043" stroke-width=".5" opacity=".3"/>
+            <g style="transform-origin:32px 32px;animation:radarSweep 4s linear infinite">
+              <defs><linearGradient id="sweepG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4aa3ff" stop-opacity=".6"/><stop offset="100%" stop-color="#4aa3ff" stop-opacity="0"/></linearGradient></defs>
+              <path d="M32,32 L32,3 A29,29 0 0,1 56,14 Z" fill="url(#sweepG)" opacity=".5"/>
+              <line x1="32" y1="32" x2="32" y2="3" stroke="#4aa3ff" stroke-width="1" opacity=".8"/>
+            </g>
+            <circle cx="32" cy="32" r="2" fill="#4aa3ff" opacity=".9"/>
+            <circle cx="24" cy="20" r="1.5" fill="#4aa3ff" opacity=".5"/>
+            <circle cx="44" cy="26" r="1" fill="#4aa3ff" opacity=".35"/>
+            <circle cx="38" cy="42" r="1.2" fill="#4aa3ff" opacity=".4"/>
+          </svg>
+        </div>
+        <div class="card-title-group">
+          <div class="card-title">ShiftOps</div>
+          <div class="card-subtitle">Daily Roster Management</div>
+        </div>
+      </div>
+      <div class="card-desc">
+        Full-spectrum daily shift management with 3-block roster, real-time adequate staffing analysis, seat assignments, OT/holdover tracking, shift swaps, and one-click Excel export.
+      </div>
+      <div class="card-tags">
+        <span class="card-tag">Staffing</span>
+        <span class="card-tag">Scheduling</span>
+        <span class="card-tag">Real-time</span>
+        <span class="card-tag">Export</span>
+      </div>
+      <div class="card-footer">
+        <span class="card-badge live">Ready</span>
+        <div class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+    </a>
+
+    <!-- BreakOps Admin -->
+    <a href="https://www.legitimous.com/admin.html" class="tool-card green">
+      <div class="card-header">
+        <div class="card-icon" style="background:rgba(14,17,20,.9); border-color:rgba(59,64,69,.4);">
+          <svg viewBox="0 0 300 180" width="64" height="40">
+            <defs><linearGradient id="fh1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3a3e43"/><stop offset="100%" stop-color="#1a1d20"/></linearGradient></defs>
+            <polygon points="150,20 30,150 270,150" fill="url(#fh1)" stroke="#2a2d30" stroke-width="4"/>
+            <polygon points="150,50 115,120 185,120" fill="#101820" stroke="#3b4045" stroke-width="2"/>
+            <rect x="80" y="120" width="28" height="16" rx="3" fill="#1c1f24"/>
+            <rect x="192" y="120" width="28" height="16" rx="3" fill="#1c1f24"/>
+            <polygon points="150,110 135,150 165,150" fill="#1c1f24"/>
+            <circle cx="90" cy="145" r="3" fill="#3fe7b6"/>
+            <circle cx="150" cy="148" r="3" fill="#3fe7b6"/>
+            <circle cx="210" cy="145" r="3" fill="#3fe7b6"/>
+          </svg>
+        </div>
+        <div class="card-title-group">
+          <div class="card-title">BreakOps</div>
+          <div class="card-subtitle">Admin Control Panel</div>
+        </div>
+      </div>
+      <div class="card-desc">
+        Command-level break and lunch scheduling with full assignment control, skip timers, coverage tracking, position locking, and real-time sync across all connected clients.
+      </div>
+      <div class="card-tags">
+        <span class="card-tag">Breaks</span>
+        <span class="card-tag">Admin</span>
+        <span class="card-tag">Firebase Sync</span>
+        <span class="card-tag">Coverage</span>
+      </div>
+      <div class="card-footer">
+        <span class="card-badge live">Running</span>
+        <div class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+    </a>
+
+    <!-- BreakOps Employee -->
+    <a href="https://www.legitimous.com/" class="tool-card amber">
+      <div class="card-header">
+        <div class="card-icon" style="background:rgba(14,17,20,.9); border-color:rgba(59,64,69,.4);">
+          <svg viewBox="0 0 300 180" width="64" height="40">
+            <defs><linearGradient id="fh2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3a3e43"/><stop offset="100%" stop-color="#1a1d20"/></linearGradient></defs>
+            <polygon points="150,20 30,150 270,150" fill="url(#fh2)" stroke="#2a2d30" stroke-width="4"/>
+            <polygon points="150,50 115,120 185,120" fill="#101820" stroke="#3b4045" stroke-width="2"/>
+            <rect x="80" y="120" width="28" height="16" rx="3" fill="#1c1f24"/>
+            <rect x="192" y="120" width="28" height="16" rx="3" fill="#1c1f24"/>
+            <polygon points="150,110 135,150 165,150" fill="#1c1f24"/>
+            <circle cx="90" cy="145" r="3" fill="#ffbe32"/>
+            <circle cx="150" cy="148" r="3" fill="#ffbe32"/>
+            <circle cx="210" cy="145" r="3" fill="#ffbe32"/>
+          </svg>
+        </div>
+        <div class="card-title-group">
+          <div class="card-title">BreakOps</div>
+          <div class="card-subtitle">Employee View</div>
+        </div>
+      </div>
+      <div class="card-desc">
+        Employee-facing break board. See your assigned break and lunch times, current position in the queue, coverage status, and skip timer countdowns in real time.
+      </div>
+      <div class="card-tags">
+        <span class="card-tag">Breaks</span>
+        <span class="card-tag">Employee</span>
+        <span class="card-tag">Read-only</span>
+        <span class="card-tag">Live Updates</span>
+      </div>
+      <div class="card-footer">
+        <span class="card-badge live">Live</span>
+        <div class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+    </a>
+
+    <!-- RotationOps -->
+    <a href="https://www.legitimous.com/rotation2.html" class="tool-card purple">
+      <div class="card-header">
+        <div class="card-icon" style="background:rgba(15,23,42,.9); border-color:rgba(167,139,250,.25);">
+          <svg viewBox="0 0 64 64" width="64" height="64">
+            <circle cx="32" cy="32" r="30" fill="none" stroke="rgba(167,139,250,.15)" stroke-width="1"/>
+            <g style="transform-origin:32px 32px;animation:spinArrows 6s linear infinite">
+              <path d="M20 14 A20 20 0 0 1 50 26" fill="none" stroke="#a78bfa" stroke-width="4.5" stroke-linecap="round"/>
+              <polygon points="50,20 56,28 46,28" fill="#a78bfa"/>
+              <path d="M44 50 A20 20 0 0 1 14 38" fill="none" stroke="#22c55e" stroke-width="4.5" stroke-linecap="round"/>
+              <polygon points="14,44 8,36 18,36" fill="#22c55e"/>
+            </g>
+          </svg>
+        </div>
+        <div class="card-title-group">
+          <div class="card-title">RotationOps</div>
+          <div class="card-subtitle">Monthly Channel Rotation</div>
+        </div>
+      </div>
+      <div class="card-desc">
+        AI-powered monthly dispatch channel rotation generator with fairness optimization, violation detection, day/week/month views, vacation handling, and Excel/CSV export.
+      </div>
+      <div class="card-tags">
+        <span class="card-tag">Rotation</span>
+        <span class="card-tag">AI Optimizer</span>
+        <span class="card-tag">Fairness</span>
+        <span class="card-tag">Export</span>
+      </div>
+      <div class="card-footer">
+        <span class="card-badge live">Online</span>
+        <div class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+    </a>
+
+  </div>
+</main>
+
+<div class="divider"></div>
+
+<footer>
+  <div class="footer-inner">
+    <span class="footer-brand">LEGITIMOUS</span>
+    <span class="sep">/</span>
+    <span>911 Operational Tools</span>
+    <span class="sep">/</span>
+    <span id="footerYear">2026</span>
+  </div>
+</footer>
+
+</div>
+
+<script>
+// Live clock
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const s = String(now.getSeconds()).padStart(2, '0');
+  document.getElementById('headerClock').textContent = `${h}:${m}:${s}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// Footer year
+document.getElementById('footerYear').textContent = new Date().getFullYear();
+
+// Card mouse-follow glow effect
+document.querySelectorAll('.tool-card').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const rect = card.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width * 100).toFixed(1) + '%';
+    const y = ((e.clientY - rect.top) / rect.height * 100).toFixed(1) + '%';
+    card.style.setProperty('--mx', x);
+    card.style.setProperty('--my', y);
+  });
+});
+</script>
+</body>
+</html>
