@@ -681,6 +681,7 @@
       </div>
       <button id="btnExportTotals" class="btn secondary" style="font-size:11px; padding:6px 10px;">EXPORT TOTALS</button>
       <button id="btnExportCSV" class="btn secondary" style="font-size:11px; padding:6px 10px; background:#16A34A; color:#fff;">EXPORT EXCEL</button>
+      <button id="btnExportMonthCSV" class="btn secondary" style="font-size:11px; padding:6px 10px; background:#0EA5E9; color:#fff;">EXPORT CSV</button>
       <div id="userInfo" style="margin-left:auto;display:none;">
         <span class="user-email" id="userEmail"></span>
         <button id="btnLogout" type="button">Sign Out</button>
@@ -6984,6 +6985,167 @@ function boot() {
     a.click();
     URL.revokeObjectURL(url);
     showToast("Excel file exported!");
+  });
+
+  // EXPORT CSV button — full month assignments as CSV for Excel 2007+
+  document.getElementById("btnExportMonthCSV").addEventListener("click", () => {
+    const plan = loadPlan();
+    if (!plan || !plan.days) { showToast("No plan to export. Randomize first."); return; }
+    const meta = plan.meta || {};
+    const year = meta.year || new Date().getFullYear();
+    const monthIndex = meta.monthIndex ?? new Date().getMonth();
+    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+    const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    const ctrSet = new Set(["CT","RELIEF 1","RELIEF 2","R1","R2"]);
+
+    // Build person assignment sequences for violation detection (same as renderMonth)
+    const personAssignments = new Map();
+    const daysList = [];
+    for (let day = 1; day <= daysInMonth; day++) daysList.push(new Date(year, monthIndex, day, 12, 0, 0, 0));
+
+    for (const d of daysList) {
+      const dayKey = ymd(d);
+      const blocks = plan.days[dayKey];
+      if (!blocks) continue;
+      BLOCKS.forEach((b, bi) => {
+        const entry = blocks[b.key];
+        if (!entry) return;
+        if (entry.assignments) {
+          for (const [ch, nm] of Object.entries(entry.assignments)) {
+            if (!nm) continue;
+            const nameUpper = String(nm).toUpperCase();
+            if (!personAssignments.has(nameUpper)) personAssignments.set(nameUpper, []);
+            personAssignments.get(nameUpper).push({ dayKey, blockKey: b.key, blockIdx: bi, channel: ch, dayNum: d.getDate() });
+          }
+        }
+        if (entry.ct && entry.ct.length) {
+          for (const nm of entry.ct) {
+            const nameUpper = String(nm).toUpperCase();
+            if (!personAssignments.has(nameUpper)) personAssignments.set(nameUpper, []);
+            personAssignments.get(nameUpper).push({ dayKey, blockKey: b.key, blockIdx: bi, channel: "CT", dayNum: d.getDate() });
+          }
+        }
+      });
+    }
+
+    // Detect violations
+    const violationCells = new Map(); // "dayKey|blockKey|name" -> violationType
+    for (const [name, assignments] of personAssignments) {
+      assignments.sort((a, b) => a.dayNum !== b.dayNum ? a.dayNum - b.dayNum : a.blockIdx - b.blockIdx);
+      const dayChannels = new Map();
+      for (let i = 0; i < assignments.length; i++) {
+        const curr = assignments[i];
+        const chUpper = String(curr.channel).toUpperCase();
+        if (!dayChannels.has(curr.dayKey)) dayChannels.set(curr.dayKey, new Map());
+        const dayCh = dayChannels.get(curr.dayKey);
+        if (dayCh.has(chUpper) && chUpper !== "SD") {
+          violationCells.set(`${curr.dayKey}|${curr.blockKey}|${name}`, "Same channel repeated");
+        }
+        dayCh.set(chUpper, (dayCh.get(chUpper) || 0) + 1);
+        if (i > 0) {
+          const prev = assignments[i - 1];
+          const prevChUpper = String(prev.channel).toUpperCase();
+          const isConsecutive = (curr.dayKey === prev.dayKey && curr.blockIdx === prev.blockIdx + 1) ||
+                                (curr.dayNum === prev.dayNum + 1 && prev.blockIdx === BLOCKS.length - 1 && curr.blockIdx === 0);
+          if (isConsecutive && ctrSet.has(chUpper) && ctrSet.has(prevChUpper)) {
+            violationCells.set(`${curr.dayKey}|${curr.blockKey}|${name}`, "R/CT back-to-back");
+            violationCells.set(`${prev.dayKey}|${prev.blockKey}|${name}`, "R/CT back-to-back");
+          }
+        }
+      }
+    }
+
+    // Build previous assignment lookup: for each person, track their last channel per block
+    const prevAssignLookup = new Map(); // "dayKey|blockKey|name" -> prevChannel
+    for (const [name, assignments] of personAssignments) {
+      for (let i = 0; i < assignments.length; i++) {
+        if (i > 0) {
+          prevAssignLookup.set(`${assignments[i].dayKey}|${assignments[i].blockKey}|${name}`, assignments[i - 1].channel);
+        }
+      }
+    }
+
+    // Build CSV rows
+    const esc = (v) => { const s = String(v ?? ""); return /[,"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const rows = [["Date","Day","Block","Employee","Assignment","PrevAssignment","Violation","ViolationType"]];
+
+    for (const d of daysList) {
+      const dayKey = ymd(d);
+      const dow = dayNames[d.getDay()];
+      const dateStr = `${monthIndex + 1}/${d.getDate()}/${year}`;
+      const blocks = plan.days[dayKey];
+      if (!blocks) continue;
+
+      for (const b of BLOCKS) {
+        const entry = blocks[b.key];
+        if (!entry) continue;
+        const blockLabel = b.label.replace(/—/g, "–");
+
+        // Collect all assignments for this block into an array, then sort by employee
+        const blockRows = [];
+
+        // Channel assignments
+        for (const ch of CHANNELS) {
+          const nm = (entry.assignments || {})[ch] || "";
+          if (nm) {
+            const nameUpper = String(nm).toUpperCase();
+            const vKey = `${dayKey}|${b.key}|${nameUpper}`;
+            const prev = prevAssignLookup.get(vKey) || "";
+            const viol = violationCells.has(vKey) ? "YES" : "";
+            const violType = violationCells.get(vKey) || "";
+            blockRows.push([dateStr, dow, blockLabel, nameUpper, ch, prev, viol, violType]);
+          }
+        }
+
+        // 7th channel (Fri/Sat night blocks)
+        const isFriSat = (d.getDay() === 5 || d.getDay() === 6);
+        if (isFriSat && SEVENTH_BLOCKS.has(b.key)) {
+          const nm7 = (entry.assignments || {})[SEVENTH_CHANNEL] || "";
+          if (nm7) {
+            const nameUpper = String(nm7).toUpperCase();
+            const vKey = `${dayKey}|${b.key}|${nameUpper}`;
+            const prev = prevAssignLookup.get(vKey) || "";
+            const viol = violationCells.has(vKey) ? "YES" : "";
+            const violType = violationCells.get(vKey) || "";
+            blockRows.push([dateStr, dow, blockLabel, nameUpper, "7th", prev, viol, violType]);
+          }
+        }
+
+        // CT assignments
+        for (const nm of (entry.ct || [])) {
+          const nameUpper = String(nm).toUpperCase();
+          const vKey = `${dayKey}|${b.key}|${nameUpper}`;
+          const prev = prevAssignLookup.get(vKey) || "";
+          const viol = violationCells.has(vKey) ? "YES" : "";
+          const violType = violationCells.get(vKey) || "";
+          blockRows.push([dateStr, dow, blockLabel, nameUpper, "CT", prev, viol, violType]);
+        }
+
+        // SD assignments
+        for (const nm of (entry.sd || [])) {
+          const nameUpper = String(nm).toUpperCase();
+          const vKey = `${dayKey}|${b.key}|${nameUpper}`;
+          const prev = prevAssignLookup.get(vKey) || "";
+          blockRows.push([dateStr, dow, blockLabel, nameUpper, "SD", prev, "", ""]);
+        }
+
+        // Sort by employee name within each block
+        blockRows.sort((a, b) => a[3].localeCompare(b[3]));
+        for (const r of blockRows) rows.push(r);
+      }
+    }
+
+    const csv = rows.map(r => r.map(esc).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `rotation_${year}_${String(monthIndex + 1).padStart(2, "0")}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast("CSV file exported!");
   });
 
   // Event delegation for btnAddVac and btnAddTrainee
