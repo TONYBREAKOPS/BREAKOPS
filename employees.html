@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Employee Database Editor</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='29' stroke='%23233043' stroke-width='2' fill='%230b0f14'/%3E%3Crect x='20' y='28' width='24' height='18' rx='3' fill='none' stroke='%234aa3ff' stroke-width='2'/%3E%3Cpath d='M24 28V22a8 8 0 0 1 16 0v6' fill='none' stroke='%234aa3ff' stroke-width='2'/%3E%3Ccircle cx='32' cy='37' r='2' fill='%234aa3ff'/%3E%3C/svg%3E"/>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<style>
+:root {
+  --bg: #0b0f14;
+  --card: #111826;
+  --border: #233043;
+  --text: #e7eef8;
+  --muted: #9aa4b2;
+  --accent: #4aa3ff;
+  --ok: #3fe7b6;
+  --bad: #ff6b6b;
+  --warn: #ffe066;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  min-height: 100vh;
+  font: 13px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+/* Password gate */
+#gate {
+  position: fixed; inset: 0; z-index: 999;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 16px;
+}
+#gate h2 { font-size: 22px; font-weight: 800; letter-spacing: -.01em; }
+#gate .sub { color: var(--muted); font-size: 13px; }
+#gate input {
+  width: 240px; padding: 10px 14px;
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 16px; text-align: center; letter-spacing: 4px;
+}
+#gate input:focus { outline: none; border-color: var(--accent); }
+#gate button {
+  padding: 10px 28px; background: var(--accent); color: #000;
+  border: none; border-radius: 8px; font-weight: 700; font-size: 13px;
+  cursor: pointer;
+}
+#gate button:hover { filter: brightness(1.15); }
+#gate .err { color: var(--bad); font-size: 12px; min-height: 16px; }
+
+/* Main app */
+#app { display: none; }
+header {
+  padding: 14px 20px;
+  position: sticky; top: 0; z-index: 10;
+  backdrop-filter: blur(10px);
+  background: linear-gradient(180deg, rgba(11,15,20,.98), rgba(11,15,20,.75));
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap;
+}
+header h1 { font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
+header .sub { color: var(--muted); font-size: 11px; }
+.toolbar {
+  display: flex; gap: 8px; align-items: center;
+}
+button {
+  font: inherit; cursor: pointer;
+  padding: 6px 14px; border-radius: 6px;
+  font-size: 11px; font-weight: 700;
+  border: 1px solid var(--border);
+  background: var(--card); color: var(--text);
+}
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+button.primary:hover { filter: brightness(1.15); }
+button.danger { background: rgba(255,107,107,.15); color: var(--bad); border-color: rgba(255,107,107,.3); }
+button.danger:hover { background: rgba(255,107,107,.25); }
+button.ok { background: rgba(63,231,182,.15); color: var(--ok); border-color: rgba(63,231,182,.3); }
+button.ok:hover { background: rgba(63,231,182,.25); }
+
+/* Stats bar */
+.stats {
+  padding: 8px 20px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 20px; font-size: 11px; color: var(--muted);
+}
+.stats b { color: var(--text); }
+
+/* Search */
+.search-bar {
+  padding: 10px 20px;
+  background: rgba(17,24,38,.6);
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 10px; align-items: center;
+}
+.search-bar input {
+  flex: 1; padding: 7px 12px;
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 12px;
+}
+.search-bar input:focus { outline: none; border-color: var(--accent); }
+.search-bar select {
+  padding: 7px 10px;
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 12px;
+}
+
+/* Table */
+.table-wrap {
+  overflow-x: auto;
+  padding: 0 10px;
+}
+table {
+  width: 100%; border-collapse: collapse;
+  margin: 0;
+}
+th {
+  position: sticky; top: 0; z-index: 5;
+  background: #0d1117;
+  padding: 8px 6px;
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted);
+  border-bottom: 2px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+th:hover { color: var(--accent); }
+th.sorted-asc::after { content: ' \u25B2'; font-size: 8px; }
+th.sorted-desc::after { content: ' \u25BC'; font-size: 8px; }
+td {
+  padding: 3px 4px;
+  border-bottom: 1px solid rgba(35,48,67,.5);
+  vertical-align: middle;
+}
+tr:hover td { background: rgba(74,163,255,.04); }
+tr.dirty td { background: rgba(255,190,50,.06) !important; }
+tr.new-row td { background: rgba(63,231,182,.06) !important; }
+
+/* Inline inputs */
+td input, td select {
+  width: 100%; padding: 4px 6px;
+  background: transparent; color: var(--text);
+  border: 1px solid transparent; border-radius: 4px;
+  font: inherit; font-size: 12px;
+}
+td input:focus, td select:focus {
+  outline: none;
+  background: var(--card);
+  border-color: var(--accent);
+}
+td input:hover, td select:hover {
+  border-color: var(--border);
+}
+td input.name-input { font-weight: 700; min-width: 110px; }
+td input.sen-input { width: 55px; text-align: center; }
+td select.pos-select { min-width: 100px; }
+td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
+
+/* Row actions */
+.row-actions { display: flex; gap: 4px; }
+.row-actions button { padding: 3px 8px; font-size: 10px; }
+
+/* Toast */
+#toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  padding: 10px 24px; border-radius: 8px;
+  background: rgba(17,24,38,.95); border: 1px solid var(--border);
+  color: var(--text); font-size: 12px; font-weight: 600;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  z-index: 100; display: none;
+  backdrop-filter: blur(8px);
+}
+
+/* Add row form */
+#addForm {
+  display: none;
+  padding: 12px 20px;
+  background: rgba(63,231,182,.04);
+  border-bottom: 1px solid rgba(63,231,182,.15);
+}
+#addForm .form-row {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+#addForm input, #addForm select {
+  padding: 6px 10px; background: var(--card); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; font-size: 12px;
+}
+#addForm input:focus, #addForm select:focus { outline: none; border-color: var(--accent); }
+#addForm label { font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
+.field-group { display: flex; flex-direction: column; gap: 2px; }
+</style>
+</head>
+<body>
+
+<!-- Password Gate -->
+<div id="gate">
+  <svg width="48" height="48" viewBox="0 0 64 64" fill="none">
+    <circle cx="32" cy="32" r="29" stroke="#233043" stroke-width="2" fill="#0b0f14"/>
+    <rect x="20" y="28" width="24" height="18" rx="3" fill="none" stroke="#4aa3ff" stroke-width="2"/>
+    <path d="M24 28V22a8 8 0 0 1 16 0v6" fill="none" stroke="#4aa3ff" stroke-width="2"/>
+    <circle cx="32" cy="37" r="2" fill="#4aa3ff"/>
+  </svg>
+  <h2>Employee Database</h2>
+  <div class="sub">Enter passcode to access editor</div>
+  <input type="password" id="gatePass" placeholder="Passcode" autofocus/>
+  <button onclick="checkGate()">Unlock</button>
+  <div class="err" id="gateErr"></div>
+</div>
+
+<!-- Main App -->
+<div id="app">
+<header>
+  <div>
+    <h1>Employee Database Editor</h1>
+    <div class="sub">CommandOPS / ShiftOps Firestore &bull; <span id="empCount">0</span> employees</div>
+  </div>
+  <div class="toolbar">
+    <button class="primary" id="btnAdd">+ Add Employee</button>
+    <button class="ok" id="btnSaveAll">Save All Changes</button>
+    <button id="btnReload">Reload</button>
+  </div>
+</header>
+
+<div class="stats" id="statsBar">Loading...</div>
+
+<div class="search-bar">
+  <input type="text" id="searchInput" placeholder="Search by name..."/>
+  <select id="filterPos">
+    <option value="">All Positions</option>
+    <option value="CALLTAKER">Calltaker</option>
+    <option value="DISPATCHER">Dispatcher</option>
+    <option value="PIC">PIC</option>
+    <option value="SUPERVISOR">Supervisor</option>
+  </select>
+</div>
+
+<div id="addForm">
+  <div class="form-row">
+    <div class="field-group"><label>Name</label><input type="text" id="addName" placeholder="LAST NAME" style="width:130px"/></div>
+    <div class="field-group"><label>Seniority</label><input type="number" id="addSen" placeholder="#" style="width:60px"/></div>
+    <div class="field-group"><label>Position</label>
+      <select id="addPos" style="width:120px">
+        <option value="CALLTAKER">CALLTAKER</option>
+        <option value="DISPATCHER">DISPATCHER</option>
+        <option value="PIC">PIC</option>
+        <option value="SUPERVISOR">SUPERVISOR</option>
+      </select>
+    </div>
+    <div class="field-group"><label>Mon</label><input type="text" id="addMon" placeholder="6A-2P" style="width:70px"/></div>
+    <div class="field-group"><label>Tue</label><input type="text" id="addTue" placeholder="6A-2P" style="width:70px"/></div>
+    <div class="field-group"><label>Wed</label><input type="text" id="addWed" placeholder="6A-2P" style="width:70px"/></div>
+    <div class="field-group"><label>Thu</label><input type="text" id="addThu" placeholder="6A-2P" style="width:70px"/></div>
+    <div class="field-group"><label>Fri</label><input type="text" id="addFri" placeholder="6A-2P" style="width:70px"/></div>
+    <div class="field-group"><label>Sat</label><input type="text" id="addSat" placeholder="OFF" style="width:70px"/></div>
+    <div class="field-group"><label>Sun</label><input type="text" id="addSun" placeholder="OFF" style="width:70px"/></div>
+    <button class="primary" onclick="addEmployee()" style="margin-top:14px">Add</button>
+    <button onclick="document.getElementById('addForm').style.display='none'" style="margin-top:14px">Cancel</button>
+  </div>
+</div>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+  <th data-col="Employee" class="sorted-asc">Name</th>
+  <th data-col="SENIORITY">Sen</th>
+  <th data-col="POSITION">Position</th>
+  <th data-col="MONDAY">Mon</th>
+  <th data-col="TUESDAY">Tue</th>
+  <th data-col="WEDNESDAY">Wed</th>
+  <th data-col="THURSDAY">Thu</th>
+  <th data-col="FRIDAY">Fri</th>
+  <th data-col="SATURDAY">Sat</th>
+  <th data-col="SUNDAY">Sun</th>
+  <th style="width:100px">Actions</th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const PASSCODE = "911911";
+
+function checkGate(){
+  const val = document.getElementById("gatePass").value;
+  if(val === PASSCODE){
+    document.getElementById("gate").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    loadEmployees();
+  } else {
+    document.getElementById("gateErr").textContent = "Incorrect passcode.";
+    document.getElementById("gatePass").value = "";
+    document.getElementById("gatePass").focus();
+  }
+}
+document.getElementById("gatePass").addEventListener("keydown", e => {
+  if(e.key === "Enter") checkGate();
+});
+
+// Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyA6KELmSyotefK0zhahQZ0-mbYur8_nTsg",
+  authDomain: "commandops-93846.firebaseapp.com",
+  databaseURL: "https://commandops-93846-default-rtdb.firebaseio.com",
+  projectId: "commandops-93846",
+  storageBucket: "commandops-93846.firebasestorage.app",
+  messagingSenderId: "262613721964",
+  appId: "1:262613721964:web:478a694d357234e3be4949"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const DAYS = ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY","SUNDAY"];
+const POSITIONS = ["CALLTAKER","DISPATCHER","PIC","SUPERVISOR"];
+
+let employees = []; // {docId, data:{Employee, SENIORITY, POSITION, MON..SUN}, dirty, isNew}
+let sortCol = "Employee";
+let sortAsc = true;
+
+function toast(msg){
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.style.display = "block";
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=> el.style.display="none", 2500);
+}
+
+async function loadEmployees(){
+  try {
+    const snap = await db.collection("employees").get();
+    employees = snap.docs.map(doc => {
+      const d = doc.data();
+      return {
+        docId: doc.id,
+        data: {
+          Employee: d.Employee || doc.id,
+          SENIORITY: d.SENIORITY ?? d.Seniority ?? "",
+          POSITION: normalizePos(d.POSITION ?? d.Position ?? ""),
+          MONDAY: d.MONDAY ?? "",
+          TUESDAY: d.TUESDAY ?? "",
+          WEDNESDAY: d.WEDNESDAY ?? "",
+          THURSDAY: d.THURSDAY ?? "",
+          FRIDAY: d.FRIDAY ?? "",
+          SATURDAY: d.SATURDAY ?? "",
+          SUNDAY: d.SUNDAY ?? "",
+        },
+        dirty: false,
+        isNew: false
+      };
+    });
+    toast("Loaded " + employees.length + " employees.");
+    renderAll();
+  } catch(e){
+    console.error(e);
+    toast("Failed to load: " + e.message);
+  }
+}
+
+function normalizePos(p){
+  const s = String(p||"").toUpperCase().trim();
+  if(s.includes("CALL") || s === "CT") return "CALLTAKER";
+  if(s.includes("DISP") || s === "DP") return "DISPATCHER";
+  if(s.includes("PIC")) return "PIC";
+  if(s.includes("SUP")) return "SUPERVISOR";
+  return s || "";
+}
+
+function renderStats(){
+  const counts = {CALLTAKER:0, DISPATCHER:0, PIC:0, SUPERVISOR:0, OTHER:0};
+  let dirty = 0;
+  for(const e of employees){
+    const p = e.data.POSITION;
+    if(counts[p] !== undefined) counts[p]++;
+    else counts.OTHER++;
+    if(e.dirty) dirty++;
+  }
+  document.getElementById("empCount").textContent = employees.length;
+  let html = `<span>Total: <b>${employees.length}</b></span>`;
+  html += `<span>CT: <b>${counts.CALLTAKER}</b></span>`;
+  html += `<span>DP: <b>${counts.DISPATCHER}</b></span>`;
+  html += `<span>PIC: <b>${counts.PIC}</b></span>`;
+  html += `<span>SUP: <b>${counts.SUPERVISOR}</b></span>`;
+  if(counts.OTHER) html += `<span>Other: <b>${counts.OTHER}</b></span>`;
+  if(dirty) html += `<span style="color:var(--warn)">Unsaved: <b>${dirty}</b></span>`;
+  document.getElementById("statsBar").innerHTML = html;
+}
+
+function getFilteredSorted(){
+  const q = document.getElementById("searchInput").value.trim().toLowerCase();
+  const pos = document.getElementById("filterPos").value;
+  let list = employees.filter(e => {
+    if(q && !e.data.Employee.toLowerCase().includes(q)) return false;
+    if(pos && e.data.POSITION !== pos) return false;
+    return true;
+  });
+  list.sort((a,b) => {
+    let va = a.data[sortCol], vb = b.data[sortCol];
+    if(sortCol === "SENIORITY"){
+      va = Number(va) || 9999;
+      vb = Number(vb) || 9999;
+    } else {
+      va = String(va||"").toLowerCase();
+      vb = String(vb||"").toLowerCase();
+    }
+    if(va < vb) return sortAsc ? -1 : 1;
+    if(va > vb) return sortAsc ? 1 : -1;
+    return 0;
+  });
+  return list;
+}
+
+function renderTable(){
+  const list = getFilteredSorted();
+  const tbody = document.getElementById("tbody");
+  const posOpts = POSITIONS.map(p => `<option value="${p}">${p}</option>`).join("");
+
+  tbody.innerHTML = list.map((e, idx) => {
+    const d = e.data;
+    const cls = e.isNew ? "new-row" : (e.dirty ? "dirty" : "");
+    const origIdx = employees.indexOf(e);
+    return `<tr class="${cls}" data-idx="${origIdx}">
+      <td><input class="name-input" value="${esc(d.Employee)}" data-field="Employee"/></td>
+      <td><input class="sen-input" type="number" value="${esc(String(d.SENIORITY))}" data-field="SENIORITY"/></td>
+      <td><select class="pos-select" data-field="POSITION">${posOpts.replace(`value="${esc(d.POSITION)}"`, `value="${esc(d.POSITION)}" selected`)}</select></td>
+      <td><input class="sched-input" value="${esc(d.MONDAY)}" data-field="MONDAY" placeholder="OFF"/></td>
+      <td><input class="sched-input" value="${esc(d.TUESDAY)}" data-field="TUESDAY" placeholder="OFF"/></td>
+      <td><input class="sched-input" value="${esc(d.WEDNESDAY)}" data-field="WEDNESDAY" placeholder="OFF"/></td>
+      <td><input class="sched-input" value="${esc(d.THURSDAY)}" data-field="THURSDAY" placeholder="OFF"/></td>
+      <td><input class="sched-input" value="${esc(d.FRIDAY)}" data-field="FRIDAY" placeholder="OFF"/></td>
+      <td><input class="sched-input" value="${esc(d.SATURDAY)}" data-field="SATURDAY" placeholder="OFF"/></td>
+      <td><input class="sched-input" value="${esc(d.SUNDAY)}" data-field="SUNDAY" placeholder="OFF"/></td>
+      <td class="row-actions">
+        <button class="ok" onclick="saveOne(${origIdx})" title="Save this employee">Save</button>
+        <button class="danger" onclick="deleteOne(${origIdx})" title="Delete this employee">Del</button>
+      </td>
+    </tr>`;
+  }).join("");
+
+  // Attach change listeners
+  tbody.querySelectorAll("input, select").forEach(el => {
+    el.addEventListener("change", onFieldChange);
+    el.addEventListener("input", onFieldChange);
+  });
+}
+
+function onFieldChange(e){
+  const tr = e.target.closest("tr");
+  const idx = parseInt(tr.dataset.idx);
+  const field = e.target.dataset.field;
+  let val = e.target.value;
+  if(field === "SENIORITY") val = val === "" ? "" : Number(val);
+  if(field === "POSITION") val = val.toUpperCase();
+  employees[idx].data[field] = val;
+  employees[idx].dirty = true;
+  tr.classList.add("dirty");
+  renderStats();
+}
+
+function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function renderAll(){
+  renderStats();
+  renderTable();
+  updateSortHeaders();
+}
+
+function updateSortHeaders(){
+  document.querySelectorAll("th[data-col]").forEach(th => {
+    th.classList.remove("sorted-asc","sorted-desc");
+    if(th.dataset.col === sortCol){
+      th.classList.add(sortAsc ? "sorted-asc" : "sorted-desc");
+    }
+  });
+}
+
+// Sort on header click
+document.querySelectorAll("th[data-col]").forEach(th => {
+  th.addEventListener("click", () => {
+    const col = th.dataset.col;
+    if(sortCol === col) sortAsc = !sortAsc;
+    else { sortCol = col; sortAsc = true; }
+    renderAll();
+  });
+});
+
+// Search & filter
+document.getElementById("searchInput").addEventListener("input", renderTable);
+document.getElementById("filterPos").addEventListener("change", renderTable);
+
+// Add employee
+document.getElementById("btnAdd").addEventListener("click", () => {
+  const f = document.getElementById("addForm");
+  f.style.display = f.style.display === "none" ? "block" : "none";
+  if(f.style.display === "block") document.getElementById("addName").focus();
+});
+
+function addEmployee(){
+  const name = document.getElementById("addName").value.trim();
+  if(!name){ toast("Name is required."); return; }
+  const sen = document.getElementById("addSen").value;
+  const pos = document.getElementById("addPos").value;
+
+  const data = {
+    Employee: name,
+    SENIORITY: sen === "" ? "" : Number(sen),
+    POSITION: pos,
+    MONDAY: document.getElementById("addMon").value.trim() || "OFF",
+    TUESDAY: document.getElementById("addTue").value.trim() || "OFF",
+    WEDNESDAY: document.getElementById("addWed").value.trim() || "OFF",
+    THURSDAY: document.getElementById("addThu").value.trim() || "OFF",
+    FRIDAY: document.getElementById("addFri").value.trim() || "OFF",
+    SATURDAY: document.getElementById("addSat").value.trim() || "OFF",
+    SUNDAY: document.getElementById("addSun").value.trim() || "OFF",
+  };
+
+  employees.push({ docId: null, data, dirty: true, isNew: true });
+  document.getElementById("addForm").style.display = "none";
+  // Clear form
+  ["addName","addSen","addMon","addTue","addWed","addThu","addFri","addSat","addSun"].forEach(id => document.getElementById(id).value = "");
+  toast("Added " + name + " (unsaved). Click Save to write to Firestore.");
+  renderAll();
+}
+
+async function saveOne(idx){
+  const e = employees[idx];
+  if(!e) return;
+  const d = e.data;
+  if(!d.Employee.trim()){ toast("Name cannot be empty."); return; }
+
+  const payload = {
+    Employee: d.Employee.trim(),
+    SENIORITY: d.SENIORITY === "" ? "" : Number(d.SENIORITY),
+    POSITION: d.POSITION,
+    MONDAY: d.MONDAY || "",
+    TUESDAY: d.TUESDAY || "",
+    WEDNESDAY: d.WEDNESDAY || "",
+    THURSDAY: d.THURSDAY || "",
+    FRIDAY: d.FRIDAY || "",
+    SATURDAY: d.SATURDAY || "",
+    SUNDAY: d.SUNDAY || "",
+  };
+
+  try {
+    if(e.docId){
+      await db.collection("employees").doc(e.docId).set(payload);
+    } else {
+      const ref = await db.collection("employees").add(payload);
+      e.docId = ref.id;
+    }
+    e.dirty = false;
+    e.isNew = false;
+    toast("Saved " + d.Employee);
+    renderAll();
+  } catch(err){
+    console.error(err);
+    toast("Save failed: " + err.message);
+  }
+}
+
+async function deleteOne(idx){
+  const e = employees[idx];
+  if(!e) return;
+  if(!confirm("Delete " + e.data.Employee + "?\n\nThis cannot be undone.")) return;
+
+  try {
+    if(e.docId){
+      await db.collection("employees").doc(e.docId).delete();
+    }
+    employees.splice(idx, 1);
+    toast("Deleted " + e.data.Employee);
+    renderAll();
+  } catch(err){
+    console.error(err);
+    toast("Delete failed: " + err.message);
+  }
+}
+
+// Save all dirty
+document.getElementById("btnSaveAll").addEventListener("click", async () => {
+  const dirtyList = employees.filter(e => e.dirty);
+  if(!dirtyList.length){ toast("Nothing to save."); return; }
+  if(!confirm("Save " + dirtyList.length + " changed employee(s) to Firestore?")) return;
+
+  let saved = 0, errors = 0;
+  for(const e of dirtyList){
+    const d = e.data;
+    if(!d.Employee.trim()){ errors++; continue; }
+    const payload = {
+      Employee: d.Employee.trim(),
+      SENIORITY: d.SENIORITY === "" ? "" : Number(d.SENIORITY),
+      POSITION: d.POSITION,
+      MONDAY: d.MONDAY || "",
+      TUESDAY: d.TUESDAY || "",
+      WEDNESDAY: d.WEDNESDAY || "",
+      THURSDAY: d.THURSDAY || "",
+      FRIDAY: d.FRIDAY || "",
+      SATURDAY: d.SATURDAY || "",
+      SUNDAY: d.SUNDAY || "",
+    };
+    try {
+      if(e.docId){
+        await db.collection("employees").doc(e.docId).set(payload);
+      } else {
+        const ref = await db.collection("employees").add(payload);
+        e.docId = ref.id;
+      }
+      e.dirty = false;
+      e.isNew = false;
+      saved++;
+    } catch(err){
+      console.error(err);
+      errors++;
+    }
+  }
+  toast("Saved " + saved + (errors ? ", " + errors + " errors" : ""));
+  renderAll();
+});
+
+// Reload
+document.getElementById("btnReload").addEventListener("click", () => {
+  const dirty = employees.filter(e => e.dirty).length;
+  if(dirty && !confirm(dirty + " unsaved change(s) will be lost. Reload?")) return;
+  loadEmployees();
+});
+</script>
+</body>
+</html>

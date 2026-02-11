@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Legitimous</title>
+<title>Legitimous Command Center</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234da3ff'/%3E%3Cstop offset='1' stop-color='%233fe7b6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='32' cy='32' r='30' fill='%23070c16'/%3E%3Ccircle cx='32' cy='32' r='30' fill='none' stroke='url(%23g)' stroke-width='2'/%3E%3Cpath d='M32 12L32 32L48 22' fill='none' stroke='url(%23g)' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='32' cy='32' r='3' fill='%234da3ff'/%3E%3C/svg%3E"/>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -258,6 +258,108 @@ header {
 .tool-card.purple::before { background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%), rgba(167,139,250,.05), transparent 40%); }
 .tool-card.purple .card-icon { background: var(--glow-purple); border-color: rgba(167,139,250,.2); color: #a78bfa; }
 
+.tool-card.red { --card-glow: rgba(255,107,107,.08); }
+.tool-card.red::before { background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%), rgba(255,107,107,.05), transparent 40%); }
+.tool-card.red .card-icon { background: rgba(255,107,107,.1); border-color: rgba(255,107,107,.2); color: #ff6b6b; }
+
+/* Split card (two halves) */
+.split-card {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.split-card .split-header {
+  padding: 24px 32px 16px;
+  display: flex; align-items: center; gap: 16px;
+}
+.split-card .card-desc {
+  padding: 0 32px 12px;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+.split-card .card-tags {
+  padding: 0 32px 16px;
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.split-halves {
+  display: flex;
+  border-top: 1px solid var(--border);
+  flex: 1;
+}
+.split-half {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 20px;
+  text-decoration: none;
+  color: inherit;
+  transition: all .2s;
+  cursor: pointer;
+}
+.split-half:first-child {
+  border-right: 1px solid var(--border);
+}
+.split-half:hover {
+  background: rgba(63,231,182,.06);
+}
+.split-half .half-icon {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.split-half .half-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .03em;
+}
+.split-half .half-sub {
+  font-size: 10px;
+  color: var(--muted);
+}
+.split-half .half-arrow {
+  margin-left: auto;
+  color: var(--muted);
+  transition: all .2s;
+}
+.split-half:hover .half-arrow { color: var(--accent); transform: translateX(2px); }
+
+/* Backup link row */
+.backup-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  margin-bottom: 32px;
+}
+.backup-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.02);
+  transition: all .2s;
+  letter-spacing: .03em;
+}
+.backup-link:hover {
+  color: var(--text);
+  border-color: var(--border);
+  background: rgba(255,255,255,.04);
+}
+
 .card-header {
   display: flex;
   align-items: center;
@@ -469,9 +571,9 @@ footer {
       </div>
     </a>
 
-    <!-- BreakOps Admin -->
-    <a href="https://www.legitimous.com/admin.html" class="tool-card green">
-      <div class="card-header">
+    <!-- BreakOps (Admin + Employee split) -->
+    <div class="split-card">
+      <div class="split-header">
         <div class="card-icon" style="background:rgba(14,17,20,.9); border-color:rgba(59,64,69,.4);">
           <svg viewBox="0 0 300 180" width="64" height="40">
             <defs><linearGradient id="fh1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3a3e43"/><stop offset="100%" stop-color="#1a1d20"/></linearGradient></defs>
@@ -487,59 +589,37 @@ footer {
         </div>
         <div class="card-title-group">
           <div class="card-title">BreakOps</div>
-          <div class="card-subtitle">Admin Control Panel</div>
+          <div class="card-subtitle">Break &amp; Lunch Scheduling</div>
         </div>
       </div>
       <div class="card-desc">
-        Command-level break and lunch scheduling with full assignment control, skip timers, coverage tracking, position locking, and real-time sync across all connected clients.
+        Break and lunch scheduling with assignment control, skip timers, coverage tracking, position locking, and real-time sync across all connected clients.
       </div>
       <div class="card-tags">
         <span class="card-tag">Breaks</span>
-        <span class="card-tag">Admin</span>
         <span class="card-tag">Firebase Sync</span>
         <span class="card-tag">Coverage</span>
-      </div>
-      <div class="card-footer">
-        <span class="card-badge live">Running</span>
-        <div class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
-      </div>
-    </a>
-
-    <!-- BreakOps Employee -->
-    <a href="https://www.legitimous.com/" class="tool-card amber">
-      <div class="card-header">
-        <div class="card-icon" style="background:rgba(14,17,20,.9); border-color:rgba(59,64,69,.4);">
-          <svg viewBox="0 0 300 180" width="64" height="40">
-            <defs><linearGradient id="fh2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3a3e43"/><stop offset="100%" stop-color="#1a1d20"/></linearGradient></defs>
-            <polygon points="150,20 30,150 270,150" fill="url(#fh2)" stroke="#2a2d30" stroke-width="4"/>
-            <polygon points="150,50 115,120 185,120" fill="#101820" stroke="#3b4045" stroke-width="2"/>
-            <rect x="80" y="120" width="28" height="16" rx="3" fill="#1c1f24"/>
-            <rect x="192" y="120" width="28" height="16" rx="3" fill="#1c1f24"/>
-            <polygon points="150,110 135,150 165,150" fill="#1c1f24"/>
-            <circle cx="90" cy="145" r="3" fill="#ffbe32"/>
-            <circle cx="150" cy="148" r="3" fill="#ffbe32"/>
-            <circle cx="210" cy="145" r="3" fill="#ffbe32"/>
-          </svg>
-        </div>
-        <div class="card-title-group">
-          <div class="card-title">BreakOps</div>
-          <div class="card-subtitle">Employee View</div>
-        </div>
-      </div>
-      <div class="card-desc">
-        Employee-facing break board. See your assigned break and lunch times, current position in the queue, coverage status, and skip timer countdowns in real time.
-      </div>
-      <div class="card-tags">
-        <span class="card-tag">Breaks</span>
-        <span class="card-tag">Employee</span>
-        <span class="card-tag">Read-only</span>
         <span class="card-tag">Live Updates</span>
       </div>
-      <div class="card-footer">
-        <span class="card-badge live">Live</span>
-        <div class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div class="split-halves">
+        <a href="https://www.legitimous.com/admin.html" class="split-half">
+          <div class="half-icon" style="background:var(--accent2);box-shadow:0 0 6px var(--accent2);"></div>
+          <div>
+            <div class="half-label" style="color:var(--accent2);">Admin Panel</div>
+            <div class="half-sub">Full control &bull; Manage assignments</div>
+          </div>
+          <svg class="half-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="https://www.legitimous.com/" class="split-half">
+          <div class="half-icon" style="background:#ffbe32;box-shadow:0 0 6px rgba(255,190,50,.5);"></div>
+          <div>
+            <div class="half-label" style="color:#ffbe32;">Staff View</div>
+            <div class="half-sub">Read-only &bull; Break board</div>
+          </div>
+          <svg class="half-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
       </div>
-    </a>
+    </div>
 
     <!-- RotationOps -->
     <a href="https://www.legitimous.com/rotation2.html" class="tool-card purple">
@@ -575,6 +655,45 @@ footer {
       </div>
     </a>
 
+    <!-- Employee Database Editor -->
+    <a href="https://www.legitimous.com/employees.html" class="tool-card red">
+      <div class="card-header">
+        <div class="card-icon" style="background:rgba(14,12,16,.9); border-color:rgba(255,107,107,.2);">
+          <svg viewBox="0 0 64 64" width="64" height="64" fill="none">
+            <circle cx="32" cy="32" r="29" stroke="rgba(255,107,107,.15)" stroke-width="1"/>
+            <rect x="18" y="28" width="28" height="20" rx="3" stroke="#ff6b6b" stroke-width="2"/>
+            <path d="M23 28V21a9 9 0 0 1 18 0v7" stroke="#ff6b6b" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="32" cy="38" r="2.5" fill="#ff6b6b"/>
+            <line x1="32" y1="40.5" x2="32" y2="44" stroke="#ff6b6b" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="card-title-group">
+          <div class="card-title">Employee DB</div>
+          <div class="card-subtitle">Database Editor</div>
+        </div>
+      </div>
+      <div class="card-desc">
+        Password-protected Firestore employee database editor. Add, edit, and remove employees, update schedules, positions, and seniority. Changes sync to ShiftOps instantly.
+      </div>
+      <div class="card-tags">
+        <span class="card-tag">Firestore</span>
+        <span class="card-tag">Employees</span>
+        <span class="card-tag">Schedules</span>
+        <span class="card-tag">Protected</span>
+      </div>
+      <div class="card-footer">
+        <span class="card-badge" style="background:rgba(255,107,107,.1);color:#ff6b6b;border:1px solid rgba(255,107,107,.2);">Locked</span>
+        <div class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+    </a>
+
+  </div>
+
+  <div class="backup-row">
+    <a href="https://www.legitimous.com/index2.html" class="backup-link">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      BreakOps Backup (Offline)
+    </a>
   </div>
 </main>
 

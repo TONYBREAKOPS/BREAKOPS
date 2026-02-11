@@ -2648,8 +2648,9 @@ body.light .customSelBtn.typing-mode {
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-check-compat.js"></script>
 <script>
-  // Firebase configuration
+  // Firebase configuration — CommandOPS (primary)
   const firebaseConfig = {
     apiKey: "AIzaSyA6KELmSyotefK0zhahQZ0-mbYur8_nTsg",
     authDomain: "commandops-93846.firebaseapp.com",
@@ -2661,6 +2662,22 @@ body.light .customSelBtn.typing-mode {
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
+
+  // Firebase configuration — BreakOPS (legitimous, secondary app)
+  const breakFirebaseConfig = {
+    apiKey: "AIzaSyCnabvDHyrEYPjtGikTSC6eIQL2VEPWnn4",
+    authDomain: "legitimous-2f2d2.firebaseapp.com",
+    projectId: "legitimous-2f2d2",
+    storageBucket: "legitimous-2f2d2.firebasestorage.app",
+    messagingSenderId: "1097431114529",
+    appId: "1:1097431114529:web:2adfdae7838b4840f0d460"
+  };
+  const breakApp = firebase.initializeApp(breakFirebaseConfig, "breakops");
+  try {
+    const breakAppCheck = firebase.appCheck(breakApp);
+    breakAppCheck.activate('6LeH6GMsAAAAAIjV9DPRrmSKfvNeNHVS9LI8JQVU', true);
+  } catch(e){ console.warn("BreakOPS App Check init skipped:", e); }
+  const breakDb = breakApp.firestore();
   db.enablePersistence({synchronizeTabs:true}).catch(err=>{
     console.warn("Firestore persistence not enabled:", err.code);
   });
@@ -2825,6 +2842,7 @@ body.light .customSelBtn.typing-mode {
         <button class="primary" id="btnImport" style="padding:6px 10px;font-size:11px;">Import OT</button>
         <button class="primary" id="btnSaveXlsx" title="Export current day/shift/block data to Excel" style="padding:6px 10px;font-size:11px;">Save XLSX</button>
         <button class="primary" id="btnTimesheet" title="Generate timesheet for pay period" style="padding:6px 10px;font-size:11px;">Timesheet</button>
+        <button class="primary" id="btnBreakOPS" title="Push current shift staff to BreakOPS" style="padding:6px 10px;font-size:11px;background:#f59e0b;color:#000;font-weight:700;border-color:#d97706;">BreakOPS</button>
       </div>
     </div>
   </div>
@@ -6042,6 +6060,118 @@ function formatTime12(hhmm){
   const ampm = h >= 12 ? "PM" : "AM";
   const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
   return h12 + ":" + String(m).padStart(2,"0") + " " + ampm;
+}
+</script>
+
+<script>
+/* ===== BreakOPS Integration ===== */
+document.getElementById("btnBreakOPS").addEventListener("click", pushToBreakOPS);
+
+async function pushToBreakOPS(){
+  const iso = document.getElementById("workDate").value;
+  const shift = document.getElementById("shiftSel").value;
+  if(!iso){ setErr("Select a date first."); return; }
+  if(!BASE_EMP.length){ setErr("Load database first."); return; }
+
+  if(!confirm("Push current " + shift + " shift staff (" + iso + ") to BreakOPS?\n\nThis will update positions and add OT extras in BreakOPS.")) return;
+
+  const blocks = shift === "NIGHT" ? BLOCKS_NIGHT : BLOCKS_DAY;
+  const mode = shift === "NIGHT" ? "nights" : "days";
+
+  // Collect all people across all blocks
+  const presentPeople = new Map(); // emp -> {sen, role, isOT, blocks:[]}
+  const absentPeople = new Map();  // emp -> {sen}
+
+  for(const block of blocks){
+    const rows = computeRowsForBlock(iso, shift, block);
+    for(const role of ["CALLTAKER","DISPATCHER","PIC","SUPERVISOR"]){
+      for(const r of (rows[role]||[])){
+        if(!presentPeople.has(r.emp)){
+          presentPeople.set(r.emp, {sen: r.sen, role: r.role, isOT: r.isOT, blocks: [block.id]});
+        } else {
+          const p = presentPeople.get(r.emp);
+          if(!p.blocks.includes(block.id)) p.blocks.push(block.id);
+        }
+      }
+    }
+    for(const r of (rows.ABSENT||[])){
+      if(r.present === "NO" && !r.isPartial && !presentPeople.has(r.emp)){
+        absentPeople.set(r.emp, {sen: r.sen});
+      }
+    }
+  }
+
+  // Build posOverrides map
+  // Map ShiftOps roles to BreakOPS positions
+  const roleMap = {CALLTAKER:"CALLTAKER", DISPATCHER:"DISPATCHER", PIC:"PIC", SUPERVISOR:"PIC"};
+
+  // Lookup for employee data from ShiftOps
+  const empLookup = new Map();
+  for(const e of BASE_EMP) empLookup.set(e.Employee, e);
+
+  try {
+    // Read existing posOverrides to merge (preserve overrides for other shifts)
+    // Uses breakDb (legitimous-2f2d2) — BreakOPS's Firestore, NOT commandops
+    const rosterRef = breakDb.collection("rosterConfig").doc("global");
+    const rosterSnap = await rosterRef.get();
+    const existing = rosterSnap.exists ? ((rosterSnap.data()||{}).posOverrides || {}) : {};
+
+    // Update present people's positions
+    for(const [emp, info] of presentPeople){
+      if(info.isOT) continue; // OT people go as extras, not posOverrides
+      const empData = empLookup.get(emp);
+      if(!empData) continue;
+      const key = emp + "||" + empData.SENIORITY;
+      existing[key] = roleMap[info.role] || info.role || empData.POSITION;
+    }
+
+    // Mark absent people
+    for(const [emp, info] of absentPeople){
+      const empData = empLookup.get(emp);
+      if(!empData) continue;
+      const key = emp + "||" + empData.SENIORITY;
+      existing[key] = "ABSENT";
+    }
+
+    // Write merged posOverrides to Firestore
+    await rosterRef.set({ posOverrides: existing }, { merge: true });
+
+    // Write OT people as extras to each breakScope
+    const otPeople = [...presentPeople.entries()].filter(([,info]) => info.isOT);
+
+    for(const block of blocks){
+      const scopeKey = mode + "|" + iso + "|" + block.id;
+      const extras = [];
+
+      for(const [emp, info] of otPeople){
+        if(!info.blocks.includes(block.id)) continue;
+        const empData = empLookup.get(emp);
+        extras.push({
+          Employee: emp,
+          Seniority: empData ? empData.SENIORITY : 0,
+          DaysOff: "OT",
+          Position: roleMap[info.role] || info.role || "CALLTAKER"
+        });
+      }
+
+      // Write extras to breakScope (merge to preserve break selections)
+      // Uses breakDb (legitimous-2f2d2) — BreakOPS's Firestore
+      const scopeRef = breakDb.collection("breakScopes").doc(scopeKey);
+      await scopeRef.set({ extras: extras }, { merge: true });
+    }
+
+    const totalPresent = [...presentPeople.values()].filter(p => !p.isOT).length;
+    const totalOT = otPeople.length;
+    const totalAbsent = absentPeople.size;
+    alert("BreakOPS updated!\n\n" + totalPresent + " present, " + totalOT + " OT, " + totalAbsent + " absent.\n\nOpening BreakOPS...");
+
+    // Open admin.html in new tab
+    window.open("admin.html", "_blank");
+
+  } catch(e){
+    console.error("BreakOPS push failed:", e);
+    setErr("Failed to push to BreakOPS: " + e.message);
+  }
 }
 </script>
 
