@@ -7,6 +7,7 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='29' stroke='%23233043' stroke-width='2' fill='%230b0f14'/%3E%3Crect x='20' y='28' width='24' height='18' rx='3' fill='none' stroke='%234aa3ff' stroke-width='2'/%3E%3Cpath d='M24 28V22a8 8 0 0 1 16 0v6' fill='none' stroke='%234aa3ff' stroke-width='2'/%3E%3Ccircle cx='32' cy='37' r='2' fill='%234aa3ff'/%3E%3C/svg%3E"/>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <style>
 :root {
   --bg: #0b0f14;
@@ -27,29 +28,48 @@ body {
   background: var(--bg);
 }
 
-/* Password gate */
+/* Login gate */
 #gate {
   position: fixed; inset: 0; z-index: 999;
   background: var(--bg);
   display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 16px;
 }
-#gate h2 { font-size: 22px; font-weight: 800; letter-spacing: -.01em; }
-#gate .sub { color: var(--muted); font-size: 13px; }
-#gate input {
-  width: 240px; padding: 10px 14px;
-  background: var(--card); color: var(--text);
+.login-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 36px 32px;
+  width: 340px;
+  text-align: center;
+}
+.login-box h2 { font-size: 22px; font-weight: 800; letter-spacing: -.01em; margin-bottom: 4px; }
+.login-box .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+.login-box label {
+  display: block; text-align: left;
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  margin: 12px 0 4px; text-transform: uppercase; letter-spacing: .04em;
+}
+.login-box input {
+  width: 100%; padding: 10px 14px;
+  background: var(--bg); color: var(--text);
   border: 1px solid var(--border); border-radius: 8px;
-  font-size: 16px; text-align: center; letter-spacing: 4px;
+  font-size: 14px;
 }
-#gate input:focus { outline: none; border-color: var(--accent); }
-#gate button {
+.login-box input:focus { outline: none; border-color: var(--accent); }
+.login-box .btn-login {
+  width: 100%; margin-top: 18px;
   padding: 10px 28px; background: var(--accent); color: #000;
   border: none; border-radius: 8px; font-weight: 700; font-size: 13px;
   cursor: pointer;
 }
-#gate button:hover { filter: brightness(1.15); }
-#gate .err { color: var(--bad); font-size: 12px; min-height: 16px; }
+.login-box .btn-login:hover { filter: brightness(1.15); }
+.login-box .btn-login:disabled { opacity: .5; cursor: not-allowed; }
+.login-err {
+  color: var(--bad); font-size: 12px; min-height: 16px;
+  margin-top: 10px;
+  display: none;
+}
+.login-err.show { display: block; }
 
 /* Main app */
 #app { display: none; }
@@ -202,19 +222,26 @@ td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
 </head>
 <body>
 
-<!-- Password Gate -->
+<!-- Login Gate -->
 <div id="gate">
-  <svg width="48" height="48" viewBox="0 0 64 64" fill="none">
-    <circle cx="32" cy="32" r="29" stroke="#233043" stroke-width="2" fill="#0b0f14"/>
-    <rect x="20" y="28" width="24" height="18" rx="3" fill="none" stroke="#4aa3ff" stroke-width="2"/>
-    <path d="M24 28V22a8 8 0 0 1 16 0v6" fill="none" stroke="#4aa3ff" stroke-width="2"/>
-    <circle cx="32" cy="37" r="2" fill="#4aa3ff"/>
-  </svg>
-  <h2>Employee Database</h2>
-  <div class="sub">Enter passcode to access editor</div>
-  <input type="password" id="gatePass" placeholder="Passcode" autofocus/>
-  <button onclick="checkGate()">Unlock</button>
-  <div class="err" id="gateErr"></div>
+  <div class="login-box">
+    <svg width="48" height="48" viewBox="0 0 64 64" fill="none" style="margin-bottom:12px">
+      <circle cx="32" cy="32" r="29" stroke="#233043" stroke-width="2" fill="#0b0f14"/>
+      <rect x="20" y="28" width="24" height="18" rx="3" fill="none" stroke="#4aa3ff" stroke-width="2"/>
+      <path d="M24 28V22a8 8 0 0 1 16 0v6" fill="none" stroke="#4aa3ff" stroke-width="2"/>
+      <circle cx="32" cy="37" r="2" fill="#4aa3ff"/>
+    </svg>
+    <h2>Employee Database</h2>
+    <div class="sub">Sign in to access the editor</div>
+    <div class="login-err" id="loginError"></div>
+    <form id="loginForm">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="you@example.com" required autocomplete="email"/>
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="Enter password" required autocomplete="current-password"/>
+      <button type="submit" class="btn-login" id="btnLogin">Sign In</button>
+    </form>
+  </div>
 </div>
 
 <!-- Main App -->
@@ -228,6 +255,7 @@ td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
     <button class="primary" id="btnAdd">+ Add Employee</button>
     <button class="ok" id="btnSaveAll">Save All Changes</button>
     <button id="btnReload">Reload</button>
+    <button class="danger" onclick="auth.signOut()">Sign Out</button>
   </div>
 </header>
 
@@ -293,24 +321,6 @@ td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
 <div id="toast"></div>
 
 <script>
-const PASSCODE = "911911";
-
-function checkGate(){
-  const val = document.getElementById("gatePass").value;
-  if(val === PASSCODE){
-    document.getElementById("gate").style.display = "none";
-    document.getElementById("app").style.display = "block";
-    loadEmployees();
-  } else {
-    document.getElementById("gateErr").textContent = "Incorrect passcode.";
-    document.getElementById("gatePass").value = "";
-    document.getElementById("gatePass").focus();
-  }
-}
-document.getElementById("gatePass").addEventListener("keydown", e => {
-  if(e.key === "Enter") checkGate();
-});
-
 // Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyA6KELmSyotefK0zhahQZ0-mbYur8_nTsg",
@@ -323,6 +333,48 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const auth = firebase.auth();
+
+// Auth state listener
+auth.onAuthStateChanged((user) => {
+  if(user){
+    document.getElementById("gate").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    loadEmployees();
+  } else {
+    document.getElementById("gate").style.display = "flex";
+    document.getElementById("app").style.display = "none";
+  }
+});
+
+// Login form
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  const errEl = document.getElementById("loginError");
+  const btn = document.getElementById("btnLogin");
+
+  errEl.classList.remove("show");
+  btn.disabled = true;
+  btn.textContent = "Signing in...";
+
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+  } catch(err){
+    let msg = "Sign in failed";
+    if(err.code === "auth/user-not-found") msg = "No account found with this email";
+    else if(err.code === "auth/wrong-password") msg = "Incorrect password";
+    else if(err.code === "auth/invalid-email") msg = "Invalid email address";
+    else if(err.code === "auth/too-many-requests") msg = "Too many attempts. Try again later.";
+    else if(err.code === "auth/invalid-credential") msg = "Invalid email or password";
+    errEl.textContent = msg;
+    errEl.classList.add("show");
+  }
+
+  btn.disabled = false;
+  btn.textContent = "Sign In";
+});
 
 const DAYS = ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY","SUNDAY"];
 const POSITIONS = ["CALLTAKER","DISPATCHER","PIC","SUPERVISOR"];
