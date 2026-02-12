@@ -28,11 +28,19 @@ body {
   background: var(--bg);
 }
 
+/* Password gate */
+#passGate {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+}
+#passGate .login-err { margin-top: 10px; }
+
 /* Login gate */
 #gate {
   position: fixed; inset: 0; z-index: 999;
   background: var(--bg);
-  display: flex; align-items: center; justify-content: center;
+  display: none; align-items: center; justify-content: center;
 }
 .login-box {
   background: var(--card);
@@ -222,6 +230,26 @@ td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
 </head>
 <body>
 
+<!-- Password Gate -->
+<div id="passGate">
+  <div class="login-box">
+    <svg width="48" height="48" viewBox="0 0 64 64" fill="none" style="margin-bottom:12px">
+      <circle cx="32" cy="32" r="29" stroke="#233043" stroke-width="2" fill="#0b0f14"/>
+      <rect x="20" y="28" width="24" height="18" rx="3" fill="none" stroke="#4aa3ff" stroke-width="2"/>
+      <path d="M24 28V22a8 8 0 0 1 16 0v6" fill="none" stroke="#4aa3ff" stroke-width="2"/>
+      <circle cx="32" cy="37" r="2" fill="#4aa3ff"/>
+    </svg>
+    <h2>Employee DB Access</h2>
+    <div class="sub">Enter access code to continue</div>
+    <div class="login-err" id="passError"></div>
+    <form id="passForm">
+      <label>Access Code</label>
+      <input type="password" id="passInput" placeholder="Enter access code" required autocomplete="off"/>
+      <button type="submit" class="btn-login" id="btnUnlock">Unlock</button>
+    </form>
+  </div>
+</div>
+
 <!-- Login Gate -->
 <div id="gate">
   <div class="login-box">
@@ -249,7 +277,7 @@ td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
 <header>
   <div>
     <h1>Employee Database Editor</h1>
-    <div class="sub">CommandOPS / ShiftOps Firestore &bull; <span id="empCount">0</span> employees</div>
+    <div class="sub">ShiftOPS / ShiftOps Firestore &bull; <span id="empCount">0</span> employees</div>
   </div>
   <div class="toolbar">
     <button class="primary" id="btnAdd">+ Add Employee</button>
@@ -321,6 +349,39 @@ td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
 <div id="toast"></div>
 
 <script>
+// Password gate
+const PASS_HASH = "e9ea85886c6f94643bcc7b5f9ed746d72f5ac6f6b955684bf3858c0dd58c645c";
+let passUnlocked = false;
+
+async function sha256(text) {
+  const data = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+document.getElementById("passForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = document.getElementById("passInput").value;
+  const errEl = document.getElementById("passError");
+  const hash = await sha256(input);
+  if (hash === PASS_HASH) {
+    passUnlocked = true;
+    document.getElementById("passGate").style.display = "none";
+    // If already signed into Firebase, go straight to app
+    if (auth.currentUser) {
+      document.getElementById("app").style.display = "block";
+      loadEmployees();
+    } else {
+      document.getElementById("gate").style.display = "flex";
+    }
+  } else {
+    errEl.textContent = "Incorrect access code";
+    errEl.classList.add("show");
+    document.getElementById("passInput").value = "";
+    document.getElementById("passInput").focus();
+  }
+});
+
 // Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyA6KELmSyotefK0zhahQZ0-mbYur8_nTsg",
@@ -335,15 +396,16 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-// Auth state listener
+// Auth state listener — never bypass the password gate
 auth.onAuthStateChanged((user) => {
+  if(!passUnlocked) return;          // password gate still active, do nothing
   if(user){
     document.getElementById("gate").style.display = "none";
     document.getElementById("app").style.display = "block";
     loadEmployees();
   } else {
-    document.getElementById("gate").style.display = "flex";
     document.getElementById("app").style.display = "none";
+    document.getElementById("gate").style.display = "flex";
   }
 });
 
