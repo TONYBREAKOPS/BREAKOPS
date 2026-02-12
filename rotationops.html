@@ -1098,17 +1098,17 @@ function getVacRanges() {
 function getTrainerRanges() {
   const t = loadJSON(STORAGE.training, []);
   if (!Array.isArray(t)) return [];
-  // Support old format (plain strings) and new format (objects with name, from, to)
+  // Support old format (plain strings) and new format (objects with name, from, to, blocks)
   return t.map(item => {
-    if (typeof item === 'string') return { name: item.trim().toUpperCase(), from: '', to: '' };
-    return { name: String(item.name||'').trim().toUpperCase(), from: item.from||'', to: item.to||'' };
+    if (typeof item === 'string') return { name: item.trim().toUpperCase(), from: '', to: '', blocks: [] };
+    return { name: String(item.name||'').trim().toUpperCase(), from: item.from||'', to: item.to||'', blocks: Array.isArray(item.blocks) ? item.blocks : [] };
   }).filter(r => r.name);
 }
 function getTrainees() {
   // Returns just the names for backward compatibility
   return getTrainerRanges().map(r => r.name);
 }
-function isTrainee(name, dayKey) {
+function isTrainee(name, dayKey, blockKey) {
   const ranges = getTrainerRanges();
   const nm = String(name || "").trim().toUpperCase();
   const dateObj = dayKey ? parseYMD(dayKey) : null;
@@ -1117,11 +1117,18 @@ function isTrainee(name, dayKey) {
     if (!r || !r.name) return false;
     if (r.name.toUpperCase() !== nm) return false;
     // If no dates specified, always applies
-    if (!r.from && !r.to) return true;
-    if (!dt) return true;
-    const fromT = r.from ? new Date(r.from + "T00:00:00").getTime() : -Infinity;
-    const toT = r.to ? new Date(r.to + "T23:59:59").getTime() : Infinity;
-    return dt >= fromT && dt <= toT;
+    if (!r.from && !r.to) { /* date matches */ }
+    else if (!dt) { /* no date to check, matches */ }
+    else {
+      const fromT = r.from ? new Date(r.from + "T00:00:00").getTime() : -Infinity;
+      const toT = r.to ? new Date(r.to + "T23:59:59").getTime() : Infinity;
+      if (dt < fromT || dt > toT) return false;
+    }
+    // Block check: if trainer has specific blocks and blockKey is provided, must match
+    if (blockKey && r.blocks && r.blocks.length > 0) {
+      return r.blocks.includes(blockKey);
+    }
+    return true;
   });
 }
 function isExcluded(name, dateObj) {
@@ -1539,8 +1546,8 @@ const poolAll = buildDispatcherPoolForDate(dateObj);
 
       // Training restriction: trainees can only be assigned to E, S, W, C
       const TRAINEE_ALLOWED_CHANNELS = new Set(["EAST","SOUTH","WEST","CENTRAL"]);
-      function canTraineeWork(candName, channelUpper) {
-        if (!isTrainee(candName, dayKey)) return true; // Non-trainees can work any channel
+      function canTraineeWork(candName, channelUpper, blockKey) {
+        if (!isTrainee(candName, dayKey, blockKey)) return true; // Non-trainees can work any channel
         return TRAINEE_ALLOWED_CHANNELS.has(channelUpper);
       }
 
@@ -1557,7 +1564,7 @@ const poolAll = buildDispatcherPoolForDate(dateObj);
           const lastUpper = String(last).toUpperCase();
           if (!PRIMARY_SET.has(lastUpper)) continue;
           if (!isAllowedPrimaryB2B(cand.name, last)) continue;
-          if (!canTraineeWork(cand.name, lastUpper)) continue;
+          if (!canTraineeWork(cand.name, lastUpper, b.key)) continue;
 
           // Find matching channel key in CHANNELS
           const matchCh = CHANNELS.find(c => String(c).toUpperCase() === lastUpper);
@@ -1787,7 +1794,7 @@ const poolAll = buildDispatcherPoolForDate(dateObj);
     if (usedNames.has(cand.name)) continue;
 
     // Training restriction: trainees can only work E, S, W, C
-    if (!canTraineeWork(cand.name, CH)) continue;
+    if (!canTraineeWork(cand.name, CH, b.key)) continue;
 
     // R1/R2 restriction: In Pass 1, skip people who work next block
     if ((CH === "RELIEF 1" || CH === "RELIEF 2") && worksNextBlock(cand)) continue;
@@ -1826,7 +1833,7 @@ const poolAll = buildDispatcherPoolForDate(dateObj);
       if (usedNames.has(cand.name)) continue;
 
       // Training restriction: trainees can only work E, S, W, C
-      if (!canTraineeWork(cand.name, CH)) continue;
+      if (!canTraineeWork(cand.name, CH, b.key)) continue;
 
       // R1/R2 restriction: In Pass 2, still skip people who work next block
       if ((CH === "RELIEF 1" || CH === "RELIEF 2") && worksNextBlock(cand)) continue;
@@ -1856,7 +1863,7 @@ const poolAll = buildDispatcherPoolForDate(dateObj);
     for (const cand of shuffled) {
       if (usedNames.has(cand.name)) continue;
       // Training restriction: trainees can only work E, S, W, C
-      if (!canTraineeWork(cand.name, CH)) continue;
+      if (!canTraineeWork(cand.name, CH, b.key)) continue;
       // R1/R2 restriction: CRITICAL - still skip people who work next block even in Pass 3
       // This prevents Relief->CT back-to-back violations
       if ((CH === "RELIEF 1" || CH === "RELIEF 2") && worksNextBlock(cand)) continue;
@@ -1933,7 +1940,7 @@ for (const ch of CHANNELS) {
   // Pass 4a: All checks - ideal candidate
   for (const cand of shuffled) {
     if (usedNames.has(cand.name)) continue;
-    if (!canTraineeWork(cand.name, CH)) continue;
+    if (!canTraineeWork(cand.name, CH, b.key)) continue;
     if ((CH === "RELIEF 1" || CH === "RELIEF 2") && worksNextBlock(cand)) continue;
     const last = lastAssign.get(cand.name);
     if (last && forbiddenBackToBack(String(last).toUpperCase(), CH)) continue;
@@ -1950,7 +1957,7 @@ for (const ch of CHANNELS) {
   if (!pick) {
     const candidates4b = shuffled.filter(cand => {
       if (usedNames.has(cand.name)) return false;
-      if (!canTraineeWork(cand.name, CH)) return false;
+      if (!canTraineeWork(cand.name, CH, b.key)) return false;
       const last = lastAssign.get(cand.name);
       if (last && forbiddenBackToBack(String(last).toUpperCase(), CH)) return false;
       const candDayChannels = todayChannels.get(cand.name);
@@ -1970,7 +1977,7 @@ for (const ch of CHANNELS) {
   if (!pick) {
     const candidates4c = shuffled.filter(cand => {
       if (usedNames.has(cand.name)) return false;
-      if (!canTraineeWork(cand.name, CH)) return false;
+      if (!canTraineeWork(cand.name, CH, b.key)) return false;
       const last = lastAssign.get(cand.name);
       if (last && forbiddenBackToBack(String(last).toUpperCase(), CH)) return false;
       return true;
@@ -1987,7 +1994,7 @@ for (const ch of CHANNELS) {
   if (!pick) {
     const candidates4d = shuffled.filter(cand => {
       if (usedNames.has(cand.name)) return false;
-      if (!canTraineeWork(cand.name, CH)) return false;
+      if (!canTraineeWork(cand.name, CH, b.key)) return false;
       return true;
     });
     candidates4d.sort((a, b) => (violationCount.get(a.name.toUpperCase())||0) - (violationCount.get(b.name.toUpperCase())||0));
@@ -2032,7 +2039,7 @@ const filled = Object.keys(assignments).length;
 
       if (isFriOrSat && is7thBlock && filled >= 10) {
         // Find someone for 7th channel from remaining available
-        const remaining7th = shuffled.filter(c => !usedNames.has(c.name) && !isTrainee(c.name, dayKey));
+        const remaining7th = shuffled.filter(c => !usedNames.has(c.name) && !isTrainee(c.name, dayKey, b.key));
 
         // Sort by fewest total assignments (fairness)
         remaining7th.sort((a,b2)=>{
@@ -2228,7 +2235,7 @@ if (available.length > 10) {
   for (const cand of remaining) {
     const name = cand.name;
     // Training restriction: trainees should not be assigned to CT
-    if (isTrainee(name, dayKey)) { continue; }
+    if (isTrainee(name, dayKey, b.key)) { continue; }
 
     // 12hr shift restriction: max 1 CT per day for 12-hour shift employees
     if (is12HrShift(cand, dateObj)) {
@@ -4532,8 +4539,8 @@ const poolAll = buildDispatcherPoolForDate(dateObj);
 
       // Training restriction: trainees can only be assigned to E, S, W, C
       const TRAINEE_ALLOWED_CHANNELS = new Set(["EAST","SOUTH","WEST","CENTRAL"]);
-      function canTraineeWork(candName, channelUpper) {
-        if (!isTrainee(candName, dayKey)) return true; // Non-trainees can work any channel
+      function canTraineeWork(candName, channelUpper, blockKey) {
+        if (!isTrainee(candName, dayKey, blockKey)) return true; // Non-trainees can work any channel
         return TRAINEE_ALLOWED_CHANNELS.has(channelUpper);
       }
 
@@ -4550,7 +4557,7 @@ const poolAll = buildDispatcherPoolForDate(dateObj);
           const lastUpper = String(last).toUpperCase();
           if (!PRIMARY_SET.has(lastUpper)) continue;
           if (!isAllowedPrimaryB2B(cand.name, last)) continue;
-          if (!canTraineeWork(cand.name, lastUpper)) continue;
+          if (!canTraineeWork(cand.name, lastUpper, b.key)) continue;
 
           // Find matching channel key in CHANNELS
           const matchCh = CHANNELS.find(c => String(c).toUpperCase() === lastUpper);
@@ -4775,7 +4782,7 @@ const poolAll = buildDispatcherPoolForDate(dateObj);
     if (usedNames.has(cand.name)) continue;
 
     // Training restriction: trainees can only work E, S, W, C
-    if (!canTraineeWork(cand.name, CH)) continue;
+    if (!canTraineeWork(cand.name, CH, b.key)) continue;
 
     // R1/R2 restriction: In Pass 1, skip people who work next block
     if ((CH === "RELIEF 1" || CH === "RELIEF 2") && worksNextBlock(cand)) continue;
@@ -4814,7 +4821,7 @@ const poolAll = buildDispatcherPoolForDate(dateObj);
       if (usedNames.has(cand.name)) continue;
 
       // Training restriction: trainees can only work E, S, W, C
-      if (!canTraineeWork(cand.name, CH)) continue;
+      if (!canTraineeWork(cand.name, CH, b.key)) continue;
 
       // R1/R2 restriction: In Pass 2, still skip people who work next block
       if ((CH === "RELIEF 1" || CH === "RELIEF 2") && worksNextBlock(cand)) continue;
@@ -4844,7 +4851,7 @@ const poolAll = buildDispatcherPoolForDate(dateObj);
     for (const cand of shuffled) {
       if (usedNames.has(cand.name)) continue;
       // Training restriction: trainees can only work E, S, W, C
-      if (!canTraineeWork(cand.name, CH)) continue;
+      if (!canTraineeWork(cand.name, CH, b.key)) continue;
       // R1/R2 restriction: CRITICAL - still skip people who work next block even in Pass 3
       // This prevents Relief->CT back-to-back violations
       if ((CH === "RELIEF 1" || CH === "RELIEF 2") && worksNextBlock(cand)) continue;
@@ -4921,7 +4928,7 @@ for (const ch of CHANNELS) {
   // Pass 4a: All checks - ideal candidate
   for (const cand of shuffled) {
     if (usedNames.has(cand.name)) continue;
-    if (!canTraineeWork(cand.name, CH)) continue;
+    if (!canTraineeWork(cand.name, CH, b.key)) continue;
     if ((CH === "RELIEF 1" || CH === "RELIEF 2") && worksNextBlock(cand)) continue;
     const last = lastAssign.get(cand.name);
     if (last && forbiddenBackToBack(String(last).toUpperCase(), CH)) continue;
@@ -4938,7 +4945,7 @@ for (const ch of CHANNELS) {
   if (!pick) {
     const candidates4b = shuffled.filter(cand => {
       if (usedNames.has(cand.name)) return false;
-      if (!canTraineeWork(cand.name, CH)) return false;
+      if (!canTraineeWork(cand.name, CH, b.key)) return false;
       const last = lastAssign.get(cand.name);
       if (last && forbiddenBackToBack(String(last).toUpperCase(), CH)) return false;
       const candDayChannels = todayChannels.get(cand.name);
@@ -4958,7 +4965,7 @@ for (const ch of CHANNELS) {
   if (!pick) {
     const candidates4c = shuffled.filter(cand => {
       if (usedNames.has(cand.name)) return false;
-      if (!canTraineeWork(cand.name, CH)) return false;
+      if (!canTraineeWork(cand.name, CH, b.key)) return false;
       const last = lastAssign.get(cand.name);
       if (last && forbiddenBackToBack(String(last).toUpperCase(), CH)) return false;
       return true;
@@ -4975,7 +4982,7 @@ for (const ch of CHANNELS) {
   if (!pick) {
     const candidates4d = shuffled.filter(cand => {
       if (usedNames.has(cand.name)) return false;
-      if (!canTraineeWork(cand.name, CH)) return false;
+      if (!canTraineeWork(cand.name, CH, b.key)) return false;
       return true;
     });
     candidates4d.sort((a, b) => (violationCount.get(a.name.toUpperCase())||0) - (violationCount.get(b.name.toUpperCase())||0));
@@ -5020,7 +5027,7 @@ const filled = Object.keys(assignments).length;
 
       if (isFriOrSat && is7thBlock && filled >= 10) {
         // Find someone for 7th channel from remaining available
-        const remaining7th = shuffled.filter(c => !usedNames.has(c.name) && !isTrainee(c.name, dayKey));
+        const remaining7th = shuffled.filter(c => !usedNames.has(c.name) && !isTrainee(c.name, dayKey, b.key));
 
         // Sort by fewest total assignments (fairness)
         remaining7th.sort((a,b2)=>{
@@ -5202,7 +5209,7 @@ if (available.length > 10) {
   for (const cand of remaining) {
     const name = cand.name;
     // Training restriction: trainees should not be assigned to CT
-    if (isTrainee(name, dayKey)) { continue; }
+    if (isTrainee(name, dayKey, b.key)) { continue; }
 
     // STRICT: R1, R2, CT should NEVER be back-to-back in any order
     const lastCh = lastAssign.get(name);
@@ -7511,13 +7518,56 @@ function renderExceptions() {
   html += '<div style="min-width:110px;"><div style="font-size:9px; color:var(--muted); margin-bottom:2px;">TO (blank = rest of month)</div><input id="traineeTo" type="date" style="width:100%; font-size:12px; padding:6px; border-radius:6px; box-sizing:border-box;" /></div>';
   html += '<button class="btn secondary" id="btnAddTrainee" style="font-size:11px; padding:6px 12px; border-radius:6px; white-space:nowrap;">ADD</button>';
   html += '</div>';
-  html += '<table style="width:100%; table-layout:fixed;"><thead><tr><th style="text-align:left; width:35%;">NAME</th><th style="width:25%;">FROM</th><th style="width:25%;">TO</th><th style="width:15%;"></th></tr></thead><tbody>';
+  // Block picker checkboxes
+  const _blockOpts = [
+    {key:"0600-1000", label:"6A-10A"}, {key:"1000-1400", label:"10A-2P"}, {key:"1400-1800", label:"2P-6P"},
+    {key:"1800-2200", label:"6P-10P"}, {key:"2200-0200", label:"10P-2A"}, {key:"0200-0600", label:"2A-6A"}
+  ];
+  html += '<div style="margin-bottom:10px;"><div style="font-size:9px; color:var(--muted); margin-bottom:4px;">TRAINING BLOCKS (none = all blocks)</div>';
+  html += '<div id="traineeBlockPicker" style="display:flex; gap:4px; flex-wrap:wrap;">';
+  _blockOpts.forEach(bo => {
+    html += `<label data-block-key="${bo.key}" style="display:inline-flex; align-items:center; gap:3px; font-size:11px; padding:3px 8px; border-radius:5px; border:1px solid var(--line); cursor:pointer; user-select:none;"><input type="checkbox" class="trainee-block-cb" value="${bo.key}" style="margin:0;" />${bo.label}</label>`;
+  });
+  html += '</div></div>';
+  // Helper: collect all blocks an employee works on any day of the week
+  // Uses the same shift-to-hours map as worksBlock() so all shift types are handled
+  const _allDays = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
+  const _shiftMap = {"6A-2P":[6,14],"6A-6P":[6,18],"10A-6P":[10,18],"10A-10P":[10,22],"2P-10P":[14,22],"6P-2A":[18,26],"6P-6A":[18,30],"10P-6A":[22,30],"2A-10A":[2,10]};
+  function _getEmployeeBlocks(empName) {
+    const nm = String(empName||"").trim().toUpperCase();
+    const base = normalizeBase();
+    const row = base.find(r => String(r.Employee||"").trim().toUpperCase() === nm);
+    if (!row) return new Set(BLOCKS.map(b=>b.key)); // fallback: show all
+    const out = new Set();
+    for (const dn of _allDays) {
+      const shift = String(row[dn]||"").trim().toUpperCase();
+      if (!shift || shift === "OFF") continue;
+      const rng = _shiftMap[shift];
+      if (!rng) continue; // unknown shift — skip rather than showing all
+      const [s, e] = rng;
+      for (const blk of BLOCKS) {
+        if (blk.start >= s && blk.end <= e) out.add(blk.key);
+      }
+    }
+    return out.size ? out : new Set(BLOCKS.map(b=>b.key)); // fallback if nothing found
+  }
+
+  html += '<table style="width:100%; table-layout:fixed;"><thead><tr><th style="text-align:left; width:22%;">NAME</th><th style="width:14%;">FROM</th><th style="width:14%;">TO</th><th style="width:34%;">BLOCKS</th><th style="width:16%;"></th></tr></thead><tbody>';
   if (trainerRanges.length) {
     trainerRanges.forEach((r, idx) => {
-      html += `<tr><td style="text-align:left; font-weight:700;">${escapeHtml((r.name||"").toUpperCase())}</td><td>${r.from||"—"}</td><td>${r.to||"rest of month"}</td><td><button class="btn danger exc-del-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px;">X</button></td></tr>`;
+      const blocksLabel = (r.blocks && r.blocks.length > 0) ? r.blocks.map(k => { const m = _blockOpts.find(o=>o.key===k); return m ? m.label : k; }).join(', ') : 'ALL';
+      // Normal display row
+      html += `<tr id="tr-row-${idx}"><td style="text-align:left; font-weight:700;">${escapeHtml((r.name||"").toUpperCase())}</td><td>${r.from||"—"}</td><td>${r.to||"rest of month"}</td><td style="font-size:10px;">${blocksLabel}</td><td style="white-space:nowrap;"><button class="btn secondary exc-edit-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px; margin-right:2px;">EDIT</button><button class="btn danger exc-del-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px;">X</button></td></tr>`;
+      // Inline edit row — all 6 checkboxes rendered; filtered at click time via data-emp
+      let editCbs = '';
+      _blockOpts.forEach(bo => {
+        const chk = (r.blocks && r.blocks.includes(bo.key)) ? 'checked' : '';
+        editCbs += `<label data-block-key="${bo.key}" style="display:inline-flex; align-items:center; gap:2px; font-size:10px; padding:2px 5px; border-radius:4px; border:1px solid var(--line); cursor:pointer; user-select:none;"><input type="checkbox" class="edit-block-cb-${idx}" value="${bo.key}" ${chk} style="margin:0;" />${bo.label}</label> `;
+      });
+      html += `<tr id="tr-edit-${idx}" style="display:none;"><td colspan="3" style="text-align:left; font-size:9px; color:var(--muted); padding:6px 0;">EDITING BLOCKS FOR <b>${escapeHtml((r.name||"").toUpperCase())}</b></td><td style="padding:6px 0;"><div style="display:flex; gap:3px; flex-wrap:wrap;">${editCbs}</div></td><td style="white-space:nowrap; padding:6px 0;"><button class="btn secondary exc-save-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px; margin-right:2px;">SAVE</button><button class="btn secondary exc-cancel-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px;">CANCEL</button></td></tr>`;
     });
   } else {
-    html += '<tr><td colspan="4" style="color:var(--muted); font-size:11px;">No trainers.</td></tr>';
+    html += '<tr><td colspan="5" style="color:var(--muted); font-size:11px;">No trainers.</td></tr>';
   }
   html += '</tbody></table></div>';
 
@@ -7542,6 +7592,75 @@ function renderExceptions() {
       renderExceptions(); renderInfoStats();
     });
   });
+  // Wire edit buttons for trainers — toggles inline edit row, filters blocks at click time
+  wrap.querySelectorAll(".exc-edit-tr").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const i = btn.getAttribute("data-ti");
+      const row = document.getElementById("tr-row-" + i);
+      const edit = document.getElementById("tr-edit-" + i);
+      if (row) row.style.display = "none";
+      if (edit) {
+        edit.style.display = "";
+        // Filter checkboxes to only blocks this employee actually works
+        const empName = trainerRanges[Number(i)] ? trainerRanges[Number(i)].name : "";
+        const empBlocks = _getEmployeeBlocks(empName);
+        edit.querySelectorAll("label[data-block-key]").forEach(lbl => {
+          const bk = lbl.getAttribute("data-block-key");
+          if (empBlocks.has(bk)) {
+            lbl.style.display = "";
+          } else {
+            lbl.style.display = "none";
+            const cb = lbl.querySelector("input[type=checkbox]");
+            if (cb) cb.checked = false;
+          }
+        });
+      }
+    });
+  });
+  // Wire cancel buttons — hides edit row, shows normal row
+  wrap.querySelectorAll(".exc-cancel-tr").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const i = btn.getAttribute("data-ti");
+      const row = document.getElementById("tr-row-" + i);
+      const edit = document.getElementById("tr-edit-" + i);
+      if (row) row.style.display = "";
+      if (edit) edit.style.display = "none";
+    });
+  });
+  // Wire save buttons — reads checkboxes, updates trainer entry, re-renders
+  wrap.querySelectorAll(".exc-save-tr").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const i = Number(btn.getAttribute("data-ti"));
+      const cbs = document.querySelectorAll(".edit-block-cb-" + i + ":checked");
+      const blocks = Array.from(cbs).map(cb => cb.value);
+      const t = getTrainerRanges();
+      if (t[i]) { t[i].blocks = blocks; saveJSON(STORAGE.training, t); }
+      renderExceptions(); renderInfoStats();
+      showToast("Updated training blocks.");
+    });
+  });
+  // Wire trainee employee dropdown to filter ADD form block picker
+  const _traineeNameSel = document.getElementById("traineeName");
+  const _blockPickerDiv = document.getElementById("traineeBlockPicker");
+  function _updateAddBlockPicker() {
+    if (!_traineeNameSel || !_blockPickerDiv) return;
+    const nm = _traineeNameSel.value.trim().toUpperCase();
+    const empBlocks = nm ? _getEmployeeBlocks(nm) : new Set(BLOCKS.map(b=>b.key));
+    _blockPickerDiv.querySelectorAll("label[data-block-key]").forEach(lbl => {
+      const bk = lbl.getAttribute("data-block-key");
+      if (empBlocks.has(bk)) {
+        lbl.style.display = "";
+      } else {
+        lbl.style.display = "none";
+        const cb = lbl.querySelector("input[type=checkbox]");
+        if (cb) cb.checked = false; // uncheck hidden blocks
+      }
+    });
+  }
+  if (_traineeNameSel) {
+    _traineeNameSel.addEventListener("change", _updateAddBlockPicker);
+    _updateAddBlockPicker(); // run once on render for initial selection
+  }
 }
 
 function renderVacList() {
@@ -7576,8 +7695,9 @@ function renderTraineeList() {
   list.innerHTML = ranges.map((r, idx)=>{
     const from = r.from ? r.from : "–";
     const to = r.to ? r.to : "–";
+    const blks = (r.blocks && r.blocks.length) ? r.blocks.join(', ') : 'ALL';
     return `<div class="pill">
-      <div><b>${escapeHtml(r.name.toUpperCase())}</b><div class="meta">FROM: ${from} TO: ${to}</div></div>
+      <div><b>${escapeHtml(r.name.toUpperCase())}</b><div class="meta">FROM: ${from} TO: ${to} BLOCKS: ${blks}</div></div>
       <button data-ti="${idx}">X</button>
     </div>`;
   }).join("");
@@ -8856,14 +8976,17 @@ function boot() {
       const from = document.getElementById("traineeFrom").value || "";
       const to = document.getElementById("traineeTo").value || "";
       if (!name) return showToast("Select a trainer first.");
+      const blocks = Array.from(document.querySelectorAll('.trainee-block-cb:checked')).map(cb => cb.value);
       const ranges = getTrainerRanges();
-      ranges.push({name, from, to});
+      ranges.push({name, from, to, blocks});
       saveJSON(STORAGE.training, ranges);
       sel.selectedIndex = 0;
       document.getElementById("traineeFrom").value = "";
       document.getElementById("traineeTo").value = "";
+      document.querySelectorAll('.trainee-block-cb').forEach(cb => cb.checked = false);
       renderExceptions(); renderInfoStats();
-      showToast("Added trainer. They will only be assigned E, S, W, C.");
+      const blkMsg = blocks.length ? ` during ${blocks.length} block(s)` : ' (all blocks)';
+      showToast("Added trainer" + blkMsg + ". They will only be assigned E, S, W, C.");
     }
   });
 
