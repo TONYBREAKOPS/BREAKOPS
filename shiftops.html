@@ -131,18 +131,33 @@ body.light .card.boardCard{
   border-color:var(--border) !important;
   box-shadow:none !important;
 }
+body.light .card h2{
+  background:rgba(0,0,0,.03) !important;
+  color:#1a1a2e !important;
+  border-color:var(--border) !important;
+}
+body.light .tblWrap{ background:var(--card) !important; }
+body.light th{ background:rgba(0,0,0,.03) !important; color:#222 !important; border-bottom-color:rgba(0,0,0,.08) !important; }
+body.light tbody tr td{ border-bottom-color:rgba(0,0,0,.06) !important; color:#1a1a2e !important; background:transparent !important; }
+body.light tbody tr:hover td{ background:rgba(0,0,0,.04) !important; }
 body.light .roleCard-CALLTAKER{ background:rgba(56,140,255,.08) !important; border-color:rgba(56,140,255,.15) !important; }
+body.light .roleCard-CALLTAKER h2.blockHdr{ color:#1e3a8a !important; }
 body.light .roleCard-DISPATCHER{ background:rgba(192,132,252,.08) !important; border-color:rgba(192,132,252,.15) !important; }
+body.light .roleCard-DISPATCHER h2.blockHdr{ color:#5b21b6 !important; }
 body.light .roleCard-PIC{ background:rgba(45,212,191,.08) !important; border-color:rgba(45,212,191,.15) !important; }
+body.light .roleCard-PIC h2.blockHdr{ color:#115e59 !important; }
 body.light .roleCard-SUPERVISOR{ background:rgba(251,191,36,.08) !important; border-color:rgba(251,191,36,.15) !important; }
+body.light .roleCard-SUPERVISOR h2.blockHdr{ color:#92400e !important; }
 body.light .roleCard-ABSENT{ background:rgba(251,113,133,.08) !important; border-color:rgba(251,113,133,.12) !important; }
+body.light .roleCard-ABSENT h2.blockHdr{ color:#9f1239 !important; }
 body.light .roleCard-OTH{ background:rgba(156,163,175,.08) !important; border-color:rgba(156,163,175,.15) !important; }
+body.light .roleCard-OTH h2.blockHdr{ color:#374151 !important; }
 
 /* Light mode: section headers */
 body.light h2.blockHdr{ color:#1a1a2e !important; }
 
 /* Light mode: roster tables */
-body.light .rosterTbl th{ background:rgba(0,0,0,.03) !important; color:#000 !important; }
+body.light .rosterTbl th, body.light .rosterTbl thead th{ background:rgba(0,0,0,.04) !important; color:#000 !important; border-bottom-color:rgba(0,0,0,.08) !important; }
 body.light .rosterTbl td{ color:#000 !important; border-color:rgba(0,0,0,.05) !important; background:transparent !important; }
 body.light .nameCol{ color:#000 !important; font-weight:700 !important; }
 body.light .empName{ color:#000 !important; font-weight:700 !important; }
@@ -5580,8 +5595,9 @@ function _applyBubbleLayout(){
     el.style.setProperty('background', 'transparent', 'important');
   });
   // Put the header background on the <thead> row instead
+  const isLight = document.body.classList.contains('light');
   document.querySelectorAll('.rosterTbl thead tr').forEach(el => {
-    el.style.setProperty('background', '#0c1320', 'important');
+    el.style.setProperty('background', isLight ? 'rgba(0,0,0,.03)' : '#0c1320', 'important');
   });
   // Defer header alignment to next frame
   requestAnimationFrame(()=>{
@@ -6284,7 +6300,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
     themeBtn.innerHTML = light ? "&#9728; Light" : "&#9789; Dark";
     localStorage.setItem("sheetops_theme", light ? "light" : "dark");
   }
-  themeBtn.addEventListener("click", () => applyTheme(!document.body.classList.contains("light")));
+  themeBtn.addEventListener("click", () => { applyTheme(!document.body.classList.contains("light")); if(typeof renderAll==='function') renderAll(); });
   if(localStorage.getItem("sheetops_theme") === "light") applyTheme(true);
 
   /* Auto-load from Firebase (primary) or localStorage (fallback), then select today */
