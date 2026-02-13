@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bug Reports</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128027;</text></svg>">
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0b1120;color:#e2e8f0;min-height:100vh;padding:20px;}
+.header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:#111827;border:1px solid #1e293b;border-radius:12px;margin-bottom:20px;}
+.header h1{font-size:20px;font-weight:800;display:flex;align-items:center;gap:8px;}
+.header h1 span{font-size:24px;}
+.stats{display:flex;gap:12px;align-items:center;font-size:13px;}
+.stat-pill{padding:4px 12px;border-radius:20px;font-weight:700;font-size:12px;}
+.stat-open{background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);}
+.stat-fixed{background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3);}
+.stat-total{background:rgba(99,102,241,.15);color:#818cf8;border:1px solid rgba(99,102,241,.3);}
+.filters{display:flex;gap:10px;margin-bottom:16px;align-items:center;}
+.filters button{padding:6px 14px;font-size:12px;font-weight:700;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#94a3b8;cursor:pointer;transition:all .15s;}
+.filters button:hover{border-color:#4aa3ff;color:#4aa3ff;}
+.filters button.active{background:#4aa3ff;color:#fff;border-color:#4aa3ff;}
+.bug-list{display:flex;flex-direction:column;gap:10px;}
+.bug-card{background:#111827;border:1px solid #1e293b;border-radius:10px;padding:16px;transition:border-color .15s;}
+.bug-card:hover{border-color:#334155;}
+.bug-card.status-fixed{opacity:0.55;}
+.bug-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.bug-meta{display:flex;align-items:center;gap:10px;font-size:11px;color:#64748b;}
+.bug-meta .name{color:#e2e8f0;font-weight:700;font-size:13px;}
+.bug-meta .app{padding:2px 8px;border-radius:4px;background:rgba(99,102,241,.15);color:#818cf8;font-weight:600;font-size:10px;}
+.bug-meta .email{color:#64748b;}
+.bug-status{font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;text-transform:uppercase;letter-spacing:.5px;}
+.bug-status.open{background:rgba(239,68,68,.15);color:#ef4444;}
+.bug-status.fixed{background:rgba(34,197,94,.15);color:#22c55e;}
+.bug-details{font-size:13px;line-height:1.6;color:#cbd5e1;white-space:pre-wrap;word-break:break-word;margin-bottom:12px;}
+.bug-actions{display:flex;gap:8px;align-items:center;}
+.bug-actions button{padding:5px 12px;font-size:11px;font-weight:700;border-radius:6px;border:none;cursor:pointer;transition:opacity .15s;}
+.bug-actions button:hover{opacity:.85;}
+.btn-fix{background:#22c55e;color:#fff;}
+.btn-reopen{background:#f59e0b;color:#fff;}
+.btn-delete{background:#ef4444;color:#fff;}
+.timestamp{font-size:10px;color:#475569;margin-left:auto;}
+.empty{text-align:center;color:#475569;padding:60px 20px;font-size:14px;}
+.login-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:#0b1120;z-index:9999;display:flex;align-items:center;justify-content:center;}
+.login-box{background:#111827;border:1px solid #1e293b;border-radius:12px;padding:30px;min-width:320px;text-align:center;}
+.login-box h2{margin-bottom:16px;font-size:18px;}
+.login-box input{width:100%;padding:10px;font-size:14px;border-radius:6px;border:1px solid #334155;background:#0b1120;color:#e2e8f0;margin-bottom:10px;}
+.login-box button{width:100%;padding:10px;font-size:14px;font-weight:700;border-radius:6px;border:none;background:#4aa3ff;color:#fff;cursor:pointer;}
+.login-box .err{color:#ef4444;font-size:12px;margin-top:8px;}
+</style>
+</head>
+<body>
+
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h2>&#128027; Bug Reports</h2>
+    <input type="email" id="loginEmail" placeholder="Email" />
+    <input type="password" id="loginPass" placeholder="Password" />
+    <button id="btnLogin">SIGN IN</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<div class="header">
+  <h1><span>&#128027;</span> Bug Reports</h1>
+  <div class="stats">
+    <span class="stat-pill stat-open" id="statOpen">0 OPEN</span>
+    <span class="stat-pill stat-fixed" id="statFixed">0 FIXED</span>
+    <span class="stat-pill stat-total" id="statTotal">0 TOTAL</span>
+  </div>
+</div>
+
+<div class="filters">
+  <button class="active" data-filter="all">ALL</button>
+  <button data-filter="open">OPEN</button>
+  <button data-filter="fixed">FIXED</button>
+</div>
+
+<div class="bug-list" id="bugList">
+  <div class="empty">Loading...</div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyA6KELmSyotefK0zhahQZ0-mbYur8_nTsg",
+  authDomain: "commandops-93846.firebaseapp.com",
+  databaseURL: "https://commandops-93846-default-rtdb.firebaseio.com",
+  projectId: "commandops-93846",
+  storageBucket: "commandops-93846.firebasestorage.app",
+  messagingSenderId: "262613721964",
+  appId: "1:262613721964:web:478a694d357234e3be4949"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+// Auth
+document.getElementById('btnLogin').addEventListener('click', async () => {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+  } catch (e) {
+    document.getElementById('loginErr').textContent = e.message;
+  }
+});
+document.getElementById('loginPass').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('btnLogin').click();
+});
+
+auth.onAuthStateChanged((user) => {
+  document.getElementById('loginOverlay').style.display = user ? 'none' : 'flex';
+  if (user) loadBugs();
+});
+
+// State
+let allBugs = [];
+let currentFilter = 'all';
+
+// Filters
+document.querySelectorAll('.filters button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filters button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.getAttribute('data-filter');
+    renderBugs();
+  });
+});
+
+// Load bugs with real-time listener
+function loadBugs() {
+  db.collection('bugReports').orderBy('timestamp', 'desc').onSnapshot(snap => {
+    allBugs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    renderBugs();
+  });
+}
+
+function renderBugs() {
+  const list = document.getElementById('bugList');
+  const filtered = currentFilter === 'all' ? allBugs : allBugs.filter(b => b.status === currentFilter);
+
+  // Stats
+  const openCount = allBugs.filter(b => b.status === 'open').length;
+  const fixedCount = allBugs.filter(b => b.status === 'fixed').length;
+  document.getElementById('statOpen').textContent = openCount + ' OPEN';
+  document.getElementById('statFixed').textContent = fixedCount + ' FIXED';
+  document.getElementById('statTotal').textContent = allBugs.length + ' TOTAL';
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty">No bug reports' + (currentFilter !== 'all' ? ' with status "' + currentFilter + '"' : '') + '.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(b => {
+    const date = b.timestamp ? new Date(b.timestamp) : null;
+    const dateStr = date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
+    const statusClass = b.status === 'fixed' ? 'fixed' : 'open';
+    return `<div class="bug-card status-${statusClass}" data-id="${b.id}">
+      <div class="bug-top">
+        <div class="bug-meta">
+          <span class="name">${esc(b.name)}</span>
+          <span class="app">${esc(b.app || 'Unknown')}</span>
+          <span class="email">${esc(b.reportedBy || '')}</span>
+        </div>
+        <span class="bug-status ${statusClass}">${statusClass.toUpperCase()}</span>
+      </div>
+      <div class="bug-details">${esc(b.details)}</div>
+      <div class="bug-actions">
+        ${b.status === 'open'
+          ? '<button class="btn-fix" onclick="markFixed(\'' + b.id + '\')">MARK FIXED</button>'
+          : '<button class="btn-reopen" onclick="markOpen(\'' + b.id + '\')">REOPEN</button>'}
+        <button class="btn-delete" onclick="deleteBug(\'' + b.id + '\')">DELETE</button>
+        <span class="timestamp">${dateStr}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+async function markFixed(id) {
+  await db.collection('bugReports').doc(id).update({ status: 'fixed', fixedAt: new Date().toISOString() });
+}
+
+async function markOpen(id) {
+  await db.collection('bugReports').doc(id).update({ status: 'open', fixedAt: null });
+}
+
+async function deleteBug(id) {
+  if (!confirm('Delete this bug report permanently?')) return;
+  await db.collection('bugReports').doc(id).delete();
+}
+</script>
+</body>
+</html>
