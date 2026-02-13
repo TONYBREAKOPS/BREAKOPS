@@ -744,7 +744,7 @@
             <div style="margin-bottom:8px;">Added automatically on Friday and Saturday nights. Distributed evenly across eligible dispatchers.</div>
 
             <div style="font-weight:700; color:var(--text); margin-bottom:2px;">VACATION HANDLING</div>
-            <div style="margin-bottom:8px;">Vacation employees are excluded from the pool for their vacation days. Fairness % is calculated only against days they actually work. They don't affect the overall fairness score.</div>
+            <div style="margin-bottom:8px;">Vacation employees are excluded from the pool for their vacation days. Fairness % is calculated only against days they actually work. They don't affect the overall fairness score. Trainees are also excluded since they can only rotate through 4 channels.</div>
 
             <div style="font-weight:700; color:var(--text); margin-bottom:2px;">EXPORT</div>
             <div style="margin-bottom:8px;">Export Open Shifts generates a Teams-compatible XLSX for unfilled slots. Export Totals/Excel/CSV export assignment data. Push to ShiftOps syncs the rotation into ShiftOps.</div>
@@ -1269,6 +1269,14 @@ function isTrainee(name, dayKey, blockKey) {
     return true;
   });
 }
+// Global trainee channel restriction check for use in all balancing passes
+// Only restricts during actual training blocks (uses blockKey so non-training blocks are unrestricted)
+const _TRAINEE_OK_CHANNELS = new Set(["EAST","SOUTH","WEST","CENTRAL"]);
+function traineeBlocked(name, dayKey, blockKey, channelUpper) {
+  if (!isTrainee(name, dayKey, blockKey)) return false;
+  return !_TRAINEE_OK_CHANNELS.has(String(channelUpper).toUpperCase());
+}
+
 function isExcluded(name, dateObj) {
   const ranges = getVacRanges();
   const nm = String(name||"").trim().toUpperCase();
@@ -1685,7 +1693,7 @@ const poolAll = buildDispatcherPoolForDate(dateObj);
       // Training restriction: trainees can only be assigned to E, S, W, C
       const TRAINEE_ALLOWED_CHANNELS = new Set(["EAST","SOUTH","WEST","CENTRAL"]);
       function canTraineeWork(candName, channelUpper, blockKey) {
-        if (!isTrainee(candName, dayKey, blockKey)) return true; // Non-trainees can work any channel
+        if (!isTrainee(candName, dayKey, blockKey)) return true; // Only restrict during training blocks
         return TRAINEE_ALLOWED_CHANNELS.has(channelUpper);
       }
 
@@ -2255,6 +2263,7 @@ if (available.length > 10) {
       const cur = assignments[ch];
       if (!cur) continue; // Empty channel - shouldn't happen but skip
       if (!canTakeChannel(cand.name, ch)) continue;
+      if (!canTraineeWork(cand.name, String(ch).toUpperCase(), b.key)) continue;
 
       // Check if current holder can go to CT (not on CTR recently)
       const holderLast = lastAssign.get(cur);
@@ -2299,6 +2308,7 @@ if (available.length > 10) {
       if (atOrOverCap(cur)) continue;
       if (b2bProtected.has(cur)) continue; // Don't undo b2b pre-assignments
       if (!canTakeChannel(cand.name, ch)) continue;
+      if (!canTraineeWork(cand.name, String(ch).toUpperCase(), b.key)) continue;
 
       // swap
       assignments[ch] = cand.name;
@@ -2372,7 +2382,7 @@ if (available.length > 10) {
 
   for (const cand of remaining) {
     const name = cand.name;
-    // Training restriction: trainees should not be assigned to CT
+    // Training restriction: trainees should not be assigned to CT (date-only, all blocks)
     if (isTrainee(name, dayKey, b.key)) { continue; }
 
     // 12hr shift restriction: max 1 CT per day for 12-hour shift employees
@@ -2467,6 +2477,7 @@ for (const u of unassigned) {
       // Check daily same-channel restriction
       const uDayChannels = todayChannels.get(u.name);
       if (uDayChannels && uDayChannels.has(chUpper)) continue;
+      if (!canTraineeWork(u.name, chUpper, b.key)) continue;
       if (!forbiddenBackToBack(lastUpper, chUpper)) {
         assignments[ch] = u.name;
         usedNames.add(u.name);
@@ -2486,11 +2497,14 @@ for (const u of unassigned) {
         const currentHolder = assignments[ch];
         if (!currentHolder) continue;
         if (b2bProtected.has(currentHolder)) continue; // Don't undo b2b pre-assignments
+        if (isTrainee(currentHolder, dayKey, b.key)) continue; // Don't push trainee to CT during training blocks
         const chUpper = String(ch).toUpperCase();
         if (chUpper === "RELIEF 1" || chUpper === "RELIEF 2") continue;
+        if (traineeBlocked(u.name, dayKey, null, chUpper)) continue; // Don't put trainee in disallowed channel
         if (forbiddenBackToBack(lastUpper, chUpper)) continue;
         const uDayChannels = todayChannels.get(u.name);
         if (uDayChannels && uDayChannels.has(chUpper)) continue;
+        if (!canTraineeWork(u.name, chUpper, b.key)) continue;
 
         const holderLast = lastAssign.get(currentHolder);
         const holderLastUpper = holderLast ? String(holderLast).toUpperCase() : "";
@@ -2539,11 +2553,14 @@ for (const u of unassigned) {
         const currentHolder = assignments[ch];
         if (!currentHolder) continue;
         if (b2bProtected.has(currentHolder)) continue; // Don't undo b2b pre-assignments
+        if (isTrainee(currentHolder, dayKey, b.key)) continue; // Don't push trainee to CT during training blocks
         const chUpper = String(ch).toUpperCase();
         if (chUpper === "RELIEF 1" || chUpper === "RELIEF 2") continue;
+        if (traineeBlocked(u.name, dayKey, null, chUpper)) continue; // Don't put trainee in disallowed channel
         if (forbiddenBackToBack(lastUpper, chUpper)) continue;
         const uDayChannels = todayChannels.get(u.name);
         if (uDayChannels && uDayChannels.has(chUpper)) continue;
+        if (!canTraineeWork(u.name, chUpper, b.key)) continue;
 
         const holderLast = lastAssign.get(currentHolder);
         const holderLastUpper = holderLast ? String(holderLast).toUpperCase() : "";
@@ -2593,8 +2610,10 @@ for (const u of unassigned) {
         const currentHolder = assignments[ch];
         if (!currentHolder) continue;
         if (b2bProtected.has(currentHolder)) continue; // Don't undo b2b pre-assignments
+        if (isTrainee(currentHolder, dayKey, b.key)) continue; // Don't push trainee to CT during training blocks
         const chUpper = String(ch).toUpperCase();
         if (chUpper === "RELIEF 1" || chUpper === "RELIEF 2") continue;
+        if (traineeBlocked(u.name, dayKey, null, chUpper)) continue; // Don't put trainee in disallowed channel
         if (forbiddenBackToBack(lastUpper, chUpper)) continue;
         const uDayChannels = todayChannels.get(u.name);
         if (uDayChannels && uDayChannels.has(chUpper)) continue;
@@ -2643,7 +2662,8 @@ for (const u of unassigned) {
     }
 
     // Last resort: if still no channel, assign CT (violation is unavoidable)
-    if (!foundChannel) {
+    // But skip trainees — they must stay on allowed channels, not CT
+    if (!foundChannel && !isTrainee(u.name, dayKey, b.key)) {
       ct.push(u.name);
       lastAssign.set(u.name, "CT");
       updateStreaks(u.name, "CT");
@@ -2657,7 +2677,7 @@ for (const u of unassigned) {
       // TRACK VIOLATION (Relief->CT back-to-back)
       addViolation(u.name);
     }
-  } else {
+  } else if (!isTrainee(u.name, dayKey, b.key)) {
     // They weren't on CT/R1/R2 - check if they already had any CTR today
     const uDayChannels = todayChannels.get(u.name);
     const uHadCTRToday = uDayChannels && (uDayChannels.has("CT") || uDayChannels.has("RELIEF 1") || uDayChannels.has("RELIEF 2"));
@@ -2689,9 +2709,94 @@ for (const u of unassigned) {
   }
 }
 
-// FINAL SWEEP: Catch anyone still not assigned (trainees, edge cases) — force to CT
+// TRAINEE RESCUE: Get unassigned trainees into allowed channels (E/S/W/C) via swap
+const traineeUnassigned = available.filter(d => !usedNames.has(d.name) && !ct.includes(d.name) && !sd.includes(d.name) && isTrainee(d.name, dayKey, b.key));
+for (const u of traineeUnassigned) {
+  const _traineeAllowed = ["East","South","West","Central"];
+  let placed = false;
+  // Try empty allowed channel first
+  for (const ch of _traineeAllowed) {
+    if (!assignments[ch]) {
+      assignments[ch] = u.name;
+      usedNames.add(u.name);
+      lastAssign.set(u.name, ch);
+      if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+      todayChannels.get(u.name).add(ch.toUpperCase());
+      placed = true;
+      break;
+    }
+  }
+  // If no empty slot, swap with a non-trainee on an allowed channel
+  if (!placed) {
+    for (const ch of _traineeAllowed) {
+      const holder = assignments[ch];
+      if (!holder) continue;
+      if (isTrainee(holder, dayKey, b.key)) continue; // Don't swap out another trainee
+      // Push holder to CT (trainee placement overrides b2b protection)
+      assignments[ch] = u.name;
+      usedNames.add(u.name);
+      lastAssign.set(u.name, ch);
+      if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+      todayChannels.get(u.name).add(ch.toUpperCase());
+      ct.push(holder);
+      lastAssign.set(holder, "CT");
+      if (!todayChannels.has(holder)) todayChannels.set(holder, new Set());
+      todayChannels.get(holder).add("CT");
+      ctMonthCounts.set(holder, (ctMonthCounts.get(holder) || 0) + 1);
+      const wkMapTR = ctWeekCounts.get(wk) || new Map();
+      wkMapTR.set(holder, (wkMapTR.get(holder) || 0) + 1);
+      ctWeekCounts.set(wk, wkMapTR);
+      placed = true;
+      break;
+    }
+  }
+}
+
+// FINAL SWEEP: Catch anyone still not assigned (edge cases) — force to CT
 const finalUnassigned = available.filter(d => !usedNames.has(d.name) && !ct.includes(d.name) && !sd.includes(d.name));
 for (const u of finalUnassigned) {
+  // Trainee restriction: never push trainee to CT — try allowed channel or leave unassigned
+  if (isTrainee(u.name, dayKey, b.key)) {
+    const _tOk = ["East","South","West","Central"];
+    let _tPlaced = false;
+    // Try empty allowed channel
+    for (const _tCh of _tOk) {
+      if (!assignments[_tCh]) {
+        assignments[_tCh] = u.name;
+        usedNames.add(u.name);
+        lastAssign.set(u.name, _tCh);
+        if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+        todayChannels.get(u.name).add(_tCh.toUpperCase());
+        _tPlaced = true;
+        break;
+      }
+    }
+    // Try swapping with a non-trainee non-protected holder in an allowed channel
+    if (!_tPlaced) {
+      for (const _tCh of _tOk) {
+        const _tH = assignments[_tCh];
+        if (!_tH) continue;
+        if (isTrainee(_tH, dayKey, b.key)) continue;
+        // Trainee placement overrides b2b protection
+        assignments[_tCh] = u.name;
+        usedNames.add(u.name);
+        lastAssign.set(u.name, _tCh);
+        if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+        todayChannels.get(u.name).add(_tCh.toUpperCase());
+        ct.push(_tH);
+        lastAssign.set(_tH, "CT");
+        if (!todayChannels.has(_tH)) todayChannels.set(_tH, new Set());
+        todayChannels.get(_tH).add("CT");
+        ctMonthCounts.set(_tH, (ctMonthCounts.get(_tH) || 0) + 1);
+        const _twk = ctWeekCounts.get(wk) || new Map();
+        _twk.set(_tH, (_twk.get(_tH) || 0) + 1);
+        ctWeekCounts.set(wk, _twk);
+        _tPlaced = true;
+        break;
+      }
+    }
+    continue; // never push trainee to CT
+  }
   // 12hr shift: max 1 CT per day — skip if already had CT today
   if (is12HrShift(u, dateObj)) {
     const uDayCh = todayChannels.get(u.name);
@@ -2819,6 +2924,10 @@ for (const u of finalUnassigned) {
           const underOtherChs = _rebalDayChannels(under, dk, bk);
           if (underOtherChs.has(ch.toUpperCase())) continue; // 'under' already has ch elsewhere today
 
+          // Trainee restriction: don't swap trainee into restricted channel
+          if (traineeBlocked(under, dk, bk, ch.toUpperCase())) continue;
+          if (traineeBlocked(over, dk, bk, underCh.toUpperCase())) continue;
+
           // Perform the swap
           bd.assignments[ch] = under;
           bd.assignments[underCh] = over;
@@ -2918,6 +3027,10 @@ for (const u of finalUnassigned) {
           if (overOtherChs.has(underCh.toUpperCase())) continue;
           const underOtherChs = _rebalDayChannels(under, dk, bk);
           if (underOtherChs.has(ch.toUpperCase())) continue;
+
+          // Trainee restriction
+          if (traineeBlocked(under, dk, bk, ch.toUpperCase())) continue;
+          if (traineeBlocked(over, dk, bk, underCh.toUpperCase())) continue;
 
           // Perform the swap
           bd.assignments[ch] = under;
@@ -3019,6 +3132,10 @@ for (const u of finalUnassigned) {
           const underOtherChs = _rebalDayChannels(under, dk, bk);
           if (underOtherChs.has(ch.toUpperCase())) continue;
 
+          // Trainee restriction
+          if (traineeBlocked(under, dk, bk, ch.toUpperCase())) continue;
+          if (traineeBlocked(donor, dk, bk, underCh.toUpperCase())) continue;
+
           bd.assignments[ch] = under;
           bd.assignments[underCh] = donor;
 
@@ -3099,6 +3216,10 @@ for (const u of finalUnassigned) {
           if (donorOtherChs.has(underCh.toUpperCase())) continue;
           const underOtherChs = _rebalDayChannels(under, dk, bk);
           if (underOtherChs.has(ch.toUpperCase())) continue;
+
+          // Trainee restriction
+          if (traineeBlocked(under, dk, bk, ch.toUpperCase())) continue;
+          if (traineeBlocked(donor, dk, bk, underCh.toUpperCase())) continue;
 
           bd.assignments[ch] = under;
           bd.assignments[underCh] = donor;
@@ -3218,6 +3339,10 @@ for (const u of finalUnassigned) {
           // Safety: don't drop other person's count of needCh below 2
           const otherCounts = finalCounts.get(otherName);
           if (otherCounts && (otherCounts.get(needCh) || 0) <= 2) continue;
+
+          // Trainee restriction
+          if (traineeBlocked(sdName, dk, bk, needCh.toUpperCase())) continue;
+          if (traineeBlocked(otherName, dk, bk, currentCh.toUpperCase())) continue;
 
           // Perform the swap
           bd.assignments[currentCh] = otherName;
@@ -3394,6 +3519,10 @@ for (const u of finalUnassigned) {
             if (_wouldCauseBackToBack(under, dk, bk, gEntry.channel)) continue;
             if (_wouldCauseBackToBack(over, dk, bk, underCh)) continue;
 
+            // Trainee restriction
+            if (traineeBlocked(under, dk, bk, gEntry.channel.toUpperCase())) continue;
+            if (traineeBlocked(over, dk, bk, underCh.toUpperCase())) continue;
+
             // Perform the swap
             bd.assignments[gEntry.channel] = under;
             bd.assignments[underCh] = over;
@@ -3509,6 +3638,7 @@ for (const u of finalUnassigned) {
             for (const [ch, nm] of Object.entries(bd.assignments || {})) {
               if (!nm || nm === overName || !groupPeople.has(nm)) continue;
               if (bd.ct.includes(nm)) continue;
+              if (isTrainee(nm, dk, bk)) continue; // Trainees can't be moved to CT during training blocks
               const uCT = ctCounts.get(nm) || 0;
               if (uCT >= underThresh) continue;
 
@@ -3703,6 +3833,8 @@ for (const u of finalUnassigned) {
                 if ((overC.get(ch) || 0) <= (grpFloors.get(ch) || 2)) continue;
                 if (_wouldViolateSameDay(over, dk, bk, underCh)) continue;
                 if (_wouldViolateSameDay(under, dk, bk, ch)) continue;
+                if (traineeBlocked(over, dk, bk, underCh.toUpperCase())) continue;
+                if (traineeBlocked(under, dk, bk, ch.toUpperCase())) continue;
                 _grpSwap(over, ch, under, underCh, dk, bk, bd, entry);
                 swapped = true;
                 break;
@@ -3734,6 +3866,8 @@ for (const u of finalUnassigned) {
                     if ((otherC.get(c2) || 0) <= (ceilRelaxed ? 1 : 2)) continue;
                     if (_wouldViolateSameDay(person, dk, bk, c2)) continue;
                     if (_wouldViolateSameDay(nm2, dk, bk, ch)) continue;
+                    if (traineeBlocked(person, dk, bk, c2.toUpperCase())) continue;
+                    if (traineeBlocked(nm2, dk, bk, ch.toUpperCase())) continue;
                     _grpSwap(person, ch, nm2, c2, dk, bk, bd, entry);
                     swapped = true; didSwap = true; break;
                   }
@@ -3763,6 +3897,8 @@ for (const u of finalUnassigned) {
                   if ((underC.get(underCh) || 0) <= (floorRelaxed ? 0 : 1)) continue;
                   if (_wouldViolateSameDay(donor, dk, bk, underCh)) continue;
                   if (_wouldViolateSameDay(under, dk, bk, ch)) continue;
+                  if (traineeBlocked(under, dk, bk, ch.toUpperCase())) continue;
+                  if (traineeBlocked(donor, dk, bk, uEntry.channel.toUpperCase())) continue;
                   _grpSwap(under, uEntry.channel, donor, ch, dk, bk, bd, uEntry);
                   swapped = true; break;
                 }
@@ -3807,6 +3943,8 @@ for (const u of finalUnassigned) {
               if ((pC.get(c2) || 0) <= partnerFloor) continue;
               if (_wouldViolateSameDay(worstPerson, dk, bk, c2)) continue;
               if (_wouldViolateSameDay(nm2, dk, bk, worstCh)) continue;
+              if (traineeBlocked(worstPerson, dk, bk, c2.toUpperCase())) continue;
+              if (traineeBlocked(nm2, dk, bk, worstCh.toUpperCase())) continue;
               const score = ((grpAvgs.get(worstCh) || 0) - (pC.get(worstCh) || 0))
                           + ((pC.get(c2) || 0) - (grpAvgs.get(c2) || 0));
               if (score > bestScore) { bestScore = score; bestPartner = nm2; bestPartnerCh = c2; }
@@ -3853,6 +3991,8 @@ for (const u of finalUnassigned) {
             if ((donorC.get(worstCh) || 0) <= donorFloor) continue;
             if (_wouldViolateSameDay(worstPerson, dk, bk, worstCh)) continue;
             if (_wouldViolateSameDay(donor, dk, bk, surplusCh)) continue;
+            if (traineeBlocked(worstPerson, dk, bk, worstCh.toUpperCase())) continue;
+            if (traineeBlocked(donor, dk, bk, surplusCh.toUpperCase())) continue;
             _grpSwap(worstPerson, surplusCh, donor, worstCh, dk, bk, bd, entry);
             fixed = true; break;
           }
@@ -4012,6 +4152,10 @@ for (const u of finalUnassigned) {
           if (donorCounts && (donorCounts.get(c2.toUpperCase()) || 0) <= 1) continue;
           const overCounts = _b2bChCounts.get(entry.name);
           if (overCounts && (overCounts.get(entry.channel.toUpperCase()) || 0) <= 1) continue;
+
+          // Trainee restriction
+          if (traineeBlocked(nm2, dk, bk, entry.channel.toUpperCase())) continue;
+          if (traineeBlocked(entry.name, dk, bk, c2.toUpperCase())) continue;
 
           // Perform swap
           bd.assignments[entry.channel] = nm2;
@@ -4219,6 +4363,90 @@ for (const u of finalUnassigned) {
 
   // Final violation count after repairs
   const finalScan = _scanViolations();
+
+  // ========== TRAINEE CORRECTION PASS ==========
+  // After ALL balancing, scan every block and fix any trainee still on a disallowed channel or CT
+  {
+    const _tcOkSet = new Set(["EAST","SOUTH","WEST","CENTRAL"]);
+    const _tcAllowed = ["East","South","West","Central"];
+    for (let _tcDay = 1; _tcDay <= daysInMonth; _tcDay++) {
+      const _tcDate = new Date(year, monthIndex, _tcDay, 12, 0, 0, 0);
+      const _tcDk = ymd(_tcDate);
+      const _tcDayData = plan.days[_tcDk];
+      if (!_tcDayData) continue;
+      for (const _tcBlk of BLOCKS) {
+        const _tcBd = _tcDayData[_tcBlk.key];
+        if (!_tcBd) continue;
+
+        // Fix trainees in disallowed channel assignments
+        for (const [ch, nm] of Object.entries(_tcBd.assignments || {})) {
+          if (!nm) continue;
+          if (!isTrainee(nm, _tcDk, _tcBlk.key)) continue;
+          if (_tcOkSet.has(ch.toUpperCase())) continue; // Already on allowed channel
+          // Trainee on disallowed channel — try to swap with non-trainee on allowed channel
+          let _tcFixed = false;
+          for (const _tcCh of _tcAllowed) {
+            const _tcHolder = _tcBd.assignments[_tcCh];
+            if (!_tcHolder) {
+              // Empty allowed slot — just move
+              _tcBd.assignments[_tcCh] = nm;
+              _tcBd.assignments[ch] = null;
+              _tcFixed = true;
+              break;
+            }
+            if (isTrainee(_tcHolder, _tcDk, _tcBlk.key)) continue;
+            // Swap trainee into allowed channel, push holder to disallowed
+            _tcBd.assignments[_tcCh] = nm;
+            _tcBd.assignments[ch] = _tcHolder;
+            _tcFixed = true;
+            break;
+          }
+          if (!_tcFixed) {
+            // Last resort: move trainee to CT-free — put in empty allowed or leave (don't push to CT)
+            _tcBd.assignments[ch] = null;
+            // Try one more time for any empty allowed slot
+            for (const _tcCh of _tcAllowed) {
+              if (!_tcBd.assignments[_tcCh]) {
+                _tcBd.assignments[_tcCh] = nm;
+                break;
+              }
+            }
+          }
+        }
+
+        // Fix trainees in CT — move to allowed channel if possible
+        if (_tcBd.ct && _tcBd.ct.length > 0) {
+          for (let _ci = _tcBd.ct.length - 1; _ci >= 0; _ci--) {
+            const _ctName = _tcBd.ct[_ci];
+            if (!isTrainee(_ctName, _tcDk, _tcBlk.key)) continue;
+            // Trainee on CT — try empty allowed channel
+            let _ctFixed = false;
+            for (const _tcCh of _tcAllowed) {
+              if (!_tcBd.assignments[_tcCh]) {
+                _tcBd.assignments[_tcCh] = _ctName;
+                _tcBd.ct.splice(_ci, 1);
+                _ctFixed = true;
+                break;
+              }
+            }
+            if (!_ctFixed) {
+              // Swap with non-trainee on allowed channel → push them to CT
+              for (const _tcCh of _tcAllowed) {
+                const _tcHolder = _tcBd.assignments[_tcCh];
+                if (!_tcHolder) continue;
+                if (isTrainee(_tcHolder, _tcDk, _tcBlk.key)) continue;
+                _tcBd.assignments[_tcCh] = _ctName;
+                _tcBd.ct[_ci] = _tcHolder;
+                _ctFixed = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  // ========== END TRAINEE CORRECTION PASS ==========
 
   savePlan(plan);
 
@@ -4678,7 +4906,7 @@ const poolAll = buildDispatcherPoolForDate(dateObj);
       // Training restriction: trainees can only be assigned to E, S, W, C
       const TRAINEE_ALLOWED_CHANNELS = new Set(["EAST","SOUTH","WEST","CENTRAL"]);
       function canTraineeWork(candName, channelUpper, blockKey) {
-        if (!isTrainee(candName, dayKey, blockKey)) return true; // Non-trainees can work any channel
+        if (!isTrainee(candName, dayKey, blockKey)) return true; // Only restrict during training blocks
         return TRAINEE_ALLOWED_CHANNELS.has(channelUpper);
       }
 
@@ -5243,6 +5471,7 @@ if (available.length > 10) {
       const cur = assignments[ch];
       if (!cur) continue; // Empty channel - shouldn't happen but skip
       if (!canTakeChannel(cand.name, ch)) continue;
+      if (!canTraineeWork(cand.name, String(ch).toUpperCase(), b.key)) continue;
 
       // Check if current holder can go to CT (not on CTR recently)
       const holderLast = lastAssign.get(cur);
@@ -5287,6 +5516,7 @@ if (available.length > 10) {
       if (atOrOverCap(cur)) continue;
       if (b2bProtected.has(cur)) continue; // Don't undo b2b pre-assignments
       if (!canTakeChannel(cand.name, ch)) continue;
+      if (!canTraineeWork(cand.name, String(ch).toUpperCase(), b.key)) continue;
 
       // swap
       assignments[ch] = cand.name;
@@ -5346,7 +5576,7 @@ if (available.length > 10) {
 
   for (const cand of remaining) {
     const name = cand.name;
-    // Training restriction: trainees should not be assigned to CT
+    // Training restriction: trainees should not be assigned to CT (date-only, all blocks)
     if (isTrainee(name, dayKey, b.key)) { continue; }
 
     // STRICT: R1, R2, CT should NEVER be back-to-back in any order
@@ -5435,6 +5665,7 @@ for (const u of unassigned) {
       // Check daily same-channel restriction
       const uDayChannels = todayChannels.get(u.name);
       if (uDayChannels && uDayChannels.has(chUpper)) continue;
+      if (!canTraineeWork(u.name, chUpper, b.key)) continue;
       if (!forbiddenBackToBack(lastUpper, chUpper)) {
         assignments[ch] = u.name;
         usedNames.add(u.name);
@@ -5454,11 +5685,14 @@ for (const u of unassigned) {
         const currentHolder = assignments[ch];
         if (!currentHolder) continue;
         if (b2bProtected.has(currentHolder)) continue; // Don't undo b2b pre-assignments
+        if (isTrainee(currentHolder, dayKey, b.key)) continue; // Don't push trainee to CT during training blocks
         const chUpper = String(ch).toUpperCase();
         if (chUpper === "RELIEF 1" || chUpper === "RELIEF 2") continue;
+        if (traineeBlocked(u.name, dayKey, null, chUpper)) continue; // Don't put trainee in disallowed channel
         if (forbiddenBackToBack(lastUpper, chUpper)) continue;
         const uDayChannels = todayChannels.get(u.name);
         if (uDayChannels && uDayChannels.has(chUpper)) continue;
+        if (!canTraineeWork(u.name, chUpper, b.key)) continue;
 
         const holderLast = lastAssign.get(currentHolder);
         const holderLastUpper = holderLast ? String(holderLast).toUpperCase() : "";
@@ -5507,11 +5741,14 @@ for (const u of unassigned) {
         const currentHolder = assignments[ch];
         if (!currentHolder) continue;
         if (b2bProtected.has(currentHolder)) continue; // Don't undo b2b pre-assignments
+        if (isTrainee(currentHolder, dayKey, b.key)) continue; // Don't push trainee to CT during training blocks
         const chUpper = String(ch).toUpperCase();
         if (chUpper === "RELIEF 1" || chUpper === "RELIEF 2") continue;
+        if (traineeBlocked(u.name, dayKey, null, chUpper)) continue; // Don't put trainee in disallowed channel
         if (forbiddenBackToBack(lastUpper, chUpper)) continue;
         const uDayChannels = todayChannels.get(u.name);
         if (uDayChannels && uDayChannels.has(chUpper)) continue;
+        if (!canTraineeWork(u.name, chUpper, b.key)) continue;
 
         const holderLast = lastAssign.get(currentHolder);
         const holderLastUpper = holderLast ? String(holderLast).toUpperCase() : "";
@@ -5561,8 +5798,10 @@ for (const u of unassigned) {
         const currentHolder = assignments[ch];
         if (!currentHolder) continue;
         if (b2bProtected.has(currentHolder)) continue; // Don't undo b2b pre-assignments
+        if (isTrainee(currentHolder, dayKey, b.key)) continue; // Don't push trainee to CT during training blocks
         const chUpper = String(ch).toUpperCase();
         if (chUpper === "RELIEF 1" || chUpper === "RELIEF 2") continue;
+        if (traineeBlocked(u.name, dayKey, null, chUpper)) continue; // Don't put trainee in disallowed channel
         if (forbiddenBackToBack(lastUpper, chUpper)) continue;
         const uDayChannels = todayChannels.get(u.name);
         if (uDayChannels && uDayChannels.has(chUpper)) continue;
@@ -5611,7 +5850,8 @@ for (const u of unassigned) {
     }
 
     // Last resort: if still no channel, assign CT (violation is unavoidable)
-    if (!foundChannel) {
+    // But skip trainees — they must stay on allowed channels, not CT
+    if (!foundChannel && !isTrainee(u.name, dayKey, b.key)) {
       ct.push(u.name);
       lastAssign.set(u.name, "CT");
       updateStreaks(u.name, "CT");
@@ -5625,7 +5865,7 @@ for (const u of unassigned) {
       // TRACK VIOLATION (Relief->CT back-to-back)
       addViolation(u.name);
     }
-  } else {
+  } else if (!isTrainee(u.name, dayKey, b.key)) {
     // They weren't on CT/R1/R2 - check if they already had any CTR today
     const uDayChannels = todayChannels.get(u.name);
     const uHadCTRToday = uDayChannels && (uDayChannels.has("CT") || uDayChannels.has("RELIEF 1") || uDayChannels.has("RELIEF 2"));
@@ -5657,9 +5897,94 @@ for (const u of unassigned) {
   }
 }
 
-// FINAL SWEEP: Catch anyone still not assigned (trainees, edge cases) — force to CT
+// TRAINEE RESCUE: Get unassigned trainees into allowed channels (E/S/W/C) via swap
+const traineeUnassigned = available.filter(d => !usedNames.has(d.name) && !ct.includes(d.name) && !sd.includes(d.name) && isTrainee(d.name, dayKey, b.key));
+for (const u of traineeUnassigned) {
+  const _traineeAllowed = ["East","South","West","Central"];
+  let placed = false;
+  // Try empty allowed channel first
+  for (const ch of _traineeAllowed) {
+    if (!assignments[ch]) {
+      assignments[ch] = u.name;
+      usedNames.add(u.name);
+      lastAssign.set(u.name, ch);
+      if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+      todayChannels.get(u.name).add(ch.toUpperCase());
+      placed = true;
+      break;
+    }
+  }
+  // If no empty slot, swap with a non-trainee on an allowed channel
+  if (!placed) {
+    for (const ch of _traineeAllowed) {
+      const holder = assignments[ch];
+      if (!holder) continue;
+      if (isTrainee(holder, dayKey, b.key)) continue;
+      // Trainee placement overrides b2b protection
+      assignments[ch] = u.name;
+      usedNames.add(u.name);
+      lastAssign.set(u.name, ch);
+      if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+      todayChannels.get(u.name).add(ch.toUpperCase());
+      ct.push(holder);
+      lastAssign.set(holder, "CT");
+      if (!todayChannels.has(holder)) todayChannels.set(holder, new Set());
+      todayChannels.get(holder).add("CT");
+      ctMonthCounts.set(holder, (ctMonthCounts.get(holder) || 0) + 1);
+      const wkMapTR = ctWeekCounts.get(wk) || new Map();
+      wkMapTR.set(holder, (wkMapTR.get(holder) || 0) + 1);
+      ctWeekCounts.set(wk, wkMapTR);
+      placed = true;
+      break;
+    }
+  }
+}
+
+// FINAL SWEEP: Catch anyone still not assigned (edge cases) — force to CT
 const finalUnassigned = available.filter(d => !usedNames.has(d.name) && !ct.includes(d.name) && !sd.includes(d.name));
 for (const u of finalUnassigned) {
+  // Trainee restriction: never push trainee to CT — try allowed channel or leave unassigned
+  if (isTrainee(u.name, dayKey, b.key)) {
+    const _tOk = ["East","South","West","Central"];
+    let _tPlaced = false;
+    // Try empty allowed channel
+    for (const _tCh of _tOk) {
+      if (!assignments[_tCh]) {
+        assignments[_tCh] = u.name;
+        usedNames.add(u.name);
+        lastAssign.set(u.name, _tCh);
+        if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+        todayChannels.get(u.name).add(_tCh.toUpperCase());
+        _tPlaced = true;
+        break;
+      }
+    }
+    // Try swapping with a non-trainee non-protected holder in an allowed channel
+    if (!_tPlaced) {
+      for (const _tCh of _tOk) {
+        const _tH = assignments[_tCh];
+        if (!_tH) continue;
+        if (isTrainee(_tH, dayKey, b.key)) continue;
+        // Trainee placement overrides b2b protection
+        assignments[_tCh] = u.name;
+        usedNames.add(u.name);
+        lastAssign.set(u.name, _tCh);
+        if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+        todayChannels.get(u.name).add(_tCh.toUpperCase());
+        ct.push(_tH);
+        lastAssign.set(_tH, "CT");
+        if (!todayChannels.has(_tH)) todayChannels.set(_tH, new Set());
+        todayChannels.get(_tH).add("CT");
+        ctMonthCounts.set(_tH, (ctMonthCounts.get(_tH) || 0) + 1);
+        const _twk = ctWeekCounts.get(wk) || new Map();
+        _twk.set(_tH, (_twk.get(_tH) || 0) + 1);
+        ctWeekCounts.set(wk, _twk);
+        _tPlaced = true;
+        break;
+      }
+    }
+    continue; // never push trainee to CT
+  }
   ct.push(u.name);
   lastAssign.set(u.name, "CT");
   if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
@@ -5813,6 +6138,10 @@ for (const u of finalUnassigned) {
           const overCounts = _b2bFinalCounts.get(entry.name);
           if (overCounts && (overCounts.get(entry.channel.toUpperCase()) || 0) <= 1) continue;
 
+          // Trainee restriction
+          if (traineeBlocked(nm2, dk, bk, entry.channel.toUpperCase())) continue;
+          if (traineeBlocked(entry.name, dk, bk, c2.toUpperCase())) continue;
+
           bd.assignments[entry.channel] = nm2;
           bd.assignments[c2] = entry.name;
           if (overCounts) {
@@ -5832,6 +6161,83 @@ for (const u of finalUnassigned) {
     }
   }
   // ========== END B2B EVENING PASS (Option B) ==========
+
+  // ========== TRAINEE CORRECTION PASS (Option B) ==========
+  // After ALL balancing, scan every block and fix any trainee still on a disallowed channel or CT
+  {
+    const _tcOkSet = new Set(["EAST","SOUTH","WEST","CENTRAL"]);
+    const _tcAllowed = ["East","South","West","Central"];
+    for (let _tcDay = 1; _tcDay <= daysInMonth; _tcDay++) {
+      const _tcDate = new Date(year, monthIndex, _tcDay, 12, 0, 0, 0);
+      const _tcDk = ymd(_tcDate);
+      const _tcDayData = plan.days[_tcDk];
+      if (!_tcDayData) continue;
+      for (const _tcBlk of BLOCKS) {
+        const _tcBd = _tcDayData[_tcBlk.key];
+        if (!_tcBd) continue;
+
+        // Fix trainees in disallowed channel assignments
+        for (const [ch, nm] of Object.entries(_tcBd.assignments || {})) {
+          if (!nm) continue;
+          if (!isTrainee(nm, _tcDk, _tcBlk.key)) continue;
+          if (_tcOkSet.has(ch.toUpperCase())) continue;
+          let _tcFixed = false;
+          for (const _tcCh of _tcAllowed) {
+            const _tcHolder = _tcBd.assignments[_tcCh];
+            if (!_tcHolder) {
+              _tcBd.assignments[_tcCh] = nm;
+              _tcBd.assignments[ch] = null;
+              _tcFixed = true;
+              break;
+            }
+            if (isTrainee(_tcHolder, _tcDk, _tcBlk.key)) continue;
+            _tcBd.assignments[_tcCh] = nm;
+            _tcBd.assignments[ch] = _tcHolder;
+            _tcFixed = true;
+            break;
+          }
+          if (!_tcFixed) {
+            _tcBd.assignments[ch] = null;
+            for (const _tcCh of _tcAllowed) {
+              if (!_tcBd.assignments[_tcCh]) {
+                _tcBd.assignments[_tcCh] = nm;
+                break;
+              }
+            }
+          }
+        }
+
+        // Fix trainees in CT
+        if (_tcBd.ct && _tcBd.ct.length > 0) {
+          for (let _ci = _tcBd.ct.length - 1; _ci >= 0; _ci--) {
+            const _ctName = _tcBd.ct[_ci];
+            if (!isTrainee(_ctName, _tcDk, _tcBlk.key)) continue;
+            let _ctFixed = false;
+            for (const _tcCh of _tcAllowed) {
+              if (!_tcBd.assignments[_tcCh]) {
+                _tcBd.assignments[_tcCh] = _ctName;
+                _tcBd.ct.splice(_ci, 1);
+                _ctFixed = true;
+                break;
+              }
+            }
+            if (!_ctFixed) {
+              for (const _tcCh of _tcAllowed) {
+                const _tcHolder = _tcBd.assignments[_tcCh];
+                if (!_tcHolder) continue;
+                if (isTrainee(_tcHolder, _tcDk, _tcBlk.key)) continue;
+                _tcBd.assignments[_tcCh] = _ctName;
+                _tcBd.ct[_ci] = _tcHolder;
+                _ctFixed = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  // ========== END TRAINEE CORRECTION PASS (Option B) ==========
 
   savePlan(plan); // Re-save after B2B pass
 
@@ -8104,6 +8510,14 @@ function calculateFairnessStats() {
     }
   }
 
+  // Identify trainees — anyone who is a trainee on any day this month
+  const traineeNames = new Set();
+  for (const dayKey of Object.keys(plan.days)) {
+    for (const [nm] of empStats) {
+      if (isTrainee(nm, dayKey, null)) traineeNames.add(nm);
+    }
+  }
+
   // Compute expected assignments per person proportional to their eligible blocks
   const totalEligible = Array.from(eligibleBlocks.values()).reduce((a, b) => a + b, 0);
   // Store expected on each empStats entry
@@ -8112,13 +8526,14 @@ function calculateFairnessStats() {
     s.eligibleBlocks = eb;
     s.expected = totalEligible > 0 ? totalAssignments * (eb / totalEligible) : 0;
     s.isVacation = vacNames.has(nm);
+    s.isTrainee = traineeNames.has(nm);
   }
 
   const totals = Array.from(empStats.values()).map(s => s.total);
   const avg = totals.length ? totals.reduce((a,b) => a+b, 0) / totals.length : 0;
 
-  // Spread is based on adjusted diff (actual - expected) — exclude vacation employees from score
-  const nonVacDiffs = Array.from(empStats.entries()).filter(([nm, s]) => !s.isVacation).map(([nm, s]) => s.total - s.expected);
+  // Spread is based on adjusted diff (actual - expected) — exclude vacation & trainee employees from score
+  const nonVacDiffs = Array.from(empStats.entries()).filter(([nm, s]) => !s.isVacation && !s.isTrainee).map(([nm, s]) => s.total - s.expected);
   const maxDiff = nonVacDiffs.length ? Math.max(...nonVacDiffs, 0) : 0;
   const minDiff = nonVacDiffs.length ? Math.min(...nonVacDiffs, 0) : 0;
   const spread = Math.round((maxDiff - minDiff) * 10) / 10;
@@ -8183,8 +8598,9 @@ function printHowItWorks() {
         const clamped = Math.max(0, Math.min(100, fairPct));
         const color = clamped >= 90 ? '#16a34a' : clamped >= 80 ? '#ca8a04' : '#dc2626';
         const vacTag = s.isVacation ? ' <span style="color:#ca8a04; font-size:6px; font-weight:700;">VAC</span>' : '';
-        const rowOpacity = s.isVacation ? ' opacity:0.6;' : '';
-        rows += '<tr style="' + rowOpacity + '"><td style="text-align:left; font-weight:600; padding:2px 6px;">' + name + vacTag + '</td><td style="padding:2px 6px; text-align:center;">' + s.total + '</td><td style="padding:2px 6px; text-align:center;">' + s.ct + '</td><td style="padding:2px 6px; text-align:center; color:' + color + '; font-weight:700;">' + clamped + '%</td></tr>';
+        const trnTag = s.isTrainee ? ' <span style="color:#38bdf8; font-size:6px; font-weight:700;">TRN</span>' : '';
+        const rowOpacity = (s.isVacation || s.isTrainee) ? ' opacity:0.6;' : '';
+        rows += '<tr style="' + rowOpacity + '"><td style="text-align:left; font-weight:600; padding:2px 6px;">' + name + vacTag + trnTag + '</td><td style="padding:2px 6px; text-align:center;">' + s.total + '</td><td style="padding:2px 6px; text-align:center;">' + s.ct + '</td><td style="padding:2px 6px; text-align:center; color:' + color + '; font-weight:700;">' + clamped + '%</td></tr>';
       }
       return rows;
     }
@@ -8518,11 +8934,11 @@ function renderInfoStats() {
       \u2022 <b style="color:var(--text);">Call-Taker</b> \u2014 CT assignments are spread evenly so no one gets stuck on phones more than anyone else.<br>
       \u2022 <b style="color:var(--text);">7th Channel</b> \u2014 Added on Friday and Saturday nights and distributed evenly.<br>
       \u2022 <b style="color:var(--text);">Vacations</b> \u2014 Employees on vacation are excluded from those days. Their fairness is measured only against the days they actually work.<br>
-      \u2022 <b style="color:var(--text);">Trainees</b> \u2014 Limited to East, South, West, and Central during training blocks.
+      \u2022 <b style="color:var(--text);">Trainees</b> \u2014 Limited to East, South, West, and Central. Excluded from the fairness score since they can\u2019t rotate through all channels.
     </div>
 
     <div style="font-weight:700; font-size:11px; color:var(--text); margin-top:8px; margin-bottom:4px;">FAIRNESS %</div>
-    <div style="margin-bottom:6px;">Shows how close each person\u2019s assignments are to what they should have gotten based on their availability. 100% = perfectly even. <span style="color:#22c55e">Green 90%+</span> = fair. <span style="color:#f59e0b">Yellow 80\u201389%</span> = slightly off. <span style="color:#ef4444">Red &lt;80%</span> = noticeably off. Employees on vacation are excluded from the overall fairness score since they naturally have fewer assignments.</div>
+    <div style="margin-bottom:6px;">Shows how close each person\u2019s assignments are to what they should have gotten based on their availability. 100% = perfectly even. <span style="color:#22c55e">Green 90%+</span> = fair. <span style="color:#f59e0b">Yellow 80\u201389%</span> = slightly off. <span style="color:#ef4444">Red &lt;80%</span> = noticeably off. Employees on vacation and trainees are excluded from the overall fairness score since they can\u2019t rotate through all channels.</div>
 
     <div style="margin-top:12px; text-align:center;"><button onclick="printHowItWorks()" style="background:#4aa3ff; color:#fff; border:none; border-radius:6px; padding:8px 20px; font-size:12px; font-weight:700; cursor:pointer;">PRINT THIS PAGE</button></div>
   </div>`;
@@ -8558,8 +8974,10 @@ function renderInfoStats() {
       const pctClass = clampedPct >= 90 ? 'color:#22c55e' : clampedPct >= 80 ? 'color:#f59e0b' : 'color:#ef4444';
       const seventh = s.channels[SEVENTH_CHANNEL] || 0;
       const vacLabel = s.isVacation ? ' <span style="color:#f59e0b; font-size:9px; font-weight:700;">VAC</span>' : '';
-      fairHtml += `<tr style="${s.isVacation ? 'opacity:0.6;' : ''}">
-        <td style="text-align:left; font-weight:600;">${escapeHtml(name)}${vacLabel}</td>
+      const trnLabel = s.isTrainee ? ' <span style="color:#38bdf8; font-size:9px; font-weight:700;">TRN</span>' : '';
+      const dimRow = s.isVacation || s.isTrainee;
+      fairHtml += `<tr style="${dimRow ? 'opacity:0.6;' : ''}">
+        <td style="text-align:left; font-weight:600;">${escapeHtml(name)}${vacLabel}${trnLabel}</td>
         <td>${s.total}</td>
         <td>${s.expected.toFixed(1)}</td>
         <td>${seventh}</td>
@@ -9587,6 +10005,16 @@ function boot() {
     const personA = name.toUpperCase();
     const personB = swapName.toUpperCase();
 
+    // Trainee restriction: block swaps that put a trainee on a restricted channel or CT
+    const _swapBlockedA = (swapType === "channel" && traineeBlocked(personA, dayKey, blockKey, swapChannel.toUpperCase()))
+                       || (swapType === "ct" && isTrainee(personA, dayKey, blockKey));
+    const _swapBlockedB = (type === "channel" && traineeBlocked(personB, dayKey, blockKey, channel.toUpperCase()))
+                       || (type === "ct" && isTrainee(personB, dayKey, blockKey));
+    if (_swapBlockedA || _swapBlockedB) {
+      showToast("TRAINEE CANNOT BE ASSIGNED TO THAT POSITION.");
+      return;
+    }
+
     // Perform the swap based on types
     // Remove personA from their current position
     if (type === "channel") {
@@ -9795,6 +10223,19 @@ function boot() {
     const idx = blockData.sd.findIndex(n => String(n).toUpperCase() === personName);
     if (idx !== -1) blockData.sd.splice(idx, 1);
 
+    // Trainee restriction: block SD move to disallowed destinations
+    if (moveValue === "ct" && isTrainee(personName, dayKey, blockKey)) {
+      showToast("TRAINEE CANNOT BE MOVED TO CT.");
+      return;
+    }
+    if (moveValue.startsWith("channel|")) {
+      const chCheck = moveValue.split("|")[1];
+      if (traineeBlocked(personName, dayKey, blockKey, chCheck.toUpperCase())) {
+        showToast("TRAINEE CANNOT BE MOVED TO " + chCheck.toUpperCase() + ".");
+        return;
+      }
+    }
+
     let dest;
     if (moveValue === "ct") {
       // Add to CT
@@ -9950,6 +10391,12 @@ function boot() {
     const blockData = plan.days[dayKey]?.[blockKey];
     if (!blockData) return hideAssignSlotModal();
 
+    // Trainee restriction: block assignment to disallowed channels
+    if (traineeBlocked(selectedName, dayKey, blockKey, channel.toUpperCase())) {
+      showToast("TRAINEE CANNOT BE ASSIGNED TO " + channel.toUpperCase() + ".");
+      return;
+    }
+
     // Assign person to channel
     blockData.assignments[channel] = selectedName;
 
@@ -10094,6 +10541,16 @@ function boot() {
     const blockData = plan.days[dayKey]?.[blockKey];
     if (!blockData) return hideVacAssignModal();
 
+    // Trainee restriction: block assignment to disallowed channels or CT
+    if (channel === "CT" && isTrainee(name, dayKey, blockKey)) {
+      showToast("TRAINEE CANNOT BE ASSIGNED TO CT.");
+      return;
+    }
+    if (channel !== "CT" && traineeBlocked(name, dayKey, blockKey, channel.toUpperCase())) {
+      showToast("TRAINEE CANNOT BE ASSIGNED TO " + channel.toUpperCase() + ".");
+      return;
+    }
+
     // Assign to CT or to a channel slot
     if (channel === "CT") {
       if (!blockData.ct) blockData.ct = [];
@@ -10156,9 +10613,27 @@ function boot() {
       if (idx !== -1) blockData.absent.splice(idx, 1);
     }
 
-    // Add back to CT
-    if (!blockData.ct) blockData.ct = [];
-    blockData.ct.push(absentName);
+    // Trainee restriction: don't add trainee back to CT
+    if (isTrainee(absentName, dayKey, blockKey)) {
+      // Try to place trainee in an empty allowed channel instead
+      const _tAllowed = ["East","South","West","Central"];
+      let _tPlaced = false;
+      for (const _tCh of _tAllowed) {
+        if (!blockData.assignments[_tCh]) {
+          blockData.assignments[_tCh] = absentName;
+          _tPlaced = true;
+          break;
+        }
+      }
+      if (!_tPlaced) {
+        showToast("NO ALLOWED CHANNEL OPEN FOR TRAINEE — CANNOT RETURN TO CT.");
+        return;
+      }
+    } else {
+      // Add back to CT
+      if (!blockData.ct) blockData.ct = [];
+      blockData.ct.push(absentName);
+    }
 
     savePlan(plan);
 
@@ -10399,6 +10874,8 @@ function boot() {
               if (gain <= bestGain) continue;
               if (wouldViolate(a.nm, dk, bk.key, b.ch)) continue;
               if (wouldViolate(b.nm, dk, bk.key, a.ch)) continue;
+              if (traineeBlocked(a.nm, dk, bk.key, b.ch.toUpperCase())) continue;
+              if (traineeBlocked(b.nm, dk, bk.key, a.ch.toUpperCase())) continue;
 
               bestGain = gain;
               bestSwap = { dk, bk: bk.key, chA: a.ch, chB: b.ch, nmA: a.nm, nmB: b.nm };
@@ -10451,6 +10928,8 @@ function boot() {
 
               if (wouldViolate(ctPerson, dk, bk.key, ch)) continue;
               if (wouldViolate(chPerson, dk, bk.key, "CT")) continue;
+              if (traineeBlocked(ctPerson, dk, bk.key, ch.toUpperCase())) continue;
+              if (isTrainee(chPerson, dk, bk.key)) continue; // Trainee can't go to CT during training blocks
 
               bestGain = gain;
               bestSwap = { dk, bk: bk.key, ch, ctIdx: ci, ctPerson, chPerson };
