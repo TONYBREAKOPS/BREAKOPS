@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tony Martinez - Resume</title>
+<style>
+  @page { margin: 0.45in 0.55in; size: letter; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Calibri, Arial, sans-serif;
+    color: #c9d1d9;
+    line-height: 1.45;
+    font-size: 10.5pt;
+    background: #0a0f1a;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page {
+    max-width: 8.5in;
+    margin: 40px auto;
+    padding: 0.55in 0.65in;
+    background: #111827;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  @media print {
+    body { background: #fff !important; color: #1a1a1a !important; }
+    .page { padding: 0; margin: 0 auto; background: #fff !important; border: none; border-radius: 0; box-shadow: none; }
+    #passGate { display:none !important; }
+    #resumePage { display:block !important; }
+    .header h1 { color: #0f2b46 !important; }
+    .header .contact, .header .contact a { color: #444 !important; }
+    .divider { border-top-color: #0f2b46 !important; }
+    .section-title { color: #0f2b46 !important; border-bottom-color: #0f2b46 !important; }
+    .skills-grid .cat { color: #0f2b46 !important; }
+    .job-title { color: #0f2b46 !important; }
+    .job-org { color: #333 !important; }
+    .job-date { color: #555 !important; }
+    .edu-line .school { color: #0f2b46 !important; }
+    .edu-line .detail { color: #333 !important; }
+    .edu-line .dates { color: #555 !important; }
+    li::marker { color: #0f2b46 !important; }
+    li, p { color: #1a1a1a !important; }
+  }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 16px; }
+  .header h1 {
+    font-size: 26pt;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #e2e8f0;
+    margin-bottom: 4px;
+  }
+  .header .contact {
+    font-size: 10pt;
+    color: #94a3b8;
+    letter-spacing: 0.3px;
+  }
+  .header .contact a { color: #94a3b8; text-decoration: none; }
+  .header .contact a:hover { color: #60a5fa; }
+  .divider {
+    border: none;
+    border-top: 2.5px solid #2563eb;
+    margin: 10px 0 14px;
+  }
+
+  /* Section titles */
+  .section-title {
+    font-size: 10.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #60a5fa;
+    border-bottom: 1.5px solid #1e3a5f;
+    padding-bottom: 2px;
+    margin: 12px 0 6px;
+  }
+
+  /* Skills */
+  .skills-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 24px;
+    font-size: 10pt;
+  }
+  .skills-grid .cat {
+    font-weight: 700;
+    color: #93c5fd;
+    display: inline;
+  }
+
+  /* Experience */
+  .job { margin-bottom: 8px; }
+  .job-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+  }
+  .job-title { font-weight: 700; font-size: 10.5pt; color: #e2e8f0; }
+  .job-org { font-weight: 400; color: #94a3b8; }
+  .job-date { font-size: 9.5pt; color: #64748b; font-style: italic; white-space: nowrap; }
+  ul {
+    margin: 3px 0 0 18px;
+    padding: 0;
+  }
+  li {
+    margin-bottom: 1.5px;
+    font-size: 10pt;
+    padding-left: 2px;
+  }
+  li::marker { color: #2563eb; }
+
+  /* Achievements */
+  .achievements li { margin-bottom: 2px; }
+
+  /* Education & Certs */
+  .edu-line {
+    font-size: 10pt;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .edu-line .school { font-weight: 700; color: #e2e8f0; }
+  .edu-line .detail { color: #94a3b8; }
+  .edu-line .dates { font-size: 9.5pt; color: #64748b; font-style: italic; }
+
+  .cert-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px 20px;
+    font-size: 10pt;
+  }
+  .cert-cols li { margin-bottom: 1px; }
+</style>
+</head>
+<body>
+
+<!-- PASSWORD GATE -->
+<div id="passGate" style="display:flex; align-items:center; justify-content:center; min-height:100vh; background:#0a0f1a;">
+  <div style="text-align:center; max-width:360px; padding:40px; background:#111827; border:1px solid #1e293b; border-radius:12px;">
+    <h2 style="color:#e2e8f0; font-size:16pt; margin:0 0 8px; letter-spacing:1px;">Welcome to Tony's Resume Page</h2>
+    <p style="color:#94a3b8; font-size:10pt; margin:0 0 20px;">Please enter the password to view.</p>
+    <input id="passInput" type="password" placeholder="Password" style="width:100%; padding:10px 14px; font-size:12pt; border-radius:6px; border:1px solid #334155; background:#1e293b; color:#e2e8f0; text-align:center; outline:none;" onkeydown="if(event.key==='Enter')checkPass()">
+    <button onclick="checkPass()" style="margin-top:12px; width:100%; padding:10px; font-size:11pt; font-weight:700; border:none; border-radius:6px; background:#2563eb; color:#fff; cursor:pointer; letter-spacing:0.5px; transition:background 0.2s;" onmouseover="this.style.background='#3b82f6'" onmouseout="this.style.background='#2563eb'">ENTER</button>
+    <p id="passError" style="color:#f87171; font-size:9pt; margin:8px 0 0; display:none;">Incorrect password.</p>
+  </div>
+</div>
+<script>
+function checkPass() {
+  if (document.getElementById('passInput').value === 'password') {
+    document.getElementById('passGate').style.display = 'none';
+    document.getElementById('resumePage').style.display = 'block';
+  } else {
+    document.getElementById('passError').style.display = 'block';
+    document.getElementById('passInput').value = '';
+  }
+}
+</script>
+
+<div id="resumePage" class="page" style="display:none;">
+
+  <!-- HEADER -->
+  <div class="header">
+    <h1>TONY MARTINEZ</h1>
+    <div class="contact">
+      Fort Worth, TX &ensp;|&ensp;
+      <a href="mailto:tonym12901@gmail.com">tonym12901@gmail.com</a> &ensp;|&ensp;
+      323-239-3289
+    </div>
+  </div>
+  <hr class="divider">
+
+  <!-- SUMMARY -->
+  <div class="section-title">Professional Summary</div>
+  <p style="font-size:10pt;">
+    6+ years in 911 emergency communications centers with hands-on experience in PSAP/ECC technology, telephony systems, CAD operations, and technical troubleshooting. Currently supervise 30&ndash;40 personnel per shift while independently building and maintaining web-based operational tools used daily in production. Strong background in system integration, quality assurance, and solving infrastructure problems in live 24/7 environments.
+  </p>
+
+  <!-- SKILLS -->
+  <div class="section-title">Technical Skills</div>
+  <div class="skills-grid">
+    <div><span class="cat">911 Technology:</span> Intrado VESTA, CentralSquare CAD, RMS, ALI/ANI, Motorola Radio Systems</div>
+    <div><span class="cat">Networking &amp; Integration:</span> Telephony Systems, System Troubleshooting, API Integration</div>
+    <div><span class="cat">Development:</span> JavaScript, HTML/CSS, Python, Firebase/Firestore, Web Applications</div>
+    <div><span class="cat">Operations:</span> QA Auditing, Workflow Automation, Data Validation, Excel Automation</div>
+  </div>
+
+  <!-- EXPERIENCE -->
+  <div class="section-title">Professional Experience</div>
+
+  <div class="job">
+    <div class="job-header">
+      <div><span class="job-title">Communications Shift Supervisor</span> <span class="job-org">&mdash; Fort Worth Police Department</span></div>
+      <div class="job-date">Apr 2025 &ndash; Present</div>
+    </div>
+    <ul>
+      <li>Lead ECC operations supporting 140 personnel across 10 dispatch channels and 34 call-taking positions using Intrado VESTA and CentralSquare CAD.</li>
+      <li>Supervise 30&ndash;40 employees per shift; handle evaluations, overtime approval, promotion recommendations, and hiring panels.</li>
+      <li>Act as ranking supervisor during mass casualty incidents, severe weather, and multi-agency critical events.</li>
+      <li>Troubleshoot telephony, CAD, and Motorola radio system issues in a live 24/7 environment; coordinate with IT and vendors to resolve connectivity and equipment problems.</li>
+      <li>Designed and built a suite of internal web tools (JavaScript, Firebase) used daily across the department:
+        <ul style="margin:2px 0 2px 16px; list-style-type:'&ndash; ';">
+          <li><b>BreakOps</b> &mdash; real-time break scheduling with live floor coverage tracking and automated rotation</li>
+          <li><b>ShiftOps</b> &mdash; live shift roster tracking seat assignments, hours, and roles, replacing paper-based tracking</li>
+          <li><b>RotationOps</b> &mdash; automated monthly channel assignments for 56 dispatchers with fairness scoring and OT management</li>
+        </ul>
+      </li>
+      <li>Built all tools on a shared real-time Firebase backend with live sync across multiple simultaneous supervisors.</li>
+      <li>Integrated Microsoft Teams sync into internal tools, reducing manual data-entry errors to under 10%.</li>
+      <li>Automated payroll reconciliation, cutting processing time from 4 hours to 20 minutes.</li>
+      <li>Serve as certified Spanish interpreter for dispatch operations and caller communications.</li>
+    </ul>
+  </div>
+
+  <div class="job">
+    <div class="job-header">
+      <div><span class="job-title">Senior Public Safety Communicator</span> <span class="job-org">&mdash; Fort Worth Police Department</span></div>
+      <div class="job-date">2024 &ndash; 2025</div>
+    </div>
+    <ul>
+      <li>Conducted QA audits on 911 call handling and radio dispatch; coached personnel on protocol compliance and performance standards.</li>
+      <li>Trained and mentored personnel preparing for senior and supervisory roles.</li>
+    </ul>
+  </div>
+
+  <div class="job">
+    <div class="job-header">
+      <div><span class="job-title">Public Safety Communicator</span> <span class="job-org">&mdash; Fort Worth Police Department</span></div>
+      <div class="job-date">2019 &ndash; 2024</div>
+    </div>
+    <ul>
+      <li>Operated Intrado VESTA 911 phone system, CentralSquare CAD, and Motorola radio systems for police, fire, and EMS dispatch across multiple channels.</li>
+      <li>Coordinated emergency resource deployment and managed priority call queues during peak volume.</li>
+    </ul>
+  </div>
+
+  <!-- ACHIEVEMENTS -->
+  <div class="section-title">Technical & Operational Achievements</div>
+  <ul class="achievements">
+    <li>Recognized by Tarrant County 911 for diagnosing and resolving a 911 tower routing issue affecting call delivery and service reliability.</li>
+    <li>Identified and resolved a facility infrastructure problem that had gone unaddressed for 15 years, causing staffing disruptions during rain events.</li>
+  </ul>
+
+  <!-- EDUCATION -->
+  <div class="section-title">Education</div>
+  <div class="edu-line">
+    <div><span class="school">Cerritos College</span>, <span class="detail">Norwalk, CA &mdash; Business Administration</span></div>
+    <div class="dates">2015 &ndash; 2018</div>
+  </div>
+
+  <!-- CERTIFICATIONS -->
+  <div class="section-title">Certifications</div>
+  <ul class="cert-cols">
+    <li>TCOLE Basic, Intermediate & Advanced Telecommunicator</li>
+    <li>FEMA ICS 100, 200, 700, 800</li>
+    <li>TCOLE Basic Instructor Certification</li>
+    <li>HSEEP (IS-144)</li>
+    <li>Certified Training Officer (CTO)</li>
+    <li>Certified Spanish Interpreter</li>
+  </ul>
+
+  <hr style="border:none; border-top:1px solid #1e293b; margin:20px 0 14px;">
+  <p style="text-align:center; font-size:9pt; color:#64748b; letter-spacing:0.3px;">Thank you for taking the time to review my resume. I look forward to connecting.</p>
+
+</div>
+</body>
+</html>
