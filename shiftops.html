@@ -3037,25 +3037,6 @@ body.light .customSelBtn.typing-mode {
     <button id="themeToggle" type="button" style="width:auto;padding:6px 14px;font-size:12px;font-weight:700;border-radius:10px;">&#9789; Dark</button>
   </div>
 
-  <!-- Bug Report Modal -->
-  <div id="bugReportModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-    <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:20px; min-width:360px; max-width:440px;">
-      <h3 style="margin:0 0 15px; color:#ef4444;">&#x1fab2; REPORT A BUG</h3>
-      <div style="margin-bottom:12px;">
-        <label style="font-size:12px; font-weight:700; display:block; margin-bottom:6px;">YOUR NAME:</label>
-        <input type="text" id="bugReportName" placeholder="Enter your name" style="width:100%; padding:8px; font-size:13px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--text);" />
-      </div>
-      <div style="margin-bottom:15px;">
-        <label style="font-size:12px; font-weight:700; display:block; margin-bottom:6px;">DETAILS:</label>
-        <textarea id="bugReportDetails" placeholder="Describe the bug — what happened, what you expected, and what you were doing when it happened." style="width:100%; padding:8px; font-size:13px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--text); min-height:120px; resize:vertical; font-family:inherit;"></textarea>
-      </div>
-      <div style="display:flex; gap:10px;">
-        <button id="btnBugSubmit" style="padding:8px 16px; font-size:12px; font-weight:700; border-radius:6px; border:none; background:#ef4444; color:#fff; cursor:pointer;">SUBMIT</button>
-        <button id="btnBugCancel" style="padding:8px 16px; font-size:12px; font-weight:700; border-radius:6px; border:1px solid var(--line); background:transparent; color:var(--text); cursor:pointer;">CANCEL</button>
-      </div>
-    </div>
-  </div>
-
   <input id="weekStart" type="hidden"/>
   <input id="workDate" type="hidden"/>
 
@@ -6831,6 +6812,24 @@ async function pushToBreakOPS(){
 }
 </script>
 
+<!-- Bug Report Modal -->
+<div id="bugReportModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:99999;">
+  <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:20px; min-width:360px; max-width:440px; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);">
+    <h3 style="margin:0 0 15px; color:#ef4444;">&#x1fab2; REPORT A BUG</h3>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px; font-weight:700; display:block; margin-bottom:6px;">YOUR NAME:</label>
+      <input type="text" id="bugReportName" placeholder="Enter your name" style="width:100%; padding:8px; font-size:13px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--text);" />
+    </div>
+    <div style="margin-bottom:15px;">
+      <label style="font-size:12px; font-weight:700; display:block; margin-bottom:6px;">DETAILS:</label>
+      <textarea id="bugReportDetails" placeholder="Describe the bug — what happened, what you expected, and what you were doing when it happened." style="width:100%; padding:8px; font-size:13px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--text); min-height:120px; resize:vertical; font-family:inherit;"></textarea>
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button id="btnBugSubmit" style="padding:8px 16px; font-size:12px; font-weight:700; border-radius:6px; border:none; background:#ef4444; color:#fff; cursor:pointer;">SUBMIT</button>
+      <button id="btnBugCancel" style="padding:8px 16px; font-size:12px; font-weight:700; border-radius:6px; border:1px solid var(--line); background:transparent; color:var(--text); cursor:pointer;">CANCEL</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
