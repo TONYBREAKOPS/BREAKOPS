@@ -157,11 +157,22 @@ body.light .note{ color:#92400e !important; }
 /* Light mode: comment rows */
 body.light .cmt-btn{ color:#111 !important; }
 body.light .cmt-btn.has-cmt{ color:#d97706 !important; text-shadow:none !important; }
-body.light .cmt-row textarea{
+body.light #cmtPopup{
+  background:var(--card) !important;
+  border-color:var(--border) !important;
+}
+body.light #cmtPopup::after{ background:var(--card) !important; }
+body.light #cmtPopup textarea{
   background:rgba(255,255,255,.8) !important;
   color:#1a1a2e !important;
   border-color:var(--border) !important;
 }
+body.light #otConfirmPopup{
+  background:var(--card) !important;
+  border-color:rgba(225,29,72,.3) !important;
+}
+body.light #otConfirmPopup .ot-confirm-title{ color:#e11d48 !important; }
+body.light #otConfirmPopup .ot-yes{ color:#e11d48 !important; }
 
 /* Light mode: staffing status */
 body.light .statusShort{ color:#b91c1c !important; font-weight:900 !important; text-shadow:none !important; }
@@ -248,7 +259,7 @@ backdrop-filter:blur(10px)}
 #pillSync:not(.good):not(.bad){animation:syncPulse 1s ease-in-out infinite;border-color:rgba(74,163,255,.45);background:rgba(74,163,255,.10);color:#a5d4ff}
 #absentBar{
   display:grid;
-  grid-template-columns:repeat(3, minmax(520px, 1fr));
+  grid-template-columns:repeat(3, minmax(490px, 1fr));
   gap:14px;
   width:100%;
   padding:0 18px;
@@ -278,7 +289,7 @@ body.light .absentPill.otPill .absentCount{color:#b45309;}
 main{padding:14px 18px 0}
 .grid{
   display:grid;
-  grid-template-columns:repeat(3, minmax(520px, 1fr));
+  grid-template-columns:repeat(3, minmax(490px, 1fr));
   gap:14px;
   align-items:start
 }
@@ -518,10 +529,6 @@ tbody tr:nth-last-child(2) td{border-bottom:none !important}
 .statusOk{color:var(--ok);font-weight:800}
 .otRow{background:rgba(255,214,0,.08)}
 .otBadge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,214,0,.35);color:#ffeaa6;font-size:12px;margin-left:6px}
-.cmt-inner{display:flex;gap:8px;align-items:center}
-.cmt-inner textarea{flex:1}
-.otRemoveBtn{background:rgba(255,77,77,.12);border:1px solid rgba(255,77,77,.3);color:#ff4d4d;font-size:11px;font-weight:800;cursor:pointer;padding:5px 10px;border-radius:8px;white-space:nowrap}
-.otRemoveBtn:hover{background:rgba(255,77,77,.25)}
 
 .statusBad{color:var(--bad);font-weight:800}
 .pulsing{outline:3px solid rgba(255,214,0,.85); box-shadow:0 0 0 6px rgba(255,214,0,.15)}
@@ -677,13 +684,23 @@ tbody td{border-bottom:1px solid rgba(255,255,255,.06) !important;}
 
 
 /* v117: Uniform board layout (rows aligned across all 3 blocks) */
+main{
+  overflow-x:auto !important;
+}
 #blocks.boardGrid{
   display:grid !important;
-  grid-template-columns:repeat(3, minmax(520px, 1fr)) !important;
+  grid-template-columns:repeat(3, minmax(490px, 1fr)) !important;
   gap:10px !important;
   align-items:start !important;
+  justify-content:center !important;
+  margin:0 auto !important;
+  width:fit-content !important;
 }
 .boardCard{height:100%;}
+
+/* Header text spans for alignment */
+.hdrTxt{ display:inline-block; white-space:nowrap; }
+.rosterTbl thead th{ overflow:visible !important; }
 
 /* Row comments */
 .cmt-btn{
@@ -691,28 +708,63 @@ tbody td{border-bottom:1px solid rgba(255,255,255,.06) !important;}
   font-size:10px;opacity:.35;transition:opacity .15s;line-height:1;
   color:var(--muted);vertical-align:middle;
   width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;
+  position:relative;z-index:5;
 }
 .cmt-btn:hover{opacity:.7}
 .cmt-btn.has-cmt{opacity:1;color:#fbbf24;text-shadow:0 0 6px rgba(251,191,36,.5)}
-.cmt-row{display:none}
-.cmt-row.open{display:table-row}
-.cmt-row td{
-  padding:2px 6px 6px !important;border:none !important;
-  position:relative;
+/* Comment popup (floating, replaces cmt-row) */
+#cmtPopup{
+  display:none;position:fixed;z-index:9999;
+  background:#141b2a;border:1px solid var(--border);
+  border-radius:10px;padding:8px;width:360px;
+  box-shadow:0 8px 32px rgba(0,0,0,.45);
 }
-.cmt-row textarea{
-  width:100%;min-height:28px;max-height:80px;
-  padding:4px 8px;border-radius:8px;
+#cmtPopup.open{display:block}
+#cmtPopup::after{
+  content:'';position:absolute;bottom:-6px;right:16px;
+  width:12px;height:12px;background:#141b2a;
+  border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+  transform:rotate(45deg);
+}
+#cmtPopup textarea{
+  width:100%;min-height:48px;max-height:100px;
+  padding:6px 8px;border-radius:8px;
   border:1px solid var(--border);
   background:#0c1320;
   color:var(--text);font:11px/1.4 inherit;
-  resize:none;outline:none;
-  display:block;
+  resize:none;outline:none;display:block;
 }
-.cmt-row textarea:focus{
+#cmtPopup textarea:focus{
   border-color:var(--accent);
   box-shadow:0 0 0 3px rgba(74,163,255,.12);
 }
+/* OT edit icon */
+.ot-edit-icon{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:16px;height:16px;margin-left:4px;cursor:pointer;
+  font-size:10px;opacity:.5;transition:opacity .15s;
+  vertical-align:middle;border:none;background:none;padding:0;
+  color:var(--muted);
+}
+.ot-edit-icon:hover{opacity:1;color:#ff6b6b}
+/* OT confirm popup */
+#otConfirmPopup{
+  display:none;position:fixed;z-index:10000;
+  background:#1a2236;border:1px solid rgba(255,77,77,.35);
+  border-radius:10px;padding:10px 14px;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+  text-align:center;font-size:12px;color:var(--text);
+}
+#otConfirmPopup.open{display:block}
+#otConfirmPopup .ot-confirm-title{font-weight:700;margin-bottom:8px;color:#ff6b6b}
+#otConfirmPopup .ot-confirm-btns{display:flex;gap:8px;justify-content:center}
+#otConfirmPopup .ot-confirm-btns button{
+  padding:4px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid;
+}
+#otConfirmPopup .ot-yes{background:rgba(255,77,77,.15);border-color:rgba(255,77,77,.4);color:#ff4d4d}
+#otConfirmPopup .ot-yes:hover{background:rgba(255,77,77,.3)}
+#otConfirmPopup .ot-no{background:rgba(255,255,255,.06);border-color:var(--border);color:var(--muted)}
+#otConfirmPopup .ot-no:hover{background:rgba(255,255,255,.12)}
 
 
 /* v118: Single panel (one 4-hr block) view */
@@ -839,25 +891,25 @@ table, thead th, tbody td { text-transform: uppercase !important; }
   text-align:center !important;
 }
 .presentSel.partial-ring{
-  box-shadow:0 0 0 3px #f59e0b, 0 0 8px rgba(245,158,11,0.5);
+  box-shadow:0 0 0 3px #d4a017, 0 0 8px rgba(212,160,23,0.5);
   border-radius:4px;
-  background:#3d2e00 !important;
-  color:#fbbf24 !important;
-  border-color:#f59e0b !important;
+  background:#3d2200 !important;
+  color:#d4a017 !important;
+  border-color:#d4a017 !important;
 }
 .customSelBtn.partial-yellow{
-  background:#fbbf24 !important;
-  color:#000 !important;
-  border-color:#f59e0b !important;
-  box-shadow:0 0 0 2px #f59e0b !important;
-  font-size:20px !important;
+  background:#d4a017 !important;
+  color:#fff !important;
+  border-color:#b8860b !important;
+  box-shadow:0 0 0 2px #d4a017 !important;
+  font-size:11px !important;
 }
 .customSelBtn.tardy-red{
   background:#fca5a5 !important;
   color:#7f1d1d !important;
   border-color:#ef4444 !important;
   box-shadow:0 0 0 2px #ef4444 !important;
-  font-size:20px !important;
+  font-size:11px !important;
 }
 .presentSel.tardy-ring{
   box-shadow:0 0 0 3px #ef4444, 0 0 8px rgba(239,68,68,0.5);
@@ -1132,7 +1184,7 @@ select.seatSelect,
 }
 .customSel--role .customSelBtn{min-width:36px; max-width:52px;}
 .customSel--seat .customSelBtn{min-width:36px; max-width:90px;}
-.customSel--present .customSelBtn{min-width:24px; max-width:48px; font-size:20px !important; font-weight:900 !important; padding:1px 2px !important; line-height:1 !important;}
+.customSel--present .customSelBtn{min-width:18px; max-width:28px; font-size:11px !important; font-weight:900 !important; padding:1px 3px !important; line-height:1 !important;}
 .customSel--absreason .customSelBtn{min-width:50px; max-width:120px;}
 
 .customSelBtn .lbl{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -1196,11 +1248,12 @@ body.light .customSelOpt.kbHL{
   padding-right: 6px !important;
 }
 .rosterTbl th.nameCol, .rosterTbl td.nameCol{ width:40%; }
-.rosterTbl th.roleCol, .rosterTbl td.roleCol{ width:78px; }
-.rosterTbl th.seatCol, .rosterTbl td.seatCol{ width:78px; }
-.rosterTbl th.workedCol, .rosterTbl td.workedCol{ width:180px; }
-.rosterTbl th.hrsCol, .rosterTbl td.hrsCol{ width:70px; }
-.rosterTbl th.presCol, .rosterTbl td.presCol{ width:130px !important; min-width:130px !important; }
+.rosterTbl th.roleCol, .rosterTbl td.roleCol{ width:56px; }
+.rosterTbl th.seatCol, .rosterTbl td.seatCol{ width:68px; }
+.rosterTbl th.workedCol, .rosterTbl td.workedCol{ width:100px; }
+.rosterTbl th.hrsCol, .rosterTbl td.hrsCol{ width:32px; max-width:32px; padding:0 !important; }
+.rosterTbl th.presCol, .rosterTbl td.presCol{ width:34px !important; min-width:34px !important; padding:0 !important; }
+.rosterTbl th.cmtCol, .rosterTbl td.cmtCol{ width:18px !important; max-width:18px !important; padding:0 !important; text-align:center; overflow:visible !important; position:relative; z-index:5; }
 
 /* control cells must allow popups/inputs to be visible and clickable */
 .rosterTbl td.ctrlCell, .rosterTbl th.ctrlCol{
@@ -1251,10 +1304,11 @@ body.light .customSelOpt.kbHL{
 
 /* Role/Seat/Worked/Hrs/P: tighter but clickable */
 .rosterTbl th.roleCol, .rosterTbl td.roleCol{ width:56px !important; }
-.rosterTbl th.seatCol, .rosterTbl td.seatCol{ width:96px !important; }
-.rosterTbl th.workedCol, .rosterTbl td.workedCol{ width:132px !important; }
-.rosterTbl th.hrsCol, .rosterTbl td.hrsCol{ width:64px !important; }
-.rosterTbl th.presCol, .rosterTbl td.presCol{ width:130px !important; min-width:130px !important; }
+.rosterTbl th.seatCol, .rosterTbl td.seatCol{ width:68px !important; }
+.rosterTbl th.workedCol, .rosterTbl td.workedCol{ width:90px !important; }
+.rosterTbl th.hrsCol, .rosterTbl td.hrsCol{ width:32px !important; max-width:32px !important; padding:0 !important; }
+.rosterTbl th.presCol, .rosterTbl td.presCol{ width:34px !important; min-width:34px !important; padding:0 !important; }
+.rosterTbl th.cmtCol, .rosterTbl td.cmtCol{ width:18px !important; max-width:18px !important; padding:0 !important; }
 
 /* Make custom-select triggers fill their cells cleanly (no weird skinny menus) */
 .customSelBtn{
@@ -1282,7 +1336,7 @@ body.light .customSelOpt.kbHL{
 @media (max-width: 720px){
   .rosterTbl th.nameCol, .rosterTbl td.nameCol{ width:36% !important; }
   .rosterTbl th.seatCol, .rosterTbl td.seatCol{ width:88px !important; }
-  .rosterTbl th.workedCol, .rosterTbl td.workedCol{ width:120px !important; }
+  .rosterTbl th.workedCol, .rosterTbl td.workedCol{ width:100px !important; }
 }
 
 
@@ -1337,16 +1391,22 @@ table.rosterTbl{
 }
 
 .rosterTbl th.workedCol, .rosterTbl td.workedCol{
-  width:150px !important;
-  min-width:150px !important;
+  width:120px !important;
+  min-width:120px !important;
 }
 .rosterTbl th.hrsCol, .rosterTbl td.hrsCol{
-  width:76px !important;
-  min-width:76px !important;
+  width:42px !important;
+  min-width:42px !important;
 }
 .rosterTbl th.presCol, .rosterTbl td.presCol{
-  width:100px !important;
-  min-width:100px !important;
+  width:34px !important;
+  min-width:34px !important;
+  padding:0 !important;
+}
+.rosterTbl th.cmtCol, .rosterTbl td.cmtCol{
+  width:18px !important;
+  max-width:18px !important;
+  padding:0 !important;
 }
 
 /* Custom dropdown in roster: fill its cell, but show full selected text */
@@ -1412,11 +1472,12 @@ table.rosterTbl{
 /* Put ROLE immediately after NAME, and let selections show in closed state */
 /* Use percentages so NAME never collapses to 0px on narrower cards */
 .rosterTbl th.nameCol, .rosterTbl td.nameCol{ width: 24% !important; }
-.rosterTbl th.roleCol, .rosterTbl td.roleCol{ width: 13% !important; }
-.rosterTbl th.seatCol, .rosterTbl td.seatCol{ width: 18% !important; }
-.rosterTbl th.workedCol, .rosterTbl td.workedCol{ width: 15% !important; }
-.rosterTbl th.hrsCol, .rosterTbl td.hrsCol{ width: 7% !important; }
-.rosterTbl th.presCol, .rosterTbl td.presCol{ width:130px !important; min-width:130px !important; }
+.rosterTbl th.roleCol, .rosterTbl td.roleCol{ width: 10% !important; }
+.rosterTbl th.seatCol, .rosterTbl td.seatCol{ width: 14% !important; }
+.rosterTbl th.workedCol, .rosterTbl td.workedCol{ width: 11% !important; }
+.rosterTbl th.hrsCol, .rosterTbl td.hrsCol{ width:32px !important; max-width:32px !important; padding:0 !important; }
+.rosterTbl th.presCol, .rosterTbl td.presCol{ width:34px !important; min-width:34px !important; padding:0 !important; }
+.rosterTbl th.cmtCol, .rosterTbl td.cmtCol{ width:18px !important; max-width:18px !important; padding:0 !important; }
 
 /* Ensure controls don't get squished / keep readable */
 .rosterTbl td.ctrlCell, .rosterTbl th.ctrlCol{
@@ -1611,11 +1672,12 @@ table.rosterTbl{
 
 /* Rebalance column widths so controls don't get forced into tiny wrap/stack */
 .rosterTbl th.nameCol,  .rosterTbl td.nameCol  { width: 32% !important; }
-.rosterTbl th.roleCol,  .rosterTbl td.roleCol  { width: 10% !important; }
-.rosterTbl th.seatCol,  .rosterTbl td.seatCol  { width: 14% !important; }
-.rosterTbl th.workedCol,.rosterTbl td.workedCol{ width: 18% !important; }
-.rosterTbl th.hrsCol,   .rosterTbl td.hrsCol   { width: 8%  !important; }
-.rosterTbl th.presCol,  .rosterTbl td.presCol  { width: 130px !important; min-width:130px !important; }
+.rosterTbl th.roleCol,  .rosterTbl td.roleCol  { width: 8% !important; }
+.rosterTbl th.seatCol,  .rosterTbl td.seatCol  { width: 12% !important; }
+.rosterTbl th.workedCol,.rosterTbl td.workedCol{ width: 12% !important; }
+.rosterTbl th.hrsCol,   .rosterTbl td.hrsCol   { width:32px !important; max-width:32px !important; padding:0 !important; }
+.rosterTbl th.presCol,  .rosterTbl td.presCol  { width: 34px !important; min-width:34px !important; padding:0 !important; }
+.rosterTbl th.cmtCol,   .rosterTbl td.cmtCol   { width: 18px !important; max-width:18px !important; padding:0 !important; }
 
 /* Keep each control on ONE line and aligned (no vertical stacking) */
 .rosterTbl td.ctrlCell{
@@ -1632,13 +1694,22 @@ table.rosterTbl{
 /* All custom selects: centered in cell, compact */
 .customSel--role, .customSel--seat, .customSel--present, .customSel--absreason, .customSel--othtype { margin: 0 auto !important; }
 .customSel--role .customSelBtn,
-.customSel--seat .customSelBtn,
-.customSel--present .customSelBtn {
+.customSel--seat .customSelBtn {
   justify-content: center !important;
   text-align: center !important;
   overflow: hidden !important;
   font-size: 13px !important;
   padding: 3px 5px !important;
+}
+.customSel--present .customSelBtn {
+  justify-content: center !important;
+  text-align: center !important;
+  overflow: hidden !important;
+  font-size: 11px !important;
+  padding: 1px 3px !important;
+  min-width: 18px !important;
+  max-width: 28px !important;
+  border-radius: 8px !important;
 }
 .customSel--role .customSelBtn .lbl,
 .customSel--seat .customSelBtn .lbl,
@@ -1693,7 +1764,7 @@ table.rosterTbl{
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
-  padding-right: 14px !important;
+  padding-right: 2px !important;
 }
 .rosterTbl th.nameCol{ padding-left: 12px !important; }
 
@@ -2338,16 +2409,17 @@ tr:has(.customSelMenu.open){
 
 /* SEAT reasonably wide and close to ROLE */
 .rosterTbl th.seatCol, .rosterTbl td.seatCol{
-  width: 92px !important;
-  min-width: 92px !important;
-  max-width: 92px !important;
-  padding-left: 6px !important;
+  width: 68px !important;
+  min-width: 68px !important;
+  max-width: 68px !important;
+  padding-left: 4px !important;
 }
 
 /* WORKED / HRS / PRESENT */
-.rosterTbl th.workedCol, .rosterTbl td.workedCol{ width: 110px !important; }
-.rosterTbl th.hrsCol, .rosterTbl td.hrsCol{ width: 70px !important; }
-.rosterTbl th.presCol, .rosterTbl td.presCol{ width: 130px !important; min-width:130px !important; }
+.rosterTbl th.workedCol, .rosterTbl td.workedCol{ width: 85px !important; }
+.rosterTbl th.hrsCol, .rosterTbl td.hrsCol{ width:32px !important; max-width:32px !important; padding:0 !important; }
+.rosterTbl th.presCol, .rosterTbl td.presCol{ width: 34px !important; min-width:34px !important; padding:0 !important; }
+.rosterTbl th.cmtCol, .rosterTbl td.cmtCol{ width:18px !important; max-width:18px !important; padding:0 !important; }
 
 /* Keep pills inside their cells */
 .rosterTbl td.roleCol .customSelBtn,
@@ -2365,11 +2437,12 @@ tr:has(.customSelMenu.open){
 
 /* Responsive column widths — role hugs seat */
 .rosterTbl th.nameCol,  .rosterTbl td.nameCol  { width: auto !important; min-width:0 !important; max-width:none !important; text-align:center !important; }
-.rosterTbl th.roleCol,  .rosterTbl td.roleCol  { width: 54px !important; min-width:54px !important; max-width:54px !important; padding-left:0 !important; padding-right:0 !important; text-align:center !important; }
-.rosterTbl th.seatCol,  .rosterTbl td.seatCol  { width: 100px !important; min-width:100px !important; max-width:100px !important; padding-left:0 !important; padding-right:0 !important; text-align:center !important; }
-.rosterTbl th.workedCol,.rosterTbl td.workedCol{ width: 100px !important; min-width:100px !important; max-width:100px !important; padding-left:0 !important; padding-right:0 !important; text-align:center !important; }
-.rosterTbl th.hrsCol,   .rosterTbl td.hrsCol   { width: 64px !important; min-width:64px !important; max-width:64px !important; padding-left:0 !important; padding-right:0 !important; text-align:center !important; }
-.rosterTbl th.presCol,  .rosterTbl td.presCol  { width: 50px !important; min-width:50px !important; max-width:50px !important; padding-left:0 !important; padding-right:0 !important; text-align:center !important; }
+.rosterTbl th.roleCol,  .rosterTbl td.roleCol  { width: 56px !important; min-width:56px !important; max-width:56px !important; padding-left:0 !important; padding-right:0 !important; text-align:center !important; }
+.rosterTbl th.seatCol,  .rosterTbl td.seatCol  { width: 68px !important; min-width:68px !important; max-width:68px !important; padding-left:0 !important; padding-right:0 !important; text-align:center !important; }
+.rosterTbl th.workedCol,.rosterTbl td.workedCol{ width: 75px !important; min-width:75px !important; max-width:75px !important; padding-left:0 !important; padding-right:0 !important; text-align:center !important; }
+.rosterTbl th.hrsCol,   .rosterTbl td.hrsCol   { width: 22px !important; min-width:22px !important; max-width:22px !important; padding-left:0 !important; padding-right:0 !important; text-align:center !important; }
+.rosterTbl th.presCol,  .rosterTbl td.presCol  { width: 24px !important; min-width:24px !important; max-width:24px !important; padding-left:0 !important; padding-right:0 !important; text-align:center !important; }
+.rosterTbl th.cmtCol,   .rosterTbl td.cmtCol   { width: 8px !important; min-width:8px !important; max-width:8px !important; padding:0 !important; text-align:center !important; }
 
 /* Keep headers readable */
 .rosterTbl thead th{
@@ -2402,9 +2475,9 @@ tr:has(.customSelMenu.open){
   max-width: none !important;
 }
 .rosterTbl .customSel--present .customSelBtn{
-  min-width: 32px !important; max-width: 48px !important; width: 36px !important;
-  font-size: 18px !important; font-weight: 900 !important;
-  padding: 2px 6px !important; text-align: center !important;
+  min-width: 18px !important; max-width: 28px !important; width: 24px !important;
+  font-size: 11px !important; font-weight: 900 !important;
+  padding: 1px 3px !important; text-align: center !important;
   justify-content: center !important; overflow: visible !important;
   line-height: 1 !important;
 }
@@ -2426,7 +2499,7 @@ tr:has(.customSelMenu.open){
 /* All bubbles centered in cells */
 .rosterTbl .customSel{ margin: 0 auto !important; }
 .rosterTbl .rowPill{ margin: 0 auto !important; }
-.rosterTbl .hrsIn{ text-align: center !important; margin: 0 auto !important; display: block !important; width: 90% !important; font-size: 12px !important; }
+.rosterTbl .hrsIn{ text-align: center !important; margin: 0 auto !important; display: block !important; width: 72% !important; font-size: 12px !important; }
 /* Name column: left-aligned, full text visible */
 .rosterTbl td.nameCol .empName{ white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; display: block !important; max-width: 100% !important; }
 
@@ -2434,7 +2507,7 @@ tr:has(.customSelMenu.open){
 
 body.singlePanel #blocks{
   display: grid !important;
-  grid-template-columns: minmax(520px, min(1200px, 96vw)) !important;
+  grid-template-columns: minmax(490px, min(1200px, 96vw)) !important;
   justify-content: center !important;
 }
 
@@ -2831,6 +2904,17 @@ body.light .customSelBtn.typing-mode {
 
 </head>
 <body>
+
+<!-- Shared comment popup -->
+<div id="cmtPopup"><textarea id="cmtPopupTa" placeholder="Comment..."></textarea></div>
+<!-- OT removal confirm popup -->
+<div id="otConfirmPopup">
+  <div class="ot-confirm-title">Remove OT?</div>
+  <div class="ot-confirm-btns">
+    <button class="ot-yes" id="otConfirmYes">YES</button>
+    <button class="ot-no" id="otConfirmNo">NO</button>
+  </div>
+</div>
 
 <!-- Login Overlay -->
 <div id="loginOverlay">
@@ -3877,11 +3961,6 @@ function showOtImportReport(total, imported, invalid, noMatch, noMatchExamples){
 function filterByEmployee(query){
   const q = query.trim().toUpperCase();
   document.querySelectorAll(".rosterTbl tbody tr").forEach(tr => {
-    if(tr.classList.contains("cmt-row")){
-      const prev = tr.previousElementSibling;
-      if(prev) tr.style.display = prev.style.display;
-      return;
-    }
     const nameCell = tr.querySelector(".nameCol");
     if(!nameCell) return;
     const name = nameCell.textContent.toUpperCase();
@@ -4089,14 +4168,14 @@ function renderRoleTable(iso, shift, block, role, rows){
   const seatOpts = isAbsent ? [] : (SEATS[role]||[]);
   let html = ``;
 
-  html += `<div class="tblWrap"><table class="rosterTbl"><thead><tr>
+  html += `<div class="tblWrap"><table class="rosterTbl${isAbsent ? ' rosterTbl--absent' : ''}"><thead><tr>
     <th class="nameCol">Name</th>
-    ${isAbsent ? "" : '<th class="ctrlCol roleCol">Role</th>'}
-    <th class="ctrlCol seatCol">${isAbsent ? "Reason" : "Seat"}</th>
-    <th class="ctrlCol workedCol">${isAbsent ? "Missed" : "Worked"}</th>
-    <th class="ctrlCol hrsCol">Hrs</th>
-    <th class="ctrlCol presCol">PRESENT</th>
-    <th style="width:16px;max-width:16px;padding:0"></th>
+    ${isAbsent ? "" : '<th class="ctrlCol roleCol"><span class="hdrTxt">Role</span></th>'}
+    <th class="ctrlCol seatCol"><span class="hdrTxt">${isAbsent ? "Reason" : "Seat"}</span></th>
+    <th class="ctrlCol workedCol"><span class="hdrTxt">${isAbsent ? "Missed" : "Worked"}</span></th>
+    <th class="ctrlCol hrsCol"><span class="hdrTxt">Hrs</span></th>
+    <th class="ctrlCol presCol"><span class="hdrTxt">PRESENT</span></th>
+    <th class="cmtCol"><span class="hdrTxt">Cmt</span></th>
   </tr></thead><tbody>`;
 
   for(const r of rows){
@@ -4114,7 +4193,7 @@ function renderRoleTable(iso, shift, block, role, rows){
 
     const thirdCol = isAbsent
       ? (r.isTardy
-        ? `<span style="font-weight:700;color:#ef4444">TARDY</span>`
+        ? `<span class="absTardyLabel" style="display:block;font-weight:700;color:#ef4444;text-align:center">TARDY</span>`
         : r.isPartial
         ? `<select class="absReasonSel" onchange="setPartialReason('${esc(key)}','${esc(r.emp)}', this.value)">
              <option value=""${absReason===""?" selected":""}>—</option>
@@ -4129,7 +4208,7 @@ function renderRoleTable(iso, shift, block, role, rows){
          </select>`;
 
     html += `<tr${rowBg}>
-      <td class="nameCol">${r.isOT?`<span class="otNameWrap"><span class="empName">${esc(r.emp)}</span><span class="otBadge otBadgeTop">OT</span></span>`:`<span class="empName">${esc(r.emp)}</span>`}${r.isTardy?`<span class="otBadge" style="background:#ef4444">T</span>`:(r.isPartial?`<span class="otBadge" style="background:#e67e22">P</span>`:"")}</td>
+      <td class="nameCol">${r.isOT?`<span class="otNameWrap"><span class="empName">${esc(r.emp)}</span><span class="otBadge otBadgeTop">OT<button class="ot-edit-icon" onclick="showOTConfirm(event,'${esc(key)}','${esc(r.emp)}')">&#9998;</button></span></span>`:`<span class="empName">${esc(r.emp)}</span>`}${r.isTardy?`<span class="otBadge" style="background:#ef4444">T</span>`:(r.isPartial?`<span class="otBadge" style="background:#d4a017">P</span>`:"")}</td>
       ${isAbsent ? "" : `<td class="ctrlCell roleCol">
         <select class="roleSel" onchange="setRoleVal('${esc(key)}','${esc(r.emp)}', this.value)">
           ${renderRoleOptions(roleNorm)}
@@ -4146,20 +4225,17 @@ function renderRoleTable(iso, shift, block, role, rows){
         </span>`}
       </td>
       <td class="ctrlCell hrsCol">${(r.isPartial||r.isTardy)
-        ? hrs
-        : `<input class="hrsIn" type="number" step="0.25" value="${hrs}" data-hrskey="${esc(key)}" data-hrsemp="${esc(r.emp)}" data-hrsorig="${hrs}"/>`}</td>
+        ? (isAbsent ? `<span class="absHrsLabel" style="display:block;text-align:center">${hrs}</span>` : hrs)
+        : `<span class="hrsIn" style="display:block;text-align:center">${hrs}</span>`}</td>
       <td class="ctrlCell presCol">
-        ${(r.isPartial||r.isTardy) ? `<span style="font-size:18px;color:${r.isTardy?'#ef4444':'#e67e22'};font-weight:900">${r.isTardy?'T':'P'}</span>` : `<select class="presentSel${present==="PARTIAL"?" partial-ring":""}${present==="TARDY"?" tardy-ring":""}" onchange="setPresent('${esc(key)}','${esc(r.emp)}', this.value)">
-          <option value="YES"${present==="YES"?" selected":""}>Y</option>
-          <option value="PARTIAL"${present==="PARTIAL"?" selected":""}>P</option>
-          <option value="TARDY"${present==="TARDY"?" selected":""}>T</option>
-          <option value="NO"${present==="NO"?" selected":""}>N</option>
+        ${(r.isPartial||r.isTardy) ? (isAbsent ? '' : `<span style="font-size:18px;color:${r.isTardy?'#ef4444':'#d4a017'};font-weight:900">${r.isTardy?'T':'P'}</span>`) : `<select class="presentSel${present==="PARTIAL"?" partial-ring":""}${present==="TARDY"?" tardy-ring":""}" onchange="setPresent('${esc(key)}','${esc(r.emp)}', this.value)">
+          <option value="YES"${present==="YES"?" selected":""}>YES</option>
+          <option value="PARTIAL"${present==="PARTIAL"?" selected":""}>PARTIAL</option>
+          <option value="TARDY"${present==="TARDY"?" selected":""}>TARDY</option>
+          <option value="NO"${present==="NO"?" selected":""}>NO</option>
         </select>`}
       </td>
-      <td style="width:16px;max-width:16px;padding:0 2px;text-align:center"><button class="cmt-btn${(rowComments[cmtKey]||'').trim()?` has-cmt`:``}" title="Comment">&#128172;</button></td>
-    </tr>
-    <tr class="cmt-row">
-      <td colspan="${isAbsent?7:8}"><div class="cmt-inner"><textarea data-cmtkey="${esc(cmtKey)}" placeholder="Comment…">${esc(rowComments[cmtKey]||'')}</textarea>${r.isOT?`<button class="otRemoveBtn" onclick="removeOT('${esc(key)}','${esc(r.emp)}')">Remove OT</button>`:''}</div></td>
+      <td class="cmtCol"><button class="cmt-btn${(rowComments[cmtKey]||'').trim()?` has-cmt`:``}" data-cmtkey="${esc(cmtKey)}" title="Comment">&#128172;</button></td>
     </tr>`;
   }
 
@@ -4173,12 +4249,12 @@ function renderOthTable(iso, shift, block, rows){
 
   let html = `<div class="tblWrap"><table class="rosterTbl"><thead><tr>
     <th class="nameCol">Name</th>
-    <th class="ctrlCol roleCol">Role</th>
-    <th class="ctrlCol seatCol">Reason</th>
-    <th class="ctrlCol workedCol">Worked</th>
-    <th class="ctrlCol hrsCol">Hrs</th>
-    <th class="ctrlCol presCol">PRESENT</th>
-    <th style="width:16px;max-width:16px;padding:0"></th>
+    <th class="ctrlCol roleCol"><span class="hdrTxt">Role</span></th>
+    <th class="ctrlCol seatCol"><span class="hdrTxt">Reason</span></th>
+    <th class="ctrlCol workedCol"><span class="hdrTxt">Worked</span></th>
+    <th class="ctrlCol hrsCol"><span class="hdrTxt">Hrs</span></th>
+    <th class="ctrlCol presCol"><span class="hdrTxt">PRESENT</span></th>
+    <th class="cmtCol"><span class="hdrTxt">Cmt</span></th>
   </tr></thead><tbody>`;
 
   for(const r of rows){
@@ -4194,7 +4270,7 @@ function renderOthTable(iso, shift, block, rows){
     const rowBg = r.isOT ? " style='background:rgba(180,180,200,0.12)'" : "";
 
     html += `<tr${rowBg}>
-      <td class="nameCol">${r.isOT?`<span class="otNameWrap"><span class="empName">${esc(r.emp)}</span><span class="otBadge otBadgeTop">OT</span></span>`:`<span class="empName">${esc(r.emp)}</span>`}${r.isTardy?`<span class="otBadge" style="background:#ef4444">T</span>`:(r.isPartial?`<span class="otBadge" style="background:#e67e22">P</span>`:"")}</td>
+      <td class="nameCol">${r.isOT?`<span class="otNameWrap"><span class="empName">${esc(r.emp)}</span><span class="otBadge otBadgeTop">OT<button class="ot-edit-icon" onclick="showOTConfirm(event,'${esc(key)}','${esc(r.emp)}')">&#9998;</button></span></span>`:`<span class="empName">${esc(r.emp)}</span>`}${r.isTardy?`<span class="otBadge" style="background:#ef4444">T</span>`:(r.isPartial?`<span class="otBadge" style="background:#d4a017">P</span>`:"")}</td>
       <td class="ctrlCell roleCol">
         <select class="roleSel" onchange="setRoleVal('${esc(key)}','${esc(r.emp)}', this.value)">
           ${renderRoleOptions(roleNorm)}
@@ -4218,21 +4294,16 @@ function renderOthTable(iso, shift, block, rows){
           <input type="time" value="${esc(we)}" data-timekey="${esc(key)}" data-timeemp="${esc(r.emp)}" data-timefield="WorkedEnd" data-timeorig="${esc(we)}"/>
         </span>`}
       </td>
-      <td class="ctrlCell hrsCol">${(r.isPartial||r.isTardy)
-        ? hrs
-        : `<input class="hrsIn" type="number" step="0.25" value="${hrs}" data-hrskey="${esc(key)}" data-hrsemp="${esc(r.emp)}" data-hrsorig="${hrs}"/>`}</td>
+      <td class="ctrlCell hrsCol"><span class="hrsIn" style="display:block;text-align:center">${hrs}</span></td>
       <td class="ctrlCell presCol">
-        ${(r.isPartial||r.isTardy) ? `<span style="font-size:18px;color:${r.isTardy?'#ef4444':'#e67e22'};font-weight:900">${r.isTardy?'T':'P'}</span>` : `<select class="presentSel${present==="PARTIAL"?" partial-ring":""}${present==="TARDY"?" tardy-ring":""}" onchange="setPresent('${esc(key)}','${esc(r.emp)}', this.value)">
-          <option value="YES"${present==="YES"?" selected":""}>Y</option>
-          <option value="PARTIAL"${present==="PARTIAL"?" selected":""}>P</option>
-          <option value="TARDY"${present==="TARDY"?" selected":""}>T</option>
-          <option value="NO"${present==="NO"?" selected":""}>N</option>
+        ${(r.isPartial||r.isTardy) ? `<span style="font-size:18px;color:${r.isTardy?'#ef4444':'#d4a017'};font-weight:900">${r.isTardy?'T':'P'}</span>` : `<select class="presentSel${present==="PARTIAL"?" partial-ring":""}${present==="TARDY"?" tardy-ring":""}" onchange="setPresent('${esc(key)}','${esc(r.emp)}', this.value)">
+          <option value="YES"${present==="YES"?" selected":""}>YES</option>
+          <option value="PARTIAL"${present==="PARTIAL"?" selected":""}>PARTIAL</option>
+          <option value="TARDY"${present==="TARDY"?" selected":""}>TARDY</option>
+          <option value="NO"${present==="NO"?" selected":""}>NO</option>
         </select>`}
       </td>
-      <td style="width:16px;max-width:16px;padding:0 2px;text-align:center"><button class="cmt-btn${(rowComments[cmtKey]||'').trim()?` has-cmt`:``}" title="Comment">&#128172;</button></td>
-    </tr>
-    <tr class="cmt-row">
-      <td colspan="7"><div class="cmt-inner"><textarea data-cmtkey="${esc(cmtKey)}" placeholder="Comment…">${esc(rowComments[cmtKey]||'')}</textarea>${r.isOT?`<button class="otRemoveBtn" onclick="removeOT('${esc(key)}','${esc(r.emp)}')">Remove OT</button>`:''}</div></td>
+      <td class="cmtCol"><button class="cmt-btn${(rowComments[cmtKey]||'').trim()?` has-cmt`:``}" data-cmtkey="${esc(cmtKey)}" title="Comment">&#128172;</button></td>
     </tr>`;
   }
 
@@ -4377,14 +4448,27 @@ function openTimeEdit(pillEl, ev){
   document.querySelectorAll('.timeEdit.open').forEach(ed=>{
     ed.classList.remove('open');
     ed.style.display='none';
+    ed.style.position='';
+    ed.style.left='';
+    ed.style.top='';
+    ed.style.bottom='';
+    ed.style.transform='';
     const p = ed.parentElement && ed.parentElement.querySelector('.rowPill');
     if(p) p.style.display='inline-block';
   });
 
   const td=pillEl.parentElement;
+  // Get pill position before hiding it
+  const pillRect = pillEl.getBoundingClientRect();
   pillEl.style.display="none";
   const edit=td.querySelector(".timeEdit");
   if(!edit) return;
+  // Use position:fixed so popup escapes overflow:hidden on card/tblWrap
+  edit.style.setProperty('position', 'fixed', 'important');
+  edit.style.setProperty('left', Math.round(pillRect.left + pillRect.width / 2) + 'px', 'important');
+  edit.style.setProperty('top', Math.round(pillRect.top - 8) + 'px', 'important');
+  edit.style.setProperty('bottom', 'auto', 'important');
+  edit.style.setProperty('transform', 'translate(-50%, -100%)', 'important');
   edit.style.display="flex";
   edit.classList.add('open');
 }
@@ -4409,10 +4493,18 @@ function setWorked(key, emp, field, val){
   const mins=overlapMinutes(aS,aE,bw.startMin,bw.endMin);
   ed.Hours = String(roundQuarterHours(mins));
 
-  // Auto-detect PARTIAL: if worked hours are less than full block scheduled hours
+  // Auto-detect TARDY or PARTIAL: if worked hours are less than full block scheduled hours
   const fullMins=overlapMinutes(bw.startMin,bw.endMin,bw.startMin,bw.endMin);
-  if(ed.Present==="YES" && roundQuarterHours(mins) < roundQuarterHours(fullMins) && roundQuarterHours(mins) > 0){
-    ed.Present="PARTIAL";
+  const becameShort = ed.Present==="YES" && roundQuarterHours(mins) < roundQuarterHours(fullMins) && roundQuarterHours(mins) > 0;
+  if(becameShort){
+    // Start time moved later than block start → arrived late → TARDY
+    // End time moved earlier than block end → left early → PARTIAL
+    if(aS > bw.startMin){
+      ed.Present="TARDY";
+      ed.TardyReason="TARDY";
+    } else {
+      ed.Present="PARTIAL";
+    }
   }
   // Auto-revert to YES if hours restored to full
   if((ed.Present==="PARTIAL"||ed.Present==="TARDY") && roundQuarterHours(mins) >= roundQuarterHours(fullMins)){
@@ -4420,6 +4512,10 @@ function setWorked(key, emp, field, val){
     ed.PartialReason="";
     ed.TardyReason="";
   }
+
+  // If became PARTIAL (left early), cascade absent to later blocks
+  if(becameShort && ed.Present==="PARTIAL") _cascadeAbsentForward(key, emp);
+
   renderAll(); // worked times affect staffing numbers across blocks
   scheduleAutoSave();
 }
@@ -4429,6 +4525,36 @@ function setHours(key, emp, val){
   renderCard(key);
   scheduleAutoSave();
 }
+// Cascade absent to all LATER blocks the employee is scheduled to work today
+function _cascadeAbsentForward(key, emp){
+  const [iso, shift, blockId] = key.split("|");
+  const blocks = shift==="NIGHT" ? BLOCKS_NIGHT : BLOCKS_DAY;
+  const curIdx = blocks.findIndex(b => b.id === blockId);
+  if(curIdx < 0) return;
+
+  // Find the employee record to check scheduled overlap
+  const empRec = BASE_EMP.find(e => e.Employee === emp);
+  if(!empRec) return;
+  const dname = dayNameFromISO(iso);
+  const shStr = shiftForDay(empRec, dname);
+  const sh = parseShiftString(shStr);
+  if(!sh) return;
+
+  // Mark absent in every later block they are scheduled to work
+  for(let i = curIdx + 1; i < blocks.length; i++){
+    const b = blocks[i];
+    const bw = blockWindowMinutes(b);
+    const ov = overlapMinutes(sh.start, sh.end, bw.startMin, bw.endMin);
+    if(ov <= 0) continue; // not scheduled in this block
+
+    const laterKey = ctxKey(iso, shift, b.id);
+    const laterEd = ensureEdit(laterKey, emp);
+    if(laterEd.Present === "NO") continue; // already absent
+    laterEd.Present = "NO";
+    laterEd.Hours = "0";
+  }
+}
+
 function setPresent(key, emp, val){
   const ed=ensureEdit(key,emp);
   ed.Present=val;
@@ -4436,6 +4562,10 @@ function setPresent(key, emp, val){
   if(val==="YES"){ ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
   if(val==="PARTIAL"){ ed.AbsenceReason=""; ed.TardyReason=""; }
   if(val==="TARDY"){ ed.AbsenceReason=""; ed.TardyReason="TARDY"; }
+
+  // Cascade absence to all LATER blocks this employee works today
+  if(val==="NO") _cascadeAbsentForward(key, emp);
+
   renderAll(); // employee moves between role card and ABSENT, affects staffing
   scheduleAutoSave();
   // If TARDY, auto-open the worked time editor so user can enter arrival time
@@ -4750,8 +4880,8 @@ function enhanceSelects(root=document){
 
       // per-select caps — keep compact so columns don't overlap
       let min = 36, max = 100;
-      if(sel.classList.contains('roleSel')){ min = 36; max = 52; }
-      if(sel.classList.contains('presentSel')){ min = 24; max = 48; }
+      if(sel.classList.contains('roleSel')){ min = 48; max = 72; }
+      if(sel.classList.contains('presentSel')){ min = 48; max = 72; }
       if(sel.classList.contains('seatSel')){ min = 36; max = 90; }
       if(sel.classList.contains('absReasonSel')){ min = 50; max = 120; }
       if(sel.classList.contains('othTypeSel')){ min = 36; max = 60; }
@@ -5221,7 +5351,7 @@ function renderAll(){
     // Update absent count bar in footer — match grid columns to blocks
     const absentBar = document.getElementById("absentBar");
     if(absentBar){
-      absentBar.style.gridTemplateColumns = `repeat(${blocksShown.length}, minmax(520px, 1fr))`;
+      absentBar.style.gridTemplateColumns = `repeat(${blocksShown.length}, minmax(490px, 1fr))`;
       let abHtml = "";
       for(const b of blocksShown){
         const cnt = (rowsByBlock[b.id].ABSENT||[]).length;
@@ -5237,6 +5367,7 @@ function renderAll(){
     }
 
     updateUnfilledCount();
+    _applyBubbleLayout();
 
   }catch(err){
     console.error(err);
@@ -5285,7 +5416,7 @@ function renderCard(ctxKeyStr){
     const absentBar = document.getElementById("absentBar");
     if(absentBar){
       const blocksShown = (PANEL_VIEW==='all') ? blocks : blocks.filter(x=>x.id===PANEL_VIEW);
-      absentBar.style.gridTemplateColumns = `repeat(${blocksShown.length}, minmax(520px, 1fr))`;
+      absentBar.style.gridTemplateColumns = `repeat(${blocksShown.length}, minmax(490px, 1fr))`;
       let abHtml = "";
       for(const blk of blocksShown){
         const rr = computeRowsForBlock(iso, shift, blk);
@@ -5301,35 +5432,221 @@ function renderCard(ctxKeyStr){
       absentBar.innerHTML = abHtml;
     }
     updateUnfilledCount();
+    _applyBubbleLayout();
   }catch(err){
     console.error("renderCard fallback:", err);
     renderAll();
   }
 }
 
-// ===== Row comment toggle & save (event delegation) =====
+// ===== Bubble layout (locked from layout editor) =====
+function _applyBubbleLayout(){
+  // Helper: apply size + move to bubble, and sync dropdown menu position
+  function applyRule(sel, size, move){
+    document.querySelectorAll(sel).forEach(el => {
+      el.style.setProperty('width', size+'px', 'important');
+      el.style.setProperty('min-width', size+'px', 'important');
+      el.style.setProperty('max-width', size+'px', 'important');
+      if(move !== 0) el.style.setProperty('margin-left', move+'px', 'important');
+      // Ensure shifted elements stay clickable above overlapping cells
+      el.style.setProperty('position', 'relative', 'important');
+      el.style.setProperty('z-index', '5', 'important');
+      el.style.setProperty('text-align', 'center', 'important');
+      // Nudge hrs text slightly right to visually center it
+      if(el.classList.contains('hrsIn') || el.classList.contains('absHrsLabel'))
+        el.style.setProperty('padding-left', '4px', 'important');
+      // For custom selects, also shift the dropdown menu to match the button
+      const wrapper = el.closest('.customSel');
+      if(wrapper){
+        wrapper.style.removeProperty('margin-left');
+        const menu = wrapper.querySelector('.customSelMenu');
+        if(menu && move !== 0) menu.style.setProperty('margin-left', move+'px', 'important');
+      }
+    });
+  }
+  // Main tables (not absent)
+  const P = '.rosterTbl:not(.rosterTbl--absent)';
+  applyRule(P+' td.roleCol .customSelBtn',    61, -170);
+  applyRule(P+' td.seatCol .customSelBtn',    96, -155);
+  applyRule(P+' td.workedCol .rowPill',       63, -265);
+  applyRule(P+' td.hrsCol .hrsIn',            38, -140);
+  applyRule(P+' td.presCol .customSelBtn, '+P+' td.presCol .presentSel', 62, -112);
+  applyRule(P+' td.cmtCol .cmt-btn',          54, -85);
+  // Absent table
+  const A = '.rosterTbl--absent';
+  applyRule(A+' td.seatCol .customSelBtn',    96, -195);
+  applyRule(A+' td.seatCol .absTardyLabel',   96, -195);
+  applyRule(A+' td.workedCol .rowPill',       70, -305);
+  applyRule(A+' td.hrsCol .hrsIn',            38, -150);
+  applyRule(A+' td.hrsCol .absHrsLabel',      38, -150);
+  applyRule(A+' td.presCol .customSelBtn, '+A+' td.presCol .presentSel', 62, -130);
+  applyRule(A+' td.cmtCol .cmt-btn',          14, -130);
+  // nameCol: keep CSS defaults (overflow:hidden truncates names with ellipsis)
+  // Allow overflow on all ctrl cells so shifted bubbles aren't clipped
+  document.querySelectorAll('.rosterTbl td.roleCol, .rosterTbl td.seatCol, .rosterTbl td.workedCol, .rosterTbl td.hrsCol, .rosterTbl td.presCol, .rosterTbl td.cmtCol').forEach(el => {
+    el.style.setProperty('overflow', 'visible', 'important');
+    el.style.setProperty('position', 'relative', 'important');
+  });
+  // Force all header <th> cells: transparent background so shifted text
+  // from adjacent cells isn't hidden, and allow overflow
+  document.querySelectorAll('.rosterTbl thead th').forEach(el => {
+    el.style.setProperty('overflow', 'visible', 'important');
+    el.style.setProperty('max-width', 'none', 'important');
+    el.style.setProperty('text-overflow', 'clip', 'important');
+    el.style.setProperty('background', 'transparent', 'important');
+  });
+  // Put the header background on the <thead> row instead
+  document.querySelectorAll('.rosterTbl thead tr').forEach(el => {
+    el.style.setProperty('background', '#0c1320', 'important');
+  });
+  // Defer header alignment to next frame
+  requestAnimationFrame(()=>{
+    _alignHeaders('.rosterTbl:not(.rosterTbl--absent)');
+    _alignHeaders('.rosterTbl--absent');
+    // Scroll main to the right so left side clips first when window is narrow
+    const m = document.querySelector('main');
+    if(m) m.scrollLeft = m.scrollWidth - m.clientWidth;
+  });
+}
+// Keep main scrolled to the right on window resize
+window.addEventListener('resize', function(){
+  const m = document.querySelector('main');
+  if(m) m.scrollLeft = m.scrollWidth - m.clientWidth;
+});
+
+// ===== Auto-align headers over bubbles =====
+function _alignHeaders(tableSelector){
+  document.querySelectorAll(tableSelector).forEach(tbl => {
+    const dataRows = tbl.querySelectorAll('tbody tr');
+    if(!dataRows.length) return;
+    const cols = ['roleCol','seatCol','workedCol','hrsCol','presCol','cmtCol'];
+    for(const col of cols){
+      const th = tbl.querySelector('thead th.' + col);
+      if(!th) continue;
+      const hdrSpan = th.querySelector('.hdrTxt');
+      if(!hdrSpan) continue;
+      // Search rows until we find one with a bubble in this column
+      let bubble = null, bubbleTd = null;
+      for(const row of dataRows){
+        const td = row.querySelector('td.' + col);
+        if(!td) continue;
+        const b = td.querySelector('.customSelBtn, .rowPill, .hrsIn, .cmt-btn, .absTardyLabel, .absHrsLabel');
+        if(b){ bubble = b; bubbleTd = td; break; }
+      }
+      if(!bubble) continue;
+      th.style.setProperty('text-align', 'left', 'important');
+      th.style.setProperty('position', 'relative', 'important');
+      // Reset previous positioning so measurements are clean
+      hdrSpan.style.removeProperty('left');
+      hdrSpan.style.setProperty('position', 'absolute', 'important');
+      hdrSpan.style.setProperty('top', '8px', 'important');
+      hdrSpan.style.setProperty('z-index', '2', 'important');
+      // Measure bubble center relative to table left edge
+      const tblRect = tbl.getBoundingClientRect();
+      const bubbleRect = bubble.getBoundingClientRect();
+      const bubbleCenter = bubbleRect.left + bubbleRect.width / 2 - tblRect.left;
+      // Position span so its center aligns with bubble center
+      const spanW = hdrSpan.getBoundingClientRect().width;
+      const left = bubbleCenter - spanW / 2;
+      // Position relative to the <th> cell
+      const thRect = th.getBoundingClientRect();
+      const thLeft = thRect.left - tblRect.left;
+      hdrSpan.style.setProperty('left', Math.round(left - thLeft) + 'px', 'important');
+    }
+  });
+}
+
+// ===== Comment popup (floating) =====
+var _cmtPopupKey = null;   // which cmtKey the popup is showing
+var _cmtPopupBtn = null;   // the .cmt-btn that opened it
+
+function openCmtPopup(btn){
+  const popup = document.getElementById("cmtPopup");
+  const ta = document.getElementById("cmtPopupTa");
+  const key = btn.dataset.cmtkey;
+  if(!key) return;
+
+  // If clicking the same btn, close it
+  if(popup.classList.contains("open") && _cmtPopupKey === key){
+    closeCmtPopup(); return;
+  }
+
+  _cmtPopupKey = key;
+  _cmtPopupBtn = btn;
+  ta.value = rowComments[key] || "";
+  ta.dataset.cmtkey = key;
+
+  // Position above the button, anchored to the right
+  const rect = btn.getBoundingClientRect();
+  popup.classList.add("open");
+  const pW = popup.offsetWidth;
+  const pH = popup.offsetHeight;
+  popup.style.left = Math.max(4, rect.right - pW + 24) + "px";
+  popup.style.top  = (rect.top - pH - 8) + "px";
+  ta.focus();
+}
+
+function closeCmtPopup(){
+  const popup = document.getElementById("cmtPopup");
+  popup.classList.remove("open");
+  _cmtPopupKey = null;
+  _cmtPopupBtn = null;
+}
+
 document.addEventListener("click", function(e){
   const btn = e.target.closest(".cmt-btn");
-  if(btn){
-    const row = btn.closest("tr").nextElementSibling;
-    if(row && row.classList.contains("cmt-row")) row.classList.toggle("open");
-    return;
+  if(btn){ openCmtPopup(btn); return; }
+
+  // Close popups when clicking outside
+  if(!e.target.closest("#cmtPopup") && !e.target.closest(".cmt-btn")){
+    closeCmtPopup();
   }
-  // Close all open comment rows when clicking outside a comment row or its button
-  if(!e.target.closest(".cmt-row") && !e.target.closest(".cmt-btn")){
-    document.querySelectorAll(".cmt-row.open").forEach(function(r){ r.classList.remove("open"); });
+  if(!e.target.closest("#otConfirmPopup") && !e.target.closest(".ot-edit-icon")){
+    closeOTConfirm();
   }
 });
+
 document.addEventListener("input", function(e){
-  if(!e.target.dataset.cmtkey) return;
-  rowComments[e.target.dataset.cmtkey] = e.target.value;
-  // Update the comment button color
-  const cmtRow = e.target.closest(".cmt-row");
-  if(cmtRow && cmtRow.previousElementSibling){
-    const btn = cmtRow.previousElementSibling.querySelector(".cmt-btn");
-    if(btn) btn.classList.toggle("has-cmt", e.target.value.trim().length > 0);
+  if(e.target.id !== "cmtPopupTa") return;
+  const key = e.target.dataset.cmtkey;
+  if(!key) return;
+  rowComments[key] = e.target.value;
+  // Update the button that opened this popup
+  if(_cmtPopupBtn){
+    _cmtPopupBtn.classList.toggle("has-cmt", e.target.value.trim().length > 0);
   }
   scheduleAutoSave();
+});
+
+// ===== OT confirm popup =====
+var _otConfirmKey = null;
+var _otConfirmEmp = null;
+
+function showOTConfirm(ev, key, emp){
+  ev.stopPropagation();
+  const popup = document.getElementById("otConfirmPopup");
+  _otConfirmKey = key;
+  _otConfirmEmp = emp;
+
+  const rect = ev.target.getBoundingClientRect();
+  popup.style.left = Math.max(4, rect.left - 20) + "px";
+  popup.style.top  = (rect.bottom + 6) + "px";
+  popup.classList.add("open");
+}
+
+function closeOTConfirm(){
+  const popup = document.getElementById("otConfirmPopup");
+  popup.classList.remove("open");
+  _otConfirmKey = null;
+  _otConfirmEmp = null;
+}
+
+document.getElementById("otConfirmYes").addEventListener("click", function(){
+  if(_otConfirmKey && _otConfirmEmp) removeOT(_otConfirmKey, _otConfirmEmp);
+  closeOTConfirm();
+});
+document.getElementById("otConfirmNo").addEventListener("click", function(){
+  closeOTConfirm();
 });
 
 // ===== Wire up controls =====
@@ -6319,104 +6636,82 @@ async function pushToBreakOPS(){
 }
 </script>
 
-<!-- === TEMPORARY LAYOUT EDITOR — REMOVE WHEN DONE === -->
-<div id="layoutEditor" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#1e293b;color:#fff;padding:10px 16px;z-index:99999;font-family:Arial,sans-serif;font-size:12px;box-shadow:0 -4px 20px rgba(0,0,0,.5);max-height:45vh;overflow-y:auto;">
+<!-- === LAYOUT EDITOR === -->
+<div id="layoutEditor" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#1e293b;color:#fff;padding:10px 16px;z-index:99999;font-family:Arial,sans-serif;font-size:12px;box-shadow:0 -4px 20px rgba(0,0,0,.5);max-height:50vh;overflow-y:auto;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-    <b style="font-size:14px;">Layout Editor</b>
+    <b style="font-size:14px;">Bubble Editor</b>
     <div>
       <button onclick="copyLayoutValues()" style="background:#22c55e;color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;margin-right:6px;font-weight:700;">Copy Values</button>
       <button onclick="toggleLayoutEditor()" style="background:#ef4444;color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-weight:700;">Close</button>
     </div>
   </div>
-  <div id="layoutSliders" style="display:flex;flex-direction:column;gap:4px;"></div>
+  <div id="layoutSliders"></div>
 </div>
 <button id="layoutToggleBtn" onclick="toggleLayoutEditor()" style="position:fixed;bottom:10px;right:10px;z-index:99998;background:#f59e0b;color:#000;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.3);">Layout Editor</button>
 
 <script>
 (function(){
-  const cols = [
-    // — NAME (leftmost) —
-    { label:'Name PL',          sel:'.rosterTbl th.nameCol, .rosterTbl td.nameCol',  prop:'paddingLeft',  min:0, max:30, unit:'px', init:4, group:'NAME' },
-    { label:'Name PR',          sel:'.rosterTbl th.nameCol, .rosterTbl td.nameCol',  prop:'paddingRight', min:0, max:30, unit:'px', init:4, group:'NAME' },
-    // — ROLE —
-    { label:'Role Width',       sel:'.rosterTbl th.roleCol, .rosterTbl td.roleCol',  prop:'width',        min:20, max:120, unit:'px', init:54, group:'ROLE' },
-    { label:'Role PL (header)', sel:'.rosterTbl th.roleCol',                         prop:'paddingLeft',  min:0,  max:50,  unit:'px', init:0, group:'ROLE' },
-    { label:'Role PL (cells)',  sel:'.rosterTbl td.roleCol',                         prop:'paddingLeft',  min:0,  max:50,  unit:'px', init:0, group:'ROLE' },
-    { label:'Role PR',          sel:'.rosterTbl th.roleCol, .rosterTbl td.roleCol',  prop:'paddingRight', min:0,  max:30,  unit:'px', init:0, group:'ROLE' },
-    { label:'Role Bubble ML',   sel:'.customSel--role',                              prop:'marginLeft',   min:0,  max:50,  unit:'px', init:0, special:'autoAlign', group:'ROLE' },
-    // — SEAT —
-    { label:'Seat Width',       sel:'.rosterTbl th.seatCol, .rosterTbl td.seatCol',  prop:'width',        min:40, max:160, unit:'px', init:100, group:'SEAT' },
-    { label:'Seat PL',          sel:'.rosterTbl th.seatCol, .rosterTbl td.seatCol',  prop:'paddingLeft',  min:0,  max:60,  unit:'px', init:0, group:'SEAT' },
-    { label:'Seat PR',          sel:'.rosterTbl th.seatCol, .rosterTbl td.seatCol',  prop:'paddingRight', min:0,  max:60,  unit:'px', init:0, group:'SEAT' },
-    { label:'Seat Bubble ML',   sel:'.customSel--seat',                              prop:'marginLeft',   min:0,  max:80,  unit:'px', init:0, special:'autoAlign', group:'SEAT' },
-    // — WORKED —
-    { label:'Worked Width',     sel:'.rosterTbl th.workedCol, .rosterTbl td.workedCol', prop:'width',     min:40, max:160, unit:'px', init:100, group:'WORKED' },
-    { label:'Worked PL',        sel:'.rosterTbl th.workedCol, .rosterTbl td.workedCol', prop:'paddingLeft', min:0, max:40, unit:'px', init:0, group:'WORKED' },
-    { label:'Worked PR',        sel:'.rosterTbl th.workedCol, .rosterTbl td.workedCol', prop:'paddingRight', min:0, max:40, unit:'px', init:0, group:'WORKED' },
-    { label:'Worked Bubble ML', sel:'.rosterTbl .rowPill',                            prop:'marginLeft',   min:0, max:60,  unit:'px', init:0, group:'WORKED' },
-    // — HRS —
-    { label:'Hrs Width',        sel:'.rosterTbl th.hrsCol, .rosterTbl td.hrsCol',    prop:'width',        min:30, max:120, unit:'px', init:64, group:'HRS' },
-    { label:'Hrs PL',           sel:'.rosterTbl th.hrsCol, .rosterTbl td.hrsCol',    prop:'paddingLeft',  min:0,  max:40,  unit:'px', init:0, group:'HRS' },
-    { label:'Hrs PR',           sel:'.rosterTbl th.hrsCol, .rosterTbl td.hrsCol',    prop:'paddingRight', min:0,  max:40,  unit:'px', init:0, group:'HRS' },
-    // — PRESENT (rightmost) —
-    { label:'Present Width',    sel:'.rosterTbl th.presCol, .rosterTbl td.presCol',   prop:'width',       min:30, max:200, unit:'px', init:50, group:'PRESENT' },
-    { label:'Present PL',       sel:'.rosterTbl th.presCol, .rosterTbl td.presCol',   prop:'paddingLeft', min:0,  max:40,  unit:'px', init:0, group:'PRESENT' },
-    { label:'Present PR',       sel:'.rosterTbl th.presCol, .rosterTbl td.presCol',   prop:'paddingRight', min:0, max:40, unit:'px', init:0, group:'PRESENT' },
+  const bubbles = [
+    { name:'Role',    bubbleSel:'.rosterTbl td.roleCol .customSelBtn',    sizeInit:61,  moveInit:-170 },
+    { name:'Seat',    bubbleSel:'.rosterTbl td.seatCol .customSelBtn',    sizeInit:96,  moveInit:-155 },
+    { name:'Worked',  bubbleSel:'.rosterTbl td.workedCol .rowPill',       sizeInit:49,  moveInit:-265 },
+    { name:'Hrs',     bubbleSel:'.rosterTbl td.hrsCol .hrsIn',            sizeInit:38,  moveInit:-140 },
+    { name:'Present', bubbleSel:'.rosterTbl td.presCol .customSelBtn, .rosterTbl td.presCol .presentSel', sizeInit:62, moveInit:-122 },
+    { name:'Comment', bubbleSel:'.rosterTbl td.cmtCol .cmt-btn',         sizeInit:54,  moveInit:-135 },
   ];
 
   const container = document.getElementById('layoutSliders');
-  const btnStyle = 'width:32px;height:28px;border:none;border-radius:4px;cursor:pointer;font-weight:700;font-size:16px;';
-  let lastGroup = '';
-  cols.forEach((c,i) => {
-    if(c.group && c.group !== lastGroup) {
-      lastGroup = c.group;
-      const hdr = document.createElement('div');
-      hdr.style.cssText = 'padding:8px 0 4px;border-bottom:2px solid #475569;font-weight:700;font-size:13px;color:#f59e0b;';
-      hdr.textContent = c.group;
-      container.appendChild(hdr);
-    }
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:2px 0;';
-    row.innerHTML = `<span style="min-width:130px;font-size:11px;">${c.label}</span>
-      <button onclick="nudgeLayout(${i},-5)" style="${btnStyle}background:#ef4444;color:#fff;">−5</button>
-      <button onclick="nudgeLayout(${i},-1)" style="${btnStyle}background:#f97316;color:#fff;">−</button>
-      <input type="number" id="lv${i}" value="${c.init}" min="${c.min}" max="${c.max}" data-idx="${i}"
-        onchange="updateLayout(${i}, this.value)"
-        style="width:56px;text-align:center;font-weight:700;font-size:13px;border:1px solid #475569;border-radius:4px;background:#0f172a;color:#fff;padding:4px;">
-      <button onclick="nudgeLayout(${i},1)" style="${btnStyle}background:#22c55e;color:#fff;">+</button>
-      <button onclick="nudgeLayout(${i},5)" style="${btnStyle}background:#3b82f6;color:#fff;">+5</button>`;
-    container.appendChild(row);
+  const btn = 'border:none;border-radius:4px;cursor:pointer;font-weight:700;padding:4px 10px;font-size:14px;';
+
+  bubbles.forEach((b,i) => {
+    const div = document.createElement('div');
+    div.style.cssText = 'padding:6px 0;border-bottom:1px solid #334155;';
+    div.innerHTML = `
+      <div style="font-weight:700;color:#f59e0b;font-size:13px;margin-bottom:4px;">${b.name}</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+        <span style="min-width:42px;font-size:11px;">Size</span>
+        <button onclick="nudgeBubble(${i},'size',-5)" style="${btn}background:#ef4444;color:#fff;">&#9664;&#9664;</button>
+        <button onclick="nudgeBubble(${i},'size',-1)" style="${btn}background:#f97316;color:#fff;">&#9664;</button>
+        <input type="number" id="bs${i}" value="${b.sizeInit}" onchange="applyBubble(${i})" style="width:50px;text-align:center;font-weight:700;border:1px solid #475569;border-radius:4px;background:#0f172a;color:#fff;padding:3px;">
+        <span style="font-size:10px;color:#94a3b8;">px</span>
+        <button onclick="nudgeBubble(${i},'size',1)" style="${btn}background:#22c55e;color:#fff;">&#9654;</button>
+        <button onclick="nudgeBubble(${i},'size',5)" style="${btn}background:#3b82f6;color:#fff;">&#9654;&#9654;</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="min-width:42px;font-size:11px;">Move</span>
+        <button onclick="nudgeBubble(${i},'move',-5)" style="${btn}background:#ef4444;color:#fff;">&#9664;&#9664;</button>
+        <button onclick="nudgeBubble(${i},'move',-1)" style="${btn}background:#f97316;color:#fff;">&#9664;</button>
+        <input type="number" id="bm${i}" value="${b.moveInit}" onchange="applyBubble(${i})" style="width:50px;text-align:center;font-weight:700;border:1px solid #475569;border-radius:4px;background:#0f172a;color:#fff;padding:3px;">
+        <span style="font-size:10px;color:#94a3b8;">px</span>
+        <button onclick="nudgeBubble(${i},'move',1)" style="${btn}background:#22c55e;color:#fff;">&#9654;</button>
+        <button onclick="nudgeBubble(${i},'move',5)" style="${btn}background:#3b82f6;color:#fff;">&#9654;&#9654;</button>
+      </div>`;
+    container.appendChild(div);
   });
 
-  window._layoutCols = cols;
+  window._bubbles = bubbles;
 
-  window.nudgeLayout = function(idx, delta) {
-    const inp = document.getElementById('lv'+idx);
-    const c = cols[idx];
-    let val = Math.max(c.min, Math.min(c.max, parseInt(inp.value) + delta));
-    inp.value = val;
-    updateLayout(idx, val);
+  window.nudgeBubble = function(idx, type, delta) {
+    const inp = document.getElementById(type==='size'?'bs'+idx:'bm'+idx);
+    inp.value = parseInt(inp.value) + delta;
+    applyBubble(idx);
   };
 
-  window.updateLayout = function(idx, val) {
-    const c = cols[idx];
-    document.getElementById('lv'+idx).value = val;
-    if(c.special === 'autoAlign') {
-      // Move bubble: 0 = pinned right (auto), >0 = fixed offset from left
-      document.querySelectorAll(c.sel).forEach(el => {
-        if(parseInt(val) > 0) {
-          el.style.setProperty('marginLeft', val+'px', 'important');
-        } else {
-          el.style.setProperty('marginLeft', 'auto', 'important');
-        }
-      });
-      return;
-    }
-    document.querySelectorAll(c.sel).forEach(el => {
-      el.style.setProperty(c.prop, val+'px', 'important');
-      if(c.prop === 'width') {
-        el.style.setProperty('minWidth', val+'px', 'important');
-        el.style.setProperty('maxWidth', val+'px', 'important');
+  window.applyBubble = function(idx) {
+    const b = bubbles[idx];
+    const size = parseInt(document.getElementById('bs'+idx).value);
+    const move = parseInt(document.getElementById('bm'+idx).value);
+    document.querySelectorAll(b.bubbleSel).forEach(el => {
+      if(size > 0) {
+        el.style.setProperty('width', size+'px', 'important');
+        el.style.setProperty('min-width', size+'px', 'important');
+        el.style.setProperty('max-width', size+'px', 'important');
+      }
+      el.style.setProperty('margin-left', move+'px', 'important');
+      const wrapper = el.closest('.customSel');
+      if(wrapper){
+        const menu = wrapper.querySelector('.customSelMenu');
+        if(menu) menu.style.setProperty('margin-left', move+'px', 'important');
       }
     });
   };
@@ -6428,9 +6723,8 @@ async function pushToBreakOPS(){
 
   window.copyLayoutValues = function() {
     let txt = '';
-    cols.forEach((c,i) => {
-      const slider = container.querySelector(`[data-idx="${i}"]`);
-      txt += `${c.label}: ${slider.value}px\n`;
+    bubbles.forEach((b,i) => {
+      txt += `${b.name}: size=${document.getElementById('bs'+i).value}px, move=${document.getElementById('bm'+i).value}px\n`;
     });
     navigator.clipboard.writeText(txt).then(() => alert('Copied! Paste it to Claude.')).catch(() => {
       prompt('Copy these values:', txt);
@@ -6439,6 +6733,103 @@ async function pushToBreakOPS(){
 })();
 </script>
 <!-- === END LAYOUT EDITOR === -->
+
+<!-- === ABSENT LAYOUT EDITOR === -->
+<div id="absentLayoutEditor" style="display:none;position:fixed;top:0;left:0;right:0;background:#1e293b;color:#fff;padding:10px 16px;z-index:99999;font-family:Arial,sans-serif;font-size:12px;box-shadow:0 4px 20px rgba(0,0,0,.5);max-height:50vh;overflow-y:auto;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+    <b style="font-size:14px;">Absent Bubble Editor</b>
+    <div>
+      <button onclick="copyAbsentValues()" style="background:#22c55e;color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;margin-right:6px;font-weight:700;">Copy Values</button>
+      <button onclick="toggleAbsentEditor()" style="background:#ef4444;color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-weight:700;">Close</button>
+    </div>
+  </div>
+  <div id="absentSliders"></div>
+</div>
+<button id="absentToggleBtn" onclick="toggleAbsentEditor()" style="position:fixed;bottom:10px;left:10px;z-index:99998;background:#ef4444;color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.3);">Absent Editor</button>
+
+<script>
+(function(){
+  const abs = [
+    { name:'Reason',  bubbleSel:'.rosterTbl--absent td.seatCol .customSelBtn',    sizeInit:96,  moveInit:-195 },
+    { name:'Missed',  bubbleSel:'.rosterTbl--absent td.workedCol .rowPill',       sizeInit:49,  moveInit:-305 },
+    { name:'Hrs',     bubbleSel:'.rosterTbl--absent td.hrsCol .hrsIn',            sizeInit:38,  moveInit:-150 },
+    { name:'Present', bubbleSel:'.rosterTbl--absent td.presCol .customSelBtn, .rosterTbl--absent td.presCol .presentSel', sizeInit:62, moveInit:-140 },
+    { name:'Comment', bubbleSel:'.rosterTbl--absent td.cmtCol .cmt-btn',          sizeInit:14,  moveInit:-180 },
+  ];
+
+  const container = document.getElementById('absentSliders');
+  const btn = 'border:none;border-radius:4px;cursor:pointer;font-weight:700;padding:4px 10px;font-size:14px;';
+
+  abs.forEach((b,i) => {
+    const div = document.createElement('div');
+    div.style.cssText = 'padding:6px 0;border-bottom:1px solid #334155;';
+    div.innerHTML = `
+      <div style="font-weight:700;color:#ef4444;font-size:13px;margin-bottom:4px;">${b.name}</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+        <span style="min-width:42px;font-size:11px;">Size</span>
+        <button onclick="nudgeAbsent(${i},'size',-5)" style="${btn}background:#ef4444;color:#fff;">&#9664;&#9664;</button>
+        <button onclick="nudgeAbsent(${i},'size',-1)" style="${btn}background:#f97316;color:#fff;">&#9664;</button>
+        <input type="number" id="abs${i}" value="${b.sizeInit}" onchange="applyAbsent(${i})" style="width:50px;text-align:center;font-weight:700;border:1px solid #475569;border-radius:4px;background:#0f172a;color:#fff;padding:3px;">
+        <span style="font-size:10px;color:#94a3b8;">px</span>
+        <button onclick="nudgeAbsent(${i},'size',1)" style="${btn}background:#22c55e;color:#fff;">&#9654;</button>
+        <button onclick="nudgeAbsent(${i},'size',5)" style="${btn}background:#3b82f6;color:#fff;">&#9654;&#9654;</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="min-width:42px;font-size:11px;">Move</span>
+        <button onclick="nudgeAbsent(${i},'move',-5)" style="${btn}background:#ef4444;color:#fff;">&#9664;&#9664;</button>
+        <button onclick="nudgeAbsent(${i},'move',-1)" style="${btn}background:#f97316;color:#fff;">&#9664;</button>
+        <input type="number" id="abm${i}" value="${b.moveInit}" onchange="applyAbsent(${i})" style="width:50px;text-align:center;font-weight:700;border:1px solid #475569;border-radius:4px;background:#0f172a;color:#fff;padding:3px;">
+        <span style="font-size:10px;color:#94a3b8;">px</span>
+        <button onclick="nudgeAbsent(${i},'move',1)" style="${btn}background:#22c55e;color:#fff;">&#9654;</button>
+        <button onclick="nudgeAbsent(${i},'move',5)" style="${btn}background:#3b82f6;color:#fff;">&#9654;&#9654;</button>
+      </div>`;
+    container.appendChild(div);
+  });
+
+  window._absBubbles = abs;
+
+  window.nudgeAbsent = function(idx, type, delta) {
+    const inp = document.getElementById(type==='size'?'abs'+idx:'abm'+idx);
+    inp.value = parseInt(inp.value) + delta;
+    applyAbsent(idx);
+  };
+
+  window.applyAbsent = function(idx) {
+    const b = abs[idx];
+    const size = parseInt(document.getElementById('abs'+idx).value);
+    const move = parseInt(document.getElementById('abm'+idx).value);
+    document.querySelectorAll(b.bubbleSel).forEach(el => {
+      if(size > 0) {
+        el.style.setProperty('width', size+'px', 'important');
+        el.style.setProperty('min-width', size+'px', 'important');
+        el.style.setProperty('max-width', size+'px', 'important');
+      }
+      el.style.setProperty('margin-left', move+'px', 'important');
+      const wrapper = el.closest('.customSel');
+      if(wrapper){
+        const menu = wrapper.querySelector('.customSelMenu');
+        if(menu) menu.style.setProperty('margin-left', move+'px', 'important');
+      }
+    });
+  };
+
+  window.toggleAbsentEditor = function() {
+    const ed = document.getElementById('absentLayoutEditor');
+    ed.style.display = ed.style.display === 'none' ? 'block' : 'none';
+  };
+
+  window.copyAbsentValues = function() {
+    let txt = '';
+    abs.forEach((b,i) => {
+      txt += `${b.name}: size=${document.getElementById('abs'+i).value}px, move=${document.getElementById('abm'+i).value}px\n`;
+    });
+    navigator.clipboard.writeText(txt).then(() => alert('Copied! Paste it to Claude.')).catch(() => {
+      prompt('Copy these values:', txt);
+    });
+  };
+})();
+</script>
+<!-- === END ABSENT LAYOUT EDITOR === -->
 
 </body>
 </html>
