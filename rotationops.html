@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>RotationOps</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='30' fill='%230f172a'/><path d='M20 14 A20 20 0 0 1 50 26' fill='none' stroke='%231f6feb' stroke-width='5' stroke-linecap='round'/><polygon points='50,20 56,28 46,28' fill='%231f6feb'/><path d='M44 50 A20 20 0 0 1 14 38' fill='none' stroke='%2322c55e' stroke-width='5' stroke-linecap='round'/><polygon points='14,44 8,36 18,36' fill='%2322c55e'/></svg>" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23070c16'/%3E%3Ccircle cx='32' cy='32' r='30' fill='none' stroke='%23c0c8d4' stroke-width='2'/%3E%3Cpath d='M20 16 A18 18 0 0 1 48 26' fill='none' stroke='%23e8ecf0' stroke-width='4' stroke-linecap='round'/%3E%3Cpolygon points='48,20 54,28 44,27' fill='%23e8ecf0'/%3E%3Cpath d='M44 48 A18 18 0 0 1 16 38' fill='none' stroke='%23e8ecf0' stroke-width='4' stroke-linecap='round'/%3E%3Cpolygon points='16,44 10,36 20,37' fill='%23e8ecf0'/%3E%3C/svg%3E"/>
 <style>
   :root {
     --bg:#0b0f16; --panel:#111826; --panel2:#0f1622; --line:#2a3446; --text:#e6edf7;
@@ -83,6 +83,8 @@
   .clickable-needed:hover{transform:scale(1.05); box-shadow: 0 2px 8px rgba(220,38,38,0.4);}
   .clickable-absent{cursor:pointer; transition: transform 0.1s, box-shadow 0.1s;}
   .clickable-absent:hover{transform:scale(1.05); box-shadow: 0 2px 8px rgba(248,113,113,0.4);}
+  .clickable-vac{cursor:pointer; transition: transform 0.1s, box-shadow 0.1s;}
+  .clickable-vac:hover{transform:scale(1.05); box-shadow: 0 2px 8px rgba(125,211,252,0.4); background:rgba(125,211,252,.25) !important;}
 
   .actions{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap}
 
@@ -847,6 +849,21 @@
   </div>
 </div>
 
+<!-- Vacation Assign Modal -->
+<div id="vacAssignModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:20px; min-width:320px; max-width:420px;">
+    <h3 style="margin:0 0 15px; color:#7dd3fc;" id="vacAssignModalTitle">ASSIGN VACATION PERSON</h3>
+    <p id="vacAssignModalInfo" style="margin:0 0 15px; font-size:14px;"></p>
+    <div style="margin-bottom:15px;">
+      <label style="font-size:12px; font-weight:700; display:block; margin-bottom:6px;">ASSIGN TO EMPTY SLOT:</label>
+      <select id="vacAssignSelect" style="width:100%; padding:8px; font-size:13px; border-radius:6px; border:1px solid var(--line); background:var(--panel2); color:var(--text);"></select>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="btn" id="btnVacAssign">ASSIGN (OT)</button>
+      <button class="btn secondary" id="btnVacAssignCancel">CANCEL</button>
+    </div>
+  </div>
+</div>
 
 <!-- Remove From Rotation Modal -->
 <div id="removeRotModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
@@ -6204,7 +6221,7 @@ function renderDay(dayKey) {
     html += `<tr><td><b style="color:#7dd3fc;">VACATION</b></td>`;
     if (vacNames.length) {
       const items = vacNames.map(n =>
-        `<div style="margin:1px 0;"><span class="assign-cell" style="background:rgba(125,211,252,.15); color:#7dd3fc; font-weight:700; font-size:10px; border:1px solid rgba(125,211,252,.3); cursor:default;">${escapeHtml(n)}</span></div>`
+        `<div style="margin:1px 0;"><span class="assign-cell clickable-vac" data-day="${dayKey}" data-name="${escapeHtml(n)}" style="background:rgba(125,211,252,.15); color:#7dd3fc; font-weight:700; font-size:10px; border:1px solid rgba(125,211,252,.3); cursor:pointer;">${escapeHtml(n)}</span></div>`
       ).join("");
       html += `<td colspan="${BLOCKS.length}">${items}</td>`;
     } else {
@@ -6804,7 +6821,9 @@ function renderWeek(anchorDayKey) {
         const short = entry && (entry.filled||0) < 10;
         const isViolation = nm && violationCells.has(`${dayKey}|${b.key}|${nm.toUpperCase()}`);
         const abbr = channelAbbrev(ch);
-        html += `<td style="${db}">${nm ? `<span class="assign-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" style="background:${bg}; cursor:pointer; ${short?'outline:2px solid rgba(217,72,72,.6); outline-offset:1px;':''}">${abbr} ${escapeHtml(nm.toUpperCase())}</span>` : `<span class="assign-cell needed-badge clickable-needed" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-type="channel" style="cursor:pointer;">${abbr} NEEDED</span>`}</td>`;
+        const _isOTw = nm && entry && (entry.ot || []).some(o => String(o).toUpperCase() === nm.toUpperCase());
+        const _otW = _isOTw ? '<span style="background:#ef4444; color:#fff; font-size:8px; font-weight:900; padding:0px 3px; border-radius:2px; margin-left:3px;">OT</span>' : '';
+        html += `<td style="${db}">${nm ? `<span class="assign-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" style="background:${bg}; cursor:pointer; ${short?'outline:2px solid rgba(217,72,72,.6); outline-offset:1px;':''}">${abbr} ${escapeHtml(nm.toUpperCase())}${_otW}</span>` : `<span class="assign-cell needed-badge clickable-needed" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-type="channel" style="cursor:pointer;">${abbr} NEEDED</span>`}</td>`;
       }
     }
     html += `</tr>`;
@@ -6824,7 +6843,9 @@ function renderWeek(anchorDayKey) {
       const entry = blocks ? blocks[b.key] : null;
       const nm = entry && entry.assignments ? (entry.assignments[SEVENTH_CHANNEL] || "") : "";
       const bg = channelColor[SEVENTH_CHANNEL] || "rgba(255,255,255,.08)";
-      html += `<td style="${db}">${nm ? `<span class="assign-cell clickable-assign" data-day="${dayKey}" data-block="${b.key}" data-channel="${SEVENTH_CHANNEL}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" style="background:${bg}; cursor:pointer;">7th ${escapeHtml(nm.toUpperCase())}</span>` : `<span class="assign-cell needed-badge clickable-needed" data-day="${dayKey}" data-block="${b.key}" data-channel="${SEVENTH_CHANNEL}" data-type="channel" style="cursor:pointer;"><b>7th</b> NEEDED</span>`}</td>`;
+      const _isOT7w = nm && entry && (entry.ot || []).some(o => String(o).toUpperCase() === nm.toUpperCase());
+      const _ot7w = _isOT7w ? '<span style="background:#ef4444; color:#fff; font-size:8px; font-weight:900; padding:0px 3px; border-radius:2px; margin-left:3px;">OT</span>' : '';
+      html += `<td style="${db}">${nm ? `<span class="assign-cell clickable-assign" data-day="${dayKey}" data-block="${b.key}" data-channel="${SEVENTH_CHANNEL}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" style="background:${bg}; cursor:pointer;">7th ${escapeHtml(nm.toUpperCase())}${_ot7w}</span>` : `<span class="assign-cell needed-badge clickable-needed" data-day="${dayKey}" data-block="${b.key}" data-channel="${SEVENTH_CHANNEL}" data-type="channel" style="cursor:pointer;"><b>7th</b> NEEDED</span>`}</td>`;
     }
   }
   html += `</tr>`;
@@ -6838,11 +6859,14 @@ function renderWeek(anchorDayKey) {
       const db = _dbW(b);
       const entry = blocks ? blocks[b.key] : null;
       const list = entry && entry.ct ? entry.ct : [];
+      const _otListW = entry ? (entry.ot || []) : [];
       if (list && list.length) {
         const items = list.map(n=>{
           const nameUpper = String(n).toUpperCase();
           const isViolation = violationCells.has(`${dayKey}|${b.key}|${nameUpper}`);
-          return `<div style="margin:1px 0"><span class="assign-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="CT" data-name="${escapeHtml(nameUpper)}" data-type="ct" style="background:rgba(220,220,230,.15); color:rgba(255,255,255,.7); border-color:rgba(220,220,230,.25); box-shadow:none; cursor:pointer;">CT ${escapeHtml(nameUpper)}</span></div>`;
+          const _isCTotW = _otListW.some(o => String(o).toUpperCase() === nameUpper);
+          const _ctOtW = _isCTotW ? '<span style="background:#ef4444; color:#fff; font-size:8px; font-weight:900; padding:0px 3px; border-radius:2px; margin-left:3px;">OT</span>' : '';
+          return `<div style="margin:1px 0"><span class="assign-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="CT" data-name="${escapeHtml(nameUpper)}" data-type="ct" style="background:rgba(220,220,230,.15); color:rgba(255,255,255,.7); border-color:rgba(220,220,230,.25); box-shadow:none; cursor:pointer;">CT ${escapeHtml(nameUpper)}${_ctOtW}</span></div>`;
         }).join("");
         html += `<td style="${db}">${items}</td>`;
       } else {
@@ -6878,10 +6902,11 @@ function renderWeek(anchorDayKey) {
       .filter(r => String(r.Position||"").trim().toUpperCase() === "DISPATCHER")
       .map(r => String(r.Employee||"").trim()).filter(Boolean);
     for (const d of daysList) {
+      const _vacDk = ymd(d);
       const vacNames = allDispatchers.filter(n => isExcluded(n, d)).map(n => n.toUpperCase()).sort();
       if (vacNames.length) {
         const items = vacNames.map(n =>
-          `<div style="margin:1px 0;"><span class="assign-cell" style="background:rgba(125,211,252,.15); color:#7dd3fc; font-weight:700; font-size:10px; border:1px solid rgba(125,211,252,.3); cursor:default;">${escapeHtml(n)}</span></div>`
+          `<div style="margin:1px 0;"><span class="assign-cell clickable-vac" data-day="${_vacDk}" data-name="${escapeHtml(n)}" style="background:rgba(125,211,252,.15); color:#7dd3fc; font-weight:700; font-size:10px; border:1px solid rgba(125,211,252,.3); cursor:pointer;">${escapeHtml(n)}</span></div>`
         ).join("");
         html += `<td colspan="${BLOCKS.length}" style="${_dayBorderW}">${items}</td>`;
       } else {
@@ -7085,7 +7110,9 @@ function renderMonth(year, monthIndex) {
         const bg = channelColor[ch] || "rgba(255,255,255,.08)";
         const short = entry && (entry.filled||0) < 10;
         const isViolation = nm && violationCells.has(`${dayKey}|${b.key}|${nm.toUpperCase()}`);
-        html += `<td style="${db}">${nm ? `<span class="assign-cell month-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" data-emp="${escapeHtml(nm.toUpperCase())}" style="background:${bg}; cursor:pointer; ${short?'outline:2px solid rgba(217,72,72,.6); outline-offset:1px;':''}"><b>${chAbbr}</b> ${escapeHtml(nm.toUpperCase())}</span>` : `<span class="assign-cell month-cell needed-badge clickable-needed" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-type="channel" style="cursor:pointer;"><b>${chAbbr}</b> NEEDED</span>`}</td>`;
+        const _isOTm = nm && entry && (entry.ot || []).some(o => String(o).toUpperCase() === nm.toUpperCase());
+        const _otM = _isOTm ? '<span style="background:#ef4444; color:#fff; font-size:7px; font-weight:900; padding:0px 2px; border-radius:2px; margin-left:2px;">OT</span>' : '';
+        html += `<td style="${db}">${nm ? `<span class="assign-cell month-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" data-emp="${escapeHtml(nm.toUpperCase())}" style="background:${bg}; cursor:pointer; ${short?'outline:2px solid rgba(217,72,72,.6); outline-offset:1px;':''}"><b>${chAbbr}</b> ${escapeHtml(nm.toUpperCase())}${_otM}</span>` : `<span class="assign-cell month-cell needed-badge clickable-needed" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-type="channel" style="cursor:pointer;"><b>${chAbbr}</b> NEEDED</span>`}</td>`;
       }
     }
     html += `</tr>`;
@@ -7105,7 +7132,9 @@ function renderMonth(year, monthIndex) {
       const entry = blocks ? blocks[b.key] : null;
       const nm = entry && entry.assignments ? (entry.assignments[SEVENTH_CHANNEL] || "") : "";
       const bg = channelColor[SEVENTH_CHANNEL] || "rgba(255,255,255,.08)";
-      html += `<td style="${db}">${nm ? `<span class="assign-cell month-cell clickable-assign" data-day="${dayKey}" data-block="${b.key}" data-channel="${SEVENTH_CHANNEL}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" data-emp="${escapeHtml(nm.toUpperCase())}" style="background:${bg}; cursor:pointer;"><b>7th</b> ${escapeHtml(nm.toUpperCase())}</span>` : `<span class="assign-cell month-cell needed-badge clickable-needed" data-day="${dayKey}" data-block="${b.key}" data-channel="${SEVENTH_CHANNEL}" data-type="channel" style="cursor:pointer;"><b>7th</b> NEEDED</span>`}</td>`;
+      const _isOT7m = nm && entry && (entry.ot || []).some(o => String(o).toUpperCase() === nm.toUpperCase());
+      const _ot7m = _isOT7m ? '<span style="background:#ef4444; color:#fff; font-size:7px; font-weight:900; padding:0px 2px; border-radius:2px; margin-left:2px;">OT</span>' : '';
+      html += `<td style="${db}">${nm ? `<span class="assign-cell month-cell clickable-assign" data-day="${dayKey}" data-block="${b.key}" data-channel="${SEVENTH_CHANNEL}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" data-emp="${escapeHtml(nm.toUpperCase())}" style="background:${bg}; cursor:pointer;"><b>7th</b> ${escapeHtml(nm.toUpperCase())}${_ot7m}</span>` : `<span class="assign-cell month-cell needed-badge clickable-needed" data-day="${dayKey}" data-block="${b.key}" data-channel="${SEVENTH_CHANNEL}" data-type="channel" style="cursor:pointer;"><b>7th</b> NEEDED</span>`}</td>`;
     }
   }
   html += `</tr>`;
@@ -7119,11 +7148,14 @@ function renderMonth(year, monthIndex) {
       const db = _dbM(b);
       const entry = blocks ? blocks[b.key] : null;
       const list = entry && entry.ct ? entry.ct : [];
+      const _otListM = entry ? (entry.ot || []) : [];
       if (list && list.length) {
         const items = list.map(n=>{
           const nameUpper = String(n).toUpperCase();
           const isViolation = violationCells.has(`${dayKey}|${b.key}|${nameUpper}`);
-          return `<div style="margin:2px 0"><span class="assign-cell month-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="CT" data-name="${escapeHtml(nameUpper)}" data-type="ct" data-emp="${escapeHtml(nameUpper)}" style="background:rgba(220,220,230,.15); color:rgba(255,255,255,.7); border-color:rgba(220,220,230,.25); box-shadow:none; cursor:pointer;"><b>CT</b> ${escapeHtml(nameUpper)}</span></div>`;
+          const _isCTotM = _otListM.some(o => String(o).toUpperCase() === nameUpper);
+          const _ctOtM = _isCTotM ? '<span style="background:#ef4444; color:#fff; font-size:7px; font-weight:900; padding:0px 2px; border-radius:2px; margin-left:2px;">OT</span>' : '';
+          return `<div style="margin:2px 0"><span class="assign-cell month-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="CT" data-name="${escapeHtml(nameUpper)}" data-type="ct" data-emp="${escapeHtml(nameUpper)}" style="background:rgba(220,220,230,.15); color:rgba(255,255,255,.7); border-color:rgba(220,220,230,.25); box-shadow:none; cursor:pointer;"><b>CT</b> ${escapeHtml(nameUpper)}${_ctOtM}</span></div>`;
         }).join("");
         html += `<td style="${db}">${items}</td>`;
       } else {
@@ -7159,10 +7191,11 @@ function renderMonth(year, monthIndex) {
       .filter(r => String(r.Position||"").trim().toUpperCase() === "DISPATCHER")
       .map(r => String(r.Employee||"").trim()).filter(Boolean);
     for (const d of daysList) {
+      const _vacDk = ymd(d);
       const vacNames = allDispatchers.filter(n => isExcluded(n, d)).map(n => n.toUpperCase()).sort();
       if (vacNames.length) {
         const items = vacNames.map(n =>
-          `<div style="margin:2px 0;"><span class="assign-cell month-cell" style="background:rgba(125,211,252,.15); color:#7dd3fc; font-weight:700; font-size:9px; border:1px solid rgba(125,211,252,.3); cursor:default;">${escapeHtml(n)}</span></div>`
+          `<div style="margin:2px 0;"><span class="assign-cell month-cell clickable-vac" data-day="${_vacDk}" data-name="${escapeHtml(n)}" style="background:rgba(125,211,252,.15); color:#7dd3fc; font-weight:700; font-size:9px; border:1px solid rgba(125,211,252,.3); cursor:pointer;">${escapeHtml(n)}</span></div>`
         ).join("");
         html += `<td colspan="${BLOCKS.length}" style="${_dayBorderM}">${items}</td>`;
       } else {
@@ -9823,6 +9856,146 @@ function boot() {
   document.getElementById("btnAssignSlotCancel").addEventListener("click", hideAssignSlotModal);
   document.getElementById("assignSlotModal").addEventListener("click", (e) => {
     if (e.target.id === "assignSlotModal") hideAssignSlotModal();
+  });
+
+  // ========== VACATION → ASSIGN TO EMPTY SLOT ==========
+  let currentVacAssignData = null;
+
+  function showVacAssignModal(dayKey, name) {
+    const plan = loadPlan();
+    const dayData = plan.days[dayKey];
+    if (!dayData) { showToast("NO PLAN DATA FOR THIS DAY"); return; }
+
+    const sel = document.getElementById("vacAssignSelect");
+    sel.innerHTML = "";
+
+    // Scan blocks split by day/night shift
+    const dayBlocks = BLOCKS.filter(b => b.start < 18);
+    const nightBlocks = BLOCKS.filter(b => b.start >= 18);
+
+    for (const group of [{label: "DAY SHIFT (6 AM \u2014 6 PM)", blocks: dayBlocks}, {label: "NIGHT SHIFT (6 PM \u2014 6 AM)", blocks: nightBlocks}]) {
+      let groupHasOptions = false;
+      const groupStart = sel.options.length;
+
+      // Placeholder for separator — inserted only if group has options
+      const sep = document.createElement("option");
+      sep.disabled = true;
+      sep.textContent = "\u2500\u2500\u2500 " + group.label + " \u2500\u2500\u2500";
+      sel.appendChild(sep);
+
+      for (const b of group.blocks) {
+        const blockData = dayData[b.key];
+        if (!blockData) continue;
+
+        // CT option
+        const ctOpt = document.createElement("option");
+        ctOpt.value = b.key + "|CT";
+        ctOpt.textContent = "    " + b.label + ":  CT (CALLTAKING)";
+        sel.appendChild(ctOpt);
+        groupHasOptions = true;
+
+        // Empty channel slots
+        if (blockData.assignments) {
+          for (const ch of CHANNELS) {
+            const assigned = blockData.assignments[ch];
+            if (!assigned || String(assigned).trim() === "") {
+              const opt = document.createElement("option");
+              opt.value = b.key + "|" + ch;
+              opt.textContent = "    " + b.label + ":  " + ch;
+              sel.appendChild(opt);
+              groupHasOptions = true;
+            }
+          }
+        }
+      }
+
+      // Remove separator if group had no options
+      if (!groupHasOptions) {
+        sel.removeChild(sep);
+      }
+    }
+
+    const hasSelectable = [...sel.options].some(o => !o.disabled);
+    if (!hasSelectable) {
+      sel.innerHTML = "";
+      showToast("NO SLOTS AVAILABLE FOR " + dayKey);
+      return;
+    }
+
+    currentVacAssignData = { dayKey, name };
+    document.getElementById("vacAssignModalTitle").textContent = "ASSIGN: " + name.toUpperCase();
+    document.getElementById("vacAssignModalInfo").innerHTML =
+      `<strong>DATE:</strong> ${dayKey}<br>` +
+      `<strong>EMPLOYEE:</strong> ${name.toUpperCase()}<br>` +
+      `<span style="font-size:12px; opacity:.7;">This person is on vacation. Assigning them will mark them as OT.</span>`;
+    document.getElementById("vacAssignModal").style.display = "flex";
+  }
+
+  function hideVacAssignModal() {
+    document.getElementById("vacAssignModal").style.display = "none";
+    currentVacAssignData = null;
+  }
+
+  // Click on vacation name → open vacation assign modal
+  document.addEventListener("click", (e) => {
+    const target = e.target.closest(".clickable-vac");
+    if (!target) return;
+    const dayKey = target.getAttribute("data-day");
+    const name = target.getAttribute("data-name");
+    if (dayKey && name) showVacAssignModal(dayKey, name);
+  });
+
+  // ASSIGN button
+  document.getElementById("btnVacAssign").addEventListener("click", () => {
+    if (!currentVacAssignData) return;
+    const { dayKey, name } = currentVacAssignData;
+
+    const sel = document.getElementById("vacAssignSelect");
+    const rawValue = sel.value;
+    if (!rawValue) { showToast("SELECT A SLOT TO ASSIGN."); return; }
+
+    const [blockKey, channel] = rawValue.split("|");
+    const plan = loadPlan();
+    const blockData = plan.days[dayKey]?.[blockKey];
+    if (!blockData) return hideVacAssignModal();
+
+    // Assign to CT or to a channel slot
+    if (channel === "CT") {
+      if (!blockData.ct) blockData.ct = [];
+      blockData.ct.push(name);
+    } else {
+      blockData.assignments[channel] = name;
+    }
+
+    // Mark as OT (vacation person coming in = overtime)
+    if (!blockData.ot) blockData.ot = [];
+    const nameUp = name.toUpperCase();
+    if (!blockData.ot.some(n => String(n).toUpperCase() === nameUp)) {
+      blockData.ot.push(name);
+    }
+
+    savePlan(plan);
+    hideVacAssignModal();
+
+    const dk = document.getElementById("dayPick").value;
+    const m = Number(document.getElementById("monthSel").value);
+    const y = Number(document.getElementById("yearSel").value);
+    renderDay(dk); renderWeek(dk); renderMonth(y, m);
+
+    const blockLabel = BLOCKS.find(b => b.key === blockKey)?.label || blockKey;
+    showToast(`${name.toUpperCase()} (VAC/OT) ASSIGNED TO ${channel} — ${blockLabel}`);
+
+    // Sync to ShiftOps
+    const soRole = (channel === "CT") ? "CALLTAKER" : "DISPATCHER";
+    const seatMap = {"North":"North","South":"South","East":"East","West":"West","Central":"Central","Northwest":"Northwest","DC1":"DC1","DC2":"DC2","Relief 1":"Relief 1","Relief 2":"Relief 2"};
+    const soSeat = (channel === "CT") ? "" : (seatMap[channel] || channel || "");
+    syncToShiftOps(dayKey, blockKey, name, soRole, soSeat);
+  });
+
+  // Cancel & close vacation assign modal
+  document.getElementById("btnVacAssignCancel").addEventListener("click", hideVacAssignModal);
+  document.getElementById("vacAssignModal").addEventListener("click", (e) => {
+    if (e.target.id === "vacAssignModal") hideVacAssignModal();
   });
 
   // ========== UNDO ABSENT (click absent name → return to CT) ==========
