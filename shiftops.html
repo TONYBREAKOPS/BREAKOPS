@@ -2927,6 +2927,39 @@ body.light .customSelBtn.typing-mode {
     btnLogout.addEventListener('click', () => {
       auth.signOut();
     });
+
+    // Bug report
+    document.getElementById('btnBugReport').addEventListener('click', () => {
+      document.getElementById('bugReportName').value = '';
+      document.getElementById('bugReportDetails').value = '';
+      document.getElementById('bugReportModal').style.display = 'flex';
+    });
+    document.getElementById('btnBugCancel').addEventListener('click', () => {
+      document.getElementById('bugReportModal').style.display = 'none';
+    });
+    document.getElementById('bugReportModal').addEventListener('click', (e) => {
+      if (e.target.id === 'bugReportModal') document.getElementById('bugReportModal').style.display = 'none';
+    });
+    document.getElementById('btnBugSubmit').addEventListener('click', async () => {
+      const name = document.getElementById('bugReportName').value.trim();
+      const details = document.getElementById('bugReportDetails').value.trim();
+      if (!name || !details) { alert('Please fill in both fields.'); return; }
+      try {
+        await db.collection('bugReports').add({
+          name: name,
+          details: details,
+          app: 'ShiftOps',
+          reportedBy: auth.currentUser ? auth.currentUser.email : 'unknown',
+          timestamp: new Date().toISOString(),
+          status: 'open'
+        });
+        document.getElementById('bugReportModal').style.display = 'none';
+        alert('Bug report submitted. Thank you!');
+      } catch (err) {
+        console.error('Bug report failed:', err);
+        alert('Failed to submit bug report. Try again.');
+      }
+    });
   });
 </script>
 
@@ -2994,13 +3027,33 @@ body.light .customSelBtn.typing-mode {
       <span style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:600;">All Stations, All Shifts</span>
     </div>
     <div id="userInfo" style="margin-left:auto;display:none;align-items:center;gap:10px;">
-      <span class="pill" id="pillUnfilled" style="font-size:10px;padding:4px 8px;cursor:pointer;" title="Click for details">0 UNFILLED</span>
+      <span class="pill" id="pillUnfilled" style="font-size:13px;padding:6px 14px;cursor:pointer;font-weight:800;letter-spacing:0.5px;" title="Click for details">0 UNFILLED</span>
       <span class="pill good" id="pillFirebase" style="font-size:10px;padding:4px 8px;">Base: Connected</span>
       <span class="pill" id="pillSync" style="font-size:10px;padding:4px 8px;">Sync: idle</span>
       <span class="user-email" id="userEmail"></span>
+      <button id="btnBugReport" type="button" title="Report a Bug" style="background:transparent;border:1px solid var(--muted);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted);display:inline-flex;align-items:center;gap:5px;transition:border-color .15s,color .15s;font-family:inherit;" onmouseenter="this.style.borderColor='#ef4444';this.style.color='#ef4444'" onmouseleave="this.style.borderColor='var(--muted)';this.style.color='var(--muted)'">&#x1fab2; REPORT BUG</button>
       <button id="btnLogout" type="button">Sign Out</button>
     </div>
     <button id="themeToggle" type="button" style="width:auto;padding:6px 14px;font-size:12px;font-weight:700;border-radius:10px;">&#9789; Dark</button>
+  </div>
+
+  <!-- Bug Report Modal -->
+  <div id="bugReportModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:20px; min-width:360px; max-width:440px;">
+      <h3 style="margin:0 0 15px; color:#ef4444;">&#x1fab2; REPORT A BUG</h3>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:12px; font-weight:700; display:block; margin-bottom:6px;">YOUR NAME:</label>
+        <input type="text" id="bugReportName" placeholder="Enter your name" style="width:100%; padding:8px; font-size:13px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--text);" />
+      </div>
+      <div style="margin-bottom:15px;">
+        <label style="font-size:12px; font-weight:700; display:block; margin-bottom:6px;">DETAILS:</label>
+        <textarea id="bugReportDetails" placeholder="Describe the bug — what happened, what you expected, and what you were doing when it happened." style="width:100%; padding:8px; font-size:13px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--text); min-height:120px; resize:vertical; font-family:inherit;"></textarea>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button id="btnBugSubmit" style="padding:8px 16px; font-size:12px; font-weight:700; border-radius:6px; border:none; background:#ef4444; color:#fff; cursor:pointer;">SUBMIT</button>
+        <button id="btnBugCancel" style="padding:8px 16px; font-size:12px; font-weight:700; border-radius:6px; border:1px solid var(--line); background:transparent; color:var(--text); cursor:pointer;">CANCEL</button>
+      </div>
+    </div>
   </div>
 
   <input id="weekStart" type="hidden"/>
@@ -3036,12 +3089,25 @@ body.light .customSelBtn.typing-mode {
     <div>
       <input id="dbFile" type="file" accept=".xlsx" style="display:none"/>
       <input id="teamsFile" type="file" accept=".xlsx,.csv" style="display:none"/>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;width:100%">
-        <button class="primary" id="btnImport" style="padding:6px 0;font-size:10px;text-align:center;white-space:nowrap;">Import OT</button>
-        <button class="primary" id="btnSaveXlsx" title="Export current day/shift/block data to Excel" style="padding:6px 0;font-size:10px;text-align:center;white-space:nowrap;">Save XLSX</button>
-        <button class="primary" id="btnTimesheet" title="Generate timesheet for pay period" style="padding:6px 0;font-size:10px;text-align:center;white-space:nowrap;">Timesheet</button>
-        <button class="primary" id="btnBreakOPS" title="Push current shift staff to BreakOPS" style="padding:6px 0;font-size:10px;text-align:center;white-space:nowrap;background:#f59e0b;color:#000;font-weight:700;border-color:#d97706;">BreakOPS</button>
+      <div style="position:relative;width:100%;">
+        <button class="primary" id="btnOptionsToggle" style="padding:10px 12px;font-size:inherit;text-align:center;white-space:nowrap;width:100%;font-weight:700;letter-spacing:0.5px;border-radius:12px;">Options &#9662;</button>
+        <div id="optionsMenu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:#1e293b;border:1px solid #334155;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.5);z-index:9999;min-width:160px;overflow:hidden;">
+          <button id="btnImport" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Import OT</button>
+          <button id="btnSaveXlsx" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Save XLSX</button>
+          <button id="btnTimesheet" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Timesheet</button>
+          <button id="btnBreakOPS" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:700;text-align:left;background:none;border:none;color:#f59e0b;cursor:pointer;">Push to BreakOPS</button>
+        </div>
       </div>
+      <script>
+      (function(){
+        const btn = document.getElementById('btnOptionsToggle');
+        const menu = document.getElementById('optionsMenu');
+        btn.addEventListener('click', (e) => { e.stopPropagation(); menu.style.display = menu.style.display === 'none' ? 'block' : 'none'; });
+        document.addEventListener('click', () => { menu.style.display = 'none'; });
+        menu.addEventListener('click', () => { menu.style.display = 'none'; });
+        menu.querySelectorAll('button').forEach(b => { b.addEventListener('mouseenter', function(){ this.style.background='#334155'; }); b.addEventListener('mouseleave', function(){ this.style.background='none'; }); });
+      })();
+      </script>
     </div>
   </div>
 </header>
@@ -5926,7 +5992,7 @@ function saveXlsx(){
 
     const ws = {};
     const roles = ["CALLTAKER","DISPATCHER","PIC","SUPERVISOR","ABSENT","OTH"];
-    const blockCols = 6; // columns per block: Name, Role, Seat, Worked, Hrs, Present
+    const blockCols = 7; // columns per block: Name, Role, Seat, Worked, Hrs, Present, Cmt
     const totalCols = blocks.length * blockCols;
     const shiftLabel = shift === "NIGHT" ? "NIGHTS" : "DAYS";
     const dayName = dayNameFromISO(iso);
@@ -6068,6 +6134,7 @@ function saveXlsx(){
         setCell(ws, row, cs+3, isAbsent ? "Msd" : "Wkd", sColHdr);
         setCell(ws, row, cs+4, "Hr", sColHdr);
         setCell(ws, row, cs+5, "Pr", sColHdr);
+        setCell(ws, row, cs+6, "Cmt", sColHdr);
         expandRange(ws, row, cs+blockCols-1);
       });
       row++;
@@ -6094,12 +6161,15 @@ function saveXlsx(){
 
             const nameSuffix = (r.isTardy ? " (T)" : r.isPartial ? " (P)" : present==="TRAINER" ? " (TNR)" : present==="TRAINEE" ? " (TNE)" : "") + (r.isOT ? " (OT)" : "");
             const othType = ed.OthType || "";
+            const cmtKey = r.isTardy ? ctx+'|'+r.emp+'|TARDY' : (r.isPartial ? ctx+'|'+r.emp+'|PARTIAL' : ctx+'|'+r.emp);
+            const cmtText = (rowComments[cmtKey] || "").trim();
             setCell(ws, row, cs, String(r.emp).toUpperCase() + nameSuffix, rowStyle);
             setCell(ws, row, cs+1, isAbsent ? "" : (roleAbbr[roleNorm]||roleNorm), rowStyle);
             setCell(ws, row, cs+2, isAbsent ? (r.isTardy ? "TARDY" : r.isPartial ? (ed.PartialReason||"") : absReason) : (isOth ? othType : seat), rowStyle);
             setCell(ws, row, cs+3, wStart && wEnd ? `${wStart}-${wEnd}` : "", rowStyle);
             setCell(ws, row, cs+4, hrs, rowStyle);
             setCell(ws, row, cs+5, present==="TARDY"?"T":(present==="PARTIAL"?"P":(present==="TRAINER"?"TNR":(present==="TRAINEE"?"TNE":(present==="YES"?"Y":"N")))), rowStyle);
+            setCell(ws, row, cs+6, cmtText, rowStyle);
           } else {
             for(let c=cs;c<cs+blockCols;c++) setCell(ws, row, c, "", emptyStyle);
           }
@@ -6146,6 +6216,7 @@ function saveXlsx(){
       cols[s+3] = {wch:8};  // Worked
       cols[s+4] = {wch:3};  // Hrs
       cols[s+5] = {wch:2};  // Present
+      cols[s+6] = {wch:14}; // Comment
     }
     ws['!cols'] = cols;
 
@@ -6171,7 +6242,7 @@ function saveXlsx(){
     const safeShift = String(shift).replace(/[^\w\-]+/g,'_');
     const fname = `SheetOps_${iso}_${safeShift}.xlsx`;
     XLSX.writeFile(wb, fname);
-    setErr("");
+    clearErr();
   }catch(err){
     console.error(err);
     setErr("Save failed: " + (err && err.message ? err.message : err));
@@ -6760,200 +6831,6 @@ async function pushToBreakOPS(){
 }
 </script>
 
-<!-- === LAYOUT EDITOR === -->
-<div id="layoutEditor" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#1e293b;color:#fff;padding:10px 16px;z-index:99999;font-family:Arial,sans-serif;font-size:12px;box-shadow:0 -4px 20px rgba(0,0,0,.5);max-height:50vh;overflow-y:auto;">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-    <b style="font-size:14px;">Bubble Editor</b>
-    <div>
-      <button onclick="copyLayoutValues()" style="background:#22c55e;color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;margin-right:6px;font-weight:700;">Copy Values</button>
-      <button onclick="toggleLayoutEditor()" style="background:#ef4444;color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-weight:700;">Close</button>
-    </div>
-  </div>
-  <div id="layoutSliders"></div>
-</div>
-<button id="layoutToggleBtn" onclick="toggleLayoutEditor()" style="position:fixed;bottom:10px;right:10px;z-index:99998;background:#f59e0b;color:#000;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.3);">Layout Editor</button>
-
-<script>
-(function(){
-  const bubbles = [
-    { name:'Role',    bubbleSel:'.rosterTbl td.roleCol .customSelBtn',    sizeInit:61,  moveInit:-170 },
-    { name:'Seat',    bubbleSel:'.rosterTbl td.seatCol .customSelBtn',    sizeInit:96,  moveInit:-155 },
-    { name:'Worked',  bubbleSel:'.rosterTbl td.workedCol .rowPill',       sizeInit:49,  moveInit:-265 },
-    { name:'Hrs',     bubbleSel:'.rosterTbl td.hrsCol .hrsIn',            sizeInit:38,  moveInit:-140 },
-    { name:'Present', bubbleSel:'.rosterTbl td.presCol .customSelBtn, .rosterTbl td.presCol .presentSel', sizeInit:62, moveInit:-122 },
-    { name:'Comment', bubbleSel:'.rosterTbl td.cmtCol .cmt-btn',         sizeInit:54,  moveInit:-135 },
-  ];
-
-  const container = document.getElementById('layoutSliders');
-  const btn = 'border:none;border-radius:4px;cursor:pointer;font-weight:700;padding:4px 10px;font-size:14px;';
-
-  bubbles.forEach((b,i) => {
-    const div = document.createElement('div');
-    div.style.cssText = 'padding:6px 0;border-bottom:1px solid #334155;';
-    div.innerHTML = `
-      <div style="font-weight:700;color:#f59e0b;font-size:13px;margin-bottom:4px;">${b.name}</div>
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
-        <span style="min-width:42px;font-size:11px;">Size</span>
-        <button onclick="nudgeBubble(${i},'size',-5)" style="${btn}background:#ef4444;color:#fff;">&#9664;&#9664;</button>
-        <button onclick="nudgeBubble(${i},'size',-1)" style="${btn}background:#f97316;color:#fff;">&#9664;</button>
-        <input type="number" id="bs${i}" value="${b.sizeInit}" onchange="applyBubble(${i})" style="width:50px;text-align:center;font-weight:700;border:1px solid #475569;border-radius:4px;background:#0f172a;color:#fff;padding:3px;">
-        <span style="font-size:10px;color:#94a3b8;">px</span>
-        <button onclick="nudgeBubble(${i},'size',1)" style="${btn}background:#22c55e;color:#fff;">&#9654;</button>
-        <button onclick="nudgeBubble(${i},'size',5)" style="${btn}background:#3b82f6;color:#fff;">&#9654;&#9654;</button>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <span style="min-width:42px;font-size:11px;">Move</span>
-        <button onclick="nudgeBubble(${i},'move',-5)" style="${btn}background:#ef4444;color:#fff;">&#9664;&#9664;</button>
-        <button onclick="nudgeBubble(${i},'move',-1)" style="${btn}background:#f97316;color:#fff;">&#9664;</button>
-        <input type="number" id="bm${i}" value="${b.moveInit}" onchange="applyBubble(${i})" style="width:50px;text-align:center;font-weight:700;border:1px solid #475569;border-radius:4px;background:#0f172a;color:#fff;padding:3px;">
-        <span style="font-size:10px;color:#94a3b8;">px</span>
-        <button onclick="nudgeBubble(${i},'move',1)" style="${btn}background:#22c55e;color:#fff;">&#9654;</button>
-        <button onclick="nudgeBubble(${i},'move',5)" style="${btn}background:#3b82f6;color:#fff;">&#9654;&#9654;</button>
-      </div>`;
-    container.appendChild(div);
-  });
-
-  window._bubbles = bubbles;
-
-  window.nudgeBubble = function(idx, type, delta) {
-    const inp = document.getElementById(type==='size'?'bs'+idx:'bm'+idx);
-    inp.value = parseInt(inp.value) + delta;
-    applyBubble(idx);
-  };
-
-  window.applyBubble = function(idx) {
-    const b = bubbles[idx];
-    const size = parseInt(document.getElementById('bs'+idx).value);
-    const move = parseInt(document.getElementById('bm'+idx).value);
-    document.querySelectorAll(b.bubbleSel).forEach(el => {
-      if(size > 0) {
-        el.style.setProperty('width', size+'px', 'important');
-        el.style.setProperty('min-width', size+'px', 'important');
-        el.style.setProperty('max-width', size+'px', 'important');
-      }
-      el.style.setProperty('margin-left', move+'px', 'important');
-      const wrapper = el.closest('.customSel');
-      if(wrapper){
-        const menu = wrapper.querySelector('.customSelMenu');
-        if(menu) menu.style.setProperty('margin-left', move+'px', 'important');
-      }
-    });
-  };
-
-  window.toggleLayoutEditor = function() {
-    const ed = document.getElementById('layoutEditor');
-    ed.style.display = ed.style.display === 'none' ? 'block' : 'none';
-  };
-
-  window.copyLayoutValues = function() {
-    let txt = '';
-    bubbles.forEach((b,i) => {
-      txt += `${b.name}: size=${document.getElementById('bs'+i).value}px, move=${document.getElementById('bm'+i).value}px\n`;
-    });
-    navigator.clipboard.writeText(txt).then(() => alert('Copied! Paste it to Claude.')).catch(() => {
-      prompt('Copy these values:', txt);
-    });
-  };
-})();
-</script>
-<!-- === END LAYOUT EDITOR === -->
-
-<!-- === ABSENT LAYOUT EDITOR === -->
-<div id="absentLayoutEditor" style="display:none;position:fixed;top:0;left:0;right:0;background:#1e293b;color:#fff;padding:10px 16px;z-index:99999;font-family:Arial,sans-serif;font-size:12px;box-shadow:0 4px 20px rgba(0,0,0,.5);max-height:50vh;overflow-y:auto;">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-    <b style="font-size:14px;">Absent Bubble Editor</b>
-    <div>
-      <button onclick="copyAbsentValues()" style="background:#22c55e;color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;margin-right:6px;font-weight:700;">Copy Values</button>
-      <button onclick="toggleAbsentEditor()" style="background:#ef4444;color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-weight:700;">Close</button>
-    </div>
-  </div>
-  <div id="absentSliders"></div>
-</div>
-<button id="absentToggleBtn" onclick="toggleAbsentEditor()" style="position:fixed;bottom:10px;left:10px;z-index:99998;background:#ef4444;color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.3);">Absent Editor</button>
-
-<script>
-(function(){
-  const abs = [
-    { name:'Reason',  bubbleSel:'.rosterTbl--absent td.seatCol .customSelBtn',    sizeInit:96,  moveInit:-195 },
-    { name:'Missed',  bubbleSel:'.rosterTbl--absent td.workedCol .rowPill',       sizeInit:49,  moveInit:-305 },
-    { name:'Hrs',     bubbleSel:'.rosterTbl--absent td.hrsCol .hrsIn',            sizeInit:38,  moveInit:-150 },
-    { name:'Present', bubbleSel:'.rosterTbl--absent td.presCol .customSelBtn, .rosterTbl--absent td.presCol .presentSel', sizeInit:62, moveInit:-140 },
-    { name:'Comment', bubbleSel:'.rosterTbl--absent td.cmtCol .cmt-btn',          sizeInit:14,  moveInit:-180 },
-  ];
-
-  const container = document.getElementById('absentSliders');
-  const btn = 'border:none;border-radius:4px;cursor:pointer;font-weight:700;padding:4px 10px;font-size:14px;';
-
-  abs.forEach((b,i) => {
-    const div = document.createElement('div');
-    div.style.cssText = 'padding:6px 0;border-bottom:1px solid #334155;';
-    div.innerHTML = `
-      <div style="font-weight:700;color:#ef4444;font-size:13px;margin-bottom:4px;">${b.name}</div>
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
-        <span style="min-width:42px;font-size:11px;">Size</span>
-        <button onclick="nudgeAbsent(${i},'size',-5)" style="${btn}background:#ef4444;color:#fff;">&#9664;&#9664;</button>
-        <button onclick="nudgeAbsent(${i},'size',-1)" style="${btn}background:#f97316;color:#fff;">&#9664;</button>
-        <input type="number" id="abs${i}" value="${b.sizeInit}" onchange="applyAbsent(${i})" style="width:50px;text-align:center;font-weight:700;border:1px solid #475569;border-radius:4px;background:#0f172a;color:#fff;padding:3px;">
-        <span style="font-size:10px;color:#94a3b8;">px</span>
-        <button onclick="nudgeAbsent(${i},'size',1)" style="${btn}background:#22c55e;color:#fff;">&#9654;</button>
-        <button onclick="nudgeAbsent(${i},'size',5)" style="${btn}background:#3b82f6;color:#fff;">&#9654;&#9654;</button>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <span style="min-width:42px;font-size:11px;">Move</span>
-        <button onclick="nudgeAbsent(${i},'move',-5)" style="${btn}background:#ef4444;color:#fff;">&#9664;&#9664;</button>
-        <button onclick="nudgeAbsent(${i},'move',-1)" style="${btn}background:#f97316;color:#fff;">&#9664;</button>
-        <input type="number" id="abm${i}" value="${b.moveInit}" onchange="applyAbsent(${i})" style="width:50px;text-align:center;font-weight:700;border:1px solid #475569;border-radius:4px;background:#0f172a;color:#fff;padding:3px;">
-        <span style="font-size:10px;color:#94a3b8;">px</span>
-        <button onclick="nudgeAbsent(${i},'move',1)" style="${btn}background:#22c55e;color:#fff;">&#9654;</button>
-        <button onclick="nudgeAbsent(${i},'move',5)" style="${btn}background:#3b82f6;color:#fff;">&#9654;&#9654;</button>
-      </div>`;
-    container.appendChild(div);
-  });
-
-  window._absBubbles = abs;
-
-  window.nudgeAbsent = function(idx, type, delta) {
-    const inp = document.getElementById(type==='size'?'abs'+idx:'abm'+idx);
-    inp.value = parseInt(inp.value) + delta;
-    applyAbsent(idx);
-  };
-
-  window.applyAbsent = function(idx) {
-    const b = abs[idx];
-    const size = parseInt(document.getElementById('abs'+idx).value);
-    const move = parseInt(document.getElementById('abm'+idx).value);
-    document.querySelectorAll(b.bubbleSel).forEach(el => {
-      if(size > 0) {
-        el.style.setProperty('width', size+'px', 'important');
-        el.style.setProperty('min-width', size+'px', 'important');
-        el.style.setProperty('max-width', size+'px', 'important');
-      }
-      el.style.setProperty('margin-left', move+'px', 'important');
-      const wrapper = el.closest('.customSel');
-      if(wrapper){
-        const menu = wrapper.querySelector('.customSelMenu');
-        if(menu) menu.style.setProperty('margin-left', move+'px', 'important');
-      }
-    });
-  };
-
-  window.toggleAbsentEditor = function() {
-    const ed = document.getElementById('absentLayoutEditor');
-    ed.style.display = ed.style.display === 'none' ? 'block' : 'none';
-  };
-
-  window.copyAbsentValues = function() {
-    let txt = '';
-    abs.forEach((b,i) => {
-      txt += `${b.name}: size=${document.getElementById('abs'+i).value}px, move=${document.getElementById('abm'+i).value}px\n`;
-    });
-    navigator.clipboard.writeText(txt).then(() => alert('Copied! Paste it to Claude.')).catch(() => {
-      prompt('Copy these values:', txt);
-    });
-  };
-})();
-</script>
-<!-- === END ABSENT LAYOUT EDITOR === -->
 
 </body>
 </html>
