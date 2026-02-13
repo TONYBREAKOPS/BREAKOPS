@@ -665,9 +665,21 @@
 
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;" class="header-controls">
-      <span id="channelFlash" style="font-size:18px;font-weight:900;color:#4aa3ff;width:38px;text-align:center;font-family:system-ui;letter-spacing:1px;display:inline-block;perspective:100px;overflow:hidden;height:24px;line-height:24px;">
-        <span id="channelInner" style="display:inline-block;width:38px;text-align:center;"></span>
-      </span>
+      <svg class="rotation-logo" width="38" height="38" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+        <!-- outer ring -->
+        <circle cx="32" cy="32" r="29" stroke="#233043" stroke-width="1.5" fill="none"/>
+        <!-- inner ring -->
+        <circle cx="32" cy="32" r="18" stroke="#233043" stroke-width=".6" fill="none" opacity=".5"/>
+        <!-- rotation arrows -->
+        <g class="arrows">
+          <path d="M32,8 A24,24 0 0,1 56,32" stroke="#4aa3ff" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <polygon points="54,26 58,34 50,34" fill="#4aa3ff"/>
+          <path d="M32,56 A24,24 0 0,1 8,32" stroke="#4aa3ff" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <polygon points="10,38 6,30 14,30" fill="#4aa3ff"/>
+        </g>
+        <!-- center dot -->
+        <circle cx="32" cy="32" r="3" fill="#4aa3ff" opacity=".9"/>
+      </svg>
       <h1 style="font-size:22px;margin:0;font-weight:800;">RotationOps</h1>
       <span id="syncPill" class="sync-pill">SYNC: OFFLINE</span>
       <button id="btnThemeToggle" class="theme-toggle" title="Toggle theme">

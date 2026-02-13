@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Legitimous</title>
+<title>Operations</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23070c16'/%3E%3Ccircle cx='32' cy='32' r='30' fill='none' stroke='%23c0c8d4' stroke-width='2'/%3E%3Cpolygon points='36,8 18,36 30,36 28,56 46,28 34,28' fill='%23e8ecf0'/%3E%3C/svg%3E"/>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -113,24 +113,14 @@ header {
   align-items: center;
   gap: 16px;
 }
-.brand-icon {
-  width: 52px; height: 52px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(77,163,255,.15), rgba(63,231,182,.1));
-  border: 1px solid rgba(77,163,255,.2);
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 30px rgba(77,163,255,.1);
-}
-.brand-icon svg { width: 28px; height: 28px; }
 .brand h1 {
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 900;
-  letter-spacing: -.02em;
-  background: linear-gradient(135deg, #fff 0%, #a5c4e8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text);
   line-height: 1.1;
+  margin:0;
+  letter-spacing: .12em;
+  text-transform: uppercase;
 }
 .brand .tagline {
   font-size: 13px;
@@ -380,6 +370,9 @@ header {
 @keyframes radarSweep { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
 /* Rotation spin for RotationOps */
 @keyframes spinArrows { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+/* Bolt pulse for Launchpad logo */
+@keyframes boltPulse { 0%,100%{opacity:.8} 50%{opacity:1} }
+.bolt-logo { animation:boltPulse 3s ease-in-out infinite; }
 .card-title-group { flex: 1; }
 .card-title {
   font-size: 18px;
@@ -483,10 +476,7 @@ footer {
 .footer-inner .sep { opacity: .3; }
 .footer-brand {
   font-weight: 700;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--muted);
 }
 </style>
 </head>
@@ -500,20 +490,21 @@ footer {
 
 <header>
   <div class="header-inner">
-    <div class="brand">
-      <div class="brand-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)">
-          <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/>
-          <line x1="12" y1="22" x2="12" y2="15.5"/>
-          <polyline points="22 8.5 12 15.5 2 8.5"/>
-          <polyline points="2 15.5 12 8.5 22 15.5"/>
-          <line x1="12" y1="2" x2="12" y2="8.5"/>
-        </svg>
-      </div>
-      <div>
-        <h1>LEGITIMOUS</h1>
-        <div class="tagline">Next-Gen Dispatch Operations</div>
-      </div>
+    <div class="brand" style="gap:10px;">
+      <svg class="bolt-logo" width="38" height="38" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+        <!-- outer ring -->
+        <circle cx="32" cy="32" r="29" stroke="#233043" stroke-width="1.5" fill="none"/>
+        <!-- inner ring -->
+        <circle cx="32" cy="32" r="20" stroke="#233043" stroke-width=".6" fill="none" opacity=".5"/>
+        <!-- crosshair lines -->
+        <line x1="32" y1="4" x2="32" y2="18" stroke="#4aa3ff" stroke-width="1" opacity=".4"/>
+        <line x1="32" y1="46" x2="32" y2="60" stroke="#4aa3ff" stroke-width="1" opacity=".4"/>
+        <line x1="4" y1="32" x2="18" y2="32" stroke="#4aa3ff" stroke-width="1" opacity=".4"/>
+        <line x1="46" y1="32" x2="60" y2="32" stroke="#4aa3ff" stroke-width="1" opacity=".4"/>
+        <!-- bolt -->
+        <polygon points="35,14 24,34 30,34 29,50 40,30 34,30" fill="#4aa3ff" opacity=".9"/>
+      </svg>
+      <h1>Operations</h1>
     </div>
     <div class="header-status">
       <div class="status-dot"></div>
@@ -531,7 +522,7 @@ footer {
   <div class="tools-grid">
 
     <!-- ShiftOps -->
-    <a href="https://www.legitimous.com/shiftops.html" class="tool-card blue">
+    <a href="https://www.legitimous.com/shiftops.html" target="_blank" class="tool-card blue">
       <div class="card-header">
         <div class="card-icon" style="background:rgba(11,15,20,.9); border-color:rgba(35,48,67,.6);">
           <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
@@ -602,7 +593,7 @@ footer {
         <span class="card-tag">Live Updates</span>
       </div>
       <div class="split-halves">
-        <a href="https://www.legitimous.com/admin.html" class="split-half">
+        <a href="https://www.legitimous.com/admin.html" target="_blank" class="split-half">
           <div class="half-icon" style="background:var(--accent2);box-shadow:0 0 6px var(--accent2);"></div>
           <div>
             <div class="half-label" style="color:var(--accent2);">Admin Panel</div>
@@ -610,7 +601,7 @@ footer {
           </div>
           <svg class="half-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </a>
-        <a href="https://www.legitimous.com/" class="split-half">
+        <a href="https://www.legitimous.com/" target="_blank" class="split-half">
           <div class="half-icon" style="background:#ffbe32;box-shadow:0 0 6px rgba(255,190,50,.5);"></div>
           <div>
             <div class="half-label" style="color:#ffbe32;">Staff View</div>
@@ -622,17 +613,19 @@ footer {
     </div>
 
     <!-- RotationOps -->
-    <a href="https://www.legitimous.com/rotationops.html" class="tool-card purple">
+    <a href="https://www.legitimous.com/rotationops.html" target="_blank" class="tool-card purple">
       <div class="card-header">
-        <div class="card-icon" style="background:rgba(15,23,42,.9); border-color:rgba(167,139,250,.25);">
-          <svg viewBox="0 0 64 64" width="64" height="64">
-            <circle cx="32" cy="32" r="30" fill="none" stroke="rgba(167,139,250,.15)" stroke-width="1"/>
+        <div class="card-icon" style="background:rgba(11,15,20,.9); border-color:rgba(35,48,67,.6);">
+          <svg viewBox="0 0 64 64" width="64" height="64" fill="none">
+            <circle cx="32" cy="32" r="29" stroke="#233043" stroke-width="1.5" fill="none"/>
+            <circle cx="32" cy="32" r="18" stroke="#233043" stroke-width=".6" fill="none" opacity=".5"/>
             <g style="transform-origin:32px 32px;animation:spinArrows 6s linear infinite">
-              <path d="M20 14 A20 20 0 0 1 50 26" fill="none" stroke="#a78bfa" stroke-width="4.5" stroke-linecap="round"/>
-              <polygon points="50,20 56,28 46,28" fill="#a78bfa"/>
-              <path d="M44 50 A20 20 0 0 1 14 38" fill="none" stroke="#22c55e" stroke-width="4.5" stroke-linecap="round"/>
-              <polygon points="14,44 8,36 18,36" fill="#22c55e"/>
+              <path d="M20 14 A20 20 0 0 1 50 26" fill="none" stroke="#4aa3ff" stroke-width="3" stroke-linecap="round"/>
+              <polygon points="50,20 56,28 46,28" fill="#4aa3ff"/>
+              <path d="M44 50 A20 20 0 0 1 14 38" fill="none" stroke="#4aa3ff" stroke-width="3" stroke-linecap="round"/>
+              <polygon points="14,44 8,36 18,36" fill="#4aa3ff"/>
             </g>
+            <circle cx="32" cy="32" r="3" fill="#4aa3ff" opacity=".9"/>
           </svg>
         </div>
         <div class="card-title-group">
@@ -656,7 +649,7 @@ footer {
     </a>
 
     <!-- Employee Database Editor -->
-    <a href="https://www.legitimous.com/employees.html" class="tool-card red">
+    <a href="https://www.legitimous.com/employees.html" target="_blank" class="tool-card red">
       <div class="card-header">
         <div class="card-icon" style="background:rgba(14,12,16,.9); border-color:rgba(255,107,107,.2);">
           <svg viewBox="0 0 64 64" width="64" height="64" fill="none">
@@ -690,7 +683,7 @@ footer {
   </div>
 
   <div class="backup-row">
-    <a href="https://www.legitimous.com/index2.html" class="backup-link">
+    <a href="https://www.legitimous.com/index2.html" target="_blank" class="backup-link">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       BreakOps Backup (Offline)
     </a>
@@ -708,7 +701,6 @@ footer {
     <span class="sep">/</span>
     <span id="footerYear">2026</span>
   </div>
-  <div style="margin-top:10px;font-size:11px;font-style:italic;color:var(--muted);opacity:.6;letter-spacing:.03em;">No more counting sand.</div>
 </footer>
 
 </div>

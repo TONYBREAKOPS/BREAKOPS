@@ -911,12 +911,40 @@ table, thead th, tbody td { text-transform: uppercase !important; }
   box-shadow:0 0 0 2px #ef4444 !important;
   font-size:11px !important;
 }
+.customSelBtn.trainer-green{
+  background:#3fe7b6 !important;
+  color:#064e3b !important;
+  border-color:#10b981 !important;
+  box-shadow:0 0 0 2px #3fe7b6 !important;
+  font-size:11px !important;
+}
+.customSelBtn.trainee-green{
+  background:#a7f3d0 !important;
+  color:#064e3b !important;
+  border-color:#6ee7b7 !important;
+  box-shadow:0 0 0 2px #a7f3d0 !important;
+  font-size:11px !important;
+}
 .presentSel.tardy-ring{
   box-shadow:0 0 0 3px #ef4444, 0 0 8px rgba(239,68,68,0.5);
   border-radius:4px;
   background:#3d1111 !important;
   color:#fca5a5 !important;
   border-color:#ef4444 !important;
+}
+.presentSel.trainer-ring{
+  box-shadow:0 0 0 3px #3fe7b6, 0 0 8px rgba(63,231,182,0.5);
+  border-radius:4px;
+  background:#0d3326 !important;
+  color:#6ee7b7 !important;
+  border-color:#3fe7b6 !important;
+}
+.presentSel.trainee-ring{
+  box-shadow:0 0 0 3px #a7f3d0, 0 0 8px rgba(167,243,208,0.5);
+  border-radius:4px;
+  background:#112e22 !important;
+  color:#a7f3d0 !important;
+  border-color:#a7f3d0 !important;
 }
 
 /* Adequate box: clean word handling */
@@ -3355,8 +3383,12 @@ async function loadEditsFromFirebase(iso, shift){
           }
         }
       }
-      // Restore OT
+      // Restore OT (clear existing entries for this date+shift first to avoid duplicates on re-load)
       if(data.ot){
+        const ctxPrefix = iso + "|" + shift;
+        for(const [k] of OT_BY_CTX.entries()){
+          if(k.startsWith(ctxPrefix)) OT_BY_CTX.delete(k);
+        }
         for(const entry of data.ot){
           const ctx = ctxKey(iso, shift, entry.blockId || "");
           if(!OT_BY_CTX.has(ctx)) OT_BY_CTX.set(ctx, []);
@@ -3997,6 +4029,8 @@ function renderStaffingTable(iso, shift, block, role){
   for(const r of list){
     const key=ctxKey(iso,shift,block.id);
     const ed=ensureEdit(key,r.emp);
+    // TRAINEE employees don't count towards staffing numbers
+    if((ed.Present||r.present||"YES")==="TRAINEE") continue;
     const ws=ed.WorkedStart || r.workedStart;
     const we=ed.WorkedEnd || r.workedEnd;
     let aS=minutesOf(ws), aE=minutesOf(we);
@@ -4228,8 +4262,10 @@ function renderRoleTable(iso, shift, block, role, rows){
         ? (isAbsent ? `<span class="absHrsLabel" style="display:block;text-align:center">${hrs}</span>` : hrs)
         : `<span class="hrsIn" style="display:block;text-align:center">${hrs}</span>`}</td>
       <td class="ctrlCell presCol">
-        ${(r.isPartial||r.isTardy) ? (isAbsent ? '' : `<span style="font-size:18px;color:${r.isTardy?'#ef4444':'#d4a017'};font-weight:900">${r.isTardy?'T':'P'}</span>`) : `<select class="presentSel${present==="PARTIAL"?" partial-ring":""}${present==="TARDY"?" tardy-ring":""}" onchange="setPresent('${esc(key)}','${esc(r.emp)}', this.value)">
+        ${(r.isPartial||r.isTardy) ? (isAbsent ? '' : `<span style="font-size:18px;color:${r.isTardy?'#ef4444':'#d4a017'};font-weight:900">${r.isTardy?'T':'P'}</span>`) : `<select class="presentSel${present==="PARTIAL"?" partial-ring":""}${present==="TARDY"?" tardy-ring":""}${present==="TRAINER"?" trainer-ring":""}${present==="TRAINEE"?" trainee-ring":""}" onchange="setPresent('${esc(key)}','${esc(r.emp)}', this.value)">
           <option value="YES"${present==="YES"?" selected":""}>YES</option>
+          <option value="TRAINER"${present==="TRAINER"?" selected":""}>TRAINER</option>
+          <option value="TRAINEE"${present==="TRAINEE"?" selected":""}>TRAINEE</option>
           <option value="PARTIAL"${present==="PARTIAL"?" selected":""}>PARTIAL</option>
           <option value="TARDY"${present==="TARDY"?" selected":""}>TARDY</option>
           <option value="NO"${present==="NO"?" selected":""}>NO</option>
@@ -4296,8 +4332,10 @@ function renderOthTable(iso, shift, block, rows){
       </td>
       <td class="ctrlCell hrsCol"><span class="hrsIn" style="display:block;text-align:center">${hrs}</span></td>
       <td class="ctrlCell presCol">
-        ${(r.isPartial||r.isTardy) ? `<span style="font-size:18px;color:${r.isTardy?'#ef4444':'#d4a017'};font-weight:900">${r.isTardy?'T':'P'}</span>` : `<select class="presentSel${present==="PARTIAL"?" partial-ring":""}${present==="TARDY"?" tardy-ring":""}" onchange="setPresent('${esc(key)}','${esc(r.emp)}', this.value)">
+        ${(r.isPartial||r.isTardy) ? `<span style="font-size:18px;color:${r.isTardy?'#ef4444':'#d4a017'};font-weight:900">${r.isTardy?'T':'P'}</span>` : `<select class="presentSel${present==="PARTIAL"?" partial-ring":""}${present==="TARDY"?" tardy-ring":""}${present==="TRAINER"?" trainer-ring":""}${present==="TRAINEE"?" trainee-ring":""}" onchange="setPresent('${esc(key)}','${esc(r.emp)}', this.value)">
           <option value="YES"${present==="YES"?" selected":""}>YES</option>
+          <option value="TRAINER"${present==="TRAINER"?" selected":""}>TRAINER</option>
+          <option value="TRAINEE"${present==="TRAINEE"?" selected":""}>TRAINEE</option>
           <option value="PARTIAL"${present==="PARTIAL"?" selected":""}>PARTIAL</option>
           <option value="TARDY"${present==="TARDY"?" selected":""}>TARDY</option>
           <option value="NO"${present==="NO"?" selected":""}>NO</option>
@@ -4560,6 +4598,8 @@ function setPresent(key, emp, val){
   ed.Present=val;
   if(val==="NO") ed.Hours="0";
   if(val==="YES"){ ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
+  if(val==="TRAINER"){ ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
+  if(val==="TRAINEE"){ ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
   if(val==="PARTIAL"){ ed.AbsenceReason=""; ed.TardyReason=""; }
   if(val==="TARDY"){ ed.AbsenceReason=""; ed.TardyReason="TARDY"; }
 
@@ -4722,6 +4762,8 @@ function buildAdeqRowsForRole(iso, shift, block, role){
   for(const r of list){
     const key=ctxKey(iso,shift,block.id);
     const ed=ensureEdit(key,r.emp);
+    // TRAINEE employees don't count towards staffing numbers
+    if((ed.Present||r.present||"YES")==="TRAINEE") continue;
     const ws=ed.WorkedStart || r.workedStart;
     const we=ed.WorkedEnd || r.workedEnd;
     let aS=minutesOf(ws), aE=minutesOf(we);
@@ -4889,18 +4931,13 @@ function enhanceSelects(root=document){
       const w = Math.max(min, Math.min(max, textW + 28)); // +padding + caret
       btn.style.width = w + 'px';
 
-      // Yellow bubble for PAR selection, red for TARDY
+      // Colored bubble for present status
       if(sel.classList.contains('presentSel')){
-        if(sel.value === 'PARTIAL'){
-          btn.classList.add('partial-yellow');
-          btn.classList.remove('tardy-red');
-        } else if(sel.value === 'TARDY'){
-          btn.classList.add('tardy-red');
-          btn.classList.remove('partial-yellow');
-        } else {
-          btn.classList.remove('partial-yellow');
-          btn.classList.remove('tardy-red');
-        }
+        btn.classList.remove('partial-yellow','tardy-red','trainer-green','trainee-green');
+        if(sel.value === 'PARTIAL') btn.classList.add('partial-yellow');
+        else if(sel.value === 'TARDY') btn.classList.add('tardy-red');
+        else if(sel.value === 'TRAINER') btn.classList.add('trainer-green');
+        else if(sel.value === 'TRAINEE') btn.classList.add('trainee-green');
       }
     }
 
@@ -5816,7 +5853,7 @@ function buildExportRowsForCurrent(){
           Shift: shift,
           Block: b.label,
           Role: role,
-          Employee: r.isPartial ? r.emp + " (P)" : r.emp,
+          Employee: r.isPartial ? r.emp + " (P)" : ((ed.Present||r.present||"YES")==="TRAINER" ? r.emp + " (TNR)" : (ed.Present||r.present||"YES")==="TRAINEE" ? r.emp + " (TNE)" : r.emp),
           Seniority: r.sen,
           Present: (ed.Present || r.present || "YES"),
           Hours: r.isPartial ? r.hours : (ed.Hours!=="" ? Number(ed.Hours) : r.hours),
@@ -6055,14 +6092,14 @@ function saveXlsx(){
             const present = ed.Present || r.present || "YES";
             const absReason = ed.AbsenceReason || "";
 
-            const nameSuffix = (r.isTardy ? " (T)" : r.isPartial ? " (P)" : "") + (r.isOT ? " (OT)" : "");
+            const nameSuffix = (r.isTardy ? " (T)" : r.isPartial ? " (P)" : present==="TRAINER" ? " (TNR)" : present==="TRAINEE" ? " (TNE)" : "") + (r.isOT ? " (OT)" : "");
             const othType = ed.OthType || "";
             setCell(ws, row, cs, String(r.emp).toUpperCase() + nameSuffix, rowStyle);
             setCell(ws, row, cs+1, isAbsent ? "" : (roleAbbr[roleNorm]||roleNorm), rowStyle);
             setCell(ws, row, cs+2, isAbsent ? (r.isTardy ? "TARDY" : r.isPartial ? (ed.PartialReason||"") : absReason) : (isOth ? othType : seat), rowStyle);
             setCell(ws, row, cs+3, wStart && wEnd ? `${wStart}-${wEnd}` : "", rowStyle);
             setCell(ws, row, cs+4, hrs, rowStyle);
-            setCell(ws, row, cs+5, present==="TARDY"?"T":(present==="PARTIAL"?"P":(present==="YES"?"Y":"N")), rowStyle);
+            setCell(ws, row, cs+5, present==="TARDY"?"T":(present==="PARTIAL"?"P":(present==="TRAINER"?"TNR":(present==="TRAINEE"?"TNE":(present==="YES"?"Y":"N")))), rowStyle);
           } else {
             for(let c=cs;c<cs+blockCols;c++) setCell(ws, row, c, "", emptyStyle);
           }
@@ -6315,7 +6352,7 @@ new MutationObserver(()=>{
 /* ===== Timesheet Generator ===== */
 document.getElementById("btnTimesheet").addEventListener("click", generateTimesheets);
 
-function generateTimesheets(){
+async function generateTimesheets(){
   if(!BASE_EMP.length){ setErr("Load a database first."); return; }
   const ppVal = document.getElementById("ppSel").value;
   if(!ppVal){ setErr("Select a pay period."); return; }
@@ -6331,16 +6368,29 @@ function generateTimesheets(){
     dates.push(toISODate(d));
   }
 
+  // Load edits from Firebase for all 14 days, both shifts (parallel)
+  const loadPromises = [];
+  for(const iso of dates){
+    for(const shiftVal of ["DAY","NIGHT"]){
+      loadPromises.push(loadEditsFromFirebase(iso, shiftVal));
+    }
+  }
+  await Promise.all(loadPromises);
+
   // For each employee, collect hours across all 14 days, both shifts, all blocks
   const empMap = new Map(); // empName -> { info, days: [{date, rows:[{in,out,total,status,elements}], dayTotal}] }
 
   for(const emp of BASE_EMP){
     const data = { info: emp, days: [] };
     let grandTotal = 0;
+    let grandReg = 0;
+    let grandOT = 0;
 
     for(const iso of dates){
       const dayRows = [];
       let dayTotal = 0;
+      let dayReg = 0;
+      let dayOT = 0;
 
       for(const shiftVal of ["DAY","NIGHT"]){
         const blocks = shiftVal==="NIGHT" ? [{id:"1800-2200",start:"18:00",end:"22:00"},{id:"2200-0200",start:"22:00",end:"02:00"},{id:"0200-0600",start:"02:00",end:"06:00"}]
@@ -6348,39 +6398,121 @@ function generateTimesheets(){
 
         for(const b of blocks){
           const rbr = computeRowsForBlock(iso, shiftVal, b);
+          // Check if this employee has an OT entry in this block (to avoid double counting)
+          let hasOTInBlock = false;
+          for(const role of ["CALLTAKER","DISPATCHER","PIC","SUPERVISOR","OTH"]){
+            for(const r of (rbr[role]||[])){ if(r.emp === emp.Employee && r.isOT) hasOTInBlock = true; }
+          }
           for(const role of ["CALLTAKER","DISPATCHER","PIC","SUPERVISOR","ABSENT","OTH"]){
             const rows = rbr[role]||[];
             for(const r of rows){
               if(r.emp !== emp.Employee) continue;
+              // Skip ghost absent rows (tardy/partial missed-time phantoms)
+              if(r.isPartial) continue;
+              // Skip regular entry if OT exists for same block (avoid double counting)
+              if(!r.isOT && hasOTInBlock) continue;
               const key = ctxKey(iso, shiftVal, b.id);
               const ed = ensureEdit(key, r.emp);
               const hrs = (ed.Hours!=="" ? Number(ed.Hours) : r.hours);
-              if(hrs <= 0) continue;
+              const present = ed.Present || r.present || "YES";
+              const isAbsent = present==="NO";
+              // Skip zero-hour rows unless absent (absent still needs to show on timesheet)
+              if(hrs <= 0 && !isAbsent) continue;
               const ws = ed.WorkedStart || r.workedStart || "";
               const we = ed.WorkedEnd || r.workedEnd || "";
-              const present = ed.Present || r.present || "YES";
               const isOT = r.isOT;
-              const status = present==="NO" ? "AB" : "SB";
-              const elements = isOT ? "OT, REG, H, CST, N, ONL, DEFAULT," : "REG, H, CST, N, ONL, DEFAULT,";
+              const isTardy = present==="TARDY";
+              const isPartialStatus = present==="PARTIAL";
+              const isTrainer = present==="TRAINER";
+
+              // For absent, compute scheduled hours from shift-block overlap times
+              let absentHrs = 0;
+              if(isAbsent && ws && we){
+                const sMin = minutesOf(ws), eMin = minutesOf(we);
+                let diff = eMin - sMin;
+                if(diff <= 0) diff += 1440;
+                absentHrs = diff / 60;
+              }
 
               dayRows.push({
-                inTime: ws ? formatTime12(ws) : "",
-                outTime: we ? formatTime12(we) : "",
-                total: hrs,
-                status: status,
-                elements: elements,
-                isOT: isOT
+                inTime: isAbsent ? "" : (ws ? formatTime12(ws) : ""),
+                outTime: isAbsent ? "" : (we ? formatTime12(we) : ""),
+                rawIn: ws || "",
+                rawOut: we || "",
+                total: isAbsent ? absentHrs : hrs,
+                isOT: isOT,
+                isTardy: isTardy,
+                isAbsent: isAbsent,
+                isPartial: isPartialStatus,
+                isTrainer: isTrainer
               });
-              dayTotal += hrs;
+              if(!isAbsent){
+                dayTotal += hrs;
+                if(isOT) dayOT += hrs; else dayReg += hrs;
+              }
             }
           }
         }
       }
-      data.days.push({ date: iso, rows: dayRows, dayTotal: dayTotal });
+      // If employee was tardy/partial in any block, suppress cascade-absent entries for that day
+      const hasTardyOrPartial = dayRows.some(r => r.isTardy || r.isPartial);
+      const afterCascade = hasTardyOrPartial ? dayRows.filter(r => !r.isAbsent) : dayRows;
+
+      // Separate into regular, OT, and absent
+      const absentRows = afterCascade.filter(r => r.isAbsent);
+      const otRows = afterCascade.filter(r => !r.isAbsent && r.isOT);
+      const regRows = afterCascade.filter(r => !r.isAbsent && !r.isOT);
+
+      const finalRows = [];
+
+      // Consolidate regular rows into a single entry: earliest IN, latest OUT, total hours
+      if(regRows.length > 0){
+        const totalReg = regRows.reduce((s, r) => s + r.total, 0);
+        const anyTardy = regRows.some(r => r.isTardy);
+        const anyPartial = regRows.some(r => r.isPartial);
+        const anyTrainer = regRows.some(r => r.isTrainer);
+        // Find earliest in and latest out using raw 24h times (HH:MM)
+        let earliestRaw = "", latestRaw = "";
+        for(const r of regRows){
+          if(r.rawIn && (!earliestRaw || r.rawIn < earliestRaw)) earliestRaw = r.rawIn;
+          if(r.rawOut && (!latestRaw || r.rawOut > latestRaw)) latestRaw = r.rawOut;
+        }
+        finalRows.push({ inTime: earliestRaw ? formatTime12(earliestRaw) : "", outTime: latestRaw ? formatTime12(latestRaw) : "", total: totalReg, isOT:false, isTardy: anyTardy, isAbsent:false, isPartial: anyPartial, isTrainer: anyTrainer });
+      }
+
+      // Consolidate OT rows into a single entry: earliest IN, latest OUT, total hours
+      if(otRows.length > 0){
+        const totalOT = otRows.reduce((s, r) => s + r.total, 0);
+        let otEarliest = "", otLatest = "";
+        for(const r of otRows){
+          if(r.rawIn && (!otEarliest || r.rawIn < otEarliest)) otEarliest = r.rawIn;
+          if(r.rawOut && (!otLatest || r.rawOut > otLatest)) otLatest = r.rawOut;
+        }
+        finalRows.push({ inTime: otEarliest ? formatTime12(otEarliest) : "", outTime: otLatest ? formatTime12(otLatest) : "", total: totalOT, isOT:true, isTardy:false, isAbsent:false, isPartial:false });
+      }
+
+      // Consolidate absent rows into a single entry with missed time range
+      if(absentRows.length > 0){
+        const totalAbsentHrs = absentRows.reduce((sum, r) => sum + r.total, 0);
+        // Find earliest scheduled start and latest scheduled end for the missed range
+        let absEarliest = "", absLatest = "";
+        for(const r of absentRows){
+          if(r.rawIn && (!absEarliest || r.rawIn < absEarliest)) absEarliest = r.rawIn;
+          if(r.rawOut && (!absLatest || r.rawOut > absLatest)) absLatest = r.rawOut;
+        }
+        finalRows.push({ inTime: absEarliest ? formatTime12(absEarliest) : "", outTime: absLatest ? formatTime12(absLatest) : "", total: totalAbsentHrs, isOT:false, isTardy:false, isAbsent:true, isPartial:false });
+      }
+
+      data.days.push({ date: iso, rows: finalRows, dayTotal: dayTotal, dayReg: dayReg, dayOT: dayOT });
       grandTotal += dayTotal;
+      grandReg += dayReg;
+      grandOT += dayOT;
     }
     data.grandTotal = grandTotal;
-    if(grandTotal > 0) empMap.set(emp.Employee, data);
+    data.grandReg = grandReg;
+    data.grandOT = grandOT;
+    const hasAnyRows = data.days.some(d => d.rows.length > 0);
+    if(grandTotal > 0 || hasAnyRows) empMap.set(emp.Employee, data);
   }
 
   if(empMap.size === 0){ setErr("No timesheet data found for this pay period."); return; }
@@ -6393,9 +6525,9 @@ function generateTimesheets(){
 <style>
 @media print { .no-print{display:none!important} .page-break{page-break-before:always} }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,sans-serif;font-size:11px;color:#000;padding:20px;text-transform:uppercase}
-h2{text-align:center;font-size:16px;text-decoration:underline;margin-bottom:12px}
-.emp-select{margin-bottom:16px;font-size:13px;padding:6px}
+body{font-family:Arial,sans-serif;font-size:11px;color:#000;padding:20px;text-transform:uppercase;display:flex;flex-direction:column;align-items:center}
+.disclaimer{border:3px solid red;padding:10px 28px;text-align:center;font-size:18px;font-weight:900;color:red;margin-bottom:18px;letter-spacing:1px}
+.emp-sheet{width:100%;max-width:800px}
 .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 20px;margin-bottom:10px;font-size:11px}
 .info-grid b{font-weight:700}
 table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:10px}
@@ -6403,14 +6535,9 @@ th,td{border:1px solid #000;padding:3px 5px;text-align:left}
 th{background:#f0f0f0;font-weight:700}
 .totals-tbl td{text-align:center;font-size:10px}
 .totals-tbl th{text-align:center;font-size:10px}
-.summary{margin-top:16px;font-size:12px}
-.summary td{padding:4px 8px}
-.sig-section{margin-top:40px;font-size:11px}
-.sig-line{border-bottom:1px solid #000;width:200px;display:inline-block;margin-left:4px}
-.sig-row{display:flex;justify-content:space-between;margin-top:20px}
 .hrs-breakdown{margin:12px 0;font-size:12px}
 .hrs-breakdown td{border:1px solid #000;padding:4px 8px}
-.nav-bar{position:sticky;top:0;background:#fff;padding:10px 0;border-bottom:2px solid #000;margin-bottom:20px;display:flex;gap:10px;align-items:center;z-index:10}
+.nav-bar{position:sticky;top:0;background:#fff;padding:10px 0;border-bottom:2px solid #000;margin-bottom:20px;display:flex;gap:10px;align-items:center;z-index:10;width:100%;max-width:800px}
 </style></head><body>
 <div class="nav-bar no-print">
   <label><b>Employee:</b></label>
@@ -6431,19 +6558,19 @@ th{background:#f0f0f0;font-weight:700}
     const todayISO = toISODate(new Date());
 
     html += `<div class="emp-sheet" data-emp="${esc(name)}">`;
-    html += `<h2>Timesheet</h2>`;
+    html += `<div class="disclaimer">UNOFFICIAL TIMESHEET</div>`;
     html += `<div class="info-grid">
       <div><b>Name:</b> ${esc(name.toUpperCase())}</div>
     </div>`;
 
     html += `<div><b>Timesheet Data:</b></div>`;
-    html += `<table><thead><tr><th>Day</th><th>Date</th><th>In</th><th>Out</th><th>In</th><th>Out</th><th>Total</th><th>Reported Status</th><th>Elements</th></tr></thead><tbody>`;
+    html += `<table><thead><tr><th>Day</th><th>Date</th><th>In</th><th>Out</th><th>In</th><th>Out</th><th>Total</th></tr></thead><tbody>`;
 
     for(const day of data.days){
       const d = new Date(day.date + "T00:00:00");
       const dayAbbr = DAYABBR[d.getDay()];
       if(day.rows.length === 0){
-        html += `<tr><td>${dayAbbr}</td><td>${day.date}</td><td></td><td></td><td></td><td></td><td>0.000</td><td>NW</td><td>CST, N, ONL, DEFAULT,</td></tr>`;
+        html += `<tr><td>${dayAbbr}</td><td>${day.date}</td><td></td><td></td><td></td><td></td><td>0.000</td></tr>`;
       } else {
         let firstRow = true;
         // Group rows into in/out pairs
@@ -6451,14 +6578,12 @@ th{background:#f0f0f0;font-weight:700}
           const r = day.rows[ri];
           html += `<tr>`;
           html += `<td>${firstRow ? dayAbbr : ""}</td>`;
-          html += `<td>${day.date}</td>`;
+          html += `<td>${day.date}${r.isAbsent ? ` <span style="color:#b91c1c;font-weight:bold;background:#fee2e2;padding:1px 5px;border-radius:3px">ABSENT ${r.total}HRS</span>` : r.isOT ? ' <span style="color:#1d4ed8;font-weight:bold;background:#dbeafe;padding:1px 5px;border-radius:3px">OT</span>' : r.isTardy ? ' <span style="color:#c2410c;font-weight:bold;background:#fff7ed;padding:1px 5px;border-radius:3px">TARDY</span>' : r.isPartial ? ' <span style="color:#a16207;font-weight:bold;background:#fefce8;padding:1px 5px;border-radius:3px">PARTIAL</span>' : ''}${r.isTrainer ? ' <span style="color:#065f46;font-weight:bold;background:#d1fae5;padding:1px 5px;border-radius:3px">TRAINER</span>' : ''}</td>`;
           // First in/out pair
           html += `<td>${r.inTime||""}</td><td>${r.outTime ? "" : ""}</td>`;
           // Second in/out (for out time)
           html += `<td></td><td>${r.outTime||""}</td>`;
-          html += `<td>${r.total.toFixed(3)}</td>`;
-          html += `<td>${r.status}</td>`;
-          html += `<td>${r.elements}</td>`;
+          html += `<td>${r.isAbsent ? "0.000" : r.total.toFixed(3)}</td>`;
           html += `</tr>`;
           firstRow = false;
         }
@@ -6476,27 +6601,26 @@ th{background:#f0f0f0;font-weight:700}
       const dayAbbr = DAYABBR[d.getDay()];
       html += `<th>${mm}/${dd}<br>${dayAbbr}</th>`;
     }
-    html += `<th>Total</th></tr></thead><tbody><tr><td>Select valid alert program ID</td>`;
+    html += `<th>Total</th></tr></thead><tbody>`;
+    html += `<tr><td>Hours Worked</td>`;
     for(const day of data.days){
-      html += `<td>${day.dayTotal.toFixed(2)}</td>`;
+      html += `<td>${day.dayReg.toFixed(2)}</td>`;
     }
-    html += `<td><b>${data.grandTotal.toFixed(2)}</b></td></tr></tbody></table>`;
+    html += `<td><b>${data.grandReg.toFixed(2)}</b></td></tr>`;
+    html += `<tr><td>OT Hours</td>`;
+    for(const day of data.days){
+      html += `<td>${day.dayOT > 0 ? day.dayOT.toFixed(2) : ""}</td>`;
+    }
+    html += `<td><b>${data.grandOT.toFixed(2)}</b></td></tr>`;
+    html += `</tbody></table>`;
 
-    // Regular vs Overtime breakdown
-    const regHours = Math.min(data.grandTotal, 80);
-    const otHours = Math.max(data.grandTotal - 80, 0);
-    html += `<table class="hrs-breakdown"><tr><td><b>Regular Hours:</b></td><td>${regHours.toFixed(2)}</td></tr>`;
-    html += `<tr><td><b>Overtime Hours:</b></td><td>${otHours.toFixed(2)}</td></tr>`;
+    // Total breakdown
+    html += `<table class="hrs-breakdown"><tr><td><b>Regular Hours:</b></td><td>${data.grandReg.toFixed(2)}</td></tr>`;
+    html += `<tr><td><b>Overtime Hours:</b></td><td>${data.grandOT.toFixed(2)}</td></tr>`;
     html += `<tr><td><b>Total Hours:</b></td><td>${data.grandTotal.toFixed(2)}</td></tr></table>`;
 
-    // Signature section
-    html += `<div class="sig-section">
-      <div>Employee Signature: <span class="sig-line"></span></div>
-      <div style="margin-top:6px">Date: <span class="sig-line" style="width:120px"></span></div>
-      <div class="sig-row">
-        <div>Approver#1 Signature: <span class="sig-line"></span><br><span style="margin-top:6px;display:inline-block">Date: <span class="sig-line" style="width:120px"></span></span></div>
-        <div>Approver#2 Signature: <span class="sig-line"></span><br><span style="margin-top:6px;display:inline-block">Date: <span class="sig-line" style="width:120px"></span></span></div>
-      </div>
+    html += `<div style="margin-top:24px;padding:10px 14px;border:1px solid #999;background:#f9f9f9;font-size:9px;color:#555;line-height:1.5;text-align:justify">
+      <b>DISCLAIMER:</b> This document is an unofficial estimate generated for reference purposes only. Miscalculations may occur due to manual data entry errors, system limitations, or incomplete records. The viewer is responsible for independently verifying all hours, dates, and pay-related information before relying on this data. This document is not guaranteed to be 100% accurate and should not be used as an official record of hours worked. Always cross-reference with official timekeeping systems and payroll records.
     </div>`;
 
     html += `</div><div class="page-break"></div>`;
