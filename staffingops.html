@@ -296,26 +296,49 @@ tr.on-vacation .shift-sel{pointer-events:none}
 .ot-cal-blk-fill{height:100%;background:#ef4444;border-radius:2px}
 
 /* Monthly staffing grid table */
-.ot-grid-wrap{overflow-x:auto;margin-bottom:12px;border:1px solid var(--line);border-radius:8px}
-.ot-grid-tbl{border-collapse:collapse;width:max-content;min-width:100%;font-size:11px}
-.ot-grid-tbl th{position:sticky;left:0;background:var(--panel);border:1px solid var(--line);padding:4px 3px;font-size:10px;font-weight:800;color:var(--muted);text-align:center;white-space:nowrap;z-index:3}
-.ot-grid-tbl th.blk-label{min-width:62px;text-align:right;padding-right:6px;letter-spacing:.5px;left:0;z-index:4}
-.ot-grid-tbl th.date-hdr{min-width:38px;font-size:11px;font-weight:900;color:var(--text)}
+.ot-grid-tbl{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;font-size:11px}
+.ot-grid-tbl th{background:var(--panel);border:1px solid var(--line);padding:6px 4px;font-size:11px;font-weight:800;color:var(--muted);text-align:center;white-space:nowrap}
+.ot-grid-tbl th.blk-label{min-width:80px;text-align:right;padding-right:8px;letter-spacing:.5px;position:sticky;left:0;z-index:5;background:var(--panel);font-size:13px}
+.ot-grid-tbl th.date-hdr{min-width:110px;font-size:16px;font-weight:900;color:var(--text);padding:8px 4px}
 .ot-grid-tbl th.date-hdr.weekend{color:#818cf8}
 .ot-grid-tbl th.date-hdr.today{color:var(--btn);border-bottom-color:var(--btn)}
-.ot-grid-tbl .dow-row th{font-size:8px;font-weight:700;color:var(--muted);padding:2px 3px;border-top:none}
-.ot-grid-tbl .vac-row td{font-size:8px;font-weight:600;color:rgba(34,197,94,.7);padding:2px 3px;text-align:center;max-width:38px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid var(--line)}
-.ot-grid-tbl .vac-row th{font-size:8px;font-weight:700;color:#22c55e}
-.ot-grid-tbl td{border:1px solid var(--line);padding:3px 2px;text-align:center;font-weight:800;font-size:12px;min-width:38px}
+.ot-grid-tbl .dow-row th{font-size:11px;font-weight:700;color:var(--muted);padding:3px 4px;border-top:none}
+.ot-grid-tbl .dow-row th.blk-label{position:sticky;left:0;z-index:5;background:var(--panel)}
+.ot-grid-tbl .vac-row td{font-size:10px;font-weight:600;color:rgba(34,197,94,.7);padding:3px 4px;text-align:center;min-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid var(--line)}
+.ot-grid-tbl .vac-row th{font-size:9px;font-weight:700;color:#22c55e}
+.ot-grid-tbl .vac-row th.blk-label{position:sticky;left:0;z-index:5;background:var(--panel)}
+.ot-grid-tbl td{border:1px solid var(--line);padding:8px 4px;text-align:center;font-weight:800;font-size:15px;min-width:110px}
 .ot-grid-tbl td.cell-short{background:#3b1111;color:#ef4444}
 .ot-grid-tbl td.cell-adeq{background:#302a0a;color:#eab308}
 .ot-grid-tbl td.cell-over{background:#0a2e1a;color:#22c55e}
 .ot-grid-tbl td.cell-empty{background:transparent;border-color:transparent}
-.ot-grid-tbl .blk-label-td{position:sticky;left:0;background:var(--panel);font-size:10px;font-weight:800;color:var(--muted);text-align:right;padding-right:6px;z-index:4;white-space:nowrap;border:1px solid var(--line)}
+.ot-grid-tbl .blk-label-td{position:sticky;left:0;background:var(--panel);font-size:13px;font-weight:800;color:var(--muted);text-align:right;padding:8px 8px 8px 6px;z-index:5;white-space:nowrap;border:1px solid var(--line);min-width:80px}
 .ot-grid-tbl .shift-divider td,.ot-grid-tbl .shift-divider th{border-bottom:2px solid var(--btn);padding:1px}
-.ot-grid-tbl .shift-label{font-size:9px;font-weight:900;letter-spacing:1px;text-align:center;padding:4px 3px}
+.ot-grid-tbl .shift-label{font-size:10px;font-weight:900;letter-spacing:1.5px;text-align:center;padding:3px 3px}
 .ot-grid-tbl .shift-label.day{color:var(--text)}
 .ot-grid-tbl .shift-label.night{color:#818cf8}
+
+/* OT Explanation */
+.ot-explain{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:11px;line-height:1.6;color:var(--muted)}
+.ot-explain-title{font-size:12px;font-weight:800;color:var(--text);margin-bottom:4px;letter-spacing:.5px}
+.ot-explain ol{margin:4px 0 0 18px;padding:0}
+.ot-explain li{margin-bottom:2px}
+
+/* OT Detail List */
+.ot-detail-list{margin-top:12px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.ot-detail-hdr{background:var(--panel);padding:8px 12px;font-size:13px;font-weight:900;letter-spacing:1px;color:#ef4444;border-bottom:1px solid var(--line)}
+.ot-detail-tbl{width:auto;border-collapse:separate;border-spacing:0;font-size:11px}
+.ot-detail-tbl th{background:var(--panel);border:1px solid var(--line);padding:6px 8px;font-size:10px;font-weight:800;color:var(--muted);text-align:center;letter-spacing:.5px;white-space:nowrap}
+.ot-detail-tbl th:first-child{text-align:left;padding-left:12px;position:sticky;left:0;z-index:5;background:var(--panel);min-width:90px}
+.ot-detail-tbl td{border:1px solid var(--line);padding:5px 8px;text-align:center;font-weight:700;white-space:nowrap}
+.ot-detail-tbl td:first-child{text-align:left;font-weight:800;padding-left:12px;position:sticky;left:0;z-index:4;background:var(--panel)}
+.ot-detail-tbl tr.weekend td:first-child{color:#818cf8;background:var(--panel)}
+.ot-detail-tbl td.need-cell{color:#ef4444;font-weight:900;background:rgba(220,38,38,.08)}
+.ot-detail-tbl td.ok-cell{color:#22c55e;font-size:10px}
+.ot-detail-tbl tr:hover td{background:rgba(255,255,255,.03)}
+.ot-detail-tbl tr:hover td:first-child{background:var(--panel)}
+.ot-detail-tbl .total-col{color:#ef4444;font-weight:900;font-size:12px;background:rgba(220,38,38,.1)}
+.ot-detail-empty{padding:16px;text-align:center;color:#22c55e;font-weight:700;font-size:13px}
 
 /* Loading */
 .loading{display:flex;align-items:center;justify-content:center;height:300px;color:var(--muted);font-size:13px;font-weight:700}
@@ -920,8 +943,20 @@ function renderMonthlyOTView() {
     html += '<div class="ot-month-summary" style="color:#22c55e">No overtime needed — adequate staffing all month</div>';
   }
 
-  // ===== Monthly Staffing Grid Table =====
-  html += '<div class="ot-grid-wrap"><table class="ot-grid-tbl">';
+  // Calculation explanation
+  html += '<div class="ot-explain">';
+  html += '<div class="ot-explain-title">HOW ' + ROLE_CONFIG[currentRole].label + ' OT NEEDS ARE CALCULATED</div>';
+  html += '<ol>';
+  html += '<li>Each day of the month is checked against the <strong>adequate staffing</strong> requirements (the minimum number of ' + ROLE_CONFIG[currentRole].label.toLowerCase() + ' needed per hour).</li>';
+  html += '<li>For every 1-hour block, the number of <strong>currently scheduled</strong> ' + ROLE_CONFIG[currentRole].label.toLowerCase() + ' (excluding those on vacation that day) is compared to the <strong>required minimum</strong>.</li>';
+  html += '<li>Hours are grouped into <strong>4-hour OT blocks</strong> (6A-10A, 10A-2P, 2P-6P, 6P-10P, 10P-2A, 2A-6A). Within each 4-hour block, the <strong>worst shortfall</strong> (largest gap between required and scheduled across the 4 hours) becomes the OT need for that block.</li>';
+  html += '<li>The total OT need for a day is the <strong>sum of all 4-hour block shortfalls</strong>. Only blocks with a shortfall (scheduled &lt; required) are counted.</li>';
+  html += '</ol>';
+  html += '</div>';
+
+  // ===== Monthly Staffing Grid Table (horizontal scroll only) =====
+  html += '<div style="overflow-x:auto;overflow-y:hidden;margin-bottom:12px;max-height:calc(100vh - 280px)">';
+  html += '<table class="ot-grid-tbl">';
 
   // Date header row
   html += '<thead><tr><th class="blk-label"></th>';
@@ -984,7 +1019,40 @@ function renderMonthlyOTView() {
   }
   html += '</tr>';
 
-  html += '</tbody></table></div>';
+  html += '</tbody></table>';
+  html += '</div>'; // close horizontal scroll wrapper
+
+  // ===== OT Detail List =====
+  html += '<div class="ot-detail-list">';
+  html += '<div class="ot-detail-hdr">OT SLOTS NEEDED BY DATE &amp; BLOCK — ' + MONTHS[mo - 1] + ' ' + yr + '</div>';
+  if (needs.length > 0) {
+    html += '<table class="ot-detail-tbl"><thead><tr>';
+    html += '<th>DATE</th>';
+    for (const ob of OT_BLOCKS) html += '<th>' + ob.label + '</th>';
+    html += '<th>TOTAL</th><th style="text-align:left">ON VACATION</th>';
+    html += '</tr></thead><tbody>';
+    for (const d of needs) {
+      const blockMap = {};
+      for (const b of d.blocks) blockMap[b.label] = b.need;
+      html += '<tr class="' + (d.isWeekend ? 'weekend' : '') + '">';
+      html += '<td>' + d.dateStr + ' ' + d.dayName + '</td>';
+      for (const ob of OT_BLOCKS) {
+        const n = blockMap[ob.label] || 0;
+        if (n > 0) {
+          html += '<td class="need-cell">' + n + '</td>';
+        } else {
+          html += '<td class="ok-cell">—</td>';
+        }
+      }
+      html += '<td class="total-col">' + d.totalOT + '</td>';
+      html += '<td style="font-size:10px;color:rgba(34,197,94,.7);text-align:left">' + (d.vacNames.length ? d.vacNames.join(', ') : '—') + '</td>';
+      html += '</tr>';
+    }
+    html += '</tbody></table>';
+  } else {
+    html += '<div class="ot-detail-empty">No overtime needed — adequate staffing all month</div>';
+  }
+  html += '</div>';
 
   wrap.innerHTML = html;
 
@@ -1270,16 +1338,24 @@ function renderAll() {
   const staffingView = document.getElementById('staffingView');
   const otMonthView = document.getElementById('otMonthView');
   const hypoBtn = document.getElementById('btnHypoDrawer');
+  const gridPanel = document.getElementById('gridPanel');
+  const mainLayout = gridPanel.parentElement;
   if (mode === 'staffing') {
     staffingView.style.display = '';
     otMonthView.style.display = 'none';
     if (hypoBtn) hypoBtn.style.display = '';
+    gridPanel.style.overflowY = 'auto';
+    mainLayout.style.height = 'calc(100vh - 52px)';
+    mainLayout.style.overflow = 'hidden';
     renderGrid();
     renderStatusBar();
   } else {
     staffingView.style.display = 'none';
     otMonthView.style.display = '';
     if (hypoBtn) hypoBtn.style.display = 'none';
+    gridPanel.style.overflowY = 'visible';
+    mainLayout.style.height = 'auto';
+    mainLayout.style.overflow = 'visible';
     toggleHypoDrawer(false);
     renderMonthlyOTView();
   }
