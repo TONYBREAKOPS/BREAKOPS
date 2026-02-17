@@ -277,7 +277,7 @@ body { padding-top: 12px !important; }
 </head>
 <body>
 <header>
-  <div class="wrap" style="padding:0 18px;">
+  <div class="wrap" style="padding:0 18px;display:flex;align-items:center;justify-content:space-between;">
     <div class="brand">
 
 
@@ -320,6 +320,7 @@ body { padding-top: 12px !important; }
         <div class="sub">Modern Solutions > Old Problems</div>
       </div>
     </div>
+    <a href="bugs.html" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;font-size:12px;font-weight:700;border-radius:8px;border:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.1);color:#ef4444;text-decoration:none;transition:all .15s;letter-spacing:.3px;" onmouseover="this.style.background='rgba(239,68,68,.2)'" onmouseout="this.style.background='rgba(239,68,68,.1)'">&#128027; REPORT BUG</a>
   </div>
 </header>
 
@@ -507,6 +508,29 @@ body { padding-top: 12px !important; }
 
 
   const _CAPS = { CALLTAKER: 3, DISPATCHER: 2, PIC: 1, ANET: 1 };
+  let _sharedSlotCapsCache = { CALLTAKER: {}, DISPATCHER: {}, PIC: {}, ANET: {} };
+
+  function _normalizeSlotCaps(sc){
+    const out = { CALLTAKER:{}, DISPATCHER:{}, PIC:{}, ANET:{} };
+    if(!sc || typeof sc !== 'object') return out;
+    for(const pos of ['CALLTAKER','DISPATCHER','PIC','ANET']){
+      const obj = (sc[pos] && typeof sc[pos]==='object') ? sc[pos] : {};
+      const norm = {};
+      for(const [k,v] of Object.entries(obj)){
+        const n = Number(v);
+        if(Number.isFinite(n)) norm[String(k)] = Math.max(0, Math.min(20, Math.floor(n)));
+      }
+      out[pos] = norm;
+    }
+    return out;
+  }
+
+  function capFor(pos, time){
+    const sc = _normalizeSlotCaps(_sharedSlotCapsCache);
+    if(sc[pos] && Object.prototype.hasOwnProperty.call(sc[pos], time))
+      return Number(sc[pos][time]);
+    return _CAPS[pos];
+  }
 
   // Shared roster + extras (for everyone)
   // - rosterConfig/global: { posOverrides: {"EMP||SEN": "CALLTAKER" ...} }
@@ -624,13 +648,13 @@ body { padding-top: 12px !important; }
 
   function _validateCaps(breaks){
     for(const pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
-      const cap = _CAPS[pos];
       const counts = new Map();
       for(const s of (breaks[pos]||[])){
         if(!s.time) continue;
         counts.set(s.time, (counts.get(s.time)||0)+1);
       }
       for(const [t,n] of counts.entries()){
+        const cap = capFor(pos, t);
         if(n > cap) throw new Error(`${pos} slot ${t} exceeds cap (${n}/${cap})`);
       }
     }
@@ -674,6 +698,7 @@ body { padding-top: 12px !important; }
       _sharedSkippedTurnsCache = _normalizeSkippedTurns(data.skippedTurns);
       _sharedBreakStartedCache = _normalizeBreakStarted(data.breakStarted);
       _sharedExtrasCache = Array.isArray(data.extras) ? data.extras : [];
+      _sharedSlotCapsCache = _normalizeSlotCaps(data.slotCaps);
       if(typeof data.skipDurationMs === "number" && data.skipDurationMs > 0){
         SKIP_DURATION_MS = data.skipDurationMs;
       }
@@ -1705,7 +1730,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
   const anetSeatOpts = ['CT27','CT28','CT29','CT30'];
 
 
-  const caps = {CALLTAKER:3, DISPATCHER:2, PIC:1, ANET:1};
+  // caps used as default fallback only; capFor() provides per-slot overrides
   const breaks = loadBreaksForScope();
 
   // Normalize current selections: array of {key,name,time}
@@ -1852,7 +1877,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
   }
 
   function renderPosPicker(pos){
-    const cap = caps[pos];
+    const cap = _CAPS[pos]; // default cap for display
     const people = peopleByPos[pos] || [];
     const sel = selectionMap(pos);
     const assignments = loadAssignmentsForScope();
@@ -1910,9 +1935,11 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                   `<option value="">— select —</option>`,
                   ...slotOpts.map(o=>{
                     const used = counts.get(o.value)||0;
-                    const full = used >= cap;
-                    const dis = (full && o.value!==dispTime) ? "disabled" : "";
-                    const suffix = full && o.value!==dispTime ? " (full)" : (cap>1 ? ` (${cap-used}/${cap} left)` : "");
+                    const slotCap = capFor(pos, o.value);
+                    const full = used >= slotCap;
+                    const blocked = slotCap === 0;
+                    const dis = (blocked || (full && o.value!==dispTime)) ? "disabled" : "";
+                    const suffix = blocked ? " (blocked)" : (full && o.value!==dispTime ? " (full)" : (slotCap>1 ? ` (${slotCap-used}/${slotCap} left)` : ""));
                     return `<option value="${escapeHtml(o.value)}" ${o.value===dispTime?"selected":""} ${dis}>${escapeHtml(o.label + suffix)}</option>`;
                   })
                 ].join("");
@@ -2020,15 +2047,15 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       lines.sort((a,b) => a.t.localeCompare(b.t));
 
       // Open breaks (remaining capacity)
-      const cap = caps[pos] || 1;
       const counts = slotCountsFor(pos);
       const openLines = [];
       if(pos !== "ANET"){
         for(const s of slots){
+          const slotCap = capFor(pos, s);
           const used = counts.get(s) || 0;
-          if(used < cap){
-            const left = cap - used;
-            const suffix = cap > 1 ? ` (${left} open)` : "";
+          if(slotCap > 0 && used < slotCap){
+            const left = slotCap - used;
+            const suffix = slotCap > 1 ? ` (${left} open)` : "";
             // Put OPEN under NAME column
             openLines.push(`	OPEN	${slotLabelHHMM(s)}${suffix}`.trimEnd());
           }
