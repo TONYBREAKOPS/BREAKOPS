@@ -4659,11 +4659,11 @@ function setPresent(key, emp, val){
   const ed=ensureEdit(key,emp);
   ed.Present=val;
   if(val==="NO") ed.Hours="0";
-  if(val==="YES"){ ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
-  if(val==="TRAINER"){ ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
-  if(val==="TRAINEE"){ ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
-  if(val==="PARTIAL"){ ed.AbsenceReason=""; ed.TardyReason=""; }
-  if(val==="TARDY"){ ed.AbsenceReason=""; ed.TardyReason="TARDY"; }
+  if(val==="YES"){ ed.Hours=""; ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
+  if(val==="TRAINER"){ ed.Hours=""; ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
+  if(val==="TRAINEE"){ ed.Hours=""; ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
+  if(val==="PARTIAL"){ ed.Hours=""; ed.AbsenceReason=""; ed.TardyReason=""; }
+  if(val==="TARDY"){ ed.Hours=""; ed.AbsenceReason=""; ed.TardyReason="TARDY"; }
 
   // Cascade absence to all LATER blocks this employee works today
   if(val==="NO") _cascadeAbsentForward(key, emp);
@@ -5587,12 +5587,29 @@ function _applyBubbleLayout(){
     el.style.setProperty('position', 'relative', 'important');
   });
   // Force all header <th> cells: transparent background so shifted text
-  // from adjacent cells isn't hidden, and allow overflow
-  document.querySelectorAll('.rosterTbl thead th').forEach(el => {
-    el.style.setProperty('overflow', 'visible', 'important');
-    el.style.setProperty('max-width', 'none', 'important');
-    el.style.setProperty('text-overflow', 'clip', 'important');
-    el.style.setProperty('background', 'transparent', 'important');
+  // from adjacent cells isn't hidden, and allow overflow — only for tables with data
+  document.querySelectorAll('.rosterTbl').forEach(tbl => {
+    const hasRows = tbl.querySelectorAll('tbody tr').length > 0;
+    tbl.querySelectorAll('thead th').forEach(el => {
+      el.style.setProperty('background', 'transparent', 'important');
+      if(hasRows){
+        el.style.setProperty('overflow', 'visible', 'important');
+        el.style.setProperty('max-width', 'none', 'important');
+        el.style.setProperty('text-overflow', 'clip', 'important');
+      }
+    });
+    // Empty tables: shrink to content so headers don't spread out
+    if(!hasRows){
+      tbl.style.setProperty('width', 'auto', 'important');
+      tbl.style.setProperty('table-layout', 'auto', 'important');
+      tbl.querySelectorAll('thead th').forEach(th => {
+        th.style.setProperty('padding-left', '10px', 'important');
+        th.style.setProperty('padding-right', '10px', 'important');
+        th.style.setProperty('width', 'auto', 'important');
+        th.style.setProperty('min-width', '0', 'important');
+        th.style.setProperty('max-width', 'none', 'important');
+      });
+    }
   });
   // Put the header background on the <thead> row instead
   const isLight = document.body.classList.contains('light');
@@ -6481,13 +6498,20 @@ async function generateTimesheets(){
               if(!r.isOT && hasOTInBlock) continue;
               const key = ctxKey(iso, shiftVal, b.id);
               const ed = ensureEdit(key, r.emp);
-              const hrs = (ed.Hours!=="" ? Number(ed.Hours) : r.hours);
+              let hrs = (ed.Hours!=="" ? Number(ed.Hours) : r.hours);
               const present = ed.Present || r.present || "YES";
               const isAbsent = present==="NO";
-              // Skip zero-hour rows unless absent (absent still needs to show on timesheet)
-              if(hrs <= 0 && !isAbsent) continue;
               const ws = ed.WorkedStart || r.workedStart || "";
               const we = ed.WorkedEnd || r.workedEnd || "";
+              // If hours is 0 but employee is present with valid worked times, compute from range
+              if(hrs <= 0 && !isAbsent && ws && we){
+                const sMin = minutesOf(ws), eMin = minutesOf(we);
+                let diff = eMin - sMin;
+                if(diff <= 0) diff += 1440;
+                hrs = diff / 60;
+              }
+              // Skip zero-hour rows unless absent (absent still needs to show on timesheet)
+              if(hrs <= 0 && !isAbsent) continue;
               const isOT = r.isOT;
               const isTardy = present==="TARDY";
               const isPartialStatus = present==="PARTIAL";
@@ -6533,30 +6557,40 @@ async function generateTimesheets(){
 
       const finalRows = [];
 
-      // Consolidate regular rows into a single entry: earliest IN, latest OUT, total hours
+      // Consolidate regular rows: detect contiguous stretches, split on gaps
       if(regRows.length > 0){
         const totalReg = regRows.reduce((s, r) => s + r.total, 0);
         const anyTardy = regRows.some(r => r.isTardy);
         const anyPartial = regRows.some(r => r.isPartial);
         const anyTrainer = regRows.some(r => r.isTrainer);
-        // Find earliest in and latest out using raw 24h times (HH:MM)
-        let earliestRaw = "", latestRaw = "";
-        for(const r of regRows){
-          if(r.rawIn && (!earliestRaw || r.rawIn < earliestRaw)) earliestRaw = r.rawIn;
-          if(r.rawOut && (!latestRaw || r.rawOut > latestRaw)) latestRaw = r.rawOut;
+        // Sort by rawIn (HH:MM 24h), then merge contiguous blocks
+        const sorted = regRows.filter(r => r.rawIn && r.rawOut).slice().sort((a,b) => a.rawIn < b.rawIn ? -1 : a.rawIn > b.rawIn ? 1 : 0);
+        const pairs = [];
+        for(const r of sorted){
+          if(pairs.length > 0 && pairs[pairs.length-1].rawOut === r.rawIn){
+            pairs[pairs.length-1].rawOut = r.rawOut;
+          } else {
+            pairs.push({ rawIn: r.rawIn, rawOut: r.rawOut });
+          }
         }
-        finalRows.push({ inTime: earliestRaw ? formatTime12(earliestRaw) : "", outTime: latestRaw ? formatTime12(latestRaw) : "", total: totalReg, isOT:false, isTardy: anyTardy, isAbsent:false, isPartial: anyPartial, isTrainer: anyTrainer });
+        const fmtPairs = pairs.map(p => ({ inTime: formatTime12(p.rawIn), outTime: formatTime12(p.rawOut) }));
+        finalRows.push({ pairs: fmtPairs, total: totalReg, isOT:false, isTardy: anyTardy, isAbsent:false, isPartial: anyPartial, isTrainer: anyTrainer });
       }
 
-      // Consolidate OT rows into a single entry: earliest IN, latest OUT, total hours
+      // Consolidate OT rows: detect contiguous stretches, split on gaps
       if(otRows.length > 0){
         const totalOT = otRows.reduce((s, r) => s + r.total, 0);
-        let otEarliest = "", otLatest = "";
-        for(const r of otRows){
-          if(r.rawIn && (!otEarliest || r.rawIn < otEarliest)) otEarliest = r.rawIn;
-          if(r.rawOut && (!otLatest || r.rawOut > otLatest)) otLatest = r.rawOut;
+        const sortedOT = otRows.filter(r => r.rawIn && r.rawOut).slice().sort((a,b) => a.rawIn < b.rawIn ? -1 : a.rawIn > b.rawIn ? 1 : 0);
+        const otPairs = [];
+        for(const r of sortedOT){
+          if(otPairs.length > 0 && otPairs[otPairs.length-1].rawOut === r.rawIn){
+            otPairs[otPairs.length-1].rawOut = r.rawOut;
+          } else {
+            otPairs.push({ rawIn: r.rawIn, rawOut: r.rawOut });
+          }
         }
-        finalRows.push({ inTime: otEarliest ? formatTime12(otEarliest) : "", outTime: otLatest ? formatTime12(otLatest) : "", total: totalOT, isOT:true, isTardy:false, isAbsent:false, isPartial:false });
+        const fmtOTPairs = otPairs.map(p => ({ inTime: formatTime12(p.rawIn), outTime: formatTime12(p.rawOut) }));
+        finalRows.push({ pairs: fmtOTPairs, total: totalOT, isOT:true, isTardy:false, isAbsent:false, isPartial:false });
       }
 
       // Consolidate absent rows into a single entry with missed time range
@@ -6568,7 +6602,8 @@ async function generateTimesheets(){
           if(r.rawIn && (!absEarliest || r.rawIn < absEarliest)) absEarliest = r.rawIn;
           if(r.rawOut && (!absLatest || r.rawOut > absLatest)) absLatest = r.rawOut;
         }
-        finalRows.push({ inTime: absEarliest ? formatTime12(absEarliest) : "", outTime: absLatest ? formatTime12(absLatest) : "", total: totalAbsentHrs, isOT:false, isTardy:false, isAbsent:true, isPartial:false });
+        const absPairs = (absEarliest && absLatest) ? [{ inTime: formatTime12(absEarliest), outTime: formatTime12(absLatest) }] : [];
+        finalRows.push({ pairs: absPairs, total: totalAbsentHrs, isOT:false, isTardy:false, isAbsent:true, isPartial:false });
       }
 
       data.days.push({ date: iso, rows: finalRows, dayTotal: dayTotal, dayReg: dayReg, dayOT: dayOT });
@@ -6641,19 +6676,38 @@ th{background:#f0f0f0;font-weight:700}
         html += `<tr><td>${dayAbbr}</td><td>${day.date}</td><td></td><td></td><td></td><td></td><td>0.000</td></tr>`;
       } else {
         let firstRow = true;
-        // Group rows into in/out pairs
         for(let ri=0; ri<day.rows.length; ri++){
           const r = day.rows[ri];
-          html += `<tr>`;
-          html += `<td>${firstRow ? dayAbbr : ""}</td>`;
-          html += `<td>${day.date}${r.isAbsent ? ` <span style="color:#b91c1c;font-weight:bold;background:#fee2e2;padding:1px 5px;border-radius:3px">ABSENT ${r.total}HRS</span>` : r.isOT ? ' <span style="color:#1d4ed8;font-weight:bold;background:#dbeafe;padding:1px 5px;border-radius:3px">OT</span>' : r.isTardy ? ' <span style="color:#c2410c;font-weight:bold;background:#fff7ed;padding:1px 5px;border-radius:3px">TARDY</span>' : r.isPartial ? ' <span style="color:#a16207;font-weight:bold;background:#fefce8;padding:1px 5px;border-radius:3px">PARTIAL</span>' : ''}${r.isTrainer ? ' <span style="color:#065f46;font-weight:bold;background:#d1fae5;padding:1px 5px;border-radius:3px">TRAINER</span>' : ''}</td>`;
-          // First in/out pair
-          html += `<td>${r.inTime||""}</td><td>${r.outTime ? "" : ""}</td>`;
-          // Second in/out (for out time)
-          html += `<td></td><td>${r.outTime||""}</td>`;
-          html += `<td>${r.isAbsent ? "0.000" : r.total.toFixed(3)}</td>`;
-          html += `</tr>`;
-          firstRow = false;
+          const pairs = r.pairs || [];
+          const badge = r.isAbsent ? ` <span style="color:#b91c1c;font-weight:bold;background:#fee2e2;padding:1px 5px;border-radius:3px">ABSENT ${r.total}HRS</span>` : r.isOT ? ' <span style="color:#1d4ed8;font-weight:bold;background:#dbeafe;padding:1px 5px;border-radius:3px">OT</span>' : r.isTardy ? ' <span style="color:#c2410c;font-weight:bold;background:#fff7ed;padding:1px 5px;border-radius:3px">TARDY</span>' : r.isPartial ? ' <span style="color:#a16207;font-weight:bold;background:#fefce8;padding:1px 5px;border-radius:3px">PARTIAL</span>' : '';
+          const trainerBadge = r.isTrainer ? ' <span style="color:#065f46;font-weight:bold;background:#d1fae5;padding:1px 5px;border-radius:3px">TRAINER</span>' : '';
+          if(pairs.length <= 1){
+            // Single pair or no pairs: In1 = in, Out1 empty, In2 empty, Out2 = out (original style)
+            const p = pairs[0] || {};
+            html += `<tr>`;
+            html += `<td>${firstRow ? dayAbbr : ""}</td>`;
+            html += `<td>${day.date}${badge}${trainerBadge}</td>`;
+            html += `<td>${p.inTime||""}</td><td></td>`;
+            html += `<td></td><td>${p.outTime||""}</td>`;
+            html += `<td>${r.isAbsent ? "0.000" : r.total.toFixed(3)}</td>`;
+            html += `</tr>`;
+            firstRow = false;
+          } else {
+            // Multiple pairs: render 2 per table row, overflow into extra rows
+            for(let pi=0; pi<pairs.length; pi+=2){
+              const p1 = pairs[pi];
+              const p2 = pairs[pi+1] || null;
+              html += `<tr>`;
+              html += `<td>${firstRow ? dayAbbr : ""}</td>`;
+              html += `<td>${firstRow ? day.date + badge + trainerBadge : ""}</td>`;
+              html += `<td>${p1.inTime||""}</td><td>${p1.outTime||""}</td>`;
+              html += `<td>${p2 ? p2.inTime : ""}</td><td>${p2 ? p2.outTime : ""}</td>`;
+              // Show total only on the first row for this entry
+              html += `<td>${pi===0 ? (r.isAbsent ? "0.000" : r.total.toFixed(3)) : ""}</td>`;
+              html += `</tr>`;
+              firstRow = false;
+            }
+          }
         }
       }
     }

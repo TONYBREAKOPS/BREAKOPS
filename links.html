@@ -252,6 +252,10 @@ header {
 .tool-card.red::before { background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%), rgba(255,107,107,.05), transparent 40%); }
 .tool-card.red .card-icon { background: rgba(255,107,107,.1); border-color: rgba(255,107,107,.2); color: #ff6b6b; }
 
+.tool-card.teal { --card-glow: rgba(6,182,212,.1); }
+.tool-card.teal::before { background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%), rgba(6,182,212,.06), transparent 40%); }
+.tool-card.teal .card-icon { background: rgba(6,182,212,.1); border-color: rgba(6,182,212,.2); color: #06b6d4; }
+
 /* Split card (two halves) */
 .split-card {
   position: relative;
@@ -613,7 +617,7 @@ footer {
     </div>
 
     <!-- RotationOps -->
-    <a href="https://www.legitimous.com/rotationops.html" target="_blank" class="tool-card purple">
+    <a href="https://www.legitimous.com/rotationopsv2.html" target="_blank" class="tool-card purple">
       <div class="card-header">
         <div class="card-icon" style="background:rgba(11,15,20,.9); border-color:rgba(35,48,67,.6);">
           <svg viewBox="0 0 64 64" width="64" height="64" fill="none">
@@ -649,7 +653,7 @@ footer {
     </a>
 
     <!-- StaffingOps -->
-    <a href="https://www.legitimous.com/staffingops.html" target="_blank" class="tool-card amber">
+    <a href="https://www.legitimous.com/staffingopsv2.html" target="_blank" class="tool-card amber">
       <div class="card-header">
         <div class="card-icon" style="background:rgba(11,15,20,.9); border-color:rgba(255,190,50,.25);">
           <svg viewBox="0 0 64 64" width="64" height="64" fill="none">
@@ -683,6 +687,82 @@ footer {
         <span class="card-tag">Analysis</span>
         <span class="card-tag">Multi-Role</span>
         <span class="card-tag">Export</span>
+      </div>
+      <div class="card-footer">
+        <span class="card-badge live">Online</span>
+        <div class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+    </a>
+
+    <!-- MandateOps -->
+    <a href="https://www.legitimous.com/mandateops.html" target="_blank" class="tool-card green">
+      <div class="card-header">
+        <div class="card-icon" style="background:rgba(11,15,20,.9); border-color:rgba(63,231,182,.25);">
+          <svg viewBox="0 0 64 64" width="64" height="64" fill="none">
+            <circle cx="32" cy="32" r="29" stroke="rgba(63,231,182,.15)" stroke-width="1.5" fill="none"/>
+            <!-- sound block -->
+            <rect x="30" y="50" width="20" height="4.5" rx="1.5" fill="#3fe7b6" opacity=".7"/>
+            <!-- handle -->
+            <line x1="22" y1="44" x2="38" y2="28" stroke="#3fe7b6" stroke-width="2.5" stroke-linecap="round" opacity=".85"/>
+            <!-- gavel head -->
+            <rect x="33" y="15" width="20" height="9" rx="2.5" transform="rotate(45 43 19.5)" fill="#3fe7b6" opacity=".9"/>
+            <!-- impact lines -->
+            <line x1="16" y1="49" x2="11" y2="54" stroke="#3fe7b6" stroke-width="1" opacity=".35" stroke-linecap="round"/>
+            <line x1="20" y1="51" x2="18" y2="57" stroke="#3fe7b6" stroke-width="1" opacity=".25" stroke-linecap="round"/>
+            <!-- strike glow -->
+            <circle cx="24" cy="47" r="2" fill="#3fe7b6" opacity=".5"/>
+          </svg>
+        </div>
+        <div class="card-title-group">
+          <div class="card-title">MandateOps</div>
+          <div class="card-subtitle">Overtime Mandate Ranking</div>
+        </div>
+      </div>
+      <div class="card-desc">
+        Ranked overtime mandate list by role with automatic sorting by shortest work day, least recent OT, and seniority. Tracks mandates and refusals in real-time with cross-qualification guidance.
+      </div>
+      <div class="card-tags">
+        <span class="card-tag">Mandates</span>
+        <span class="card-tag">Overtime</span>
+        <span class="card-tag">Ranking</span>
+        <span class="card-tag">Real-time</span>
+      </div>
+      <div class="card-footer">
+        <span class="card-badge live">Online</span>
+        <div class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+    </a>
+
+    <!-- ScheduleOps -->
+    <a href="https://www.legitimous.com/scheduleops.html" target="_blank" class="tool-card teal">
+      <div class="card-header">
+        <div class="card-icon" style="background:rgba(11,15,20,.9); border-color:rgba(6,182,212,.25);">
+          <svg viewBox="0 0 64 64" width="64" height="64" fill="none">
+            <circle cx="32" cy="32" r="29" stroke="rgba(6,182,212,.15)" stroke-width="1.5" fill="none"/>
+            <rect x="16" y="12" width="32" height="40" rx="3" fill="none" stroke="#06b6d4" stroke-width="1.5" opacity=".7"/>
+            <line x1="16" y1="22" x2="48" y2="22" stroke="#06b6d4" stroke-width="1" opacity=".5"/>
+            <rect x="20" y="26" width="8" height="6" rx="1" fill="#06b6d4" opacity=".6"/>
+            <rect x="32" y="26" width="8" height="6" rx="1" fill="#06b6d4" opacity=".4"/>
+            <rect x="20" y="36" width="8" height="6" rx="1" fill="#06b6d4" opacity=".3"/>
+            <rect x="32" y="36" width="8" height="6" rx="1" fill="#06b6d4" opacity=".5"/>
+            <rect x="20" y="14" width="5" height="5" rx="1" fill="#06b6d4" opacity=".8"/>
+            <rect x="27" y="14" width="5" height="5" rx="1" fill="#06b6d4" opacity=".5"/>
+            <rect x="34" y="14" width="5" height="5" rx="1" fill="#06b6d4" opacity=".3"/>
+          </svg>
+        </div>
+        <div class="card-title-group">
+          <div class="card-title">ScheduleOps</div>
+          <div class="card-subtitle">Schedule Builder & Coverage Simulator</div>
+        </div>
+      </div>
+      <div class="card-desc">
+        Plan new shift sign-ups by building schedule templates, assigning headcounts, and viewing live coverage vs adequate staffing. Save and compare multiple scenarios per role.
+      </div>
+      <div class="card-tags">
+        <span class="card-tag">Scheduling</span>
+        <span class="card-tag">Coverage</span>
+        <span class="card-tag">Simulator</span>
+        <span class="card-tag">Multi-Role</span>
       </div>
       <div class="card-footer">
         <span class="card-badge live">Online</span>

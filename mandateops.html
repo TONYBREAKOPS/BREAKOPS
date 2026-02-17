@@ -1,0 +1,1051 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>MandateOps</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23070c16'/%3E%3Ccircle cx='32' cy='32' r='30' fill='none' stroke='%23c0c8d4' stroke-width='2'/%3E%3Cline x1='24' y1='42' x2='38' y2='28' stroke='%23e8ecf0' stroke-width='2.5' stroke-linecap='round'/%3E%3Crect x='34' y='14' width='18' height='8' rx='2.5' transform='rotate(45 43 18)' fill='%23e8ecf0'/%3E%3Crect x='28' y='48' width='18' height='4' rx='1.5' fill='%23e8ecf0'/%3E%3C/svg%3E"/>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#0b0f14;
+  --card:#111826;
+  --panel:#0c1320;
+  --muted:#9aa4b2;
+  --text:#e7eef8;
+  --accent:#4aa3ff;
+  --border:#233043;
+  --ok:#3fe7b6;
+  --bad:#ff6b6b;
+  --warn:#ffe066;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{
+  margin:0;min-height:100vh;
+  font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
+  color:var(--text);
+  background:var(--bg);
+}
+
+/* ── Header ── */
+header{
+  padding:14px 18px 12px;
+  position:sticky;top:0;z-index:10;
+  backdrop-filter:blur(10px);
+  background:linear-gradient(180deg,rgba(11,15,20,.98),rgba(11,15,20,.75));
+  border-bottom:1px solid var(--border);
+}
+h1{margin:0;font-size:28px;font-weight:900;letter-spacing:.04em}
+
+/* ── Controls ── */
+.controls{
+  display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;align-items:flex-end;
+}
+.ctrl-group{display:flex;flex-direction:column;gap:4px}
+.ctrl-group label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.04em}
+input,select{
+  padding:10px 12px;border-radius:12px;
+  border:1px solid var(--border);background:var(--panel);
+  color:var(--text);outline:none;font-size:13px;
+}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(74,163,255,.15)}
+button{
+  padding:10px 14px;border-radius:12px;
+  border:1px solid var(--border);background:var(--panel);
+  color:var(--text);cursor:pointer;font-weight:700;font-size:13px;
+  transition:transform .05s ease,background .2s ease,border-color .2s ease;
+}
+button:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.18)}
+button:active{transform:translateY(1px)}
+button.primary{border-color:rgba(74,163,255,.5);background:var(--accent);color:#fff}
+button.primary:hover{background:#3b8fd9}
+
+/* ── Tabs ── */
+.tabs{display:flex;gap:0;margin-top:16px}
+.tab{
+  padding:10px 22px;font-size:13px;font-weight:800;letter-spacing:.06em;
+  border:1px solid var(--border);background:var(--panel);color:var(--muted);
+  cursor:pointer;transition:all .15s ease;border-bottom:2px solid transparent;
+}
+.tab:first-child{border-radius:12px 0 0 0}
+.tab:last-child{border-radius:0 12px 0 0}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--card)}
+
+/* ── Cross-qual note ── */
+.cross-note{
+  font-size:11px;color:var(--muted);padding:8px 14px;
+  border:1px solid var(--border);border-top:none;
+  background:rgba(74,163,255,.04);border-radius:0 0 12px 12px;
+  margin-bottom:12px;
+}
+
+/* ── Main area ── */
+main{padding:14px 18px 80px}
+
+/* ── Table ── */
+.tbl-wrap{
+  border:1px solid var(--border);border-radius:12px;overflow:hidden;
+  background:var(--panel);margin-bottom:16px;
+}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:8px 10px;vertical-align:middle;text-align:left}
+th{
+  color:var(--muted);font-weight:700;background:var(--panel);
+  border-bottom:1px solid var(--border);font-size:11px;letter-spacing:.04em;
+}
+tbody tr td{border-bottom:1px solid rgba(255,255,255,.06)}
+tbody tr:hover td{background:rgba(255,255,255,.04)}
+
+/* Row states */
+tr.mandated td{opacity:.45;text-decoration:line-through}
+tr.refused td{opacity:.55;background:rgba(255,95,95,.08)}
+tr.refused td:first-child{border-left:3px solid var(--bad)}
+
+/* OT input */
+.ot-input{
+  width:60px;padding:5px 8px;border-radius:8px;
+  border:1px solid var(--border);background:rgba(255,255,255,.04);
+  color:var(--text);font-size:12px;text-align:center;
+}
+.ot-input:focus{border-color:var(--accent)}
+
+/* Action buttons */
+.act-btn{
+  padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700;
+  border:1px solid var(--border);background:transparent;cursor:pointer;
+  transition:all .15s ease;
+}
+.act-mandate{color:var(--ok);border-color:rgba(63,231,182,.3)}
+.act-mandate:hover{background:rgba(63,231,182,.12)}
+.act-refuse{color:var(--bad);border-color:rgba(255,107,107,.3)}
+.act-refuse:hover{background:rgba(255,107,107,.12)}
+.act-btn:disabled{opacity:.3;cursor:not-allowed;pointer-events:none}
+
+/* ── Mandate Log ── */
+.log-card{
+  border:1px solid var(--border);border-radius:14px;
+  background:var(--card);overflow:hidden;margin-top:20px;
+}
+.log-card h2{
+  margin:0;padding:12px 14px;font-size:13px;font-weight:800;
+  letter-spacing:.35px;color:var(--text);background:var(--panel);
+  border-bottom:1px solid var(--border);
+}
+.log-empty{padding:20px;text-align:center;color:var(--muted);font-size:12px}
+.log-entry{
+  display:flex;align-items:center;gap:12px;padding:8px 14px;
+  border-bottom:1px solid rgba(255,255,255,.06);font-size:12px;
+}
+.log-entry:last-child{border-bottom:none}
+.log-badge{
+  display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;
+}
+.log-badge.mandated{border:1px solid rgba(63,231,182,.4);color:#d7ffe9;background:rgba(63,231,182,.1)}
+.log-badge.refused{border:1px solid rgba(255,107,107,.4);color:#ffd5dd;background:rgba(255,107,107,.1)}
+
+/* ── Login Overlay ── */
+#loginOverlay{
+  position:fixed;inset:0;background:var(--bg);z-index:100000;
+  display:flex;align-items:center;justify-content:center;
+}
+#loginOverlay.hidden{display:none}
+.login-box{
+  background:var(--card);border:1px solid var(--border);border-radius:16px;
+  padding:32px 40px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.3);
+}
+.login-box h2{margin:0 0 8px;font-size:24px;text-align:center;color:var(--text)}
+.login-box .subtitle{text-align:center;color:var(--muted);font-size:13px;margin-bottom:24px}
+.login-box label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+.login-box input{
+  width:100%;padding:12px 14px;border-radius:10px;
+  border:1px solid var(--border);background:var(--panel);
+  color:var(--text);font-size:14px;margin-bottom:16px;
+}
+.login-box .btn-login{
+  width:100%;padding:12px;border-radius:10px;border:none;
+  background:var(--accent);color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px;
+}
+.login-box .btn-login:hover{background:#3b8fd9}
+.login-box .btn-login:disabled{opacity:.6;cursor:not-allowed}
+.login-error{
+  background:rgba(255,95,95,.12);border:1px solid rgba(255,95,95,.3);
+  color:#ff6b6b;padding:10px 12px;border-radius:8px;font-size:13px;
+  margin-bottom:16px;display:none;
+}
+.login-error.show{display:block}
+
+/* ── Footer ── */
+footer{
+  position:fixed;bottom:0;left:0;right:0;z-index:999;
+  padding:8px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  background:rgba(11,15,20,.96);border-top:1px solid var(--border);
+  backdrop-filter:blur(10px);
+}
+.pill{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:7px 10px;border-radius:999px;
+  border:1px solid var(--border);background:rgba(255,255,255,.02);
+  color:var(--muted);font-size:12px;
+}
+.pill.bad{border-color:rgba(251,113,133,.45);background:rgba(251,113,133,.10);color:#ffd5dd}
+.pill.good{border-color:rgba(52,211,153,.40);background:rgba(52,211,153,.10);color:#d7ffe9}
+
+/* ── Loading state ── */
+.loading{text-align:center;padding:30px;color:var(--muted);font-size:13px}
+
+/* ── Gavel logo ── */
+@keyframes logoPulse{0%,100%{opacity:.8}50%{opacity:1}}
+.gavel-logo{animation:logoPulse 3s ease-in-out infinite}
+
+/* ── Responsive ── */
+@media(max-width:700px){
+  .controls{flex-direction:column}
+  .tabs{flex-wrap:wrap}
+}
+</style>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyA6KELmSyotefK0zhahQZ0-mbYur8_nTsg",
+    authDomain: "commandops-93846.firebaseapp.com",
+    databaseURL: "https://commandops-93846-default-rtdb.firebaseio.com",
+    projectId: "commandops-93846",
+    storageBucket: "commandops-93846.firebasestorage.app",
+    messagingSenderId: "262613721964",
+    appId: "1:262613721964:web:478a694d357234e3be4949"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+
+  db.enablePersistence({synchronizeTabs:true}).catch(err=>{
+    console.warn("Firestore persistence not enabled:", err.code);
+  });
+
+  auth.onAuthStateChanged((user) => {
+    const overlay = document.getElementById('loginOverlay');
+    const userInfo = document.getElementById('userInfo');
+    const userEmail = document.getElementById('userEmail');
+    if (user) {
+      overlay.classList.add('hidden');
+      userInfo.style.display = 'flex';
+      userEmail.textContent = user.email;
+      init();
+    } else {
+      overlay.classList.remove('hidden');
+      userInfo.style.display = 'none';
+      userEmail.textContent = '';
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const loginError = document.getElementById('loginError');
+      const btnLogin = document.getElementById('btnLogin');
+
+      loginError.classList.remove('show');
+      btnLogin.disabled = true;
+      btnLogin.textContent = 'Signing in...';
+
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+      } catch (err) {
+        let msg = 'Sign in failed';
+        if (err.code === 'auth/user-not-found') msg = 'No account found';
+        else if (err.code === 'auth/wrong-password') msg = 'Incorrect password';
+        else if (err.code === 'auth/invalid-email') msg = 'Invalid email';
+        else if (err.code === 'auth/too-many-requests') msg = 'Too many attempts';
+        else if (err.code === 'auth/invalid-credential') msg = 'Invalid email or password';
+        loginError.textContent = msg;
+        loginError.classList.add('show');
+      }
+      btnLogin.disabled = false;
+      btnLogin.textContent = 'Sign In';
+    });
+
+    document.getElementById('btnLogout').addEventListener('click', () => auth.signOut());
+  });
+</script>
+</head>
+<body>
+
+<!-- Login Overlay -->
+<div id="loginOverlay">
+  <div class="login-box">
+    <h2>MandateOps</h2>
+    <p class="subtitle">Sign in to continue</p>
+    <div id="loginError" class="login-error"></div>
+    <form id="loginForm">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="you@example.com" required autocomplete="email"/>
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="Enter password" required autocomplete="current-password"/>
+      <button type="submit" class="btn-login" id="btnLogin">Sign In</button>
+    </form>
+  </div>
+</div>
+
+<header>
+  <div style="display:flex;align-items:center;gap:14px">
+    <svg class="gavel-logo" width="38" height="38" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+      <!-- base/sound block -->
+      <rect x="34" y="52" width="22" height="5" rx="2" fill="#233043" stroke="#4aa3ff" stroke-width=".8" opacity=".7"/>
+      <!-- handle -->
+      <line x1="22" y1="44" x2="40" y2="26" stroke="#4aa3ff" stroke-width="2.5" stroke-linecap="round" opacity=".8"/>
+      <!-- gavel head -->
+      <rect x="30" y="12" width="24" height="10" rx="3" transform="rotate(45 42 17)" fill="#233043" stroke="#4aa3ff" stroke-width="1.2"/>
+      <!-- impact lines -->
+      <line x1="16" y1="50" x2="10" y2="56" stroke="#4aa3ff" stroke-width="1" opacity=".4" stroke-linecap="round"/>
+      <line x1="20" y1="52" x2="18" y2="58" stroke="#4aa3ff" stroke-width="1" opacity=".3" stroke-linecap="round"/>
+      <line x1="12" y1="47" x2="6" y2="50" stroke="#4aa3ff" stroke-width="1" opacity=".25" stroke-linecap="round"/>
+      <!-- glow dot at strike point -->
+      <circle cx="24" cy="48" r="2" fill="#4aa3ff" opacity=".6">
+        <animate attributeName="opacity" values=".6;.2;.6" dur="2s" repeatCount="indefinite"/>
+      </circle>
+    </svg>
+    <div style="display:flex;flex-direction:column;gap:1px">
+      <h1 style="text-align:left">MandateOps</h1>
+      <span style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:600">Overtime Mandate Ranking</span>
+    </div>
+    <div id="userInfo" style="margin-left:auto;display:none;align-items:center;gap:10px;font-size:12px">
+      <span class="pill good" id="pillStatus" style="font-size:10px;padding:4px 8px">DB: loading...</span>
+      <span class="user-email" id="userEmail" style="color:var(--text);font-weight:600"></span>
+      <button id="btnBugReport" type="button" style="padding:4px 10px;font-size:11px;border-radius:8px;border:1px solid rgba(255,107,107,.3);color:#ff6b6b;background:rgba(255,107,107,.08);cursor:pointer" title="Report a Bug">REPORT BUG</button>
+      <button id="btnLogout" type="button" style="padding:4px 10px;font-size:11px;border-radius:8px">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <label>DATE</label>
+      <input type="date" id="selDate"/>
+    </div>
+    <div class="ctrl-group">
+      <label>SHIFT</label>
+      <select id="selShift">
+        <option value="DAY">Day Shift (0600-1800)</option>
+        <option value="NIGHT">Night Shift (1800-0600)</option>
+      </select>
+    </div>
+    <div class="ctrl-group">
+      <label>MANDATE BLOCK</label>
+      <select id="selBlock">
+        <option value="custom">Custom...</option>
+      </select>
+    </div>
+    <div class="ctrl-group" id="customTimeGroup">
+      <label>START - END</label>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="time" id="customStart" style="width:120px"/>
+        <span style="color:var(--muted)">-</span>
+        <input type="time" id="customEnd" style="width:120px"/>
+      </div>
+    </div>
+    <div class="ctrl-group" style="justify-content:flex-end">
+      <button class="primary" id="btnGenerate">Generate List</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="tabs" id="roleTabs">
+    <div class="tab active" data-role="CALLTAKER">CALLTAKER</div>
+    <div class="tab" data-role="DISPATCHER">DISPATCHER</div>
+    <div class="tab" data-role="PIC">PIC</div>
+  </div>
+  <div class="cross-note" id="crossNote"></div>
+
+  <div id="rankingArea">
+    <div class="loading" id="loadingMsg">Select date, shift, and mandate block, then click Generate List.</div>
+  </div>
+
+  <div class="log-card" id="logCard">
+    <h2>MANDATE LOG</h2>
+    <div id="logBody">
+      <div class="log-empty">No mandate records for this date.</div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <span class="pill" id="pillEmp" style="font-size:10px;padding:4px 8px">Employees: --</span>
+  <span class="pill" id="pillEligible" style="font-size:10px;padding:4px 8px">Eligible: --</span>
+</footer>
+
+<script>
+// ===== GLOBALS =====
+let BASE_EMP = [];
+let _activeRole = "CALLTAKER";
+let _rankedList = [];          // current ranked+filtered list for active tab
+let _allRanked = {};           // { CALLTAKER:[], DISPATCHER:[], PIC:[] }
+let _otOverrides = {};         // empName -> overridden OT hours (local only)
+let _mandateActions = {};      // empName -> "MANDATED"|"REFUSED" (session cache)
+let _logUnsub = null;          // onSnapshot unsubscribe for mandate log
+
+// ===== HELPERS (from ShiftOps) =====
+function pad2(n){ return String(n).padStart(2,"0"); }
+function toISODate(d){ return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); }
+function parseISO(s){ const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); }
+function addDaysISO(iso,days){ const d=parseISO(iso); d.setDate(d.getDate()+(days||0)); return toISODate(d); }
+
+function dayNameFromISO(iso){
+  const d=parseISO(iso);
+  return ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"][d.getDay()];
+}
+
+function minutesOf(timeStr){
+  const [h,m]=String(timeStr||"00:00").split(":").map(Number);
+  return (h*60)+(m||0);
+}
+
+function minToHHMM(m){
+  const hh=Math.floor(m/60)%24, mm=m%60;
+  return pad2(hh)+":"+pad2(mm);
+}
+
+function overlapMinutes(aStart,aEnd,bStart,bEnd){
+  const s=Math.max(aStart,bStart), e=Math.min(aEnd,bEnd);
+  return Math.max(0, e-s);
+}
+
+function normalizeRole(pos){
+  const p=String(pos||"").toUpperCase().trim();
+  if(p.includes("CALL")||p==="CT") return "CALLTAKER";
+  if(p.includes("DISP")||p==="DP") return "DISPATCHER";
+  if(p.includes("PIC")) return "PIC";
+  if(p.includes("SUP")) return "SUPERVISOR";
+  return p||"";
+}
+
+function shiftForDay(emp,dayName){ return String(emp[dayName]||"").trim(); }
+
+function parseShiftString(s){
+  const str=String(s||"").toUpperCase().replace(/\s+/g,"");
+  if(!str||str==="OFF") return null;
+  const parts=str.split("-");
+  if(parts.length!==2) return null;
+  const toMin=(token)=>{
+    const m=token.match(/(\d{1,2})(?::(\d{2}))?([AP])/);
+    if(!m) return null;
+    let h=parseInt(m[1],10);
+    const mm=m[2]?parseInt(m[2],10):0;
+    const ap=m[3];
+    if(ap==="A"){ if(h===12) h=0; } else { if(h!==12) h+=12; }
+    return h*60+mm;
+  };
+  const a=toMin(parts[0]), b=toMin(parts[1]);
+  if(a===null||b===null) return null;
+  let start=a, end=b;
+  if(end<=start) end+=1440;
+  return {start,end,raw:str};
+}
+
+function formatTime12(hhmm){
+  if(!hhmm) return "";
+  const [h,m]=hhmm.split(":").map(Number);
+  const ampm=h>=12?"PM":"AM";
+  const h12=h===0?12:h>12?h-12:h;
+  return h12+":"+String(m).padStart(2,"0")+" "+ampm;
+}
+
+function esc(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/'/g,"&#39;").replace(/"/g,"&quot;");
+}
+
+// ===== CROSS-QUALIFICATION NOTES =====
+const CROSS_NOTES = {
+  CALLTAKER: "If CT positions are unfilled: check Calltaker tab first, then Dispatcher (can do CT work), then PIC (can do all roles).",
+  DISPATCHER: "If Dispatcher positions are unfilled: check Dispatcher tab first, then PIC (can do Dispatcher work).",
+  PIC: "PIC positions can only be filled by PIC-qualified employees."
+};
+
+// ===== MANDATE BLOCK OPTIONS =====
+function populateBlockOptions(){
+  const sel = document.getElementById('selBlock');
+  const shift = document.getElementById('selShift').value;
+  sel.innerHTML = '';
+
+  if(shift === 'DAY'){
+    sel.add(new Option('1400-1800 (4hr)', '14:00-18:00'));
+    sel.add(new Option('1000-1800 (8hr)', '10:00-18:00'));
+    sel.add(new Option('1200-1800 (6hr)', '12:00-18:00'));
+    sel.add(new Option('Custom...', 'custom'));
+  } else {
+    sel.add(new Option('0200-0600 (4hr)', '02:00-06:00'));
+    sel.add(new Option('2200-0600 (8hr)', '22:00-06:00'));
+    sel.add(new Option('0000-0600 (6hr)', '00:00-06:00'));
+    sel.add(new Option('Custom...', 'custom'));
+  }
+  toggleCustomTime();
+}
+
+function toggleCustomTime(){
+  const isCustom = document.getElementById('selBlock').value === 'custom';
+  document.getElementById('customTimeGroup').style.display = isCustom ? '' : 'none';
+}
+
+function getMandateTimes(){
+  const val = document.getElementById('selBlock').value;
+  if(val === 'custom'){
+    return {
+      start: document.getElementById('customStart').value,
+      end: document.getElementById('customEnd').value
+    };
+  }
+  const [s,e] = val.split('-');
+  return { start: s, end: e };
+}
+
+// ===== INIT =====
+let _initDone = false;
+async function init(){
+  if(_initDone) return;
+  _initDone = true;
+
+  // Default date to today
+  const today = toISODate(new Date());
+  document.getElementById('selDate').value = today;
+  populateBlockOptions();
+
+  // Event listeners
+  document.getElementById('selShift').addEventListener('change', populateBlockOptions);
+  document.getElementById('selBlock').addEventListener('change', toggleCustomTime);
+  document.getElementById('btnGenerate').addEventListener('click', generate);
+
+  // Tab switching
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      _activeRole = tab.dataset.role;
+      updateCrossNote();
+      renderRanking();
+    });
+  });
+  updateCrossNote();
+
+  // Load employees
+  await loadEmployees();
+
+  // Start mandate log listener
+  startLogListener();
+
+  // Re-listen when date changes
+  document.getElementById('selDate').addEventListener('change', startLogListener);
+}
+
+function updateCrossNote(){
+  document.getElementById('crossNote').textContent = CROSS_NOTES[_activeRole] || '';
+}
+
+// ===== LOAD EMPLOYEES =====
+async function loadEmployees(){
+  const pill = document.getElementById('pillStatus');
+  const pillEmp = document.getElementById('pillEmp');
+  pill.textContent = 'DB: loading...';
+  pill.classList.remove('good','bad');
+
+  try {
+    const snap = await db.collection('employees').get();
+    BASE_EMP = snap.docs.map(doc => {
+      const r = doc.data();
+      return {
+        Employee: r.Employee || doc.id,
+        SENIORITY: Number(r.SENIORITY ?? r.Seniority ?? 0),
+        POSITION: normalizeRole(r.POSITION ?? r.Position ?? ""),
+        SATURDAY: r.SATURDAY ?? "",
+        SUNDAY: r.SUNDAY ?? "",
+        MONDAY: r.MONDAY ?? "",
+        TUESDAY: r.TUESDAY ?? "",
+        WEDNESDAY: r.WEDNESDAY ?? "",
+        THURSDAY: r.THURSDAY ?? "",
+        FRIDAY: r.FRIDAY ?? "",
+      };
+    }).filter(r => r.Employee);
+
+    pill.textContent = 'DB: loaded (' + BASE_EMP.length + ')';
+    pill.classList.add('good');
+    pillEmp.textContent = 'Employees: ' + BASE_EMP.length;
+  } catch(err){
+    console.error('Employee load error:', err);
+    pill.textContent = 'DB: error';
+    pill.classList.add('bad');
+  }
+}
+
+// ===== LOAD DAILY EDITS (attendance check) =====
+async function loadDailyEdits(iso, shift){
+  const docId = iso + '_' + shift;
+  try {
+    const doc = await db.collection('daily_edits').doc(docId).get();
+    if(doc.exists) return doc.data();
+  } catch(err){
+    console.warn('Failed to load daily_edits:', docId, err);
+  }
+  return null;
+}
+
+// ===== LOAD OT HISTORY (last 7 days) =====
+async function loadOTHistory(iso){
+  const otHours = {}; // empName -> total OT hours
+
+  // Build list of doc IDs for last 7 days, both shifts
+  const docIds = [];
+  for(let i = 1; i <= 7; i++){
+    const d = addDaysISO(iso, -i);
+    docIds.push(d + '_DAY');
+    docIds.push(d + '_NIGHT');
+  }
+
+  // Fetch all in parallel
+  const results = await Promise.all(
+    docIds.map(id => db.collection('daily_edits').doc(id).get().catch(() => null))
+  );
+
+  for(const doc of results){
+    if(!doc || !doc.exists) continue;
+    const data = doc.data();
+    if(!data.ot || !Array.isArray(data.ot)) continue;
+
+    for(const entry of data.ot){
+      const emp = entry.emp || entry.employee || entry.Employee || '';
+      if(!emp) continue;
+
+      // Calculate OT hours: ws/we are minutes (ShiftOps format)
+      let hrs = 0;
+      if(entry.ws !== undefined && entry.we !== undefined){
+        let s = entry.ws, e = entry.we;
+        if(e <= s) e += 1440;
+        hrs = (e - s) / 60;
+      } else if(entry.start && entry.end){
+        const s = minutesOf(entry.start);
+        let e = minutesOf(entry.end);
+        if(e <= s) e += 1440;
+        hrs = (e - s) / 60;
+      }
+
+      if(hrs > 0){
+        otHours[emp] = (otHours[emp] || 0) + hrs;
+      }
+    }
+  }
+
+  return otHours;
+}
+
+// ===== CHECK ATTENDANCE =====
+function isEmployeePresent(emp, editsData){
+  if(!editsData || !editsData.edits) return true; // assume present if no data
+  const empEdits = editsData.edits[emp.Employee];
+  if(!empEdits) return true;
+
+  // Check all blocks — if any block has Present="NO", employee is absent
+  for(const blockId of Object.keys(empEdits)){
+    if(empEdits[blockId].Present === "NO") return false;
+  }
+  return true;
+}
+
+// ===== SAME-DAY OT HELPERS =====
+// Collect all OT entries for an employee from all relevant edit docs
+// editsDocs is an array of daily_edits data objects (any of which may be null)
+// ShiftOps OT format: { emp:"NAME", ws:120, we:360, role:"CALLTAKER", isOT:true, blockId:"..." }
+//   emp = employee name, ws = work start in minutes, we = work end in minutes
+function getEmployeeSameDayOT(empName, editsDocs){
+  const entries = [];
+  for(const data of editsDocs){
+    if(!data || !data.ot || !Array.isArray(data.ot)) continue;
+    for(const entry of data.ot){
+      const name = entry.emp || entry.employee || entry.Employee || '';
+      if(name !== empName) continue;
+      entries.push(entry);
+    }
+  }
+  return entries;
+}
+
+// Check if employee already has OT overlapping the mandate block
+function employeeHasOTOverlap(empName, editsDocs, mandateStartMin, mandateEndMin){
+  const allOT = getEmployeeSameDayOT(empName, editsDocs);
+  for(const entry of allOT){
+    // ws/we are already in minutes from ShiftOps
+    let otStart = entry.ws !== undefined ? entry.ws : (entry.start ? minutesOf(entry.start) : null);
+    let otEnd = entry.we !== undefined ? entry.we : (entry.end ? minutesOf(entry.end) : null);
+    if(otStart === null || otEnd === null) continue;
+    if(otEnd <= otStart) otEnd += 1440;
+    if(overlapMinutes(otStart, otEnd, mandateStartMin, mandateEndMin) > 0) return true;
+  }
+  return false;
+}
+
+// Sum total OT hours already worked from all relevant edit docs
+function getEmployeeSameDayOTHours(empName, editsDocs){
+  const allOT = getEmployeeSameDayOT(empName, editsDocs);
+  let total = 0;
+  for(const entry of allOT){
+    // ws/we are already in minutes from ShiftOps
+    let s = entry.ws !== undefined ? entry.ws : (entry.start ? minutesOf(entry.start) : null);
+    let e = entry.we !== undefined ? entry.we : (entry.end ? minutesOf(entry.end) : null);
+    if(s === null || e === null) continue;
+    if(e <= s) e += 1440;
+    total += (e - s) / 60;
+  }
+  return total;
+}
+
+// ===== GENERATE RANKED LIST =====
+async function generate(){
+  const iso = document.getElementById('selDate').value;
+  const shift = document.getElementById('selShift').value;
+  const times = getMandateTimes();
+
+  if(!iso){ alert('Please select a date.'); return; }
+  if(!times.start || !times.end){ alert('Please set mandate start and end times.'); return; }
+
+  const area = document.getElementById('rankingArea');
+  area.innerHTML = '<div class="loading">Loading data...</div>';
+
+  // Reset session state
+  _otOverrides = {};
+  _mandateActions = {};
+
+  // Load attendance + OT data in parallel
+  // We need adjacent shift docs too:
+  //   - Previous date's NIGHT doc covers overnight into this morning (e.g., 2/16 NIGHT = 6P-6A bleeds into 2/17)
+  //   - Next date's DAY doc could hold OT after a night shift ends (e.g., 2/18 DAY if night shift ends 6A on 2/18)
+  const prevDate = addDaysISO(iso, -1);
+  const nextDate = addDaysISO(iso, 1);
+  const [editsData, editsDayData, editsNightData, editsPrevNight, editsNextDay, otHistory] = await Promise.all([
+    loadDailyEdits(iso, shift),
+    loadDailyEdits(iso, 'DAY'),
+    loadDailyEdits(iso, 'NIGHT'),
+    loadDailyEdits(prevDate, 'NIGHT'),
+    loadDailyEdits(nextDate, 'DAY'),
+    loadOTHistory(iso)
+  ]);
+
+  const dayName = dayNameFromISO(iso);
+  const mandateStart = minutesOf(times.start);
+  let mandateEnd = minutesOf(times.end);
+  if(mandateEnd <= mandateStart) mandateEnd += 1440;
+  const mandateHours = (mandateEnd - mandateStart) / 60;
+
+  // Also load existing mandates for this date to pre-populate actions
+  try {
+    const mandateSnap = await db.collection('mandates')
+      .where('date','==',iso)
+      .where('mandateStart','==',times.start)
+      .where('mandateEnd','==',times.end)
+      .get();
+    mandateSnap.forEach(doc => {
+      const d = doc.data();
+      if(d.employee && d.action){
+        _mandateActions[d.employee] = d.action;
+      }
+    });
+  } catch(e){ console.warn('Failed to load existing mandates:', e); }
+
+  // All edit docs to scan for existing OT (today both shifts + adjacent crossover docs)
+  const allEditDocs = [editsDayData, editsNightData, editsPrevNight, editsNextDay];
+
+  // Process each role
+  const roles = ['CALLTAKER','DISPATCHER','PIC'];
+  _allRanked = {};
+
+  for(const role of roles){
+    const eligible = [];
+
+    for(const emp of BASE_EMP){
+      // Filter by role
+      if(emp.POSITION !== role) continue;
+
+      // Get shift for the day
+      const shiftStr = shiftForDay(emp, dayName);
+      const parsed = parseShiftString(shiftStr);
+      if(!parsed) continue; // OFF or unparseable
+
+      // Employee's shift end must equal mandate start
+      // Normalize: shift end might be >1440 for night shifts
+      let empEnd = parsed.end % 1440;
+      let mStart = mandateStart % 1440;
+      if(empEnd !== mStart) continue;
+
+      // Check attendance
+      if(!isEmployeePresent(emp, editsData)) continue;
+
+      // Skip if employee already has OT overlapping the mandate block
+      if(employeeHasOTOverlap(emp.Employee, allEditDocs, mandateStart, mandateEnd)) continue;
+
+      // Calculate total day hours
+      const scheduledMinutes = parsed.end - parsed.start;
+      const scheduledHours = scheduledMinutes / 60;
+
+      // OT already worked today (checks all adjacent shift docs for connected OT)
+      const sameDayOT = getEmployeeSameDayOTHours(emp.Employee, allEditDocs);
+
+      // 16-hour cap: scheduled + already-worked OT + mandate block
+      if(scheduledHours + sameDayOT + mandateHours > 16) continue;
+
+      // OT hours from history (can be overridden)
+      const otHrs = otHistory[emp.Employee] || 0;
+      const roundedOT = Math.round(otHrs * 100) / 100;
+
+      // Total day = scheduled + any OT already worked today
+      const totalDayHours = scheduledHours + sameDayOT;
+
+      eligible.push({
+        name: emp.Employee,
+        seniority: emp.SENIORITY,
+        scheduledHours: scheduledHours,
+        sameDayOT: Math.round(sameDayOT * 100) / 100,
+        totalDayHours: Math.round(totalDayHours * 100) / 100,
+        otHours: roundedOT,
+        shiftRaw: parsed.raw,
+        shiftStart: minToHHMM(parsed.start),
+        shiftEnd: minToHHMM(parsed.end % 1440)
+      });
+    }
+
+    // Sort: shortest day (asc) → least OT (asc) → highest seniority (desc)
+    sortRanked(eligible);
+    _allRanked[role] = eligible;
+  }
+
+  document.getElementById('pillEligible').textContent =
+    'Eligible: CT=' + _allRanked.CALLTAKER.length +
+    ' DP=' + _allRanked.DISPATCHER.length +
+    ' PIC=' + _allRanked.PIC.length;
+
+  renderRanking();
+}
+
+function sortRanked(list){
+  list.sort((a,b) => {
+    const aOT = _otOverrides[a.name] !== undefined ? _otOverrides[a.name] : a.otHours;
+    const bOT = _otOverrides[b.name] !== undefined ? _otOverrides[b.name] : b.otHours;
+
+    // 1. Shortest total work day first (scheduled + same-day OT, ascending)
+    if(a.totalDayHours !== b.totalDayHours) return a.totalDayHours - b.totalDayHours;
+    // 2. Least OT hours first (ascending)
+    if(aOT !== bOT) return aOT - bOT;
+    // 3. Highest seniority number first (descending)
+    return b.seniority - a.seniority;
+  });
+}
+
+// ===== RENDER RANKING TABLE =====
+function renderRanking(){
+  const area = document.getElementById('rankingArea');
+  const list = _allRanked[_activeRole];
+
+  if(!list){
+    area.innerHTML = '<div class="loading">Select date, shift, and mandate block, then click Generate List.</div>';
+    return;
+  }
+
+  if(list.length === 0){
+    area.innerHTML = '<div class="loading">No eligible employees for ' + _activeRole + ' ending at the mandate start time.</div>';
+    return;
+  }
+
+  let html = '<div class="tbl-wrap"><table>';
+  html += '<thead><tr>';
+  html += '<th style="width:40px">#</th>';
+  html += '<th>NAME</th>';
+  html += '<th style="width:60px">SEN</th>';
+  html += '<th style="width:80px">SHIFT</th>';
+  html += '<th style="width:100px" title="Total hours worked today (scheduled + OT)">DAY HRS</th>';
+  html += '<th style="width:100px">OT HRS (7d)</th>';
+  html += '<th style="width:130px">ACTIONS</th>';
+  html += '</tr></thead><tbody>';
+
+  list.forEach((emp, i) => {
+    const action = _mandateActions[emp.name] || '';
+    const rowClass = action === 'MANDATED' ? 'mandated' : action === 'REFUSED' ? 'refused' : '';
+    const otVal = _otOverrides[emp.name] !== undefined ? _otOverrides[emp.name] : emp.otHours;
+
+    html += '<tr class="' + rowClass + '" data-emp="' + esc(emp.name) + '">';
+    html += '<td style="font-weight:700;color:var(--accent)">' + (i+1) + '</td>';
+    html += '<td style="font-weight:700">' + esc(emp.name) + '</td>';
+    html += '<td>' + emp.seniority + '</td>';
+    html += '<td style="font-size:11px;color:var(--muted)">' + esc(emp.shiftRaw) + '</td>';
+    html += '<td>' + emp.totalDayHours.toFixed(1) + (emp.sameDayOT > 0 ? ' <span style="color:var(--warn);font-size:10px" title="' + emp.scheduledHours.toFixed(1) + 'hr sched + ' + emp.sameDayOT.toFixed(1) + 'hr OT">(' + emp.scheduledHours.toFixed(0) + '+' + emp.sameDayOT.toFixed(1) + ')</span>' : '') + '</td>';
+    html += '<td><input type="number" class="ot-input" value="' + otVal.toFixed(1) + '" step="0.5" min="0" data-emp="' + esc(emp.name) + '" ' + (action ? 'disabled' : '') + '/></td>';
+    html += '<td>';
+    html += '<button class="act-btn act-mandate" onclick="doMandate(\'' + esc(emp.name) + '\')" ' + (action ? 'disabled' : '') + ' title="Mandate">&#10003; Mandate</button> ';
+    html += '<button class="act-btn act-refuse" onclick="doRefuse(\'' + esc(emp.name) + '\')" ' + (action ? 'disabled' : '') + ' title="Refuse">&#10007; Refuse</button>';
+    html += '</td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  area.innerHTML = html;
+
+  // Attach OT input change listeners
+  area.querySelectorAll('.ot-input').forEach(inp => {
+    inp.addEventListener('change', (e) => {
+      const empName = e.target.dataset.emp;
+      const val = parseFloat(e.target.value) || 0;
+      _otOverrides[empName] = val;
+      // Re-sort and re-render
+      sortRanked(_allRanked[_activeRole]);
+      renderRanking();
+    });
+  });
+}
+
+// ===== MANDATE / REFUSE ACTIONS =====
+async function doMandate(empName){
+  await recordAction(empName, 'MANDATED');
+}
+
+async function doRefuse(empName){
+  await recordAction(empName, 'REFUSED');
+}
+
+async function recordAction(empName, action){
+  const iso = document.getElementById('selDate').value;
+  const shift = document.getElementById('selShift').value;
+  const times = getMandateTimes();
+
+  try {
+    await db.collection('mandates').add({
+      date: iso,
+      shift: shift,
+      mandateStart: times.start,
+      mandateEnd: times.end,
+      role: _activeRole,
+      employee: empName,
+      action: action,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      recordedBy: auth.currentUser ? auth.currentUser.email : 'unknown',
+      notes: ''
+    });
+
+    _mandateActions[empName] = action;
+    renderRanking();
+  } catch(err){
+    console.error('Failed to record mandate action:', err);
+    alert('Failed to save: ' + (err.message || err));
+  }
+}
+
+// ===== MANDATE LOG (real-time) =====
+function startLogListener(){
+  if(_logUnsub){ _logUnsub(); _logUnsub = null; }
+
+  const iso = document.getElementById('selDate').value;
+  if(!iso) return;
+
+  _logUnsub = db.collection('mandates')
+    .where('date','==',iso)
+    .orderBy('timestamp','desc')
+    .onSnapshot(snap => {
+      renderLog(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, err => {
+      console.warn('Mandate log listener error:', err);
+    });
+}
+
+function renderLog(entries){
+  const body = document.getElementById('logBody');
+
+  if(!entries.length){
+    body.innerHTML = '<div class="log-empty">No mandate records for this date.</div>';
+    return;
+  }
+
+  let html = '';
+  for(const e of entries){
+    const badgeClass = e.action === 'MANDATED' ? 'mandated' : 'refused';
+    const timeStr = e.timestamp && e.timestamp.toDate
+      ? e.timestamp.toDate().toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' })
+      : '';
+
+    html += '<div class="log-entry">';
+    html += '<span style="color:var(--muted);min-width:90px">' + esc(e.mandateStart||'') + '-' + esc(e.mandateEnd||'') + '</span>';
+    html += '<span style="font-weight:700;min-width:100px">' + esc(e.employee||'') + '</span>';
+    html += '<span style="color:var(--muted);min-width:40px">' + esc(roleAbbrev(e.role)) + '</span>';
+    html += '<span class="log-badge ' + badgeClass + '">' + esc(e.action||'') + '</span>';
+    html += '<span style="color:var(--muted);margin-left:auto;font-size:11px">' + esc(timeStr) + '</span>';
+    if(e.recordedBy){
+      html += '<span style="color:var(--muted);font-size:10px">' + esc(e.recordedBy) + '</span>';
+    }
+    html += '</div>';
+  }
+
+  body.innerHTML = html;
+}
+
+function roleAbbrev(role){
+  if(role === 'CALLTAKER') return 'CT';
+  if(role === 'DISPATCHER') return 'DP';
+  if(role === 'PIC') return 'PIC';
+  return role || '';
+}
+
+// ===== BUG REPORT =====
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btnBugReport').addEventListener('click', () => {
+    document.getElementById('bugReportName').value = '';
+    document.getElementById('bugReportDetails').value = '';
+    document.getElementById('bugReportModal').style.display = 'flex';
+  });
+  document.getElementById('btnBugCancel').addEventListener('click', () => {
+    document.getElementById('bugReportModal').style.display = 'none';
+  });
+  document.getElementById('bugReportModal').addEventListener('click', (e) => {
+    if(e.target.id === 'bugReportModal') document.getElementById('bugReportModal').style.display = 'none';
+  });
+  document.getElementById('btnBugSubmit').addEventListener('click', async () => {
+    const name = document.getElementById('bugReportName').value.trim();
+    const details = document.getElementById('bugReportDetails').value.trim();
+    if(!name || !details){ alert('Please fill in both fields.'); return; }
+    try {
+      await db.collection('bugReports').add({
+        name: name,
+        details: details,
+        app: 'MandateOps',
+        reportedBy: auth.currentUser ? auth.currentUser.email : 'unknown',
+        timestamp: new Date().toISOString(),
+        status: 'open'
+      });
+      document.getElementById('bugReportModal').style.display = 'none';
+      alert('Bug report submitted. Thank you!');
+    } catch(err){
+      console.error('Bug report failed:', err);
+      alert('Failed to submit bug report. Try again.');
+    }
+  });
+});
+</script>
+
+<!-- Bug Report Modal -->
+<div id="bugReportModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:99999;display:none;align-items:center;justify-content:center">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:20px;min-width:360px;max-width:440px;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)">
+    <h3 style="margin:0 0 15px;color:#ef4444;font-size:16px">REPORT A BUG</h3>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;color:var(--muted)">YOUR NAME:</label>
+      <input type="text" id="bugReportName" placeholder="Enter your name" style="width:100%;padding:8px;font-size:13px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text)"/>
+    </div>
+    <div style="margin-bottom:15px">
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;color:var(--muted)">DETAILS:</label>
+      <textarea id="bugReportDetails" placeholder="Describe the bug..." style="width:100%;padding:8px;font-size:13px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text);min-height:120px;resize:vertical;font-family:inherit"></textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button id="btnBugSubmit" style="padding:8px 16px;font-size:12px;font-weight:700;border-radius:6px;border:none;background:#ef4444;color:#fff;cursor:pointer">SUBMIT</button>
+      <button id="btnBugCancel" style="padding:8px 16px;font-size:12px;font-weight:700;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

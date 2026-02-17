@@ -1,0 +1,1788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScheduleOps</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23070c16'/%3E%3Ccircle cx='32' cy='32' r='30' fill='none' stroke='%23c0c8d4' stroke-width='2'/%3E%3Crect x='16' y='18' width='32' height='30' rx='2.5' fill='none' stroke='%23e8ecf0' stroke-width='2.5'/%3E%3Cline x1='16' y1='26' x2='48' y2='26' stroke='%23e8ecf0' stroke-width='2'/%3E%3Crect x='24' y='14' width='3' height='8' rx='1.5' fill='%23e8ecf0'/%3E%3Crect x='37' y='14' width='3' height='8' rx='1.5' fill='%23e8ecf0'/%3E%3Crect x='21' y='30' width='6' height='5' rx='1' fill='%23e8ecf0'/%3E%3Crect x='29' y='30' width='6' height='5' rx='1' fill='%23e8ecf0' opacity='.5'/%3E%3Crect x='37' y='30' width='6' height='5' rx='1' fill='%23e8ecf0'/%3E%3Crect x='21' y='38' width='6' height='5' rx='1' fill='%23e8ecf0' opacity='.5'/%3E%3Crect x='29' y='38' width='6' height='5' rx='1' fill='%23e8ecf0'/%3E%3C/svg%3E">
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<style>
+:root{--bg:#0b0f16;--panel:#111826;--panel2:#0f1622;--line:#2a3446;--text:#e6edf7;--muted:#a8b3c7;--btn:#1f6feb;--btn2:#233047;--danger:#d94848;--ok:#22c55e;--warn:#eab308;--short:#dc2626;--accent:#06b6d4}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden}
+#app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+/* Login */
+.login-overlay{position:fixed;inset:0;background:var(--bg);z-index:100000;display:flex;align-items:center;justify-content:center}
+.login-overlay.hidden{display:none}
+.login-box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:32px;width:340px;text-align:center}
+.login-box h2{font-size:22px;margin-bottom:4px}
+.login-box .sub{color:var(--muted);font-size:12px;margin-bottom:18px}
+.login-box input{width:100%;padding:10px 12px;font-size:13px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--text);margin-bottom:8px;outline:none}
+.login-box input:focus{border-color:var(--accent)}
+.login-box button{width:100%;padding:10px;font-size:13px;font-weight:800;border-radius:8px;border:none;background:var(--accent);color:#fff;cursor:pointer;margin-top:4px}
+.login-box button:hover{opacity:.9}
+.login-box .err{color:var(--short);font-size:11px;margin-top:8px;min-height:16px}
+
+/* Logo animation */
+@keyframes calendarPulse{0%,100%{opacity:.7}50%{opacity:1}}
+@keyframes cellFill{0%,100%{opacity:.3}50%{opacity:.7}}
+.cal-logo{animation:calendarPulse 3s ease-in-out infinite}
+
+/* Header */
+.header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:8px}
+.header-left{display:flex;align-items:center;gap:14px}
+.header-left h1{font-size:22px;font-weight:900;letter-spacing:.04em;margin:0}
+.header-left h1 .app-name{color:var(--text)}
+.header-left h1 .app-accent{color:var(--accent)}
+.header-subtitle{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.role-tabs{display:flex;gap:4px}
+.role-tab{padding:5px 14px;font-size:11px;font-weight:800;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);cursor:pointer;transition:all .15s;letter-spacing:.5px}
+.role-tab:hover{border-color:var(--accent);color:var(--accent)}
+.role-tab.active{background:rgba(6,182,212,.15);color:var(--accent);border-color:rgba(6,182,212,.4)}
+.header-right{display:flex;align-items:center;gap:8px}
+.btn{padding:6px 14px;font-size:11px;font-weight:700;border-radius:6px;border:1px solid var(--line);background:var(--btn2);color:var(--muted);cursor:pointer;transition:all .15s}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.primary:hover{opacity:.9}
+.btn.danger{background:rgba(220,38,38,.15);color:#ef4444;border-color:rgba(220,38,38,.3)}
+.btn.danger:hover{background:rgba(220,38,38,.25)}
+.user-info{font-size:10px;color:var(--muted);text-align:right}
+
+/* Scenario bar */
+.scenario-bar{display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--panel2);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.scenario-bar label{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px}
+.scenario-sel{padding:5px 10px;font-size:12px;font-weight:700;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer;outline:none;min-width:200px}
+.scenario-sel:focus{border-color:var(--accent)}
+.scenario-sel option{background:var(--panel);color:var(--text)}
+.headcount-bar{display:flex;align-items:center;gap:8px;margin-left:auto}
+.headcount-label{font-size:11px;font-weight:700;color:var(--muted)}
+.headcount-fill{width:120px;height:8px;border-radius:4px;background:var(--panel);border:1px solid var(--line);overflow:hidden;position:relative}
+.headcount-fill-inner{height:100%;border-radius:4px;transition:width .3s,background .3s}
+.headcount-val{font-size:13px;font-weight:800}
+.headcount-val.ok{color:var(--ok)}
+.headcount-val.warn{color:var(--warn)}
+.headcount-val.over{color:#ef4444}
+
+/* Main layout */
+.main-layout{display:flex;gap:0;flex:1;min-height:0;overflow:hidden}
+.template-panel{width:280px;min-width:220px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.template-panel-header{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+.template-panel-header h2{font-size:14px;font-weight:800;letter-spacing:.5px;color:var(--accent)}
+.template-list{flex:1;overflow-y:auto;padding:10px}
+.template-list::-webkit-scrollbar{width:6px}
+.template-list::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+.shift-group{margin-bottom:2px}
+.shift-group-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--panel2);border:1px solid var(--line);border-radius:6px 6px 0 0;cursor:default}
+.shift-group-hdr .sg-label{font-size:11px;font-weight:900;letter-spacing:.6px;color:var(--accent)}
+.shift-group-hdr .sg-shift{font-size:10px;font-weight:700;color:var(--muted)}
+.shift-group-hdr .sg-total{font-size:12px;font-weight:900;color:var(--text)}
+.shift-group-rows{border:1px solid var(--line);border-top:none;border-radius:0 0 6px 6px;overflow:hidden}
+.tpl-row{display:flex;align-items:center;padding:5px 12px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:background .1s}
+.tpl-row:last-child{border-bottom:none}
+.tpl-row:hover{background:rgba(6,182,212,.06)}
+.tpl-row .tpl-off{flex:1;font-size:10px;font-weight:700;color:var(--text);line-height:1.4}
+.tpl-row .tpl-cnt{font-size:13px;font-weight:900;color:var(--accent);min-width:28px;text-align:right}
+.tpl-row .tpl-del{font-size:10px;color:var(--muted);cursor:pointer;margin-left:8px;opacity:.4;transition:all .1s;padding:2px 4px}
+.tpl-row .tpl-del:hover{color:#ef4444;opacity:1}
+.template-footer{padding:12px 14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px;flex-shrink:0;background:var(--panel)}
+.template-footer .btn-add{width:100%;padding:14px;font-size:14px;font-weight:900;border-radius:10px;border:2px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer;letter-spacing:.5px;transition:all .15s;text-align:center}
+.template-footer .btn-add:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 4px 16px rgba(6,182,212,.3)}
+.template-footer .btn-suggest{width:100%;padding:10px;font-size:12px;font-weight:800;border-radius:8px;border:1px solid rgba(6,182,212,.3);background:rgba(6,182,212,.08);color:var(--accent);cursor:pointer;letter-spacing:.5px;transition:all .15s;text-align:center}
+.template-footer .btn-suggest:hover{background:rgba(6,182,212,.18);border-color:var(--accent)}
+
+/* Roster panel */
+.roster-panel{width:280px;min-width:220px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;transition:all .2s;min-height:0}
+.roster-panel.collapsed{width:0;min-width:0;overflow:hidden;opacity:0;padding:0;border:none;pointer-events:none}
+.roster-header{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.roster-header h3{font-size:13px;font-weight:800;color:var(--accent);letter-spacing:.5px}
+.roster-search{width:100%;padding:6px 10px;font-size:11px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text);outline:none;margin:0 12px 6px;flex-shrink:0}
+.roster-search:focus{border-color:var(--accent)}
+.roster-wrap{flex:1;overflow-y:auto;min-height:0}
+.roster-wrap::-webkit-scrollbar{width:5px}
+.roster-wrap::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+.roster-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.roster-tbl th{position:sticky;top:0;background:var(--panel);border-bottom:1px solid var(--line);padding:5px 8px;font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;text-align:left;z-index:5}
+.roster-tbl td{padding:4px 8px;border-bottom:1px solid rgba(255,255,255,.04);white-space:nowrap}
+.roster-tbl tr:hover{background:rgba(255,255,255,.03)}
+.roster-tbl tr.excluded{opacity:.35;text-decoration:line-through}
+.roster-tbl .name-col{font-weight:700;font-size:11px}
+.lead-badge{font-size:8px;padding:1px 5px;border-radius:4px;background:rgba(251,146,60,.2);color:#fb923c;font-weight:800;vertical-align:middle;margin-left:4px;border:1px solid rgba(251,146,60,.3)}
+.roster-group-hdr{padding:5px 10px;font-size:9px;font-weight:800;letter-spacing:.8px;color:var(--accent);background:rgba(6,182,212,.06);border-bottom:1px solid var(--line);text-transform:uppercase}
+.roster-tbl .shift-col{font-size:10px;color:var(--muted);font-weight:600}
+.roster-cb{width:15px;height:15px;cursor:pointer;accent-color:var(--accent)}
+.roster-count{font-size:10px;color:var(--muted);font-weight:700}
+.roster-actions{padding:8px 12px;border-top:1px solid var(--line);display:flex;gap:6px;flex-shrink:0}
+.roster-actions .btn{flex:1;font-size:10px;padding:5px 8px;text-align:center}
+.btn-roster{position:relative}
+.btn-roster .excl-badge{position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;font-size:8px;font-weight:900;padding:1px 4px;border-radius:8px;min-width:14px;text-align:center;line-height:12px}
+
+/* Coverage grid panel */
+.grid-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.grid-scroll{flex:1;overflow:auto;padding:12px}
+.grid-scroll::-webkit-scrollbar{width:6px;height:6px}
+.grid-scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+.grid-section-label{text-align:center;font-size:13px;font-weight:800;color:var(--muted);letter-spacing:1px;padding:6px 0;margin-bottom:4px;border-bottom:1px solid var(--line)}
+.grid-section-label.night{color:#818cf8}
+
+/* Grid */
+.cov-grid{display:grid;grid-template-columns:50px repeat(7,1fr);gap:2px;margin-bottom:16px;min-width:500px}
+.cov-header{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:6px 4px;text-align:center;font-size:12px;font-weight:800}
+.cov-header.day-short{color:#ef4444}
+.cov-header.day-ok{color:var(--ok)}
+.day-summary-text{font-size:10px;font-weight:600;display:block;margin-top:1px}
+.block-label{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:4px 3px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.cov-cell{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:4px;text-align:center;min-height:32px;display:flex;align-items:center;justify-content:center;gap:3px;transition:all .15s}
+.cov-cell .ratio{font-size:13px;font-weight:800}
+.cov-cell .delta{font-size:10px;font-weight:700}
+.cov-cell.short{background:#3b1111;border-color:rgba(220,38,38,.6)}
+.cov-cell.short .ratio{color:#ef4444}
+.cov-cell.short .delta{color:#fca5a5}
+.cov-cell.adequate{background:#302a0a;border-color:rgba(234,179,8,.5)}
+.cov-cell.adequate .ratio{color:#eab308}
+.cov-cell.adequate .delta{color:#ca8a04}
+.cov-cell.over{background:#0a2e1a;border-color:rgba(34,197,94,.5)}
+.cov-cell.over .ratio{color:#22c55e}
+.cov-cell.over .delta{color:#16a34a}
+
+/* Summary bar */
+.summary-bar{display:flex;align-items:center;justify-content:center;gap:14px;padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-top:8px;flex-wrap:wrap}
+.sb-item{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700}
+.sb-label{color:var(--muted)}
+.sb-val{font-size:14px;font-weight:800}
+.sb-val.short{color:#ef4444}
+.sb-val.ok{color:var(--ok)}
+.sb-sep{width:1px;height:18px;background:var(--line)}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;width:420px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:16px;font-weight:800;margin-bottom:16px;color:var(--accent)}
+.modal-row{margin-bottom:14px}
+.modal-row label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;letter-spacing:.3px}
+.modal-row select,.modal-row input{width:100%;padding:8px 10px;font-size:13px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text);outline:none}
+.modal-row select:focus,.modal-row input:focus{border-color:var(--accent)}
+.modal-row select option{background:var(--panel);color:var(--text)}
+.days-grid{display:flex;gap:4px;flex-wrap:wrap}
+.day-toggle{padding:6px 12px;font-size:11px;font-weight:700;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);cursor:pointer;transition:all .12s}
+.day-toggle:hover{border-color:var(--accent)}
+.day-toggle.off{background:rgba(220,38,38,.15);color:#ef4444;border-color:rgba(220,38,38,.3)}
+.preset-row{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.preset-btn{padding:3px 8px;font-size:9px;font-weight:700;border-radius:4px;border:1px solid var(--line);background:var(--panel);color:var(--muted);cursor:pointer;transition:all .1s}
+.preset-btn:hover{border-color:var(--accent);color:var(--accent)}
+.custom-shift-row{display:none;gap:8px;align-items:center;margin-top:8px}
+.custom-shift-row.show{display:flex}
+.custom-shift-row input{width:70px}
+.custom-shift-row span{color:var(--muted);font-size:12px;font-weight:700}
+.modal-actions{display:flex;gap:8px;margin-top:18px}
+.modal-actions .btn{flex:1;padding:10px;font-size:12px;text-align:center}
+
+/* Shift preference modal */
+.pref-modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;width:520px;max-width:95vw}
+.pref-modal h3{font-size:18px;font-weight:900;margin-bottom:6px;color:var(--accent)}
+.pref-modal .pref-sub{font-size:12px;color:var(--muted);margin-bottom:18px}
+.pref-cards{display:flex;flex-direction:column;gap:10px}
+.pref-card{display:flex;align-items:center;gap:14px;padding:16px;border-radius:10px;border:2px solid var(--line);background:var(--panel2);cursor:pointer;transition:all .15s}
+.pref-card:hover{border-color:rgba(6,182,212,.4);background:rgba(6,182,212,.05)}
+.pref-card .pref-icon{font-size:28px;width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.2);flex-shrink:0;font-weight:900;color:var(--accent);font-family:system-ui}
+.pref-card .pref-info{flex:1}
+.pref-card .pref-title{font-size:14px;font-weight:800;margin-bottom:3px}
+.pref-card .pref-desc{font-size:11px;color:var(--muted);line-height:1.4}
+.pref-card .pref-shifts{font-size:10px;color:var(--accent);font-weight:700;margin-top:4px}
+.pref-card .pref-arrow{color:var(--muted);font-size:18px;transition:all .15s}
+.pref-card:hover .pref-arrow{color:var(--accent);transform:translateX(3px)}
+.pref-cancel{width:100%;padding:10px;font-size:12px;font-weight:700;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;margin-top:12px;transition:all .15s}
+.pref-cancel:hover{border-color:var(--accent);color:var(--text)}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:10px 20px;font-size:12px;font-weight:700;color:var(--accent);z-index:99999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+
+/* Responsive */
+@media(max-width:1100px){
+  .main-layout{flex-direction:column}
+  .template-panel{width:100%;min-width:0;max-height:30vh;border-right:none;border-bottom:1px solid var(--line)}
+  .roster-panel{width:100%;min-width:0;max-height:30vh;border-left:none;border-top:1px solid var(--line)}
+  .grid-scroll{padding:8px}
+}
+</style>
+</head>
+<body>
+
+<!-- Login Overlay -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <svg width="48" height="48" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:8px">
+      <circle cx="32" cy="32" r="29" stroke="#233043" stroke-width="1.5" fill="none"/>
+      <rect x="14" y="16" width="36" height="34" rx="3" fill="none" stroke="#06b6d4" stroke-width="1.5" opacity=".7"/>
+      <rect x="14" y="16" width="36" height="10" rx="3" fill="#06b6d4" opacity=".15"/>
+      <line x1="14" y1="26" x2="50" y2="26" stroke="#06b6d4" stroke-width="1" opacity=".5"/>
+      <rect x="22" y="12" width="4" height="8" rx="1.5" fill="#06b6d4" opacity=".6"/>
+      <rect x="38" y="12" width="4" height="8" rx="1.5" fill="#06b6d4" opacity=".6"/>
+      <rect x="18" y="30" width="6" height="5" rx="1" fill="#06b6d4" opacity=".5"/>
+      <rect x="27" y="30" width="6" height="5" rx="1" fill="#06b6d4" opacity=".35"/>
+      <rect x="36" y="30" width="6" height="5" rx="1" fill="#06b6d4" opacity=".6"/>
+      <rect x="18" y="38" width="6" height="5" rx="1" fill="#06b6d4" opacity=".25"/>
+      <rect x="27" y="38" width="6" height="5" rx="1" fill="#06b6d4" opacity=".5"/>
+      <rect x="36" y="38" width="6" height="5" rx="1" fill="#06b6d4" opacity=".4"/>
+      <polyline points="44,31 46,33.5 49,29" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/>
+    </svg>
+    <h2 style="color:var(--accent)">ScheduleOps</h2>
+    <div class="sub">Schedule Builder & Coverage Simulator</div>
+    <input type="email" id="loginEmail" placeholder="Email">
+    <input type="password" id="loginPass" placeholder="Password">
+    <button id="btnLogin">SIGN IN</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app" style="display:none">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <svg class="cal-logo" width="38" height="38" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+        <!-- outer ring -->
+        <circle cx="32" cy="32" r="29" stroke="#233043" stroke-width="1.5" fill="none"/>
+        <!-- calendar body -->
+        <rect x="14" y="16" width="36" height="34" rx="3" fill="none" stroke="#06b6d4" stroke-width="1.5" opacity=".7"/>
+        <!-- header bar -->
+        <rect x="14" y="16" width="36" height="10" rx="3" fill="#06b6d4" opacity=".15"/>
+        <line x1="14" y1="26" x2="50" y2="26" stroke="#06b6d4" stroke-width="1" opacity=".5"/>
+        <!-- calendar tabs -->
+        <rect x="22" y="12" width="4" height="8" rx="1.5" fill="#06b6d4" opacity=".6"/>
+        <rect x="38" y="12" width="4" height="8" rx="1.5" fill="#06b6d4" opacity=".6"/>
+        <!-- grid cells (animated fill) -->
+        <rect x="18" y="30" width="6" height="5" rx="1" fill="#06b6d4" opacity=".5">
+          <animate attributeName="opacity" values=".5;.8;.5" dur="3s" begin="0s" repeatCount="indefinite"/>
+        </rect>
+        <rect x="27" y="30" width="6" height="5" rx="1" fill="#06b6d4" opacity=".35"/>
+        <rect x="36" y="30" width="6" height="5" rx="1" fill="#06b6d4" opacity=".6">
+          <animate attributeName="opacity" values=".6;.3;.6" dur="3s" begin="0.5s" repeatCount="indefinite"/>
+        </rect>
+        <rect x="18" y="38" width="6" height="5" rx="1" fill="#06b6d4" opacity=".25"/>
+        <rect x="27" y="38" width="6" height="5" rx="1" fill="#06b6d4" opacity=".5">
+          <animate attributeName="opacity" values=".5;.8;.5" dur="3s" begin="1s" repeatCount="indefinite"/>
+        </rect>
+        <rect x="36" y="38" width="6" height="5" rx="1" fill="#06b6d4" opacity=".4"/>
+        <!-- checkmark on one cell -->
+        <polyline points="44,31 46,33.5 49,29" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/>
+      </svg>
+      <div style="display:flex;flex-direction:column;gap:1px">
+        <h1><span class="app-name">Schedule</span><span class="app-accent">Ops</span></h1>
+        <span class="header-subtitle">Schedule Builder & Coverage Simulator</span>
+      </div>
+      <div class="role-tabs">
+        <button class="role-tab active" data-role="DISPATCHER">DP</button>
+        <button class="role-tab" data-role="CALLTAKER">CT</button>
+        <button class="role-tab" data-role="PIC">PIC</button>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-roster" id="btnToggleRoster">ROSTER</button>
+      <button class="btn" id="btnExport" title="Copy coverage report to clipboard">EXPORT</button>
+      <button class="btn" id="btnBugReport" title="Report a bug">BUG</button>
+      <div class="user-info">
+        <div id="userEmail" style="font-weight:700"></div>
+        <button class="btn" id="btnLogout" style="padding:2px 8px;font-size:9px;margin-top:2px">LOGOUT</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scenario bar -->
+  <div class="scenario-bar">
+    <label>SCENARIO:</label>
+    <select class="scenario-sel" id="scenarioSelect">
+      <option value="">-- New Scenario --</option>
+    </select>
+    <button class="btn primary" id="btnSaveScenario">SAVE</button>
+    <button class="btn danger" id="btnDeleteScenario">DEL</button>
+    <div class="headcount-bar">
+      <span class="headcount-label" id="headcountRoleLabel">DISPATCHERS</span>
+      <div class="headcount-fill"><div class="headcount-fill-inner" id="headcountFill"></div></div>
+      <span class="headcount-val" id="headcountVal">0 / 0</span>
+    </div>
+  </div>
+
+  <!-- Main layout -->
+  <div class="main-layout">
+
+    <!-- Template panel -->
+    <div class="template-panel">
+      <div class="template-panel-header">
+        <h2>SCHEDULE TEMPLATES</h2>
+        <span style="font-size:11px;color:var(--muted)" id="templateCountLabel">0 templates</span>
+      </div>
+      <div class="template-list" id="templateList"></div>
+      <div class="template-footer">
+        <button class="btn-add" id="btnAddTemplate">+ ADD TEMPLATE</button>
+        <button class="btn-suggest" id="btnAutoSuggest">AUTO-SUGGEST FILLS</button>
+      </div>
+    </div>
+
+    <!-- Coverage grid -->
+    <div class="grid-panel">
+      <div class="grid-scroll" id="gridScroll">
+        <div id="coverageGrid"></div>
+        <div class="summary-bar" id="summaryBar"></div>
+      </div>
+    </div>
+
+    <!-- Roster panel -->
+    <div class="roster-panel collapsed" id="rosterPanel">
+      <div class="roster-header">
+        <h3>ROSTER</h3>
+        <span class="roster-count" id="rosterCount">0 / 0</span>
+      </div>
+      <input class="roster-search" id="rosterSearch" type="text" placeholder="Search name...">
+      <div class="roster-wrap">
+        <table class="roster-tbl">
+          <thead><tr><th style="width:28px"></th><th>NAME</th><th>SCHEDULE</th></tr></thead>
+          <tbody id="rosterBody"></tbody>
+        </table>
+      </div>
+      <div class="roster-actions">
+        <button class="btn" id="btnCheckAll">ALL ON</button>
+        <button class="btn" id="btnUncheckAll">ALL OFF</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Template Modal -->
+<div class="modal-overlay" id="templateModal">
+  <div class="modal">
+    <h3 id="modalTitle">Add Template</h3>
+    <div class="modal-row">
+      <label>SHIFT</label>
+      <select id="modalShift">
+        <option value="6A-2P">6A-2P (8h)</option>
+        <option value="6A-6P">6A-6P (12h)</option>
+        <option value="10A-6P">10A-6P (8h)</option>
+        <option value="10A-10P">10A-10P (12h)</option>
+        <option value="2P-10P">2P-10P (8h)</option>
+        <option value="6P-2A">6P-2A (8h)</option>
+        <option value="6P-6A">6P-6A (12h)</option>
+        <option value="10P-6A">10P-6A (8h)</option>
+        <option value="2A-2P">2A-2P (12h)</option>
+        <option value="2A-10A">2A-10A (8h)</option>
+        <option value="2P-2A">2P-2A (12h)</option>
+        <option value="6A-4P">6A-4P (10h)</option>
+        <option value="2P-12A">2P-12A (10h)</option>
+        <option value="10P-8A">10P-8A (10h)</option>
+        <option value="CUSTOM">Custom...</option>
+      </select>
+      <div class="custom-shift-row" id="customShiftRow">
+        <input type="text" id="customStart" placeholder="e.g. 7A">
+        <span>to</span>
+        <input type="text" id="customEnd" placeholder="e.g. 3P">
+      </div>
+    </div>
+    <div class="modal-row">
+      <label>DAYS OFF</label>
+      <div class="days-grid" id="daysOffGrid"></div>
+      <div class="preset-row">
+        <button class="preset-btn" data-preset="weekend">Sat/Sun</button>
+        <button class="preset-btn" data-preset="sst">Sun/Sat/Thu</button>
+        <button class="preset-btn" data-preset="fsw">Fri/Sat/Sun</button>
+        <button class="preset-btn" data-preset="smw">Sun/Mon/Wed</button>
+        <button class="preset-btn" data-preset="mtu">Mon/Tue</button>
+        <button class="preset-btn" data-preset="wth">Wed/Thu</button>
+        <button class="preset-btn" data-preset="none">None</button>
+      </div>
+    </div>
+    <div class="modal-row">
+      <label>HEADCOUNT (people on this template)</label>
+      <input type="number" id="modalCount" min="0" max="99" value="1">
+    </div>
+    <div class="modal-actions">
+      <button class="btn primary" id="btnModalSave">SAVE</button>
+      <button class="btn" id="btnModalCancel">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- Shift Preference Modal -->
+<div class="modal-overlay" id="prefModal">
+  <div class="pref-modal">
+    <h3>AUTO-SUGGEST</h3>
+    <div class="pref-sub">Choose a shift structure. All <span id="prefHeadcount">0</span> <span id="prefRole">DISPATCHERS</span> will be assigned to cover adequate staffing as evenly as possible.</div>
+    <div class="pref-cards">
+      <div class="pref-card" data-pref="8h">
+        <div class="pref-icon">8h</div>
+        <div class="pref-info">
+          <div class="pref-title">8-Hour Shifts</div>
+          <div class="pref-desc">Classic 3-shift rotation. 5 days on, 2 days off (40h/week).</div>
+          <div class="pref-shifts">6A-2P / 2P-10P / 10P-6A</div>
+        </div>
+        <div class="pref-arrow">&#9654;</div>
+      </div>
+      <div class="pref-card" data-pref="12-8h">
+        <div class="pref-icon">12/8</div>
+        <div class="pref-info">
+          <div class="pref-title">Mixed 12 & 8-Hour Shifts</div>
+          <div class="pref-desc">Each person works 2×12hr + 2×8hr days = 40hr/week, 3 days off. Day, swing, and night rotations.</div>
+          <div class="pref-shifts">Day: 6A-6P / 6A-2P | Swing: 10A-10P / 2P-10P | Night: 6P-6A / 10P-6A</div>
+        </div>
+        <div class="pref-arrow">&#9654;</div>
+      </div>
+      <div class="pref-card" data-pref="10h">
+        <div class="pref-icon">10h</div>
+        <div class="pref-info">
+          <div class="pref-title">10-Hour Shifts</div>
+          <div class="pref-desc">Overlapping coverage with built-in overlap hours. 4 days on, 3 days off (40h/week).</div>
+          <div class="pref-shifts">6A-4P / 2P-12A / 10P-8A</div>
+        </div>
+        <div class="pref-arrow">&#9654;</div>
+      </div>
+    </div>
+    <button class="pref-cancel" id="btnPrefCancel">CANCEL</button>
+  </div>
+</div>
+
+<!-- Bug Report Modal -->
+<div id="bugReportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;align-items:center;justify-content:center">
+  <div style="background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px;min-width:360px;max-width:440px;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)">
+    <h3 style="margin:0 0 15px;color:#ef4444;font-size:16px">REPORT A BUG</h3>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;color:var(--muted)">YOUR NAME:</label>
+      <input type="text" id="bugReportName" placeholder="Enter your name" style="width:100%;padding:8px;font-size:13px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text)"/>
+    </div>
+    <div style="margin-bottom:15px">
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;color:var(--muted)">DETAILS:</label>
+      <textarea id="bugReportDetails" placeholder="Describe the bug..." style="width:100%;padding:8px;font-size:13px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text);min-height:120px;resize:vertical;font-family:inherit"></textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button id="btnBugSubmit" style="padding:8px 16px;font-size:12px;font-weight:700;border-radius:6px;border:none;background:#ef4444;color:#fff;cursor:pointer">SUBMIT</button>
+      <button id="btnBugCancel" style="padding:8px 16px;font-size:12px;font-weight:700;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ========== FIREBASE ==========
+const firebaseConfig = {
+  apiKey: "AIzaSyA6KELmSyotefK0zhahQZ0-mbYur8_nTsg",
+  authDomain: "commandops-93846.firebaseapp.com",
+  databaseURL: "https://commandops-93846-default-rtdb.firebaseio.com",
+  projectId: "commandops-93846",
+  storageBucket: "commandops-93846.firebasestorage.app",
+  messagingSenderId: "262613721964",
+  appId: "1:262613721964:web:478a694d357234e3be4949"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+// ========== AUTH ==========
+document.getElementById('btnLogin').addEventListener('click', async () => {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  try { await auth.signInWithEmailAndPassword(email, pass); }
+  catch (e) { document.getElementById('loginErr').textContent = e.message; }
+});
+document.getElementById('loginPass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btnLogin').click();
+});
+document.getElementById('btnLogout').addEventListener('click', () => {
+  auth.signOut();
+});
+auth.onAuthStateChanged(user => {
+  document.getElementById('loginOverlay').classList.toggle('hidden', !!user);
+  document.getElementById('app').style.display = user ? '' : 'none';
+  if (user) {
+    document.getElementById('userEmail').textContent = user.email;
+    loadAllData();
+  }
+});
+
+// ========== CONSTANTS ==========
+const DAYS = ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY","SUNDAY"];
+const DAY_LABELS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const DAY_SHORT = ["M","T","W","Th","F","Sa","Su"];
+
+const SHIFT_CODES = {
+  "6A-2P":[6,14], "6A-6P":[6,18], "10A-6P":[10,18], "10A-10P":[10,22],
+  "2P-10P":[14,22], "6P-2A":[18,26], "6P-6A":[18,30], "10P-6A":[22,30],
+  "2A-2P":[2,14], "2A-10A":[2,10]
+};
+const SHIFT_HOURS = {
+  "6A-2P":8,"6A-6P":12,"10A-6P":8,"10A-10P":12,
+  "2P-10P":8,"6P-2A":8,"6P-6A":12,"10P-6A":8,
+  "2A-2P":12,"2A-10A":8
+};
+
+const BLOCKS = [
+  {key:"0600",label:"6A",  start:6, end:7},
+  {key:"0700",label:"7A",  start:7, end:8},
+  {key:"0800",label:"8A",  start:8, end:9},
+  {key:"0900",label:"9A",  start:9, end:10},
+  {key:"1000",label:"10A", start:10,end:11},
+  {key:"1100",label:"11A", start:11,end:12},
+  {key:"1200",label:"12P", start:12,end:13},
+  {key:"1300",label:"1P",  start:13,end:14},
+  {key:"1400",label:"2P",  start:14,end:15},
+  {key:"1500",label:"3P",  start:15,end:16},
+  {key:"1600",label:"4P",  start:16,end:17},
+  {key:"1700",label:"5P",  start:17,end:18},
+  {key:"1800",label:"6P",  start:18,end:19},
+  {key:"1900",label:"7P",  start:19,end:20},
+  {key:"2000",label:"8P",  start:20,end:21},
+  {key:"2100",label:"9P",  start:21,end:22},
+  {key:"2200",label:"10P", start:22,end:23},
+  {key:"2300",label:"11P", start:23,end:24},
+  {key:"2400",label:"12A", start:24,end:25},
+  {key:"0100",label:"1A",  start:25,end:26},
+  {key:"0200",label:"2A",  start:26,end:27},
+  {key:"0300",label:"3A",  start:27,end:28},
+  {key:"0400",label:"4A",  start:28,end:29},
+  {key:"0500",label:"5A",  start:29,end:30}
+];
+
+const ROLE_CONFIG = {
+  DISPATCHER: {
+    posFilter: p => p.includes('DISPATCH'),
+    adeqCollection: 'Dispatcher_Adequate_Staffing',
+    adeqTimeField: 'Dispatcher Adequate Staffing',
+    sdEligible: new Set(["RAMIREZ","FOWLERL","GROUNDS","GUIDRY","BROWNC","MARZAHN","CLEMENT"]),
+    label: 'DISPATCHERS'
+  },
+  CALLTAKER: {
+    posFilter: p => p.includes('CALL') || p === 'CT',
+    adeqCollection: 'Calltaker_Adequate_Staffing',
+    adeqTimeField: 'Calltaker Adequate staffing',
+    sdEligible: new Set(),
+    label: 'CALLTAKERS'
+  },
+  PIC: {
+    posFilter: p => p.includes('PIC'),
+    adeqCollection: 'PIC_Adequate_Staffing',
+    adeqTimeField: 'PIC Adequate Staffing',
+    sdEligible: new Set(),
+    label: 'PICS'
+  }
+};
+
+const PRESET_PATTERNS = {
+  weekend: ["SATURDAY","SUNDAY"],
+  sst: ["SUNDAY","SATURDAY","THURSDAY"],
+  fsw: ["FRIDAY","SATURDAY","SUNDAY"],
+  smw: ["SUNDAY","MONDAY","WEDNESDAY"],
+  mtu: ["MONDAY","TUESDAY"],
+  wth: ["WEDNESDAY","THURSDAY"],
+  none: []
+};
+
+// ========== STATE ==========
+let currentRole = 'DISPATCHER';
+let ADEQ = {};
+let allEmployees = [];  // {name, seniority, schedule} for current role
+let excluded = new Set();
+let templates = [];
+let scenarios = [];
+let currentScenarioId = '';
+let _editingIdx = -1;
+
+// Dynamic headcount = total employees minus excluded
+function getRoleHeadcount() {
+  return allEmployees.length - excluded.size;
+}
+// Backward compat — anywhere that reads roleHeadcount goes through getter
+Object.defineProperty(window, 'roleHeadcount', {
+  get() { return getRoleHeadcount(); },
+  set() {},
+  configurable: true
+});
+
+// ========== DATA LOADING ==========
+async function loadAllData() {
+  try {
+    const [empSnap, adeqSnap] = await Promise.all([
+      db.collection('employees').get(),
+      db.collection(ROLE_CONFIG[currentRole].adeqCollection).get()
+    ]);
+
+    // Load employees for current role
+    allEmployees = [];
+    empSnap.docs.forEach(doc => {
+      const d = doc.data();
+      const name = String(d.Employee || doc.id || "").trim().toUpperCase();
+      if (!name) return;
+      const pos = String(d.POSITION ?? d.Position ?? "").toUpperCase();
+      if (!ROLE_CONFIG[currentRole].posFilter(pos)) return;
+      const seniority = Number(d.SENIORITY ?? d.Seniority ?? 999);
+      // Grab their current schedule for display
+      const sched = {};
+      for (const day of DAYS) {
+        const v = String(d[day] ?? "").trim().toUpperCase();
+        sched[day] = (!v || v === 'OFF' || v === 'O') ? 'OFF' : v;
+      }
+      const isLead = ROLE_CONFIG[currentRole].sdEligible.has(name);
+      allEmployees.push({ name, seniority, schedule: sched, isLead });
+    });
+    allEmployees.sort((a, b) => a.name.localeCompare(b.name));
+    // Prune excluded set — remove anyone no longer in list
+    const nameSet = new Set(allEmployees.map(e => e.name));
+    for (const n of excluded) { if (!nameSet.has(n)) excluded.delete(n); }
+
+    // Parse adequate staffing
+    ADEQ = {};
+    const dayColMap = {"Sun":"SUNDAY","Mon":"MONDAY","Tue":"TUESDAY","Wed":"WEDNESDAY","Thu":"THURSDAY","Fri":"FRIDAY","Sat":"SATURDAY"};
+    adeqSnap.docs.forEach(doc => {
+      const data = doc.data();
+      const timeVal = data[ROLE_CONFIG[currentRole].adeqTimeField];
+      if (!timeVal || timeVal === "Time") return;
+      const hourKey = String(timeVal).replace(/[^0-9]/g, "").padStart(4, "0");
+      for (const [col, day] of Object.entries(dayColMap)) {
+        const val = data[col];
+        if (val !== undefined && val !== null && val !== "") {
+          const num = Number(val);
+          if (Number.isFinite(num)) {
+            if (!ADEQ[day]) ADEQ[day] = {};
+            ADEQ[day][hourKey] = num;
+          }
+        }
+      }
+    });
+
+    await loadScenarios();
+    renderAll();
+  } catch (err) {
+    console.error('Load failed:', err);
+    showToast('Failed to load data');
+  }
+}
+
+// ========== ADEQUATE STAFFING LOOKUP ==========
+function adeqLookup(node, hk) {
+  if (!node) return undefined;
+  const candidates = [hk];
+  const n = parseInt(hk, 10);
+  if (Number.isFinite(n)) candidates.push(String(n));
+  if (hk && hk.length === 4) candidates.push(hk.replace(/^0+/, '') || "0");
+  for (const k of candidates) {
+    if (k == null) continue;
+    const kk = String(k);
+    if (Object.prototype.hasOwnProperty.call(node, kk) && node[kk] !== undefined && node[kk] !== null && node[kk] !== "") {
+      return Number(node[kk]);
+    }
+  }
+  return undefined;
+}
+
+function getNeededForBlock(day, block) {
+  const node = ADEQ[day];
+  if (!node) return 0;
+  const realHour = block.start % 24;
+  const hk = String(realHour).padStart(2, "0") + "00";
+  const val = adeqLookup(node, hk);
+  return (val !== undefined && val > 0) ? val : 0;
+}
+
+// ========== SHIFT / BLOCK LOGIC ==========
+function getShiftRange(shift, template) {
+  if (SHIFT_CODES[shift]) return SHIFT_CODES[shift];
+  if (template && template.customStart != null && template.customEnd != null) {
+    return [template.customStart, template.customEnd];
+  }
+  return null;
+}
+
+function templateCoversBlock(template, block, day) {
+  // Mixed template: per-day shift lookup
+  let shift = template.shift;
+  let tpl = template;
+  if (template.perDay && day && template.perDay[day]) {
+    shift = template.perDay[day];
+    tpl = { shift, customStart: null, customEnd: null };
+  }
+  const range = getShiftRange(shift, tpl);
+  if (!range) return false;
+  if (block.start >= range[0] && block.end <= range[1]) return true;
+  // Wrap-around for shifts starting before 6AM
+  if (range[0] < 6 && block.start >= range[0] + 24 && block.end <= range[1] + 24) return true;
+  return false;
+}
+
+function getShiftHours(template) {
+  // Mixed templates: sum actual hours per working day
+  if (template.perDay) {
+    let total = 0;
+    for (const [, shift] of Object.entries(template.perDay)) {
+      const range = SHIFT_CODES[shift];
+      if (range) total += range[1] - range[0];
+    }
+    return total; // weekly total (e.g., 40)
+  }
+  if (SHIFT_HOURS[template.shift] !== undefined) return SHIFT_HOURS[template.shift];
+  const range = getShiftRange(template.shift, template);
+  if (range) return range[1] - range[0];
+  return 0;
+}
+
+function parseMilTime(str) {
+  if (!str) return null;
+  const s = str.trim().toUpperCase();
+  if (!s) return null;
+  const ampm = s.match(/^(\d{1,2})\s*(A|AM|P|PM)$/);
+  if (ampm) {
+    let h = parseInt(ampm[1]);
+    const ap = ampm[2].charAt(0);
+    if (ap === 'A') { if (h === 12) h = 0; }
+    else { if (h !== 12) h += 12; }
+    return (h >= 0 && h <= 23) ? h : null;
+  }
+  const hhmm = s.match(/^(\d{1,2}):(\d{2})$/);
+  if (hhmm) {
+    const h = parseInt(hhmm[1]);
+    return (h >= 0 && h <= 23) ? h : null;
+  }
+  const mil = s.match(/^(\d{3,4})$/);
+  if (mil) {
+    const h = parseInt(s.substring(0, s.length - 2));
+    return (h >= 0 && h <= 23) ? h : null;
+  }
+  const plain = parseInt(s);
+  if (Number.isFinite(plain) && plain >= 0 && plain <= 23) return plain;
+  return null;
+}
+
+function formatHourLabel(h) {
+  const real = h % 24;
+  if (real === 0) return '12A';
+  if (real === 12) return '12P';
+  if (real < 12) return real + 'A';
+  return (real - 12) + 'P';
+}
+
+// ========== COVERAGE COMPUTATION ==========
+function computeCoverage() {
+  const grid = [];     // [dayIdx][blockIdx] = {current, needed, delta, status}
+  const summary = [];  // [dayIdx] = total shortfall
+
+  for (let d = 0; d < 7; d++) {
+    const day = DAYS[d];
+    const dayRow = [];
+    let dayShortfall = 0;
+
+    for (let b = 0; b < BLOCKS.length; b++) {
+      const block = BLOCKS[b];
+      let current = 0;
+
+      for (const t of templates) {
+        if (t.daysOff.includes(day)) continue;
+        if (templateCoversBlock(t, block, day)) current += t.count;
+      }
+
+      const needed = getNeededForBlock(day, block);
+      const delta = current - needed;
+      const status = needed === 0 ? (current > 0 ? "over" : "adequate") : delta < 0 ? "short" : delta === 0 ? "adequate" : "over";
+      if (delta < 0) dayShortfall += Math.abs(delta);
+
+      dayRow.push({ current, needed, delta, status });
+    }
+
+    grid.push(dayRow);
+    summary.push(dayShortfall);
+  }
+
+  return { grid, summary };
+}
+
+// ========== RENDERING ==========
+function renderAll() {
+  renderTemplates();
+  renderGrid();
+  renderHeadcount();
+  renderRoster();
+}
+
+// Color for a shift based on start hour
+function getShiftColor(template) {
+  const range = getShiftRange(template.shift, template);
+  if (!range) return '#22c55e';
+  const start = range[0] % 24;
+  if (start >= 5 && start < 14) return '#22c55e';   // day = green
+  if (start >= 14 && start < 18) return '#eab308';   // swing = yellow
+  return '#818cf8';                                    // night = purple
+}
+
+// Get hours label for a shift
+function getShiftHoursLabel(template) {
+  if (template.perDay) return '40hr/wk';
+  const h = getShiftHours(template);
+  return h ? h + 'hr' : '';
+}
+
+function renderTemplates() {
+  const list = document.getElementById('templateList');
+  if (templates.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--muted);font-size:13px">No templates yet.<br>Click <b>+ ADD TEMPLATE</b> to start building.</div>';
+    document.getElementById('templateCountLabel').textContent = '0 templates';
+    return;
+  }
+  document.getElementById('templateCountLabel').textContent = templates.length + ' template' + (templates.length === 1 ? '' : 's');
+
+  // Group templates by shift code — each shift time gets its own section
+  const shiftOrder = [];
+  const shiftGroups = {};
+  templates.forEach((t, i) => {
+    const key = t.shift;
+    if (!shiftGroups[key]) {
+      shiftGroups[key] = [];
+      shiftOrder.push(key);
+    }
+    shiftGroups[key].push({ t, i });
+  });
+
+  // Sort shift groups by start hour (day shifts first, then night)
+  shiftOrder.sort((a, b) => {
+    // For mixed labels like "6A-6P / 6A-2P", use first shift code
+    const aKey = a.includes('/') ? a.split('/')[0].trim() : a;
+    const bKey = b.includes('/') ? b.split('/')[0].trim() : b;
+    const aStart = SHIFT_CODES[aKey] ? SHIFT_CODES[aKey][0] : 0;
+    const bStart = SHIFT_CODES[bKey] ? SHIFT_CODES[bKey][0] : 0;
+    return aStart - bStart;
+  });
+
+  let html = '';
+  for (const shiftKey of shiftOrder) {
+    const items = shiftGroups[shiftKey];
+    if (items.length === 0) continue;
+    const firstT = items[0].t;
+    const color = getShiftColor(firstT);
+    const totalPpl = items.reduce((s, x) => s + x.t.count, 0);
+    const shiftLabel = firstT.shift === 'CUSTOM'
+      ? formatHourLabel(firstT.customStart) + '-' + formatHourLabel(firstT.customEnd)
+      : firstT.shift;
+    const hrsLabel = getShiftHoursLabel(firstT);
+
+    html += `<div class="shift-group">`;
+    html += `<div class="shift-group-hdr">
+      <span class="sg-label" style="color:${color}">${shiftLabel}</span>
+      <span class="sg-shift">${hrsLabel}</span>
+      <span class="sg-total">${totalPpl}</span>
+    </div>`;
+    html += `<div class="shift-group-rows">`;
+    for (const { t, i } of items) {
+      let desc;
+      if (t.perDay) {
+        // Mixed template: show per-day breakdown
+        const parts = [];
+        for (const day of DAYS) {
+          if (t.perDay[day]) {
+            parts.push(DAY_LABELS[DAYS.indexOf(day)] + ':' + t.perDay[day]);
+          }
+        }
+        const offDays = t.daysOff.map(d => DAY_LABELS[DAYS.indexOf(d)]).join(',');
+        desc = parts.join(' ') + ' <span style="color:var(--muted);font-size:9px">off ' + offDays + '</span>';
+      } else {
+        desc = t.daysOff.length > 0
+          ? t.daysOff.map(d => DAY_LABELS[DAYS.indexOf(d)]).join(', ') + ' off'
+          : 'No days off';
+      }
+      html += `<div class="tpl-row" onclick="editTemplate(${i})">
+        <span class="tpl-off">${desc}</span>
+        <span class="tpl-cnt">${t.count}</span>
+        <span class="tpl-del" onclick="event.stopPropagation();deleteTemplate(${i})" title="Delete">&times;</span>
+      </div>`;
+    }
+    html += `</div></div>`;
+  }
+  list.innerHTML = html;
+}
+
+function renderGrid() {
+  const { grid, summary } = computeCoverage();
+
+  // Day shift: blocks 0-11 (6A-5P), Night shift: blocks 12-23 (6P-5A)
+  const dayBlocks = [];
+  const nightBlocks = [];
+  for (let b = 0; b < BLOCKS.length; b++) {
+    if (b < 12) dayBlocks.push(b); else nightBlocks.push(b);
+  }
+
+  function buildGridHtml(blockIndices) {
+    let html = '<div class="cov-grid">';
+    // Header row
+    html += '<div class="cov-header" style="background:transparent;border:none"></div>';
+    for (let d = 0; d < 7; d++) {
+      const dayTotal = summary[d];
+      const cls = dayTotal > 0 ? 'day-short' : 'day-ok';
+      html += `<div class="cov-header ${cls}">${DAY_LABELS[d]}<span class="day-summary-text">${dayTotal > 0 ? '-' + dayTotal : 'OK'}</span></div>`;
+    }
+
+    for (const bi of blockIndices) {
+      html += `<div class="block-label">${BLOCKS[bi].label}</div>`;
+      for (let d = 0; d < 7; d++) {
+        const cell = grid[d][bi];
+        html += `<div class="cov-cell ${cell.status}">
+          <span class="ratio">${cell.current}/${cell.needed}</span>`;
+        if (cell.delta !== 0 && cell.needed > 0) {
+          html += `<span class="delta">${cell.delta > 0 ? '+' : ''}${cell.delta}</span>`;
+        }
+        html += `</div>`;
+      }
+    }
+    html += '</div>';
+    return html;
+  }
+
+  let html = '';
+  html += '<div class="grid-section-label">DAY SHIFT (6A - 5P)</div>';
+  html += buildGridHtml(dayBlocks);
+  html += '<div class="grid-section-label night">NIGHT SHIFT (6P - 5A)</div>';
+  html += buildGridHtml(nightBlocks);
+
+  document.getElementById('coverageGrid').innerHTML = html;
+
+  // Summary bar
+  let totalShortfall = 0;
+  let totalOver = 0;
+  let shortBlocks = 0;
+  let okBlocks = 0;
+
+  for (let d = 0; d < 7; d++) {
+    for (let b = 0; b < BLOCKS.length; b++) {
+      const cell = grid[d][b];
+      if (cell.needed === 0) continue;
+      if (cell.delta < 0) { totalShortfall += Math.abs(cell.delta); shortBlocks++; }
+      else { okBlocks++; if (cell.delta > 0) totalOver += cell.delta; }
+    }
+  }
+
+  const totalBlocks = shortBlocks + okBlocks;
+  const pct = totalBlocks > 0 ? Math.round(okBlocks / totalBlocks * 100) : 100;
+
+  let sbHtml = '';
+  sbHtml += `<div class="sb-item"><span class="sb-label">Shortfall:</span><span class="sb-val ${totalShortfall > 0 ? 'short' : 'ok'}">${totalShortfall > 0 ? totalShortfall + ' body-hours' : 'NONE'}</span></div>`;
+  sbHtml += '<div class="sb-sep"></div>';
+  sbHtml += `<div class="sb-item"><span class="sb-label">Coverage:</span><span class="sb-val ${pct === 100 ? 'ok' : ''}">${pct}%</span></div>`;
+  sbHtml += '<div class="sb-sep"></div>';
+  sbHtml += `<div class="sb-item"><span class="sb-label">Short blocks:</span><span class="sb-val ${shortBlocks > 0 ? 'short' : 'ok'}">${shortBlocks}</span></div>`;
+  sbHtml += '<div class="sb-sep"></div>';
+  sbHtml += `<div class="sb-item"><span class="sb-label">Surplus:</span><span class="sb-val ok">${totalOver} body-hours</span></div>`;
+  document.getElementById('summaryBar').innerHTML = sbHtml;
+}
+
+function renderHeadcount() {
+  const used = templates.reduce((sum, t) => sum + t.count, 0);
+  const total = roleHeadcount;
+  const pct = total > 0 ? Math.min(used / total * 100, 100) : 0;
+  const isOver = used > total;
+
+  document.getElementById('headcountRoleLabel').textContent = ROLE_CONFIG[currentRole].label;
+  document.getElementById('headcountVal').textContent = used + ' / ' + total;
+  document.getElementById('headcountVal').className = 'headcount-val ' + (isOver ? 'over' : used === total ? 'ok' : used >= total * 0.9 ? 'warn' : 'ok');
+
+  const fill = document.getElementById('headcountFill');
+  fill.style.width = Math.min(pct, 100) + '%';
+  fill.style.background = isOver ? '#ef4444' : pct >= 90 ? '#eab308' : '#22c55e';
+}
+
+// ========== ROSTER ==========
+function renderRoster() {
+  const body = document.getElementById('rosterBody');
+  const search = document.getElementById('rosterSearch').value.trim().toUpperCase();
+  const filtered = search
+    ? allEmployees.filter(e => e.name.includes(search))
+    : allEmployees;
+
+  // Split into leads and non-leads
+  const leads = filtered.filter(e => e.isLead);
+  const nonLeads = filtered.filter(e => !e.isLead);
+
+  function buildRow(emp) {
+    const isExcl = excluded.has(emp.name);
+    const shifts = {};
+    for (const day of DAYS) {
+      const s = emp.schedule[day] || 'OFF';
+      shifts[s] = (shifts[s] || 0) + 1;
+    }
+    const schedStr = Object.entries(shifts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([s, c]) => s + (c > 1 ? ' ×' + c : ''))
+      .join(', ');
+    return `<tr class="${isExcl ? 'excluded' : ''}">
+      <td><input type="checkbox" class="roster-cb" data-name="${emp.name}" ${isExcl ? '' : 'checked'}></td>
+      <td class="name-col">${emp.name}${emp.isLead ? '<span class="lead-badge">LEAD</span>' : ''}</td>
+      <td class="shift-col">${schedStr}</td>
+    </tr>`;
+  }
+
+  let html = '';
+  if (leads.length > 0) {
+    html += `<tr><td colspan="3" class="roster-group-hdr">SD Eligible / Leads (${leads.length})</td></tr>`;
+    for (const emp of leads) html += buildRow(emp);
+  }
+  if (nonLeads.length > 0) {
+    html += `<tr><td colspan="3" class="roster-group-hdr">Staff (${nonLeads.length})</td></tr>`;
+    for (const emp of nonLeads) html += buildRow(emp);
+  }
+  body.innerHTML = html;
+
+  // Update count display
+  const active = allEmployees.length - excluded.size;
+  document.getElementById('rosterCount').textContent = active + ' / ' + allEmployees.length + ' active';
+
+  // Update roster button badge
+  updateRosterBtn();
+}
+
+// Checkbox toggle
+document.getElementById('rosterBody').addEventListener('change', e => {
+  if (!e.target.classList.contains('roster-cb')) return;
+  const name = e.target.dataset.name;
+  if (e.target.checked) {
+    excluded.delete(name);
+  } else {
+    excluded.add(name);
+  }
+  renderHeadcount();
+  renderRoster();
+});
+
+// Search filter
+document.getElementById('rosterSearch').addEventListener('input', () => renderRoster());
+
+// Toggle roster panel
+document.getElementById('btnToggleRoster').addEventListener('click', () => {
+  const panel = document.getElementById('rosterPanel');
+  panel.classList.toggle('collapsed');
+  updateRosterBtn();
+});
+
+function updateRosterBtn() {
+  const btn = document.getElementById('btnToggleRoster');
+  const panel = document.getElementById('rosterPanel');
+  const isOpen = !panel.classList.contains('collapsed');
+  if (isOpen) {
+    btn.innerHTML = 'HIDE ROSTER';
+  } else {
+    btn.innerHTML = 'ROSTER' + (excluded.size > 0 ? '<span class="excl-badge">' + excluded.size + '</span>' : '');
+  }
+}
+
+// All on / All off
+document.getElementById('btnCheckAll').addEventListener('click', () => {
+  excluded.clear();
+  renderAll();
+});
+document.getElementById('btnUncheckAll').addEventListener('click', () => {
+  allEmployees.forEach(e => excluded.add(e.name));
+  renderAll();
+});
+
+// ========== TEMPLATE CRUD ==========
+function openTemplateModal(idx) {
+  _editingIdx = idx;
+  const modal = document.getElementById('templateModal');
+  const title = document.getElementById('modalTitle');
+
+  if (idx >= 0) {
+    title.textContent = 'Edit Template';
+    const t = templates[idx];
+    document.getElementById('modalShift').value = t.shift === 'CUSTOM' || !SHIFT_CODES[t.shift] ? 'CUSTOM' : t.shift;
+    toggleCustomRow();
+    if (t.customStart != null) document.getElementById('customStart').value = formatHourLabel(t.customStart);
+    if (t.customEnd != null) document.getElementById('customEnd').value = formatHourLabel(t.customEnd);
+    document.getElementById('modalCount').value = t.count;
+    renderDaysOffGrid(t.daysOff);
+  } else {
+    title.textContent = 'Add Template';
+    document.getElementById('modalShift').value = '6A-2P';
+    toggleCustomRow();
+    document.getElementById('customStart').value = '';
+    document.getElementById('customEnd').value = '';
+    document.getElementById('modalCount').value = 1;
+    renderDaysOffGrid(["SATURDAY","SUNDAY"]);
+  }
+
+  modal.classList.add('open');
+}
+
+function closeTemplateModal() {
+  document.getElementById('templateModal').classList.remove('open');
+  _editingIdx = -1;
+}
+
+function renderDaysOffGrid(daysOff) {
+  const grid = document.getElementById('daysOffGrid');
+  let html = '';
+  DAYS.forEach((day, i) => {
+    const isOff = daysOff.includes(day);
+    html += `<div class="day-toggle ${isOff ? 'off' : ''}" data-day="${day}" onclick="toggleDayOff(this)">${DAY_LABELS[i]}</div>`;
+  });
+  grid.innerHTML = html;
+}
+
+function toggleDayOff(el) {
+  el.classList.toggle('off');
+}
+
+function getDaysOffFromModal() {
+  const toggles = document.querySelectorAll('#daysOffGrid .day-toggle.off');
+  return Array.from(toggles).map(el => el.dataset.day);
+}
+
+function toggleCustomRow() {
+  const sel = document.getElementById('modalShift').value;
+  document.getElementById('customShiftRow').classList.toggle('show', sel === 'CUSTOM');
+}
+
+document.getElementById('modalShift').addEventListener('change', toggleCustomRow);
+
+function saveTemplateFromModal() {
+  const shiftSel = document.getElementById('modalShift').value;
+  const count = parseInt(document.getElementById('modalCount').value) || 0;
+  if (count <= 0) { showToast('Headcount must be at least 1'); return; }
+
+  let shift = shiftSel;
+  let customStart = null;
+  let customEnd = null;
+
+  if (shiftSel === 'CUSTOM') {
+    const startH = parseMilTime(document.getElementById('customStart').value);
+    const endH = parseMilTime(document.getElementById('customEnd').value);
+    if (startH === null || endH === null) { showToast('Invalid custom shift times'); return; }
+    customStart = startH;
+    let end24 = endH <= startH ? endH + 24 : endH;
+    customEnd = end24;
+    shift = formatHourLabel(startH) + '-' + formatHourLabel(end24);
+    // Register in SHIFT_CODES if not already
+    if (!SHIFT_CODES[shift]) {
+      SHIFT_CODES[shift] = [startH, end24];
+      SHIFT_HOURS[shift] = end24 - startH;
+    }
+  }
+
+  const daysOff = getDaysOffFromModal();
+  const template = { shift, customStart, customEnd, daysOff, count };
+
+  if (_editingIdx >= 0) {
+    templates[_editingIdx] = template;
+  } else {
+    templates.push(template);
+  }
+
+  closeTemplateModal();
+  renderAll();
+}
+
+function editTemplate(idx) {
+  if (templates[idx] && templates[idx].perDay) {
+    showToast('Mixed templates are generated by auto-suggest. Delete and re-run to change.');
+    return;
+  }
+  openTemplateModal(idx);
+}
+
+function duplicateTemplate(idx) {
+  const t = templates[idx];
+  templates.push({ ...t, daysOff: [...t.daysOff] });
+  renderAll();
+}
+
+function deleteTemplate(idx) {
+  templates.splice(idx, 1);
+  renderAll();
+}
+
+// Presets
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const preset = PRESET_PATTERNS[btn.dataset.preset];
+    if (preset) renderDaysOffGrid([...preset]);
+  });
+});
+
+// Modal buttons
+document.getElementById('btnAddTemplate').addEventListener('click', () => openTemplateModal(-1));
+document.getElementById('btnModalSave').addEventListener('click', saveTemplateFromModal);
+document.getElementById('btnModalCancel').addEventListener('click', closeTemplateModal);
+document.getElementById('templateModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('templateModal')) closeTemplateModal();
+});
+
+// ========== ROLE SWITCHING ==========
+document.querySelectorAll('.role-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentRole = tab.dataset.role;
+    templates = [];
+    excluded.clear();
+    currentScenarioId = '';
+    document.getElementById('scenarioSelect').value = '';
+    loadAllData();
+  });
+});
+
+// ========== SCENARIO MANAGEMENT ==========
+async function loadScenarios() {
+  try {
+    const snap = await db.collection('scheduleops_scenarios')
+      .where('role', '==', currentRole)
+      .orderBy('updatedAt', 'desc')
+      .get();
+
+    scenarios = [];
+    snap.docs.forEach(doc => {
+      scenarios.push({ id: doc.id, ...doc.data() });
+    });
+
+    const sel = document.getElementById('scenarioSelect');
+    sel.innerHTML = '<option value="">-- New Scenario --</option>';
+    scenarios.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      sel.appendChild(opt);
+    });
+
+    // Restore selection
+    if (currentScenarioId && scenarios.find(s => s.id === currentScenarioId)) {
+      sel.value = currentScenarioId;
+    }
+  } catch (err) {
+    // Index may not exist yet — try without orderBy
+    try {
+      const snap = await db.collection('scheduleops_scenarios')
+        .where('role', '==', currentRole)
+        .get();
+      scenarios = [];
+      snap.docs.forEach(doc => {
+        scenarios.push({ id: doc.id, ...doc.data() });
+      });
+      scenarios.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
+      const sel = document.getElementById('scenarioSelect');
+      sel.innerHTML = '<option value="">-- New Scenario --</option>';
+      scenarios.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.name;
+        sel.appendChild(opt);
+      });
+    } catch (e2) {
+      console.error('Failed to load scenarios:', e2);
+    }
+  }
+}
+
+document.getElementById('scenarioSelect').addEventListener('change', () => {
+  const id = document.getElementById('scenarioSelect').value;
+  if (!id) {
+    templates = [];
+    currentScenarioId = '';
+    renderAll();
+    return;
+  }
+  const scenario = scenarios.find(s => s.id === id);
+  if (scenario) {
+    templates = (scenario.templates || []).map(t => ({
+      shift: t.shift || '6A-2P',
+      customStart: t.customStart ?? null,
+      customEnd: t.customEnd ?? null,
+      daysOff: Array.isArray(t.daysOff) ? [...t.daysOff] : [],
+      count: t.count || 1
+    }));
+    // Re-register any custom shifts
+    templates.forEach(t => {
+      if (t.customStart != null && t.customEnd != null && !SHIFT_CODES[t.shift]) {
+        SHIFT_CODES[t.shift] = [t.customStart, t.customEnd];
+        SHIFT_HOURS[t.shift] = t.customEnd - t.customStart;
+      }
+    });
+    currentScenarioId = id;
+    renderAll();
+  }
+});
+
+document.getElementById('btnSaveScenario').addEventListener('click', async () => {
+  const name = prompt('Scenario name:', currentScenarioId ? (scenarios.find(s => s.id === currentScenarioId)?.name || '') : '');
+  if (!name) return;
+
+  const data = {
+    name,
+    role: currentRole,
+    templates: templates.map(t => ({ ...t })),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  try {
+    if (currentScenarioId) {
+      await db.collection('scheduleops_scenarios').doc(currentScenarioId).update(data);
+      showToast('Scenario updated');
+    } else {
+      data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      const docRef = await db.collection('scheduleops_scenarios').add(data);
+      currentScenarioId = docRef.id;
+      showToast('Scenario saved');
+    }
+    await loadScenarios();
+    document.getElementById('scenarioSelect').value = currentScenarioId;
+  } catch (err) {
+    console.error('Save failed:', err);
+    showToast('Failed to save scenario');
+  }
+});
+
+document.getElementById('btnDeleteScenario').addEventListener('click', async () => {
+  if (!currentScenarioId) { showToast('No scenario selected'); return; }
+  if (!confirm('Delete this scenario?')) return;
+  try {
+    await db.collection('scheduleops_scenarios').doc(currentScenarioId).delete();
+    currentScenarioId = '';
+    templates = [];
+    await loadScenarios();
+    document.getElementById('scenarioSelect').value = '';
+    renderAll();
+    showToast('Scenario deleted');
+  } catch (err) {
+    console.error('Delete failed:', err);
+    showToast('Failed to delete scenario');
+  }
+});
+
+// ========== AUTO-SUGGEST ==========
+
+// Register additional shifts if not present
+if (!SHIFT_CODES["6A-4P"])  { SHIFT_CODES["6A-4P"]  = [6,16];  SHIFT_HOURS["6A-4P"]  = 10; }
+if (!SHIFT_CODES["2P-12A"]) { SHIFT_CODES["2P-12A"] = [14,24]; SHIFT_HOURS["2P-12A"] = 10; }
+if (!SHIFT_CODES["10P-8A"]) { SHIFT_CODES["10P-8A"] = [22,32]; SHIFT_HOURS["10P-8A"] = 10; }
+if (!SHIFT_CODES["2P-2A"])  { SHIFT_CODES["2P-2A"]  = [14,26]; SHIFT_HOURS["2P-2A"]  = 12; }
+
+// Shift pools per preference
+const SHIFT_POOLS = {
+  '8h': {
+    shifts: ["6A-2P","2P-10P","10P-6A"],
+    daysOff: [
+      ["SATURDAY","SUNDAY"],
+      ["SUNDAY","MONDAY"],
+      ["MONDAY","TUESDAY"],
+      ["TUESDAY","WEDNESDAY"],
+      ["WEDNESDAY","THURSDAY"],
+      ["THURSDAY","FRIDAY"],
+      ["FRIDAY","SATURDAY"],
+    ]
+  },
+  '12-8h': {
+    // Mixed schedules: each person works 2×12hr + 2×8hr = 40hr/week, 3 days off
+    // Day: 2×(6A-6P) + 2×(6A-2P) — covers 6A-2P core, 2P-6P on 12hr days
+    // Swing: 2×(10A-10P) + 2×(2P-10P) — fills the afternoon/evening gap, ends at 10P
+    // Night: 2×(6P-6A) + 2×(10P-6A) — covers 10P-6A core, 6P-10P on 12hr days
+    mixed: [
+      { longShift: "6A-6P", shortShift: "6A-2P", label: "DAY" },
+      { longShift: "10A-10P", shortShift: "2P-10P", label: "SWING" },
+      { longShift: "6P-6A", shortShift: "10P-6A", label: "NIGHT" }
+    ],
+    daysOff: [
+      ["MONDAY","TUESDAY","WEDNESDAY"],
+      ["TUESDAY","WEDNESDAY","THURSDAY"],
+      ["WEDNESDAY","THURSDAY","FRIDAY"],
+      ["THURSDAY","FRIDAY","SATURDAY"],
+      ["FRIDAY","SATURDAY","SUNDAY"],
+      ["SATURDAY","SUNDAY","MONDAY"],
+      ["SUNDAY","MONDAY","TUESDAY"],
+    ]
+  },
+  '10h': {
+    shifts: ["6A-4P","2P-12A","10P-8A"],
+    daysOff: [
+      ["FRIDAY","SATURDAY","SUNDAY"],
+      ["SATURDAY","SUNDAY","MONDAY"],
+      ["SUNDAY","MONDAY","TUESDAY"],
+      ["MONDAY","TUESDAY","WEDNESDAY"],
+      ["TUESDAY","WEDNESDAY","THURSDAY"],
+      ["WEDNESDAY","THURSDAY","FRIDAY"],
+      ["THURSDAY","FRIDAY","SATURDAY"],
+    ]
+  }
+};
+
+function getPatternsForShift(pref, shift) {
+  const pool = SHIFT_POOLS[pref];
+  if (pool.mixed) return pool.daysOff; // mixed uses shared daysOff
+  if (pool.daysOffByHours) {
+    const range = SHIFT_CODES[shift];
+    const hours = range[1] - range[0];
+    return pool.daysOffByHours[hours >= 10 ? 12 : 8];
+  }
+  return pool.daysOff;
+}
+
+// Generate all C(n,k) combinations
+function combinations(arr, k) {
+  if (k === 0) return [[]];
+  if (arr.length < k) return [];
+  const [first, ...rest] = arr;
+  const withFirst = combinations(rest, k - 1).map(c => [first, ...c]);
+  const without = combinations(rest, k);
+  return [...withFirst, ...without];
+}
+
+function runAutoSuggest(pref) {
+  document.getElementById('prefModal').classList.remove('open');
+
+  // ── Scheduling reality weights ──
+  const NIGHT_WEIGHT = 2.0;
+  const WEEKEND_WEIGHT = 1.8;
+  const FRIDAY_WEIGHT = 1.3;
+  const SURPLUS_BASE = 2.0;
+  const SURPLUS_SCALE = 1.5;
+
+  // Build need matrix from ADEQ with buffers
+  const need = [];
+  for (let d = 0; d < 7; d++) {
+    need[d] = [];
+    const isWeekend = (d === 5 || d === 6);
+    for (let b = 0; b < BLOCKS.length; b++) {
+      let n = getNeededForBlock(DAYS[d], BLOCKS[b]);
+      if (n > 0) {
+        n += 1;  // vacation buffer
+        if (isWeekend) n += 1;  // weekend call-off buffer
+      }
+      need[d][b] = n;
+    }
+  }
+
+  // Block & day weights
+  const blockWeight = [];
+  for (let b = 0; b < BLOCKS.length; b++) {
+    const rh = BLOCKS[b].start % 24;
+    blockWeight[b] = (rh >= 22 || rh < 6) ? NIGHT_WEIGHT : 1.0;
+  }
+  const dayWeight = [];
+  for (let d = 0; d < 7; d++) {
+    if (d === 5 || d === 6) dayWeight[d] = WEEKEND_WEIGHT;
+    else if (d === 4) dayWeight[d] = FRIDAY_WEIGHT;
+    else dayWeight[d] = 1.0;
+  }
+
+  // Precompute which blocks each shift covers
+  const shiftBlockCache = {};
+  function ensureBlockCache(shift) {
+    if (!shiftBlockCache[shift]) {
+      shiftBlockCache[shift] = [];
+      for (let b = 0; b < BLOCKS.length; b++) {
+        if (templateCoversBlock({ shift, customStart: null, customEnd: null, daysOff: [] }, BLOCKS[b])) {
+          shiftBlockCache[shift].push(b);
+        }
+      }
+    }
+    return shiftBlockCache[shift];
+  }
+
+  const pool = SHIFT_POOLS[pref];
+  const isMixed = !!pool.mixed;
+
+  // Pre-cache all relevant shifts
+  if (isMixed) {
+    for (const m of pool.mixed) {
+      ensureBlockCache(m.longShift);
+      ensureBlockCache(m.shortShift);
+    }
+  } else {
+    for (const s of pool.shifts) ensureBlockCache(s);
+  }
+
+  // Scoring helper
+  function scoreBlocks(blocks, d) {
+    let sc = 0;
+    const dw = dayWeight[d];
+    for (const b of blocks) {
+      const w = dw * blockWeight[b];
+      if (need[d][b] > 0) {
+        sc += need[d][b] * w;
+      } else {
+        const surplus = Math.abs(need[d][b]);
+        const fade = Math.min(surplus / 3, 1.0);
+        const effW = w * (1 - fade) + 1.0 * fade;
+        sc -= (SURPLUS_BASE + surplus * SURPLUS_SCALE) / effW;
+      }
+    }
+    return sc;
+  }
+
+  let remaining = roleHeadcount;
+  const assignMap = new Map();
+
+  while (remaining > 0) {
+    let bestScore = -Infinity;
+    let bestPick = null; // { shift, daysOff } or { mixed, daysOff, perDay }
+
+    if (isMixed) {
+      // ── MIXED MODE: try all (mixDef, daysOff, longDay assignments) ──
+      for (const mixDef of pool.mixed) {
+        const longBlocks = shiftBlockCache[mixDef.longShift];
+        const shortBlocks = shiftBlockCache[mixDef.shortShift];
+
+        for (const daysOff of pool.daysOff) {
+          const workDays = [];
+          for (let d = 0; d < 7; d++) {
+            if (!daysOff.includes(DAYS[d])) workDays.push(d);
+          }
+          // All C(4,2) ways to pick which 2 working days are 12hr
+          const longCombos = combinations(workDays, 2);
+
+          for (const longDayIdxs of longCombos) {
+            let score = 0;
+            for (let d = 0; d < 7; d++) {
+              if (daysOff.includes(DAYS[d])) continue;
+              const isLong = longDayIdxs.includes(d);
+              score += scoreBlocks(isLong ? longBlocks : shortBlocks, d);
+            }
+            if (score > bestScore) {
+              bestScore = score;
+              // Build perDay map
+              const perDay = {};
+              for (const di of workDays) {
+                perDay[DAYS[di]] = longDayIdxs.includes(di) ? mixDef.longShift : mixDef.shortShift;
+              }
+              bestPick = { daysOff: [...daysOff], perDay, mixDef };
+            }
+          }
+        }
+      }
+    } else {
+      // ── SINGLE-SHIFT MODE (8h, 10h) ──
+      for (const shift of pool.shifts) {
+        const coveredBlocks = shiftBlockCache[shift];
+        if (coveredBlocks.length === 0) continue;
+        const patterns = getPatternsForShift(pref, shift);
+
+        for (const daysOff of patterns) {
+          let score = 0;
+          for (let d = 0; d < 7; d++) {
+            if (daysOff.includes(DAYS[d])) continue;
+            score += scoreBlocks(coveredBlocks, d);
+          }
+          if (score > bestScore) {
+            bestScore = score;
+            bestPick = { shift, daysOff: [...daysOff] };
+          }
+        }
+      }
+    }
+
+    if (!bestPick) break;
+
+    // Update need matrix
+    if (bestPick.perDay) {
+      // Mixed: different blocks per day
+      for (let d = 0; d < 7; d++) {
+        const day = DAYS[d];
+        const shift = bestPick.perDay[day];
+        if (!shift) continue; // day off
+        for (const b of shiftBlockCache[shift]) {
+          need[d][b] -= 1;
+        }
+      }
+    } else {
+      // Single shift
+      const covBlocks = shiftBlockCache[bestPick.shift];
+      for (let d = 0; d < 7; d++) {
+        if (bestPick.daysOff.includes(DAYS[d])) continue;
+        for (const b of covBlocks) {
+          need[d][b] -= 1;
+        }
+      }
+    }
+
+    // Consolidation key
+    let key;
+    if (bestPick.perDay) {
+      // Key = sorted perDay entries + daysOff
+      const pdKey = DAYS.map(day => bestPick.perDay[day] || 'OFF').join(',');
+      key = 'MIX|' + pdKey;
+    } else {
+      key = bestPick.shift + '|' + [...bestPick.daysOff].sort().join(',');
+    }
+
+    if (assignMap.has(key)) {
+      assignMap.get(key).count++;
+    } else {
+      if (bestPick.perDay) {
+        const md = bestPick.mixDef;
+        assignMap.set(key, {
+          shift: md.longShift + ' / ' + md.shortShift,
+          customStart: null,
+          customEnd: null,
+          daysOff: [...bestPick.daysOff],
+          count: 1,
+          perDay: { ...bestPick.perDay }
+        });
+      } else {
+        assignMap.set(key, {
+          shift: bestPick.shift,
+          customStart: null,
+          customEnd: null,
+          daysOff: [...bestPick.daysOff],
+          count: 1
+        });
+      }
+    }
+
+    remaining--;
+  }
+
+  // Sort: by first shift start hour, then count desc
+  const newTemplates = Array.from(assignMap.values());
+  newTemplates.sort((a, b) => {
+    const aShift = a.perDay ? Object.values(a.perDay)[0] : a.shift;
+    const bShift = b.perDay ? Object.values(b.perDay)[0] : b.shift;
+    const aStart = (SHIFT_CODES[aShift] || [0])[0];
+    const bStart = (SHIFT_CODES[bShift] || [0])[0];
+    return aStart - bStart || b.count - a.count;
+  });
+
+  templates = newTemplates;
+  renderAll();
+
+  const { summary } = computeCoverage();
+  const totalShort = summary.reduce((s, v) => s + v, 0);
+  const used = templates.reduce((s, t) => s + t.count, 0);
+
+  if (totalShort === 0) {
+    showToast('Full coverage! ' + templates.length + ' templates using all ' + used + ' staff');
+  } else {
+    showToast(templates.length + ' templates using ' + used + ' staff | ' + totalShort + ' body-hours still short');
+  }
+}
+
+// Open preference modal
+document.getElementById('btnAutoSuggest').addEventListener('click', () => {
+  if (roleHeadcount <= 0) { showToast('No headcount available for ' + ROLE_CONFIG[currentRole].label); return; }
+  document.getElementById('prefHeadcount').textContent = roleHeadcount;
+  document.getElementById('prefRole').textContent = ROLE_CONFIG[currentRole].label;
+  document.getElementById('prefModal').classList.add('open');
+});
+
+// Preference card clicks
+document.querySelectorAll('.pref-card').forEach(card => {
+  card.addEventListener('click', () => {
+    const pref = card.dataset.pref;
+    if (templates.length > 0) {
+      if (!confirm('This will REPLACE all existing templates. Continue?')) return;
+    }
+    runAutoSuggest(pref);
+  });
+});
+
+// Cancel
+document.getElementById('btnPrefCancel').addEventListener('click', () => {
+  document.getElementById('prefModal').classList.remove('open');
+});
+document.getElementById('prefModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('prefModal')) {
+    document.getElementById('prefModal').classList.remove('open');
+  }
+});
+
+// ========== EXPORT ==========
+document.getElementById('btnExport').addEventListener('click', () => {
+  const { grid, summary } = computeCoverage();
+  const role = ROLE_CONFIG[currentRole].label;
+  const scenarioName = currentScenarioId ? (scenarios.find(s => s.id === currentScenarioId)?.name || 'Unnamed') : 'Unsaved';
+
+  let text = `SCHEDULEOPS COVERAGE REPORT\n`;
+  text += `Role: ${role} | Scenario: ${scenarioName}\n`;
+  text += `Generated: ${new Date().toLocaleString()}\n`;
+  text += `${'='.repeat(60)}\n\n`;
+
+  // Templates
+  text += `TEMPLATES (${templates.length}):\n`;
+  templates.forEach((t, i) => {
+    const shiftLabel = t.shift === 'CUSTOM' ? formatHourLabel(t.customStart) + '-' + formatHourLabel(t.customEnd) : t.shift;
+    const offStr = t.daysOff.length > 0 ? t.daysOff.map(d => DAY_LABELS[DAYS.indexOf(d)]).join(',') + ' off' : 'No days off';
+    text += `  ${i + 1}. ${shiftLabel} | ${t.count} people | ${offStr}\n`;
+  });
+
+  const used = templates.reduce((sum, t) => sum + t.count, 0);
+  text += `\nHeadcount: ${used} / ${roleHeadcount}\n\n`;
+
+  // Coverage grid
+  text += `COVERAGE GRID:\n`;
+  text += `${'Block'.padEnd(6)}`;
+  DAY_LABELS.forEach(d => { text += d.padStart(8); });
+  text += '\n' + '-'.repeat(62) + '\n';
+
+  for (let b = 0; b < BLOCKS.length; b++) {
+    text += BLOCKS[b].label.padEnd(6);
+    for (let d = 0; d < 7; d++) {
+      const c = grid[d][b];
+      text += `${c.current}/${c.needed}`.padStart(8);
+    }
+    text += '\n';
+  }
+
+  text += '-'.repeat(62) + '\n';
+  text += 'Short:';
+  for (let d = 0; d < 7; d++) {
+    text += (summary[d] > 0 ? '-' + summary[d] : 'OK').padStart(8);
+  }
+  text += '\n\n';
+
+  // Summary
+  let totalShort = 0;
+  for (const s of summary) totalShort += s;
+  text += `Total shortfall: ${totalShort} body-hours\n`;
+
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('Coverage report copied to clipboard');
+  }).catch(() => {
+    showToast('Failed to copy — check browser permissions');
+  });
+});
+
+// ========== BUG REPORT ==========
+document.getElementById('btnBugReport').addEventListener('click', () => {
+  document.getElementById('bugReportName').value = '';
+  document.getElementById('bugReportDetails').value = '';
+  document.getElementById('bugReportModal').style.display = 'flex';
+});
+document.getElementById('btnBugCancel').addEventListener('click', () => {
+  document.getElementById('bugReportModal').style.display = 'none';
+});
+document.getElementById('bugReportModal').addEventListener('click', e => {
+  if (e.target.id === 'bugReportModal') document.getElementById('bugReportModal').style.display = 'none';
+});
+document.getElementById('btnBugSubmit').addEventListener('click', async () => {
+  const name = document.getElementById('bugReportName').value.trim();
+  const details = document.getElementById('bugReportDetails').value.trim();
+  if (!name || !details) { alert('Please fill in both fields.'); return; }
+  try {
+    await db.collection('bugReports').add({
+      name, details,
+      app: 'ScheduleOps',
+      reportedBy: auth.currentUser ? auth.currentUser.email : 'unknown',
+      timestamp: new Date().toISOString(),
+      status: 'open'
+    });
+    document.getElementById('bugReportModal').style.display = 'none';
+    showToast('Bug report submitted');
+  } catch (err) {
+    console.error('Bug report failed:', err);
+    alert('Failed to submit bug report.');
+  }
+});
+
+// ========== TOAST ==========
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
