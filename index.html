@@ -320,7 +320,7 @@ body { padding-top: 12px !important; }
         <div class="sub">Modern Solutions > Old Problems</div>
       </div>
     </div>
-    <a href="bugs.html" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;font-size:12px;font-weight:700;border-radius:8px;border:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.1);color:#ef4444;text-decoration:none;transition:all .15s;letter-spacing:.3px;" onmouseover="this.style.background='rgba(239,68,68,.2)'" onmouseout="this.style.background='rgba(239,68,68,.1)'">&#128027; REPORT BUG</a>
+    <button id="btnBugReport" type="button" title="Report a Bug" style="background:transparent;border:1px solid var(--muted,#888);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted,#888);display:inline-flex;align-items:center;gap:5px;transition:border-color .15s,color .15s;font-family:inherit;" onmouseenter="this.style.borderColor='#ef4444';this.style.color='#ef4444'" onmouseleave="this.style.borderColor='var(--muted,#888)';this.style.color='var(--muted,#888)'">&#x1fab2; REPORT BUG</button>
   </div>
 </header>
 
@@ -414,7 +414,9 @@ body { padding-top: 12px !important; }
     getDoc,
     setDoc,
     onSnapshot,
-    runTransaction
+    runTransaction,
+    collection,
+    addDoc
   } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
   import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app-check.js";
 
@@ -711,12 +713,14 @@ body { padding-top: 12px !important; }
             _activeSelect._deferredRender = false;
             try { renderExtrasTable(); } catch(e){ console.warn(e); }
             try { render(); } catch(e){ console.warn(e); }
+            if(_lastCtx){ try { renderBreakPicker(_lastCtx.selectedDay, _lastCtx.mode, _lastCtx.block, _lastCtx.buckets); } catch(e){ console.warn(e); } }
           }, { once: true });
           _activeSelect.addEventListener('blur', ()=>{
             if(_activeSelect._deferredRender){
               _activeSelect._deferredRender = false;
               try { renderExtrasTable(); } catch(e){ console.warn(e); }
               try { render(); } catch(e){ console.warn(e); }
+              if(_lastCtx){ try { renderBreakPicker(_lastCtx.selectedDay, _lastCtx.mode, _lastCtx.block, _lastCtx.buckets); } catch(e){ console.warn(e); } }
             }
           }, { once: true });
         }
@@ -724,6 +728,9 @@ body { padding-top: 12px !important; }
       }
       try { renderExtrasTable(); } catch(e){ console.warn("[index] onSnapshot renderExtrasTable error:", e); }
       try { render(); } catch(e){ console.warn("[index] onSnapshot render error:", e); }
+      if(_lastCtx){
+        try { renderBreakPicker(_lastCtx.selectedDay, _lastCtx.mode, _lastCtx.block, _lastCtx.buckets); } catch(e){ console.warn("[index] onSnapshot renderBreakPicker error:", e); }
+      }
     }, (err)=>{
       console.error("[index] onSnapshot listener error:", err);
     });
@@ -2272,8 +2279,61 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
   if(window.__getLandingView) state = await window.__getLandingView();
   window.__landingState = state;
   initApp();
+
+  // Bug report modal handlers
+  setTimeout(()=>{
+    const btnBug = document.getElementById('btnBugReport');
+    if(btnBug) btnBug.addEventListener('click', ()=>{
+      document.getElementById('bugReportName').value = '';
+      document.getElementById('bugReportDetails').value = '';
+      document.getElementById('bugReportModal').style.display = 'flex';
+    });
+    const btnCancel = document.getElementById('btnBugCancel');
+    if(btnCancel) btnCancel.addEventListener('click', ()=>{
+      document.getElementById('bugReportModal').style.display = 'none';
+    });
+    const modal = document.getElementById('bugReportModal');
+    if(modal) modal.addEventListener('click', (e)=>{
+      if(e.target.id === 'bugReportModal') modal.style.display = 'none';
+    });
+    const btnSubmit = document.getElementById('btnBugSubmit');
+    if(btnSubmit) btnSubmit.addEventListener('click', async ()=>{
+      const name = document.getElementById('bugReportName').value.trim();
+      const details = document.getElementById('bugReportDetails').value.trim();
+      if(!name || !details){ alert('Please fill in both fields.'); return; }
+      try {
+        await addDoc(collection(_db, 'bugReports'), {
+          name, details, app: 'BreakOPS', timestamp: new Date().toISOString(), status: 'open'
+        });
+        document.getElementById('bugReportModal').style.display = 'none';
+        toast('Bug report submitted. Thank you!');
+      } catch(err){
+        console.error('Bug report failed:', err);
+        alert('Failed to submit bug report. Try again.');
+      }
+    });
+  }, 100);
 })();
 </script>
+
+  <!-- Bug Report Modal -->
+  <div id="bugReportModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--bg,#1a1a2e); border:1px solid var(--border,#333); border-radius:8px; padding:20px; min-width:360px; max-width:440px;">
+      <h3 style="margin:0 0 15px; color:#ef4444;">&#128027; REPORT A BUG</h3>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:12px; font-weight:700; display:block; margin-bottom:6px;">YOUR NAME:</label>
+        <input type="text" id="bugReportName" placeholder="Enter your name" style="width:100%; padding:8px; font-size:13px; border-radius:6px; border:1px solid var(--line,#444); background:var(--panel2,#222); color:var(--text,#eee); box-sizing:border-box;" />
+      </div>
+      <div style="margin-bottom:15px;">
+        <label style="font-size:12px; font-weight:700; display:block; margin-bottom:6px;">DETAILS:</label>
+        <textarea id="bugReportDetails" placeholder="Describe the bug — what happened, what you expected, and what you were doing when it happened." style="width:100%; padding:8px; font-size:13px; border-radius:6px; border:1px solid var(--line,#444); background:var(--panel2,#222); color:var(--text,#eee); min-height:120px; resize:vertical; font-family:inherit; box-sizing:border-box;"></textarea>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button id="btnBugSubmit" style="background:#ef4444; color:#fff; border:none; border-radius:6px; padding:8px 18px; font-size:13px; font-weight:700; cursor:pointer;">SUBMIT</button>
+        <button id="btnBugCancel" style="background:transparent; color:var(--text,#eee); border:1px solid var(--border,#333); border-radius:6px; padding:8px 18px; font-size:13px; font-weight:700; cursor:pointer;">CANCEL</button>
+      </div>
+    </div>
+  </div>
 
   <!-- BreakOPS footer -->
   <footer id="breakopsFooter" style="text-align:center; font-size:12px; color:#888; margin:30px 0 10px;">
