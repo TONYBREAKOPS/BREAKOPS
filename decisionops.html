@@ -1,0 +1,1634 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>DecisionOps</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23070c16'/%3E%3Ccircle cx='32' cy='32' r='30' fill='none' stroke='%23c0c8d4' stroke-width='2'/%3E%3Cpath d='M20 32l8 8 16-16' stroke='%234aa3ff' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"/>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#0b0f14;
+  --card:#111826;
+  --panel:#0c1320;
+  --muted:#9aa4b2;
+  --text:#e7eef8;
+  --accent:#4aa3ff;
+  --border:#233043;
+  --ok:#3fe7b6;
+  --bad:#ff6b6b;
+  --warn:#ffe066;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{
+  margin:0;min-height:100vh;
+  font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
+  color:var(--text);background:var(--bg);
+}
+
+/* ── Header ── */
+header{
+  padding:14px 18px 12px;position:sticky;top:0;z-index:10;
+  backdrop-filter:blur(10px);
+  background:linear-gradient(180deg,rgba(11,15,20,.98),rgba(11,15,20,.75));
+  border-bottom:1px solid var(--border);
+}
+h1{margin:0;font-size:28px;font-weight:900;letter-spacing:.04em}
+
+/* ── Inputs ── */
+input,select,textarea{
+  padding:10px 12px;border-radius:12px;
+  border:1px solid var(--border);background:var(--panel);
+  color:var(--text);outline:none;font-size:13px;font-family:inherit;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(74,163,255,.15)}
+
+/* ── Buttons ── */
+button{
+  padding:10px 14px;border-radius:12px;
+  border:1px solid var(--border);background:var(--panel);
+  color:var(--text);cursor:pointer;font-weight:700;font-size:13px;
+  transition:transform .05s ease,background .2s ease,border-color .2s ease;
+}
+button:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.18)}
+button:active{transform:translateY(1px)}
+button.primary{border-color:rgba(74,163,255,.5);background:var(--accent);color:#fff}
+button.primary:hover{background:#3b8fd9}
+button:disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
+
+/* ── Pills ── */
+.pill{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:5px 10px;border-radius:999px;
+  border:1px solid var(--border);background:rgba(255,255,255,.02);
+  color:var(--muted);font-size:11px;font-weight:700;
+}
+.pill.good{border-color:rgba(52,211,153,.40);background:rgba(52,211,153,.10);color:#d7ffe9}
+.pill.bad{border-color:rgba(251,113,133,.45);background:rgba(251,113,133,.10);color:#ffd5dd}
+.pill.warn{border-color:rgba(255,224,102,.45);background:rgba(255,224,102,.10);color:#fff3c4}
+.pill.accent{border-color:rgba(74,163,255,.45);background:rgba(74,163,255,.10);color:#bddcff}
+
+/* ── Login Overlay ── */
+#loginOverlay{
+  position:fixed;inset:0;background:var(--bg);z-index:100000;
+  display:flex;align-items:center;justify-content:center;
+}
+#loginOverlay.hidden{display:none}
+.login-box{
+  background:var(--card);border:1px solid var(--border);border-radius:16px;
+  padding:32px 40px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.3);
+}
+.login-box h2{margin:0 0 8px;font-size:24px;text-align:center;color:var(--text)}
+.login-box .subtitle{text-align:center;color:var(--muted);font-size:13px;margin-bottom:24px}
+.login-box label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+.login-box input{
+  width:100%;padding:12px 14px;border-radius:10px;
+  border:1px solid var(--border);background:var(--panel);
+  color:var(--text);font-size:14px;margin-bottom:16px;
+}
+.login-box .btn-login{
+  width:100%;padding:12px;border-radius:10px;border:none;
+  background:var(--accent);color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px;
+}
+.login-box .btn-login:hover{background:#3b8fd9}
+.login-box .btn-login:disabled{opacity:.6;cursor:not-allowed}
+.login-error{
+  background:rgba(255,95,95,.12);border:1px solid rgba(255,95,95,.3);
+  color:#ff6b6b;padding:10px 12px;border-radius:8px;font-size:13px;
+  margin-bottom:16px;display:none;
+}
+.login-error.show{display:block}
+
+/* ── Main ── */
+main{padding:14px 18px 20px}
+
+/* ── Split layout ── */
+.split-layout{display:flex;gap:16px;align-items:flex-start}
+.split-left{width:300px;flex-shrink:0;position:sticky;top:90px}
+.split-right{flex:1;min-width:0}
+@media(max-width:900px){
+  .split-layout{flex-direction:column}
+  .split-left{width:100%;position:static}
+  .split-right{width:100%}
+}
+
+/* ── Cards ── */
+.card{
+  border:1px solid var(--border);border-radius:12px;
+  background:var(--card);overflow:hidden;margin-bottom:12px;
+}
+.card-header{
+  padding:12px 14px;font-size:12px;font-weight:800;
+  letter-spacing:.35px;color:var(--text);background:var(--panel);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.card-body{padding:14px}
+
+/* ── Topic Queue ── */
+.topic-item{
+  display:flex;align-items:center;gap:8px;padding:10px 12px;
+  border-bottom:1px solid rgba(255,255,255,.06);font-size:13px;cursor:pointer;
+  transition:background .15s;
+}
+.topic-item:last-child{border-bottom:none}
+.topic-item:hover{background:rgba(255,255,255,.04)}
+.topic-item.active{background:rgba(74,163,255,.1);border-left:3px solid var(--accent)}
+.topic-item.decided{opacity:.5}
+.topic-num{font-weight:900;color:var(--accent);width:20px;text-align:center;flex-shrink:0}
+.topic-title{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topic-time{font-size:10px;color:var(--muted);flex-shrink:0}
+
+/* ── Phase badges ── */
+.phase-badge{
+  display:inline-block;padding:3px 10px;border-radius:999px;
+  font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+}
+.phase-WAITING{border:1px solid var(--border);color:var(--muted);background:rgba(255,255,255,.03)}
+.phase-DISCUSS{border:1px solid rgba(74,163,255,.4);color:#bddcff;background:rgba(74,163,255,.1)}
+.phase-NARROW{border:1px solid rgba(255,224,102,.4);color:#fff3c4;background:rgba(255,224,102,.1)}
+.phase-VOTE{border:1px solid rgba(168,85,247,.4);color:#e9d5ff;background:rgba(168,85,247,.1)}
+.phase-DECIDED{border:1px solid rgba(63,231,182,.4);color:#d7ffe9;background:rgba(63,231,182,.1)}
+
+/* ── Option cards ── */
+.option-card{
+  padding:12px 14px;border:1px solid var(--border);border-radius:10px;
+  margin-bottom:8px;display:flex;align-items:center;gap:10px;
+  background:rgba(255,255,255,.02);transition:all .15s;
+}
+.option-card:hover{background:rgba(255,255,255,.05)}
+.option-card.finalist{border-color:var(--accent);background:rgba(74,163,255,.08)}
+.option-card .opt-text{flex:1;font-size:13px}
+.option-card .opt-remove{
+  color:var(--bad);cursor:pointer;font-size:16px;opacity:.5;transition:opacity .15s;
+}
+.option-card .opt-remove:hover{opacity:1}
+
+/* ── Vote cards ── */
+.vote-card{
+  padding:24px 20px;border:2px solid var(--border);border-radius:14px;
+  text-align:center;cursor:pointer;transition:all .2s;
+  font-size:16px;font-weight:700;min-height:80px;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.02);
+}
+.vote-card:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.2)}
+.vote-card.selected{border-color:var(--accent);background:rgba(74,163,255,.15);box-shadow:0 0 0 3px rgba(74,163,255,.2)}
+.vote-card.winner{border-color:var(--ok);background:rgba(63,231,182,.1)}
+.vote-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}
+@media(max-width:900px){.vote-grid{grid-template-columns:1fr}}
+
+/* ── Action items ── */
+.action-item{
+  display:flex;align-items:center;gap:8px;padding:8px 0;
+  border-bottom:1px solid rgba(255,255,255,.06);font-size:12px;
+}
+.action-item:last-child{border-bottom:none}
+.action-task{flex:1}
+.action-owner{color:var(--accent);font-weight:700}
+
+/* ── Timer ── */
+.timer-display{
+  font-size:18px;font-weight:900;font-variant-numeric:tabular-nums;
+  padding:6px 14px;border-radius:10px;display:inline-flex;align-items:center;gap:6px;
+  border:1px solid var(--border);background:var(--panel);
+}
+.timer-display.urgent{border-color:rgba(255,107,107,.5);color:var(--bad);background:rgba(255,107,107,.08)}
+@keyframes timerPulse{0%,100%{opacity:1}50%{opacity:.4}}
+.timer-display.expired{animation:timerPulse 1s ease-in-out infinite;border-color:var(--bad);color:var(--bad)}
+
+/* ── Forecast bar ── */
+.forecast-bar{
+  display:flex;align-items:center;gap:12px;padding:10px 14px;
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  font-size:12px;color:var(--muted);margin-bottom:12px;
+}
+.forecast-bar .forecast-time{font-weight:700;color:var(--text)}
+
+/* ── Participant chip ── */
+.participant-chip{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;
+  border:1px solid var(--border);background:rgba(255,255,255,.03);margin:2px;
+}
+.participant-chip .chip-remove{cursor:pointer;color:var(--bad);opacity:.5;font-size:14px}
+.participant-chip .chip-remove:hover{opacity:1}
+
+/* ── Landing ── */
+.landing-center{max-width:600px;margin:40px auto;text-align:center}
+.landing-center h2{font-size:20px;margin:0 0 8px}
+.landing-center p{color:var(--muted);font-size:13px;margin:0 0 24px}
+.meeting-list-item{
+  display:flex;align-items:center;gap:12px;padding:12px 14px;
+  border:1px solid var(--border);border-radius:10px;
+  background:var(--card);margin-bottom:8px;cursor:pointer;transition:all .15s;
+}
+.meeting-list-item:hover{background:rgba(74,163,255,.06);border-color:rgba(74,163,255,.3)}
+
+/* ── Search input ── */
+.search-wrap{position:relative;margin-bottom:8px}
+.search-wrap input{width:100%;padding-right:36px}
+.search-results{
+  position:absolute;top:100%;left:0;right:0;z-index:20;
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  max-height:200px;overflow-y:auto;display:none;
+}
+.search-results.show{display:block}
+.search-result-item{
+  padding:8px 12px;font-size:12px;cursor:pointer;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.search-result-item:hover{background:rgba(74,163,255,.08)}
+.search-result-item:last-child{border-bottom:none}
+
+/* ── Reorder arrows ── */
+.reorder-btn{
+  padding:2px 6px;font-size:14px;border:none;background:none;
+  color:var(--muted);cursor:pointer;line-height:1;
+}
+.reorder-btn:hover{color:var(--accent)}
+
+/* ── Loading ── */
+.loading{text-align:center;padding:30px;color:var(--muted);font-size:13px}
+
+/* ── Responsive ── */
+@media(max-width:900px){
+  .vote-card{min-height:60px;font-size:14px;padding:18px 14px}
+  .timer-display{font-size:14px;padding:4px 10px}
+  header{padding:10px 12px 8px}
+  h1{font-size:22px}
+  main{padding:10px 12px 16px}
+}
+</style>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyA6KELmSyotefK0zhahQZ0-mbYur8_nTsg",
+    authDomain: "commandops-93846.firebaseapp.com",
+    databaseURL: "https://commandops-93846-default-rtdb.firebaseio.com",
+    projectId: "commandops-93846",
+    storageBucket: "commandops-93846.firebasestorage.app",
+    messagingSenderId: "262613721964",
+    appId: "1:262613721964:web:478a694d357234e3be4949"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+
+  db.enablePersistence({synchronizeTabs:true}).catch(err=>{
+    console.warn("Firestore persistence not enabled:", err.code);
+  });
+
+  auth.onAuthStateChanged((user) => {
+    const overlay = document.getElementById('loginOverlay');
+    const userInfo = document.getElementById('userInfo');
+    const userEmail = document.getElementById('userEmail');
+    if (user) {
+      overlay.classList.add('hidden');
+      userInfo.style.display = 'flex';
+      userEmail.textContent = user.email;
+      init();
+    } else {
+      overlay.classList.remove('hidden');
+      userInfo.style.display = 'none';
+      userEmail.textContent = '';
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const loginError = document.getElementById('loginError');
+      const btnLogin = document.getElementById('btnLogin');
+      loginError.classList.remove('show');
+      btnLogin.disabled = true;
+      btnLogin.textContent = 'Signing in...';
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+      } catch (err) {
+        let msg = 'Sign in failed';
+        if (err.code === 'auth/user-not-found') msg = 'No account found';
+        else if (err.code === 'auth/wrong-password') msg = 'Incorrect password';
+        else if (err.code === 'auth/invalid-email') msg = 'Invalid email';
+        else if (err.code === 'auth/too-many-requests') msg = 'Too many attempts';
+        else if (err.code === 'auth/invalid-credential') msg = 'Invalid email or password';
+        loginError.textContent = msg;
+        loginError.classList.add('show');
+      }
+      btnLogin.disabled = false;
+      btnLogin.textContent = 'Sign In';
+    });
+    document.getElementById('btnLogout').addEventListener('click', () => auth.signOut());
+  });
+</script>
+</head>
+<body>
+
+<!-- Login Overlay -->
+<div id="loginOverlay">
+  <div class="login-box">
+    <h2>DecisionOps</h2>
+    <p class="subtitle">Sign in to continue</p>
+    <div id="loginError" class="login-error"></div>
+    <form id="loginForm">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="you@example.com" required autocomplete="email"/>
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="Enter password" required autocomplete="current-password"/>
+      <button type="submit" class="btn-login" id="btnLogin">Sign In</button>
+    </form>
+  </div>
+</div>
+
+<header>
+  <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <svg width="38" height="38" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+      <circle cx="32" cy="32" r="30" fill="#0c1320" stroke="#4aa3ff" stroke-width="1.2"/>
+      <path d="M20 32l8 8 16-16" stroke="#4aa3ff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div style="display:flex;flex-direction:column;gap:1px">
+      <h1 style="text-align:left">DecisionOps</h1>
+      <span style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:600">Meeting Decision Engine</span>
+    </div>
+    <div id="meetingHeaderInfo" style="display:none;align-items:center;gap:10px;margin-left:16px">
+      <span id="headerTimer" class="timer-display" style="display:none">--:--</span>
+      <span id="headerForecast" class="pill accent" style="display:none"></span>
+    </div>
+    <div id="userInfo" style="margin-left:auto;display:none;align-items:center;gap:10px;font-size:12px">
+      <span class="pill good" id="pillStatus" style="font-size:10px;padding:4px 8px">DB: loading...</span>
+      <span class="user-email" id="userEmail" style="color:var(--text);font-weight:600;text-transform:uppercase"></span>
+      <button id="btnLogout" type="button" style="padding:4px 10px;font-size:11px;border-radius:8px">SIGN OUT</button>
+    </div>
+  </div>
+</header>
+
+<main id="mainArea">
+  <div class="loading">Loading...</div>
+</main>
+
+<script>
+// ===== GLOBALS =====
+let _meetingDoc = null;
+let _meetingId = null;
+let _meetingUnsub = null;
+let _timerInterval = null;
+let _userHash = null;
+let _isFacilitator = false;
+let _view = 'LANDING';
+let _employees = [];
+let _initDone = false;
+let _narrowSelection = [];  // temp state: which options facilitator has selected during NARROW
+
+// ===== HELPERS =====
+function esc(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/'/g,"&#39;").replace(/"/g,"&quot;");
+}
+function genId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+async function hashUid(uid){
+  const enc = new TextEncoder().encode(uid);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function normalizeRole(pos){
+  const p = String(pos||"").toUpperCase().trim();
+  if(p.includes("CALL")||p==="CT") return "CALLTAKER";
+  if(p.includes("DISP")||p==="DP") return "DISPATCHER";
+  if(p.includes("PIC")) return "PIC";
+  if(p.includes("SUP")) return "SUPERVISOR";
+  return p||"";
+}
+
+function fmtTime(date){
+  return date.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+}
+
+function fmtDate(date){
+  return date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+function fmtMinSec(totalSec){
+  if(totalSec < 0) totalSec = 0;
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+// ===== INIT =====
+async function init(){
+  if(_initDone) return;
+  _initDone = true;
+
+  // Compute user hash for anonymous voting
+  if(auth.currentUser){
+    _userHash = await hashUid(auth.currentUser.uid);
+  }
+
+  await loadEmployees();
+  renderLanding();
+}
+
+// ===== LOAD EMPLOYEES =====
+async function loadEmployees(){
+  const pill = document.getElementById('pillStatus');
+  pill.textContent = 'DB: loading...';
+  pill.classList.remove('good','bad');
+  try {
+    const snap = await db.collection('employees').get();
+    _employees = snap.docs.map(doc => {
+      const r = doc.data();
+      return {
+        name: String(r.Employee || doc.id).toUpperCase(),
+        role: normalizeRole(r.POSITION ?? r.Position ?? "")
+      };
+    }).filter(r => r.name && (r.role === 'SUPERVISOR' || r.role === 'DISPATCHER'));
+    _employees.sort((a,b) => a.name.localeCompare(b.name));
+    pill.textContent = 'DB: ' + _employees.length + ' staff';
+    pill.classList.add('good');
+  } catch(err){
+    console.error('Employee load error:', err);
+    pill.textContent = 'DB: error';
+    pill.classList.add('bad');
+  }
+}
+
+// ===== LANDING SCREEN =====
+function renderLanding(){
+  _view = 'LANDING';
+  stopMeetingListener();
+  clearTimerInterval();
+  document.getElementById('meetingHeaderInfo').style.display = 'none';
+
+  const main = document.getElementById('mainArea');
+  let html = '<div class="landing-center">';
+  html += '<h2>Start or Join a Meeting</h2>';
+  html += '<p>Create a new meeting to facilitate, or join an active one to participate.</p>';
+
+  // Create meeting
+  html += '<div class="card" style="text-align:left;margin-bottom:20px">';
+  html += '<div class="card-header">NEW MEETING</div>';
+  html += '<div class="card-body">';
+  html += '<input type="text" id="newMeetingTitle" placeholder="Meeting title (e.g. Staff Meeting)" style="width:100%;margin-bottom:10px"/>';
+  html += '<button class="primary" onclick="handleCreateMeeting()" style="width:100%">Start Meeting</button>';
+  html += '</div></div>';
+
+  // Active meetings
+  html += '<div class="card" style="text-align:left;margin-bottom:20px">';
+  html += '<div class="card-header">ACTIVE MEETINGS</div>';
+  html += '<div class="card-body" id="activeMeetingsList"><div class="loading">Loading...</div></div>';
+  html += '</div>';
+
+  // Past meetings
+  html += '<div class="card" style="text-align:left">';
+  html += '<div class="card-header">PAST MEETINGS</div>';
+  html += '<div class="card-body" id="pastMeetingsList"><div class="loading">Loading...</div></div>';
+  html += '</div>';
+
+  html += '</div>';
+  main.innerHTML = html;
+
+  loadActiveMeetings();
+  loadPastMeetings();
+}
+
+async function loadActiveMeetings(){
+  const el = document.getElementById('activeMeetingsList');
+  if(!el) return;
+  try {
+    const snap = await db.collection('decisionMeetings').where('status','in',['ACTIVE','SETUP','STOPPED']).get();
+    if(snap.empty){
+      el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px">No active meetings.</div>';
+      return;
+    }
+    let html = '';
+    snap.docs.forEach(doc => {
+      const d = doc.data();
+      const topicCount = (d.topics||[]).length;
+      const decided = (d.topics||[]).filter(t=>t.phase==='DECIDED').length;
+      const statusClass = d.status === 'ACTIVE' ? 'good' : d.status === 'STOPPED' ? 'warn' : 'accent';
+      html += '<div class="meeting-list-item" onclick="joinMeeting(\'' + esc(doc.id) + '\')">';
+      html += '<div style="flex:1"><div style="font-weight:700">' + esc(d.title||'Untitled') + '</div>';
+      html += '<div style="font-size:11px;color:var(--muted)">By ' + esc(d.createdBy||'') + ' &bull; ' + topicCount + ' topics (' + decided + ' decided)</div></div>';
+      html += '<span class="pill ' + statusClass + '" style="font-size:10px">' + esc(d.status) + '</span>';
+      html += '</div>';
+    });
+    el.innerHTML = html;
+  } catch(err){
+    el.innerHTML = '<div style="color:var(--bad);font-size:12px">Failed to load.</div>';
+  }
+}
+
+async function loadPastMeetings(){
+  const el = document.getElementById('pastMeetingsList');
+  if(!el) return;
+  try {
+    const snap = await db.collection('decisionMeetings')
+      .where('status','==','ENDED')
+      .orderBy('createdAt','desc')
+      .limit(20)
+      .get();
+    if(snap.empty){
+      el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px">No past meetings.</div>';
+      return;
+    }
+    let html = '';
+    snap.docs.forEach(doc => {
+      const d = doc.data();
+      const topicCount = (d.topics||[]).length;
+      const dateStr = d.createdAt && d.createdAt.toDate ? fmtDate(d.createdAt.toDate()) : '';
+      html += '<div class="meeting-list-item" onclick="viewPastMeeting(\'' + esc(doc.id) + '\')">';
+      html += '<div style="flex:1"><div style="font-weight:700">' + esc(d.title||'Untitled') + '</div>';
+      html += '<div style="font-size:11px;color:var(--muted)">' + esc(dateStr) + ' &bull; ' + topicCount + ' topics decided</div></div>';
+      html += '<span class="pill" style="font-size:10px">VIEW</span>';
+      html += '</div>';
+    });
+    el.innerHTML = html;
+  } catch(err){
+    el.innerHTML = '<div style="color:var(--bad);font-size:12px">Failed to load.</div>';
+  }
+}
+
+// ===== CREATE MEETING =====
+async function handleCreateMeeting(){
+  const input = document.getElementById('newMeetingTitle');
+  const title = (input.value||'').trim();
+  if(!title){ alert('Enter a meeting title.'); return; }
+  const email = auth.currentUser ? auth.currentUser.email : 'unknown';
+  try {
+    const ref = await db.collection('decisionMeetings').add({
+      title: title,
+      createdBy: email,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      facilitator: email,
+      status: 'SETUP',
+      startedAt: null,
+      participants: [],
+      topics: [],
+      activeTopicIndex: -1
+    });
+    joinMeeting(ref.id);
+  } catch(err){
+    console.error('Create meeting failed:', err);
+    alert('Failed to create meeting: ' + (err.message||err));
+  }
+}
+
+// ===== JOIN MEETING =====
+function joinMeeting(meetingId){
+  _meetingId = meetingId;
+  _view = 'MEETING';
+  _narrowSelection = [];
+  startMeetingListener(meetingId);
+}
+
+// ===== MEETING LISTENER =====
+function startMeetingListener(meetingId){
+  stopMeetingListener();
+  _meetingId = meetingId;
+  _meetingUnsub = db.collection('decisionMeetings').doc(meetingId)
+    .onSnapshot(snap => {
+      if(!snap.exists){
+        alert('Meeting not found.');
+        renderLanding();
+        return;
+      }
+      _meetingDoc = { id: snap.id, ...snap.data() };
+      _isFacilitator = (auth.currentUser && auth.currentUser.email === _meetingDoc.facilitator);
+      renderMeeting();
+    }, err => {
+      console.warn('Meeting listener error:', err);
+    });
+}
+
+function stopMeetingListener(){
+  if(_meetingUnsub){ _meetingUnsub(); _meetingUnsub = null; }
+  _meetingDoc = null;
+  _meetingId = null;
+}
+
+// ===== RENDER MEETING =====
+function renderMeeting(){
+  if(!_meetingDoc) return;
+  const main = document.getElementById('mainArea');
+  document.getElementById('meetingHeaderInfo').style.display = 'flex';
+
+  const topics = _meetingDoc.topics || [];
+  const activeIdx = _meetingDoc.activeTopicIndex;
+  const activeTopic = (activeIdx >= 0 && activeIdx < topics.length) ? topics[activeIdx] : null;
+
+  // Update timer
+  updateTimerDisplay(activeTopic);
+
+  // Update forecast
+  updateForecast(topics, activeIdx);
+
+  let html = '';
+
+  // Meeting control bar
+  const totalMin = topics.reduce((s,t) => s + (t.timeLimit||10), 0);
+  const meetingStatus = _meetingDoc.status;
+
+  html += '<div class="forecast-bar" id="forecastBar" style="flex-wrap:wrap">';
+  html += '<span>Meeting: <strong>' + esc(_meetingDoc.title) + '</strong></span>';
+  html += '<span class="pill ' + (meetingStatus==='ACTIVE'?'good':meetingStatus==='STOPPED'?'warn':'accent') + '" style="font-size:10px">' + esc(meetingStatus) + '</span>';
+  html += '<span style="color:var(--muted);font-size:11px">Participants: <strong style="color:var(--text)">' + (_meetingDoc.participants||[]).length + '</strong></span>';
+
+  // Duration estimate
+  if(topics.length > 0){
+    const hrs = Math.floor(totalMin / 60);
+    const mins = totalMin % 60;
+    const durStr = hrs > 0 ? hrs + 'h ' + mins + 'm' : mins + ' min';
+    html += '<span style="color:var(--muted);font-size:11px">Duration: <strong style="color:var(--text)">' + durStr + '</strong></span>';
+  }
+
+  html += '<span style="margin-left:auto;display:flex;gap:4px;flex-wrap:wrap">';
+
+  if(_isFacilitator){
+    if(meetingStatus === 'SETUP'){
+      const canStart = topics.length > 0;
+      html += '<button onclick="handleStartMeeting()" class="primary" style="padding:4px 12px;font-size:11px;border-radius:8px"' + (canStart ? '' : ' disabled title="Add topics first"') + '>START MEETING</button>';
+    } else if(meetingStatus === 'ACTIVE'){
+      html += '<button onclick="handleStopMeeting()" style="padding:4px 10px;font-size:11px;border-radius:8px;border:1px solid rgba(255,224,102,.3);color:var(--warn);background:rgba(255,224,102,.08)">STOP</button>';
+      html += '<button onclick="handleEndMeeting()" style="padding:4px 10px;font-size:11px;border-radius:8px;border:1px solid rgba(255,107,107,.3);color:#ff6b6b;background:rgba(255,107,107,.08)">END MEETING</button>';
+    } else if(meetingStatus === 'STOPPED'){
+      html += '<button onclick="handleResumeMeeting()" class="primary" style="padding:4px 12px;font-size:11px;border-radius:8px">RESUME</button>';
+      html += '<button onclick="handleRestartMeeting()" style="padding:4px 10px;font-size:11px;border-radius:8px;border:1px solid rgba(255,224,102,.3);color:var(--warn);background:rgba(255,224,102,.08)">RESTART</button>';
+      html += '<button onclick="handleEndMeeting()" style="padding:4px 10px;font-size:11px;border-radius:8px;border:1px solid rgba(255,107,107,.3);color:#ff6b6b;background:rgba(255,107,107,.08)">END MEETING</button>';
+    }
+  }
+
+  if(meetingStatus !== 'SETUP'){
+    html += '<button onclick="printSummary()" style="padding:4px 10px;font-size:11px;border-radius:8px;border:1px solid var(--border);color:var(--muted);background:rgba(255,255,255,.04)">PRINT</button>';
+  }
+  html += '<button onclick="renderLanding()" style="padding:4px 10px;font-size:11px;border-radius:8px;border:1px solid var(--border);color:var(--muted);background:rgba(255,255,255,.04)">LEAVE</button>';
+  html += '</span></div>';
+
+  // Started-at info line
+  if(_meetingDoc.startedAt){
+    const startTime = _meetingDoc.startedAt.toDate ? _meetingDoc.startedAt.toDate() : new Date(_meetingDoc.startedAt.seconds * 1000);
+    html += '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;padding:0 4px">Started at <strong style="color:var(--text)">' + fmtTime(startTime) + '</strong></div>';
+  }
+
+  html += '<div class="split-layout">';
+
+  // LEFT: Topic queue + participants
+  html += '<div class="split-left">';
+  html += renderQueue(topics, activeIdx);
+  html += renderParticipantsCard();
+  html += '</div>';
+
+  // RIGHT: Active topic
+  html += '<div class="split-right">';
+  if(meetingStatus === 'SETUP'){
+    const totalMin2 = topics.reduce((s,t) => s + (t.timeLimit||10), 0);
+    const hrs2 = Math.floor(totalMin2/60); const mins2 = totalMin2%60;
+    const durStr2 = topics.length > 0 ? (hrs2>0 ? hrs2+'h '+mins2+'m' : mins2+' min') : '--';
+    html += '<div class="card"><div class="card-body" style="text-align:center;padding:40px">';
+    html += '<div style="font-size:36px;margin-bottom:12px">&#9881;</div>';
+    html += '<div style="font-size:16px;font-weight:800;margin-bottom:8px">Meeting Setup</div>';
+    html += '<div style="color:var(--muted);font-size:13px;margin-bottom:16px">Add topics and participants, then start the meeting.</div>';
+    html += '<div style="font-size:24px;font-weight:900;color:var(--accent);margin-bottom:4px">' + topics.length + ' topic' + (topics.length!==1?'s':'') + '</div>';
+    html += '<div style="font-size:14px;color:var(--muted)">Estimated duration: <strong style="color:var(--text)">' + durStr2 + '</strong></div>';
+    html += '</div></div>';
+  } else if(meetingStatus === 'STOPPED'){
+    html += '<div class="card"><div class="card-body" style="text-align:center;padding:40px">';
+    html += '<div style="font-size:36px;margin-bottom:12px">&#9209;</div>';
+    html += '<div style="font-size:16px;font-weight:800;margin-bottom:8px;color:var(--warn)">Meeting Stopped</div>';
+    html += '<div style="color:var(--muted);font-size:13px">' + (_isFacilitator ? 'Resume to continue, or Restart to reset all topics.' : 'Waiting for facilitator to resume.') + '</div>';
+    html += '</div></div>';
+  } else if(!activeTopic){
+    if(topics.length === 0){
+      html += '<div class="card"><div class="card-body loading">No topics yet.' + (_isFacilitator ? ' Add topics in the queue.' : ' Waiting for facilitator to add topics.') + '</div></div>';
+    } else if(topics.every(t=>t.phase==='DECIDED')){
+      html += '<div class="card"><div class="card-body" style="text-align:center;padding:40px">';
+      html += '<div style="font-size:40px;margin-bottom:12px">&#9989;</div>';
+      html += '<div style="font-size:16px;font-weight:800;margin-bottom:8px">All Topics Decided</div>';
+      html += '<div style="color:var(--muted);font-size:13px">Great meeting! All ' + topics.length + ' topics have been resolved.</div>';
+      html += '</div></div>';
+    } else {
+      html += '<div class="card"><div class="card-body loading">Select a topic to begin.' + (_isFacilitator ? '' : ' Waiting for facilitator.') + '</div></div>';
+    }
+  } else {
+    html += renderActiveTopic(activeTopic, activeIdx);
+  }
+  html += '</div>';
+
+  html += '</div>';
+  main.innerHTML = html;
+}
+
+// ===== RENDER QUEUE =====
+function renderQueue(topics, activeIdx){
+  let html = '<div class="card">';
+  html += '<div class="card-header"><span>TOPICS (' + topics.length + ')</span>';
+  if(_isFacilitator){
+    html += '<button onclick="showAddTopicForm()" style="padding:3px 10px;font-size:11px;border-radius:8px;font-weight:700">+ ADD</button>';
+  }
+  html += '</div>';
+
+  // Add topic form (hidden by default, toggled)
+  html += '<div id="addTopicForm" style="display:none;padding:10px 12px;border-bottom:1px solid var(--border)">';
+  html += '<input type="text" id="newTopicTitle" placeholder="Topic title" style="width:100%;margin-bottom:6px"/>';
+  html += '<input type="text" id="newTopicDesc" placeholder="Description (optional)" style="width:100%;margin-bottom:6px"/>';
+  html += '<div style="display:flex;gap:6px;align-items:center">';
+  html += '<label style="font-size:11px;color:var(--muted);white-space:nowrap">Time limit:</label>';
+  html += '<input type="number" id="newTopicTime" value="10" min="1" max="120" style="width:60px;padding:6px 8px;text-align:center"/> <span style="font-size:11px;color:var(--muted)">min</span>';
+  html += '<button class="primary" onclick="handleAddTopic()" style="margin-left:auto;padding:6px 14px;font-size:11px">ADD</button>';
+  html += '</div></div>';
+
+  // Waiting topics
+  const waiting = topics.filter((t,i) => t.phase !== 'DECIDED');
+  const decided = topics.filter(t => t.phase === 'DECIDED');
+
+  if(waiting.length === 0 && decided.length === 0){
+    html += '<div style="padding:16px;text-align:center;color:var(--muted);font-size:12px">No topics added yet.</div>';
+  }
+
+  waiting.forEach((topic, wi) => {
+    const origIdx = topics.indexOf(topic);
+    const isActive = origIdx === activeIdx;
+    html += '<div class="topic-item' + (isActive ? ' active' : '') + '" onclick="handleSelectTopic(' + origIdx + ')">';
+    if(_isFacilitator && topic.phase === 'WAITING'){
+      html += '<div style="display:flex;flex-direction:column">';
+      html += '<span class="reorder-btn" onclick="event.stopPropagation();handleReorder(' + origIdx + ',-1)" title="Move up">&#9650;</span>';
+      html += '<span class="reorder-btn" onclick="event.stopPropagation();handleReorder(' + origIdx + ',1)" title="Move down">&#9660;</span>';
+      html += '</div>';
+    }
+    html += '<span class="topic-num">' + (wi+1) + '</span>';
+    html += '<span class="topic-title">' + esc(topic.title) + '</span>';
+    html += '<span class="phase-badge phase-' + esc(topic.phase) + '">' + esc(topic.phase) + '</span>';
+    html += '<span class="topic-time">' + topic.timeLimit + 'm</span>';
+    if(_isFacilitator && topic.phase === 'WAITING'){
+      html += '<span class="opt-remove" onclick="event.stopPropagation();handleRemoveTopic(\'' + esc(topic.id) + '\')" title="Remove">&times;</span>';
+    }
+    html += '</div>';
+  });
+
+  if(decided.length > 0){
+    html += '<div style="padding:8px 12px;font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.1em;border-bottom:1px solid var(--border);background:rgba(63,231,182,.04)">DECIDED (' + decided.length + ')</div>';
+    decided.forEach(topic => {
+      const origIdx = topics.indexOf(topic);
+      html += '<div class="topic-item decided" onclick="handleSelectTopic(' + origIdx + ')">';
+      html += '<span class="topic-num" style="color:var(--ok)">&#10003;</span>';
+      html += '<span class="topic-title">' + esc(topic.title) + '</span>';
+      html += '<span class="phase-badge phase-DECIDED">DECIDED</span>';
+      html += '</div>';
+    });
+  }
+
+  html += '</div>';
+  return html;
+}
+
+// ===== RENDER PARTICIPANTS CARD =====
+function renderParticipantsCard(){
+  const participants = _meetingDoc.participants || [];
+  let html = '<div class="card" style="margin-top:12px;overflow:visible">';
+  html += '<div class="card-header" style="border-radius:12px 12px 0 0"><span>PARTICIPANTS (' + participants.length + ')</span></div>';
+  html += '<div class="card-body" style="padding:10px 12px;overflow:visible">';
+
+  // Participant chips
+  if(participants.length > 0){
+    html += '<div style="margin-bottom:8px">';
+    participants.forEach(p => {
+      html += '<span class="participant-chip">' + esc(p.name);
+      const roleTag = p.role === 'SUPERVISOR' ? 'SUP' : p.role === 'GUEST' ? 'GUEST' : 'DP';
+      html += '<span style="font-size:9px;color:var(--muted);margin-left:2px">' + esc(roleTag) + '</span>';
+      if(_isFacilitator){
+        html += ' <span class="chip-remove" onclick="handleRemoveParticipant(\'' + esc(p.name) + '\')">&times;</span>';
+      }
+      html += '</span>';
+    });
+    html += '</div>';
+  }
+
+  // Add participant search (facilitator only)
+  if(_isFacilitator){
+    html += '<div class="search-wrap">';
+    html += '<input type="text" id="participantSearch" placeholder="Search employee..." oninput="handleParticipantSearch(this.value)" autocomplete="off" style="width:100%;padding:8px 10px;font-size:12px"/>';
+    html += '<div class="search-results" id="participantResults"></div>';
+    html += '</div>';
+  }
+
+  html += '</div></div>';
+  return html;
+}
+
+function handleParticipantSearch(query){
+  const results = document.getElementById('participantResults');
+  if(!results) return;
+  const q = query.trim().toUpperCase();
+  if(!q){ results.classList.remove('show'); return; }
+
+  const existing = (_meetingDoc.participants||[]).map(p => p.name);
+
+  // Group keywords: "SUPERVISORS" or "SUP" adds all supervisors, "DISPATCHERS" or "DP" adds all dispatchers
+  const isSupKeyword = ['SUPERVISORS','SUPERVISOR','SUPS','SUP'].includes(q);
+  const isDpKeyword = ['DISPATCHERS','DISPATCHER','DPS','DP'].includes(q);
+
+  if(isSupKeyword || isDpKeyword){
+    const targetRole = isSupKeyword ? 'SUPERVISOR' : 'DISPATCHER';
+    const roleLabel = isSupKeyword ? 'Supervisors' : 'Dispatchers';
+    const groupMatches = _employees.filter(e => e.role === targetRole && !existing.includes(e.name));
+    let html = '';
+    if(groupMatches.length > 0){
+      html += '<div class="search-result-item" onclick="handleAddGroup(\'' + esc(targetRole) + '\')" style="color:var(--ok);font-weight:700;border-bottom:2px solid var(--border)">';
+      html += 'Add all ' + roleLabel + ' (' + groupMatches.length + ')</div>';
+      groupMatches.forEach(e => {
+        html += '<div class="search-result-item" onclick="handleAddParticipant(\'' + esc(e.name) + '\',\'' + esc(e.role) + '\')">';
+        html += esc(e.name) + ' <span style="color:var(--muted);font-size:10px">' + esc(e.role === 'SUPERVISOR' ? 'SUP' : 'DP') + '</span></div>';
+      });
+    } else {
+      html = '<div class="search-result-item" style="color:var(--muted)">All ' + roleLabel.toLowerCase() + ' already added</div>';
+    }
+    results.innerHTML = html;
+    results.classList.add('show');
+    return;
+  }
+
+  const matches = _employees.filter(e => e.name.includes(q) && !existing.includes(e.name)).slice(0, 8);
+
+  let html = '';
+  if(matches.length === 0){
+    html += '<div class="search-result-item" style="color:var(--muted)">No employees match</div>';
+  } else {
+    html += matches.map(e =>
+      '<div class="search-result-item" onclick="handleAddParticipant(\'' + esc(e.name) + '\',\'' + esc(e.role) + '\')">' +
+      esc(e.name) + ' <span style="color:var(--muted);font-size:10px">' + esc(e.role === 'SUPERVISOR' ? 'SUP' : 'DP') + '</span></div>'
+    ).join('');
+  }
+  // Always show "add as guest" option if the typed name isn't already a participant
+  if(!existing.includes(q)){
+    html += '<div class="search-result-item" onclick="handleAddParticipant(\'' + esc(q) + '\',\'GUEST\')" style="border-top:2px solid var(--border);color:var(--accent);font-weight:700">';
+    html += '+ Add &quot;' + esc(q) + '&quot; as Guest</div>';
+  }
+  results.innerHTML = html;
+  results.classList.add('show');
+}
+
+async function handleAddParticipant(name, role){
+  if(!_meetingId) return;
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({
+      participants: firebase.firestore.FieldValue.arrayUnion({ name, role })
+    });
+    const input = document.getElementById('participantSearch');
+    if(input) input.value = '';
+    const results = document.getElementById('participantResults');
+    if(results) results.classList.remove('show');
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+async function handleAddGroup(targetRole){
+  if(!_meetingId || !_meetingDoc) return;
+  const existing = (_meetingDoc.participants||[]).map(p => p.name);
+  const toAdd = _employees.filter(e => e.role === targetRole && !existing.includes(e.name));
+  if(toAdd.length === 0) return;
+  try {
+    const current = _meetingDoc.participants || [];
+    const updated = [...current, ...toAdd.map(e => ({ name: e.name, role: e.role }))];
+    await db.collection('decisionMeetings').doc(_meetingId).update({ participants: updated });
+    const input = document.getElementById('participantSearch');
+    if(input) input.value = '';
+    const results = document.getElementById('participantResults');
+    if(results) results.classList.remove('show');
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+async function handleRemoveParticipant(name){
+  if(!_meetingId || !_meetingDoc) return;
+  const p = (_meetingDoc.participants||[]).find(x => x.name === name);
+  if(!p) return;
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({
+      participants: firebase.firestore.FieldValue.arrayRemove(p)
+    });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== TOPIC MANAGEMENT =====
+function showAddTopicForm(){
+  const form = document.getElementById('addTopicForm');
+  if(form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+async function handleAddTopic(){
+  const title = (document.getElementById('newTopicTitle').value||'').trim();
+  if(!title){ alert('Enter a topic title.'); return; }
+  const desc = (document.getElementById('newTopicDesc').value||'').trim();
+  const time = parseInt(document.getElementById('newTopicTime').value) || 10;
+
+  const newTopic = {
+    id: genId(),
+    title: title,
+    description: desc,
+    timeLimit: Math.max(1, Math.min(120, time)),
+    phase: 'WAITING',
+    options: [],
+    finalists: [],
+    votes: {},
+    votedUsers: [],
+    winner: '',
+    actionItems: [],
+    timerStartedAt: null,
+    decidedAt: null
+  };
+
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({
+      topics: firebase.firestore.FieldValue.arrayUnion(newTopic)
+    });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+async function handleRemoveTopic(topicId){
+  if(!_meetingDoc || !_meetingId) return;
+  if(!confirm('Remove this topic?')) return;
+  const topics = (_meetingDoc.topics||[]).filter(t => t.id !== topicId);
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+async function handleReorder(idx, dir){
+  if(!_meetingDoc || !_meetingId) return;
+  const topics = [...(_meetingDoc.topics||[])];
+  const newIdx = idx + dir;
+  if(newIdx < 0 || newIdx >= topics.length) return;
+  [topics[idx], topics[newIdx]] = [topics[newIdx], topics[idx]];
+  // Adjust activeTopicIndex if needed
+  let activeIdx = _meetingDoc.activeTopicIndex;
+  if(activeIdx === idx) activeIdx = newIdx;
+  else if(activeIdx === newIdx) activeIdx = idx;
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics, activeTopicIndex: activeIdx });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+async function handleSelectTopic(idx){
+  if(!_isFacilitator) return;
+  if(!_meetingDoc || !_meetingId) return;
+  if(_meetingDoc.status !== 'ACTIVE'){ return; }
+  const topics = [...(_meetingDoc.topics||[])];
+  const topic = topics[idx];
+  if(!topic) return;
+
+  // If WAITING, start it (DISCUSS)
+  if(topic.phase === 'WAITING'){
+    topics[idx] = { ...topic, phase: 'DISCUSS', timerStartedAt: firebase.firestore.Timestamp.now() };
+  }
+  _narrowSelection = [];
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics, activeTopicIndex: idx });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== RENDER ACTIVE TOPIC =====
+function renderActiveTopic(topic, idx){
+  let html = '<div class="card">';
+  html += '<div class="card-header">';
+  html += '<span class="phase-badge phase-' + esc(topic.phase) + '" style="margin-right:8px">' + esc(topic.phase) + '</span>';
+  html += '<span style="font-size:14px;font-weight:800">' + esc(topic.title) + '</span>';
+  html += '</div>';
+  html += '<div class="card-body">';
+
+  if(topic.description){
+    html += '<div style="color:var(--muted);font-size:12px;margin-bottom:14px">' + esc(topic.description) + '</div>';
+  }
+
+  // Phase-specific content
+  if(topic.phase === 'DISCUSS') html += renderDiscuss(topic, idx);
+  else if(topic.phase === 'NARROW') html += renderNarrow(topic, idx);
+  else if(topic.phase === 'VOTE') html += renderVote(topic, idx);
+  else if(topic.phase === 'DECIDED') html += renderDecided(topic, idx);
+
+  html += '</div></div>';
+  return html;
+}
+
+// ── DISCUSS ──
+function renderDiscuss(topic, idx){
+  let html = '';
+  const options = topic.options || [];
+
+  html += '<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-bottom:8px">PROPOSED OPTIONS (' + options.length + ')</div>';
+
+  if(options.length === 0){
+    html += '<div style="color:var(--muted);font-size:12px;padding:12px;text-align:center">No options proposed yet. Add one below.</div>';
+  }
+
+  options.forEach(opt => {
+    html += '<div class="option-card">';
+    html += '<span class="opt-text">' + esc(opt.text) + '</span>';
+    if(_isFacilitator){
+      html += '<span class="opt-remove" onclick="handleRemoveOption(\'' + esc(topic.id) + '\',\'' + esc(opt.id) + '\')">&times;</span>';
+    }
+    html += '</div>';
+  });
+
+  // Add option input
+  html += '<div style="display:flex;gap:8px;margin-top:12px">';
+  html += '<input type="text" id="newOptionText" placeholder="Propose a solution..." style="flex:1;padding:10px 12px"/>';
+  html += '<button class="primary" onclick="handleAddOption(\'' + esc(topic.id) + '\',\'' + idx + '\')" style="white-space:nowrap">+ Add Option</button>';
+  html += '</div>';
+
+  // Facilitator: advance button
+  if(_isFacilitator){
+    const canAdvance = options.length >= 2;
+    html += '<div style="margin-top:16px;text-align:right">';
+    html += '<button class="primary" onclick="handleAdvancePhase(\'' + esc(topic.id) + '\',' + idx + ',\'NARROW\')" ' + (canAdvance ? '' : 'disabled') + ' title="' + (canAdvance ? '' : 'Need at least 2 options') + '">';
+    html += 'Advance to Narrow &#8594;</button>';
+    html += '</div>';
+  }
+
+  return html;
+}
+
+// ── NARROW ──
+function renderNarrow(topic, idx){
+  let html = '';
+  const options = topic.options || [];
+  const finalists = topic.finalists || [];
+
+  if(!_isFacilitator){
+    html += '<div style="text-align:center;padding:20px;color:var(--muted)">Facilitator is narrowing options to the top 2...</div>';
+    if(finalists.length > 0){
+      html += '<div style="font-size:11px;color:var(--muted);text-align:center">' + finalists.length + ' of 2 selected</div>';
+    }
+    return html;
+  }
+
+  html += '<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-bottom:8px">SELECT TOP 2 OPTIONS (' + finalists.length + '/2)</div>';
+
+  options.forEach(opt => {
+    const isSel = finalists.includes(opt.id);
+    html += '<div class="option-card' + (isSel ? ' finalist' : '') + '" style="cursor:pointer" onclick="handleToggleFinalist(\'' + esc(topic.id) + '\',\'' + esc(opt.id) + '\',' + idx + ')">';
+    html += '<span style="font-size:18px;width:24px;text-align:center">' + (isSel ? '&#9745;' : '&#9744;') + '</span>';
+    html += '<span class="opt-text">' + esc(opt.text) + '</span>';
+    html += '</div>';
+  });
+
+  html += '<div style="margin-top:16px;text-align:right">';
+  html += '<button class="primary" onclick="handleAdvancePhase(\'' + esc(topic.id) + '\',' + idx + ',\'VOTE\')" ' + (finalists.length === 2 ? '' : 'disabled') + '>';
+  html += 'Advance to Vote &#8594;</button>';
+  html += '</div>';
+
+  return html;
+}
+
+// ── VOTE ──
+function renderVote(topic, idx){
+  let html = '';
+  const options = topic.options || [];
+  const finalists = topic.finalists || [];
+  const votes = topic.votes || {};
+  const votedUsers = topic.votedUsers || [];
+  const participantCount = (_meetingDoc.participants||[]).length;
+  const allVoted = participantCount > 0 && votedUsers.length >= participantCount;
+  const votingClosed = !!topic.winner;
+  const hasVoted = _userHash && votedUsers.includes(_userHash);
+
+  const finalistOptions = finalists.map(fId => options.find(o => o.id === fId)).filter(Boolean);
+
+  if(!votingClosed && !allVoted){
+    html += '<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-bottom:4px">CAST YOUR VOTE</div>';
+    html += '<div style="font-size:12px;color:var(--muted);margin-bottom:12px">' + votedUsers.length + ' of ' + participantCount + ' voted' + (hasVoted ? ' &bull; <span style="color:var(--ok)">You voted</span>' : '') + '</div>';
+
+    html += '<div class="vote-grid">';
+    finalistOptions.forEach(opt => {
+      html += '<div class="vote-card" onclick="handleCastVote(\'' + esc(topic.id) + '\',\'' + esc(opt.id) + '\',' + idx + ')">';
+      html += esc(opt.text);
+      html += '</div>';
+    });
+    html += '</div>';
+
+    if(_isFacilitator){
+      html += '<div style="margin-top:12px;text-align:right">';
+      html += '<button onclick="handleCloseVoting(\'' + esc(topic.id) + '\',' + idx + ')" style="border-color:rgba(255,224,102,.3);color:var(--warn)">Close Voting &amp; Reveal</button>';
+      html += '</div>';
+    }
+  } else {
+    // Show results
+    const totalVotes = Object.values(votes).reduce((a,b)=>a+b, 0);
+    const winId = topic.winner;
+    html += '<div style="font-size:11px;font-weight:700;color:var(--ok);letter-spacing:.06em;margin-bottom:12px">RESULTS</div>';
+    html += '<div class="vote-grid">';
+    finalistOptions.forEach(opt => {
+      const count = votes[opt.id] || 0;
+      const pct = totalVotes > 0 ? Math.round(count / totalVotes * 100) : 0;
+      const isWinner = opt.id === winId;
+      html += '<div class="vote-card' + (isWinner ? ' winner' : '') + '" style="cursor:default;flex-direction:column;gap:8px">';
+      html += '<div>' + esc(opt.text) + '</div>';
+      html += '<div style="font-size:24px;font-weight:900;color:' + (isWinner ? 'var(--ok)' : 'var(--muted)') + '">' + count + ' vote' + (count !== 1 ? 's' : '') + ' (' + pct + '%)</div>';
+      if(isWinner) html += '<div style="font-size:11px;color:var(--ok);font-weight:700">WINNER</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+
+    if(_isFacilitator && !topic.winner){
+      // Edge case: all voted but facilitator hasn't confirmed
+      html += '<div style="margin-top:12px;text-align:right">';
+      html += '<button class="primary" onclick="handleCloseVoting(\'' + esc(topic.id) + '\',' + idx + ')">Confirm Winner &#8594;</button>';
+      html += '</div>';
+    }
+    if(_isFacilitator && topic.winner){
+      html += '<div style="margin-top:12px;text-align:right">';
+      html += '<button class="primary" onclick="handleAdvancePhase(\'' + esc(topic.id) + '\',' + idx + ',\'DECIDED\')">Finalize Decision &#8594;</button>';
+      html += '</div>';
+    }
+  }
+
+  return html;
+}
+
+// ── DECIDED ──
+function renderDecided(topic, idx){
+  let html = '';
+  const options = topic.options || [];
+  const votes = topic.votes || {};
+  const finalists = topic.finalists || [];
+  const winOpt = options.find(o => o.id === topic.winner);
+  const totalVotes = Object.values(votes).reduce((a,b)=>a+b, 0);
+
+  html += '<div style="text-align:center;padding:16px 0">';
+  html += '<div style="font-size:11px;color:var(--ok);font-weight:800;letter-spacing:.1em;margin-bottom:8px">DECISION MADE</div>';
+  if(winOpt){
+    html += '<div style="font-size:20px;font-weight:900;color:var(--text);margin-bottom:8px">' + esc(winOpt.text) + '</div>';
+  }
+
+  // Vote breakdown
+  const finalistOptions = finalists.map(fId => options.find(o => o.id === fId)).filter(Boolean);
+  html += '<div style="font-size:12px;color:var(--muted)">';
+  finalistOptions.forEach((opt, i) => {
+    const count = votes[opt.id] || 0;
+    html += esc(opt.text) + ': <strong>' + count + '</strong>';
+    if(i < finalistOptions.length - 1) html += ' &nbsp;&bull;&nbsp; ';
+  });
+  html += ' &nbsp;(' + totalVotes + ' total)';
+  html += '</div></div>';
+
+  // Action items
+  const actionItems = topic.actionItems || [];
+  html += '<div style="border-top:1px solid var(--border);padding-top:14px;margin-top:14px">';
+  html += '<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-bottom:8px">ACTION ITEMS (' + actionItems.length + ')</div>';
+
+  actionItems.forEach((ai, aiIdx) => {
+    html += '<div class="action-item">';
+    html += '<span class="action-task">' + esc(ai.task) + '</span>';
+    html += '<span class="action-owner">' + esc(ai.owner) + '</span>';
+    if(_isFacilitator){
+      html += ' <span class="opt-remove" onclick="handleRemoveAction(\'' + esc(topic.id) + '\',' + idx + ',' + aiIdx + ')" style="font-size:14px">&times;</span>';
+    }
+    html += '</div>';
+  });
+
+  if(_isFacilitator){
+    html += '<div style="display:flex;gap:6px;margin-top:10px">';
+    html += '<input type="text" id="actionTask" placeholder="Action item..." style="flex:1;padding:8px 10px;font-size:12px"/>';
+    html += '<input type="text" id="actionOwner" placeholder="Owner" style="width:120px;padding:8px 10px;font-size:12px"/>';
+    html += '<button onclick="handleAddAction(\'' + esc(topic.id) + '\',' + idx + ')" style="padding:8px 12px;font-size:12px">Add</button>';
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // Next topic button
+  if(_isFacilitator){
+    const topics = _meetingDoc.topics || [];
+    const hasNext = topics.some((t,i) => i !== idx && t.phase !== 'DECIDED');
+    if(hasNext){
+      html += '<div style="margin-top:16px;text-align:right">';
+      html += '<button class="primary" onclick="handleNextTopic()">Next Topic &#8594;</button>';
+      html += '</div>';
+    }
+  }
+
+  return html;
+}
+
+// ===== OPTION MANAGEMENT =====
+async function handleAddOption(topicId, idx){
+  const input = document.getElementById('newOptionText');
+  const text = (input.value||'').trim();
+  if(!text) return;
+  input.value = '';
+
+  const topics = [...(_meetingDoc.topics||[])];
+  const i = parseInt(idx);
+  if(!topics[i]) return;
+  topics[i] = { ...topics[i], options: [...(topics[i].options||[]), { id: genId(), text, addedBy: 'anonymous' }] };
+
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+async function handleRemoveOption(topicId, optionId){
+  if(!_meetingDoc || !_meetingId) return;
+  const topics = [...(_meetingDoc.topics||[])];
+  const tIdx = topics.findIndex(t => t.id === topicId);
+  if(tIdx < 0) return;
+  topics[tIdx] = { ...topics[tIdx], options: (topics[tIdx].options||[]).filter(o => o.id !== optionId) };
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== FINALIST TOGGLE =====
+async function handleToggleFinalist(topicId, optionId, idx){
+  if(!_isFacilitator) return;
+  const topics = [...(_meetingDoc.topics||[])];
+  if(!topics[idx]) return;
+  let finalists = [...(topics[idx].finalists||[])];
+  if(finalists.includes(optionId)){
+    finalists = finalists.filter(f => f !== optionId);
+  } else {
+    if(finalists.length >= 2) return; // max 2
+    finalists.push(optionId);
+  }
+  topics[idx] = { ...topics[idx], finalists };
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== PHASE ADVANCE =====
+async function handleAdvancePhase(topicId, idx, nextPhase){
+  if(!_isFacilitator) return;
+  const topics = [...(_meetingDoc.topics||[])];
+  if(!topics[idx]) return;
+
+  const update = { phase: nextPhase };
+  if(nextPhase === 'DECIDED'){
+    update.decidedAt = firebase.firestore.Timestamp.now();
+  }
+  topics[idx] = { ...topics[idx], ...update };
+
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== VOTING =====
+async function handleCastVote(topicId, optionId, idx){
+  if(!_userHash){ alert('Auth error.'); return; }
+  const ref = db.collection('decisionMeetings').doc(_meetingId);
+
+  try {
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if(!snap.exists) throw new Error('Meeting not found');
+      const data = snap.data();
+      const topics = [...(data.topics||[])];
+      if(!topics[idx]) throw new Error('Topic not found');
+
+      const topic = { ...topics[idx] };
+      const votedUsers = [...(topic.votedUsers||[])];
+
+      // Already voted?
+      if(votedUsers.includes(_userHash)){
+        throw new Error('You already voted on this topic.');
+      }
+
+      const votes = { ...(topic.votes||{}) };
+      votes[optionId] = (votes[optionId] || 0) + 1;
+      votedUsers.push(_userHash);
+
+      topic.votes = votes;
+      topic.votedUsers = votedUsers;
+
+      // Auto-close if all participants voted
+      const pCount = (data.participants||[]).length;
+      if(pCount > 0 && votedUsers.length >= pCount && !topic.winner){
+        // Determine winner
+        const maxVotes = Math.max(...Object.values(votes));
+        const winners = Object.keys(votes).filter(k => votes[k] === maxVotes);
+        topic.winner = winners[0]; // first in case of tie
+      }
+
+      topics[idx] = topic;
+      tx.update(ref, { topics });
+    });
+  } catch(err){
+    if(err.message === 'You already voted on this topic.'){
+      alert(err.message);
+    } else {
+      console.error(err); alert('Vote failed: ' + (err.message||err));
+    }
+  }
+}
+
+async function handleCloseVoting(topicId, idx){
+  if(!_isFacilitator) return;
+  const topics = [...(_meetingDoc.topics||[])];
+  if(!topics[idx]) return;
+
+  const topic = { ...topics[idx] };
+  const votes = topic.votes || {};
+  const voteEntries = Object.entries(votes);
+
+  if(voteEntries.length === 0){
+    alert('No votes cast yet.');
+    return;
+  }
+
+  const maxVotes = Math.max(...voteEntries.map(([,v])=>v));
+  const winners = voteEntries.filter(([,v])=>v===maxVotes).map(([k])=>k);
+  topic.winner = winners[0];
+  topics[idx] = topic;
+
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== ACTION ITEMS =====
+async function handleAddAction(topicId, idx){
+  const taskInput = document.getElementById('actionTask');
+  const ownerInput = document.getElementById('actionOwner');
+  const task = (taskInput.value||'').trim();
+  const owner = (ownerInput.value||'').trim();
+  if(!task){ alert('Enter an action item.'); return; }
+
+  const topics = [...(_meetingDoc.topics||[])];
+  if(!topics[idx]) return;
+  const actionItems = [...(topics[idx].actionItems||[]), { task, owner: owner || 'Unassigned' }];
+  topics[idx] = { ...topics[idx], actionItems };
+
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+async function handleRemoveAction(topicId, idx, aiIdx){
+  if(!_isFacilitator) return;
+  const topics = [...(_meetingDoc.topics||[])];
+  if(!topics[idx]) return;
+  const actionItems = [...(topics[idx].actionItems||[])];
+  actionItems.splice(aiIdx, 1);
+  topics[idx] = { ...topics[idx], actionItems };
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== NEXT TOPIC =====
+async function handleNextTopic(){
+  if(!_isFacilitator || !_meetingDoc) return;
+  const topics = _meetingDoc.topics || [];
+  // Find next non-decided topic
+  let nextIdx = -1;
+  for(let i = 0; i < topics.length; i++){
+    if(topics[i].phase !== 'DECIDED'){
+      nextIdx = i;
+      break;
+    }
+  }
+  if(nextIdx < 0){ alert('All topics decided!'); return; }
+
+  const updated = [...topics];
+  if(updated[nextIdx].phase === 'WAITING'){
+    updated[nextIdx] = { ...updated[nextIdx], phase: 'DISCUSS', timerStartedAt: firebase.firestore.Timestamp.now() };
+  }
+  _narrowSelection = [];
+
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics: updated, activeTopicIndex: nextIdx });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== START / STOP / RESUME / RESTART / END =====
+async function handleStartMeeting(){
+  if(!_isFacilitator || !_meetingId) return;
+  const topics = (_meetingDoc.topics||[]);
+  if(topics.length === 0){ alert('Add at least one topic first.'); return; }
+
+  // Start the first topic
+  const updated = [...topics];
+  updated[0] = { ...updated[0], phase: 'DISCUSS', timerStartedAt: firebase.firestore.Timestamp.now() };
+
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({
+      status: 'ACTIVE',
+      startedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      activeTopicIndex: 0,
+      topics: updated
+    });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+async function handleStopMeeting(){
+  if(!_isFacilitator || !_meetingId) return;
+  if(!confirm('Stop this meeting? You can resume or restart later.')) return;
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ status: 'STOPPED' });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+async function handleResumeMeeting(){
+  if(!_isFacilitator || !_meetingId) return;
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ status: 'ACTIVE' });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+async function handleRestartMeeting(){
+  if(!_isFacilitator || !_meetingId) return;
+  if(!confirm('Restart this meeting? All progress (votes, decisions, options) will be reset. Topics and participants will be kept.')) return;
+
+  const topics = (_meetingDoc.topics||[]).map(t => ({
+    id: t.id,
+    title: t.title,
+    description: t.description || '',
+    timeLimit: t.timeLimit || 10,
+    phase: 'WAITING',
+    options: [],
+    finalists: [],
+    votes: {},
+    votedUsers: [],
+    winner: '',
+    actionItems: [],
+    timerStartedAt: null,
+    decidedAt: null
+  }));
+
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({
+      status: 'SETUP',
+      startedAt: null,
+      activeTopicIndex: -1,
+      topics: topics
+    });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+async function handleEndMeeting(){
+  if(!confirm('End this meeting? It will be moved to past meetings.')) return;
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ status: 'ENDED' });
+    renderLanding();
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== VIEW PAST MEETING =====
+async function viewPastMeeting(meetingId){
+  try {
+    const snap = await db.collection('decisionMeetings').doc(meetingId).get();
+    if(!snap.exists){ alert('Meeting not found.'); return; }
+    const data = snap.data();
+    _meetingDoc = { id: snap.id, ...data };
+    _meetingId = meetingId;
+    _isFacilitator = false;
+    _view = 'HISTORY';
+    renderMeeting();
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== TIMER =====
+function clearTimerInterval(){
+  if(_timerInterval){ clearInterval(_timerInterval); _timerInterval = null; }
+}
+
+function updateTimerDisplay(topic){
+  const el = document.getElementById('headerTimer');
+  if(!el) return;
+
+  if(!topic || !topic.timerStartedAt || topic.phase === 'DECIDED' || topic.phase === 'WAITING'){
+    el.style.display = 'none';
+    clearTimerInterval();
+    return;
+  }
+
+  el.style.display = 'inline-flex';
+
+  const startMs = topic.timerStartedAt.toDate ? topic.timerStartedAt.toDate().getTime() : (topic.timerStartedAt.seconds * 1000);
+  const limitMs = (topic.timeLimit || 10) * 60 * 1000;
+  const endMs = startMs + limitMs;
+
+  clearTimerInterval();
+
+  function tick(){
+    const now = Date.now();
+    const remaining = Math.max(0, Math.ceil((endMs - now) / 1000));
+    el.textContent = fmtMinSec(remaining);
+
+    el.classList.remove('urgent','expired');
+    if(remaining <= 0) el.classList.add('expired');
+    else if(remaining <= 60) el.classList.add('urgent');
+  }
+  tick();
+  _timerInterval = setInterval(tick, 1000);
+}
+
+function updateForecast(topics, activeIdx){
+  const el = document.getElementById('headerForecast');
+  if(!el) return;
+
+  const undecided = topics.filter(t => t.phase !== 'DECIDED');
+  if(undecided.length === 0){
+    el.style.display = 'none';
+    return;
+  }
+
+  el.style.display = 'inline-flex';
+  let totalMinLeft = 0;
+
+  for(const t of undecided){
+    if(t.timerStartedAt){
+      const startMs = t.timerStartedAt.toDate ? t.timerStartedAt.toDate().getTime() : (t.timerStartedAt.seconds * 1000);
+      const elapsed = (Date.now() - startMs) / 60000;
+      const remaining = Math.max(0, (t.timeLimit||10) - elapsed);
+      totalMinLeft += remaining;
+    } else {
+      totalMinLeft += (t.timeLimit || 10);
+    }
+  }
+
+  const estEnd = new Date(Date.now() + totalMinLeft * 60000);
+  el.textContent = 'Est. end: ' + fmtTime(estEnd) + ' (~' + Math.ceil(totalMinLeft) + ' min left)';
+}
+
+// ===== PRINT SUMMARY =====
+function printSummary(){
+  if(!_meetingDoc) return;
+  const topics = _meetingDoc.topics || [];
+  const decided = topics.filter(t => t.phase === 'DECIDED');
+  const dateStr = _meetingDoc.createdAt && _meetingDoc.createdAt.toDate
+    ? fmtDate(_meetingDoc.createdAt.toDate())
+    : 'Unknown date';
+
+  let topicsHtml = '';
+  decided.forEach((topic, i) => {
+    const options = topic.options || [];
+    const votes = topic.votes || {};
+    const finalists = topic.finalists || [];
+    const winOpt = options.find(o => o.id === topic.winner);
+    const totalVotes = Object.values(votes).reduce((a,b)=>a+b, 0);
+    const actionItems = topic.actionItems || [];
+
+    topicsHtml += '<div class="topic-section">';
+    topicsHtml += '<h3>' + (i+1) + '. ' + esc(topic.title) + '</h3>';
+    if(topic.description) topicsHtml += '<p class="desc">' + esc(topic.description) + '</p>';
+
+    topicsHtml += '<div class="decision"><strong>Decision:</strong> ' + esc(winOpt ? winOpt.text : 'N/A') + '</div>';
+
+    topicsHtml += '<div class="votes">Votes: ';
+    finalists.forEach((fId, fi) => {
+      const opt = options.find(o => o.id === fId);
+      if(!opt) return;
+      topicsHtml += esc(opt.text) + ': <strong>' + (votes[fId]||0) + '</strong>';
+      if(fi < finalists.length - 1) topicsHtml += ' &bull; ';
+    });
+    topicsHtml += ' (' + totalVotes + ' total)</div>';
+
+    if(actionItems.length > 0){
+      topicsHtml += '<div class="actions"><strong>Action Items:</strong><ul>';
+      actionItems.forEach(ai => {
+        topicsHtml += '<li>' + esc(ai.task) + ' — <em>' + esc(ai.owner) + '</em></li>';
+      });
+      topicsHtml += '</ul></div>';
+    }
+    topicsHtml += '</div>';
+  });
+
+  const participants = (_meetingDoc.participants||[]).map(p => esc(p.name)).join(', ');
+
+  const w = window.open('','_blank','width=800,height=900');
+  w.document.write('<!doctype html><html><head><title>Meeting Summary - ' + esc(_meetingDoc.title) + '</title>' +
+  '<style>' +
+  '*{box-sizing:border-box;margin:0;padding:0}' +
+  'body{font-family:Georgia,"Times New Roman",serif;color:#000;background:#fff;padding:0.5in 0.75in;font-size:11pt;line-height:1.5}' +
+  'h1{font-size:16pt;text-align:center;margin-bottom:4pt;font-weight:900}' +
+  '.meta{text-align:center;font-size:10pt;color:#444;margin-bottom:16pt;border-bottom:2px solid #000;padding-bottom:10pt}' +
+  '.topic-section{margin-bottom:16pt;padding-bottom:12pt;border-bottom:1px solid #ccc}' +
+  '.topic-section:last-child{border-bottom:none}' +
+  'h3{font-size:12pt;margin-bottom:4pt}' +
+  '.desc{font-size:10pt;color:#666;margin-bottom:6pt}' +
+  '.decision{font-size:11pt;margin-bottom:4pt}' +
+  '.votes{font-size:10pt;color:#444;margin-bottom:4pt}' +
+  '.actions{font-size:10pt;margin-top:6pt}' +
+  '.actions ul{margin:4pt 0 0 18pt}' +
+  '.actions li{margin-bottom:2pt}' +
+  '.footer{margin-top:20pt;font-size:8pt;color:#666;text-align:center;border-top:1px solid #ccc;padding-top:6pt}' +
+  '@media print{body{padding:0.4in 0.6in}@page{margin:0.4in}}' +
+  '</style></head><body>' +
+  '<h1>Meeting Summary</h1>' +
+  '<div class="meta">' + esc(_meetingDoc.title) + ' &bull; ' + esc(dateStr) + '<br/>Participants: ' + (participants || 'None recorded') + '</div>' +
+  (decided.length === 0 ? '<p style="text-align:center;color:#666">No decisions recorded.</p>' : topicsHtml) +
+  '<div class="footer">Generated by DecisionOps &bull; ' + esc(dateStr) + '</div>' +
+  '</body></html>');
+  w.document.close();
+  w.focus();
+  w.print();
+}
+</script>
+
+</body>
+</html>
