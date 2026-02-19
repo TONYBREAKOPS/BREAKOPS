@@ -80,12 +80,23 @@ button.primary:hover{background:#3b8fd9}
 }
 
 /* ── Main area ── */
-main{padding:14px 18px 80px}
+main{padding:14px 18px 20px}
+
+/* ── Split layout ── */
+.split-layout{
+  display:flex;gap:16px;align-items:flex-start;
+}
+.split-left{flex:1;min-width:0}
+.split-right{width:480px;flex-shrink:0;position:sticky;top:120px}
+@media(max-width:1000px){
+  .split-layout{flex-direction:column}
+  .split-right{width:100%;position:static}
+}
 
 /* ── Table ── */
 .tbl-wrap{
   border:1px solid var(--border);border-radius:12px;overflow:hidden;
-  background:var(--panel);margin-bottom:16px;
+  background:var(--panel);margin-bottom:0;
 }
 table{width:100%;border-collapse:collapse;font-size:12px}
 th,td{padding:8px 10px;vertical-align:middle;text-align:left}
@@ -123,9 +134,10 @@ tr.refused td:first-child{border-left:3px solid var(--bad)}
 
 /* ── Mandate Log ── */
 .log-card{
-  border:1px solid var(--border);border-radius:14px;
-  background:var(--card);overflow:hidden;margin-top:20px;
+  border:1px solid var(--border);border-radius:12px;
+  background:var(--card);overflow:hidden;
 }
+#logBody{overflow-y:auto}
 .log-card h2{
   margin:0;padding:12px 14px;font-size:13px;font-weight:800;
   letter-spacing:.35px;color:var(--text);background:var(--panel);
@@ -133,8 +145,8 @@ tr.refused td:first-child{border-left:3px solid var(--bad)}
 }
 .log-empty{padding:20px;text-align:center;color:var(--muted);font-size:12px}
 .log-entry{
-  display:flex;align-items:center;gap:12px;padding:8px 14px;
-  border-bottom:1px solid rgba(255,255,255,.06);font-size:12px;
+  display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px 12px;
+  border-bottom:1px solid rgba(255,255,255,.06);font-size:11px;
 }
 .log-entry:last-child{border-bottom:none}
 .log-badge{
@@ -174,13 +186,7 @@ tr.refused td:first-child{border-left:3px solid var(--bad)}
 }
 .login-error.show{display:block}
 
-/* ── Footer ── */
-footer{
-  position:fixed;bottom:0;left:0;right:0;z-index:999;
-  padding:8px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
-  background:rgba(11,15,20,.96);border-top:1px solid var(--border);
-  backdrop-filter:blur(10px);
-}
+/* ── Pills ── */
 .pill{
   display:inline-flex;align-items:center;gap:7px;
   padding:7px 10px;border-radius:999px;
@@ -208,6 +214,8 @@ footer{
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<!-- XLSX for Teams OT import -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script>
   const firebaseConfig = {
     apiKey: "AIzaSyA6KELmSyotefK0zhahQZ0-mbYur8_nTsg",
@@ -315,10 +323,11 @@ footer{
       <span style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:600">Overtime Mandate Ranking</span>
     </div>
     <div id="userInfo" style="margin-left:auto;display:none;align-items:center;gap:10px;font-size:12px">
+      <button id="btnHowItWorks" style="padding:4px 10px;font-size:11px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--muted);cursor:pointer;font-weight:600">HOW IT WORKS</button>
       <span class="pill good" id="pillStatus" style="font-size:10px;padding:4px 8px">DB: loading...</span>
-      <span class="user-email" id="userEmail" style="color:var(--text);font-weight:600"></span>
+      <span class="user-email" id="userEmail" style="color:var(--text);font-weight:600;text-transform:uppercase"></span>
       <button id="btnBugReport" type="button" style="padding:4px 10px;font-size:11px;border-radius:8px;border:1px solid rgba(255,107,107,.3);color:#ff6b6b;background:rgba(255,107,107,.08);cursor:pointer" title="Report a Bug">REPORT BUG</button>
-      <button id="btnLogout" type="button" style="padding:4px 10px;font-size:11px;border-radius:8px">Sign Out</button>
+      <button id="btnLogout" type="button" style="padding:4px 10px;font-size:11px;border-radius:8px">SIGN OUT</button>
     </div>
   </div>
 
@@ -336,20 +345,14 @@ footer{
     </div>
     <div class="ctrl-group">
       <label>MANDATE BLOCK</label>
-      <select id="selBlock">
-        <option value="custom">Custom...</option>
-      </select>
-    </div>
-    <div class="ctrl-group" id="customTimeGroup">
-      <label>START - END</label>
-      <div style="display:flex;gap:6px;align-items:center">
-        <input type="time" id="customStart" style="width:120px"/>
-        <span style="color:var(--muted)">-</span>
-        <input type="time" id="customEnd" style="width:120px"/>
-      </div>
+      <select id="selBlock"></select>
     </div>
     <div class="ctrl-group" style="justify-content:flex-end">
       <button class="primary" id="btnGenerate">Generate List</button>
+    </div>
+    <div class="ctrl-group" style="justify-content:flex-end;margin-left:auto">
+      <button id="btnImportOT" style="border-color:rgba(74,163,255,.4);color:var(--accent)">Import OT</button>
+      <input id="teamsFile" type="file" accept=".xlsx,.csv" style="display:none"/>
     </div>
   </div>
 </header>
@@ -362,22 +365,29 @@ footer{
   </div>
   <div class="cross-note" id="crossNote"></div>
 
-  <div id="rankingArea">
-    <div class="loading" id="loadingMsg">Select date, shift, and mandate block, then click Generate List.</div>
-  </div>
-
-  <div class="log-card" id="logCard">
-    <h2>MANDATE LOG</h2>
-    <div id="logBody">
-      <div class="log-empty">No mandate records for this date.</div>
+  <div class="split-layout">
+    <div class="split-left">
+      <div id="rankingArea">
+        <div class="loading" id="loadingMsg">Select date, shift, and mandate block, then click Generate List.</div>
+      </div>
+    </div>
+    <div class="split-right">
+      <div class="log-card" id="logCard">
+        <h2 style="display:flex;align-items:center;justify-content:space-between"><span id="logTitle">MANDATE LOG</span> <button id="btnClearLog" style="padding:4px 10px;font-size:11px;font-weight:700;border-radius:8px;border:1px solid rgba(255,107,107,.3);color:#ff6b6b;background:rgba(255,107,107,.08);cursor:pointer">CLEAR LOG</button></h2>
+        <div id="logBody">
+          <div class="log-empty">No mandate records yet.</div>
+        </div>
+      </div>
     </div>
   </div>
 </main>
 
-<footer>
-  <span class="pill" id="pillEmp" style="font-size:10px;padding:4px 8px">Employees: --</span>
-  <span class="pill" id="pillEligible" style="font-size:10px;padding:4px 8px">Eligible: --</span>
-</footer>
+<!-- Hidden pills kept for JS references -->
+<div style="display:none">
+  <span id="pillEmp"></span>
+  <span id="pillEligible"></span>
+  <span id="pillOt"></span>
+</div>
 
 <script>
 // ===== GLOBALS =====
@@ -388,6 +398,8 @@ let _allRanked = {};           // { CALLTAKER:[], DISPATCHER:[], PIC:[] }
 let _otOverrides = {};         // empName -> overridden OT hours (local only)
 let _mandateActions = {};      // empName -> "MANDATED"|"REFUSED" (session cache)
 let _logUnsub = null;          // onSnapshot unsubscribe for mandate log
+let _logEntries = [];          // cached log entries for re-rendering on tab switch
+let _importedOT = null;        // empName -> total OT hours from Teams import
 
 // ===== HELPERS (from ShiftOps) =====
 function pad2(n){ return String(n).padStart(2,"0"); }
@@ -474,34 +486,216 @@ function populateBlockOptions(){
   sel.innerHTML = '';
 
   if(shift === 'DAY'){
-    sel.add(new Option('1400-1800 (4hr)', '14:00-18:00'));
-    sel.add(new Option('1000-1800 (8hr)', '10:00-18:00'));
-    sel.add(new Option('1200-1800 (6hr)', '12:00-18:00'));
-    sel.add(new Option('Custom...', 'custom'));
+    sel.add(new Option('0600–1000', '06:00-10:00'));
+    sel.add(new Option('1000–1400', '10:00-14:00'));
+    sel.add(new Option('1400–1800', '14:00-18:00'));
   } else {
-    sel.add(new Option('0200-0600 (4hr)', '02:00-06:00'));
-    sel.add(new Option('2200-0600 (8hr)', '22:00-06:00'));
-    sel.add(new Option('0000-0600 (6hr)', '00:00-06:00'));
-    sel.add(new Option('Custom...', 'custom'));
+    sel.add(new Option('1800–2200', '18:00-22:00'));
+    sel.add(new Option('2200–0200', '22:00-02:00'));
+    sel.add(new Option('0200–0600', '02:00-06:00'));
   }
-  toggleCustomTime();
-}
-
-function toggleCustomTime(){
-  const isCustom = document.getElementById('selBlock').value === 'custom';
-  document.getElementById('customTimeGroup').style.display = isCustom ? '' : 'none';
 }
 
 function getMandateTimes(){
-  const val = document.getElementById('selBlock').value;
-  if(val === 'custom'){
-    return {
-      start: document.getElementById('customStart').value,
-      end: document.getElementById('customEnd').value
-    };
-  }
-  const [s,e] = val.split('-');
+  const [s,e] = document.getElementById('selBlock').value.split('-');
   return { start: s, end: e };
+}
+
+// ===== TEAMS OT IMPORT =====
+function loadWorkbook(arrayBuf){ return XLSX.read(arrayBuf,{type:"array"}); }
+function sheetToJson(ws){ return XLSX.utils.sheet_to_json(ws,{defval:""}); }
+function getSheet(wb, names){
+  for(const n of names){ if(wb.Sheets[n]) return {name:n, ws:wb.Sheets[n]}; }
+  const keys=Object.keys(wb.Sheets||{});
+  for(const n of names){
+    const k=keys.find(x=>x.toLowerCase()===String(n).toLowerCase());
+    if(k) return {name:k, ws:wb.Sheets[k]};
+  }
+  return null;
+}
+function cap(s){ s=String(s||"").trim(); if(!s) return ""; return s[0].toUpperCase()+s.slice(1); }
+
+function lastNameKeyFromAny(member, email){
+  const em=String(email||"").trim().toLowerCase();
+  if(em.includes("@")){
+    const local=em.split("@")[0];
+    const toks=local.split(".").filter(Boolean);
+    if(toks.length>=2){
+      return {lastParts:[cap(toks[toks.length-1])], fi:cap((toks[0][0]||""))};
+    }
+  }
+  const m=String(member||"").trim();
+  if(!m) return {lastParts:[],fi:""};
+  if(m.includes(",")){
+    const [last, first]=m.split(",").map(s=>s.trim());
+    const lastParts = last.split(/\s+/).filter(Boolean);
+    return {lastParts:lastParts.map(cap), fi:cap((first||"")[0]||"")};
+  }
+  const toks=m.split(/\s+/).filter(Boolean);
+  if(toks.length===1) return {lastParts:[cap(toks[0])], fi:""};
+  return {lastParts:[cap(toks[toks.length-1])], fi:cap((toks[0][0]||""))};
+}
+
+function findEmpByKey(key){
+  if(!key || !key.lastParts || !key.lastParts.length) return null;
+  const fi=key.fi.toUpperCase();
+  let best=null;
+  for(const lp of key.lastParts){
+    const last=lp.toUpperCase();
+    for(const e of BASE_EMP){
+      const up=String(e.Employee||"").trim().toUpperCase();
+      if(up===last) return e;
+      if(fi && up===last+fi) return e;
+      if(up.startsWith(last) && !best) best=e;
+    }
+  }
+  return best;
+}
+
+function parseTeamsFileToRows(wbOrText){
+  if(typeof wbOrText === "string"){
+    const lines=wbOrText.split(/\r?\n/).filter(l=>l.trim().length);
+    if(lines.length<2) return [];
+    const hdr=lines[0].split(",").map(h=>h.trim());
+    return lines.slice(1).map(line=>{
+      const cols=line.split(",");
+      const o={};
+      hdr.forEach((h,i)=>o[h]=cols[i]??"");
+      return o;
+    });
+  }else{
+    const wb=wbOrText;
+    const sh=getSheet(wb, ["Shifts","Shift","Schedule","schedule","shifts"]) || {name:Object.keys(wb.Sheets)[0], ws:wb.Sheets[Object.keys(wb.Sheets)[0]]};
+    return sheetToJson(sh.ws);
+  }
+}
+
+function detectTeamsCols(row){
+  const keys=Object.keys(row||{});
+  const get=(cands)=>{
+    for(const c of cands){
+      const k=keys.find(k=>k.toLowerCase()===c.toLowerCase());
+      if(k) return k;
+    }
+    return null;
+  };
+  return {
+    member: get(["Member","Name","Employee","User"]),
+    email: get(["Work Email","Email","User email","UserEmail","UPN"]),
+    startDate: get(["Start Date","StartDate","Start date"]),
+    startTime: get(["Start Time","StartTime","Start time"]),
+    endDate: get(["End Date","EndDate","End date"]),
+    endTime: get(["End Time","EndTime","End time"]),
+    startDT: get(["Start","Start DateTime","StartDateTime"]),
+    endDT: get(["End","End DateTime","EndDateTime"]),
+  };
+}
+
+function parseMeansDateTime(d,t){
+  if(!d && !t) return null;
+  const dd = (d instanceof Date) ? d : String(d||"").trim();
+  const tt = String(t||"").trim();
+  let dateObj=null;
+  if(dd instanceof Date) dateObj=dd;
+  else if(dd){
+    if(dd.includes("/")){
+      const [m,da,y]=dd.split("/").map(Number);
+      dateObj=new Date(y, m-1, da);
+    }else if(dd.includes("-")){
+      dateObj=parseISO(dd);
+    }
+  }
+  if(!dateObj) return null;
+  let hh=0, mm=0;
+  if(tt){
+    const mx=tt.match(/(\d{1,2}):(\d{2})/);
+    if(mx){ hh=parseInt(mx[1],10); mm=parseInt(mx[2],10); }
+  }
+  dateObj.setHours(hh,mm,0,0);
+  return dateObj;
+}
+
+async function importTeamsOT(file){
+  if(!window.XLSX){ alert("XLSX library not loaded."); return; }
+  if(!BASE_EMP.length){ alert("Load Database first."); return; }
+  const iso = document.getElementById('selDate').value;
+  if(!iso){ alert("Pick a date first."); return; }
+
+  const selDate = parseISO(iso);
+  // 7-day window ending on selected date
+  const windowStart = new Date(selDate.getTime() - 7*86400000);
+  const windowEnd = new Date(selDate.getTime() + 86400000 - 1); // end of selected date
+
+  let text=null, wb=null;
+  if(file.name.toLowerCase().endsWith(".csv")) text = await file.text();
+  else wb = loadWorkbook(await file.arrayBuffer());
+
+  const rows = parseTeamsFileToRows(text||wb);
+  const otHours = {}; // empName -> total hours
+  let total=0, matched=0, invalid=0, noMatch=0;
+  const noMatchExamples=[];
+
+  for(const r of rows){
+    total++;
+    const cols = detectTeamsCols(r);
+    const member = r[cols.member] ?? "";
+    const email = r[cols.email] ?? "";
+    let start=null, end=null;
+
+    if(cols.startDT) start = new Date(r[cols.startDT]);
+    if(cols.endDT) end = new Date(r[cols.endDT]);
+    if(!start && (cols.startDate||cols.startTime)) start = parseMeansDateTime(r[cols.startDate], r[cols.startTime]);
+    if(!end && (cols.endDate||cols.endTime)) end = parseMeansDateTime(r[cols.endDate], r[cols.endTime]);
+    if(!(start instanceof Date) || isNaN(start) || !(end instanceof Date) || isNaN(end) || end<=start){ invalid++; continue; }
+
+    // Skip entries outside the 7-day window
+    if(end <= windowStart || start > windowEnd) continue;
+
+    // Clamp to window
+    const clampedStart = start < windowStart ? windowStart : start;
+    const clampedEnd = end > windowEnd ? windowEnd : end;
+
+    const keyEmail = lastNameKeyFromAny("", email);
+    const keyMember = lastNameKeyFromAny(member, "");
+    const emp = findEmpByKey(keyEmail) || findEmpByKey(keyMember);
+    if(!emp){ noMatch++; if(noMatchExamples.length<8) noMatchExamples.push({member,email}); continue; }
+
+    const hrs = (clampedEnd - clampedStart) / 3600000;
+    if(hrs > 0){
+      otHours[emp.Employee] = (otHours[emp.Employee] || 0) + hrs;
+      matched++;
+    }
+  }
+
+  // Round all values
+  for(const k of Object.keys(otHours)){
+    otHours[k] = Math.round(otHours[k] * 100) / 100;
+  }
+
+  _importedOT = otHours;
+
+  // Update pill
+  const pill = document.getElementById('pillOt');
+  pill.style.display = '';
+  pill.textContent = 'OT Import: ' + matched + ' matched | ' + total + ' rows | ' + noMatch + ' no-match | ' + invalid + ' invalid';
+  pill.classList.remove('good','bad');
+  pill.classList.add((matched > 0 && noMatch === 0 && invalid === 0) ? 'good' : 'bad');
+  pill.style.cursor = (noMatch > 0 || invalid > 0) ? 'pointer' : 'default';
+  pill.onclick = (noMatch > 0 || invalid > 0) ? ()=>{
+    let msg = 'OT IMPORT REPORT\n────────────────────\n';
+    msg += 'Total rows: ' + total + '\n';
+    msg += 'Matched: ' + matched + '\n';
+    msg += 'Invalid (bad date/time): ' + invalid + '\n';
+    msg += 'No match (not in DB): ' + noMatch + '\n';
+    if(noMatchExamples.length){
+      msg += '\nNO-MATCH EMPLOYEES:\n';
+      for(const ex of noMatchExamples) msg += '  \u2022 ' + (ex.member||'(no name)') + '  ' + (ex.email||'(no email)') + '\n';
+    }
+    alert(msg);
+  } : null;
+
+  // If we already have a generated list, re-generate to use imported OT
+  if(Object.keys(_allRanked).length) generate();
 }
 
 // ===== INIT =====
@@ -517,8 +711,19 @@ async function init(){
 
   // Event listeners
   document.getElementById('selShift').addEventListener('change', populateBlockOptions);
-  document.getElementById('selBlock').addEventListener('change', toggleCustomTime);
   document.getElementById('btnGenerate').addEventListener('click', generate);
+
+  // Import OT button
+  document.getElementById('btnImportOT').addEventListener('click', ()=>{
+    document.getElementById('teamsFile').click();
+  });
+  document.getElementById('teamsFile').addEventListener('change', async ()=>{
+    const f = document.getElementById('teamsFile').files && document.getElementById('teamsFile').files[0];
+    if(!f) return;
+    try { await importTeamsOT(f); }
+    catch(err){ console.error(err); alert('OT import failed: ' + (err.message||err)); }
+    document.getElementById('teamsFile').value = '';
+  });
 
   // Tab switching
   document.querySelectorAll('.tab').forEach(tab => {
@@ -528,9 +733,21 @@ async function init(){
       _activeRole = tab.dataset.role;
       updateCrossNote();
       renderRanking();
+      renderLog(_logEntries);
     });
   });
   updateCrossNote();
+
+  // How It Works
+  document.getElementById('btnHowItWorks').addEventListener('click', ()=>{
+    document.getElementById('howItWorksModal').style.display = 'flex';
+  });
+  document.getElementById('howItWorksModal').addEventListener('click', (e)=>{
+    if(e.target.id === 'howItWorksModal') e.target.style.display = 'none';
+  });
+  document.getElementById('btnHowClose').addEventListener('click', ()=>{
+    document.getElementById('howItWorksModal').style.display = 'none';
+  });
 
   // Load employees
   await loadEmployees();
@@ -538,8 +755,6 @@ async function init(){
   // Start mandate log listener
   startLogListener();
 
-  // Re-listen when date changes
-  document.getElementById('selDate').addEventListener('change', startLogListener);
 }
 
 function updateCrossNote(){
@@ -733,10 +948,18 @@ async function generate(){
   ]);
 
   const dayName = dayNameFromISO(iso);
+  const prevDayName = dayNameFromISO(prevDate);
   const mandateStart = minutesOf(times.start);
   let mandateEnd = minutesOf(times.end);
   if(mandateEnd <= mandateStart) mandateEnd += 1440;
   const mandateHours = (mandateEnd - mandateStart) / 60;
+
+  // Mandate start in absolute minutes from midnight of the selected date.
+  // Night shift blocks after midnight (e.g. 0200-0600) are on the NEXT calendar day.
+  let mandateStartAbs = mandateStart;
+  if(shift === 'NIGHT' && mandateStart < 720){
+    mandateStartAbs = mandateStart + 1440;
+  }
 
   // Also load existing mandates for this date to pre-populate actions
   try {
@@ -767,19 +990,31 @@ async function generate(){
       // Filter by role
       if(emp.POSITION !== role) continue;
 
-      // Get shift for the day
-      const shiftStr = shiftForDay(emp, dayName);
-      const parsed = parseShiftString(shiftStr);
-      if(!parsed) continue; // OFF or unparseable
+      // Match employees whose shift ends exactly when the mandate block starts.
+      // parsed.end is in absolute minutes from midnight of the SCHEDULE day.
+      // Current day: shift end is already in selected-date terms.
+      // Previous day: shift end in selected-date terms = parsed.end - 1440.
+      let parsed = null;
+      let attendanceData = editsData;
 
-      // Employee's shift end must equal mandate start
-      // Normalize: shift end might be >1440 for night shifts
-      let empEnd = parsed.end % 1440;
-      let mStart = mandateStart % 1440;
-      if(empEnd !== mStart) continue;
+      const curParsed = parseShiftString(shiftForDay(emp, dayName));
+      if(curParsed && curParsed.end === mandateStartAbs){
+        parsed = curParsed;
+      }
+
+      // Check previous day for overnight shifts ending on the selected date
+      if(!parsed){
+        const prevParsed = parseShiftString(shiftForDay(emp, prevDayName));
+        if(prevParsed && prevParsed.end > 1440 && prevParsed.end === mandateStartAbs + 1440){
+          parsed = prevParsed;
+          attendanceData = editsPrevNight;
+        }
+      }
+
+      if(!parsed) continue;
 
       // Check attendance
-      if(!isEmployeePresent(emp, editsData)) continue;
+      if(!isEmployeePresent(emp, attendanceData)) continue;
 
       // Skip if employee already has OT overlapping the mandate block
       if(employeeHasOTOverlap(emp.Employee, allEditDocs, mandateStart, mandateEnd)) continue;
@@ -794,15 +1029,15 @@ async function generate(){
       // 16-hour cap: scheduled + already-worked OT + mandate block
       if(scheduledHours + sameDayOT + mandateHours > 16) continue;
 
-      // OT hours from history (can be overridden)
-      const otHrs = otHistory[emp.Employee] || 0;
+      // OT hours: prefer Teams import, fall back to Firestore history
+      const otHrs = _importedOT ? (_importedOT[emp.Employee] || 0) : (otHistory[emp.Employee] || 0);
       const roundedOT = Math.round(otHrs * 100) / 100;
 
       // Total day = scheduled + any OT already worked today
       const totalDayHours = scheduledHours + sameDayOT;
 
       eligible.push({
-        name: emp.Employee,
+        name: String(emp.Employee||"").toUpperCase(),
         seniority: emp.SENIORITY,
         scheduledHours: scheduledHours,
         sameDayOT: Math.round(sameDayOT * 100) / 100,
@@ -862,9 +1097,9 @@ function renderRanking(){
   html += '<th>NAME</th>';
   html += '<th style="width:60px">SEN</th>';
   html += '<th style="width:80px">SHIFT</th>';
-  html += '<th style="width:100px" title="Total hours worked today (scheduled + OT)">DAY HRS</th>';
+  html += '<th style="width:100px" title="Total hours worked today (scheduled + OT)">HRS WORKED</th>';
   html += '<th style="width:100px">OT HRS (7d)</th>';
-  html += '<th style="width:130px">ACTIONS</th>';
+  html += '<th style="width:210px">ACTIONS</th>';
   html += '</tr></thead><tbody>';
 
   list.forEach((emp, i) => {
@@ -880,8 +1115,15 @@ function renderRanking(){
     html += '<td>' + emp.totalDayHours.toFixed(1) + (emp.sameDayOT > 0 ? ' <span style="color:var(--warn);font-size:10px" title="' + emp.scheduledHours.toFixed(1) + 'hr sched + ' + emp.sameDayOT.toFixed(1) + 'hr OT">(' + emp.scheduledHours.toFixed(0) + '+' + emp.sameDayOT.toFixed(1) + ')</span>' : '') + '</td>';
     html += '<td><input type="number" class="ot-input" value="' + otVal.toFixed(1) + '" step="0.5" min="0" data-emp="' + esc(emp.name) + '" ' + (action ? 'disabled' : '') + '/></td>';
     html += '<td>';
-    html += '<button class="act-btn act-mandate" onclick="doMandate(\'' + esc(emp.name) + '\')" ' + (action ? 'disabled' : '') + ' title="Mandate">&#10003; Mandate</button> ';
-    html += '<button class="act-btn act-refuse" onclick="doRefuse(\'' + esc(emp.name) + '\')" ' + (action ? 'disabled' : '') + ' title="Refuse">&#10007; Refuse</button>';
+    if(action){
+      html += '<button class="act-btn" onclick="doUndo(\'' + esc(emp.name) + '\')" style="color:var(--warn);border-color:rgba(255,224,102,.3)">&#8634; Undo</button>';
+      if(action === 'REFUSED'){
+        html += ' <button class="act-btn" onclick="printRefusalForm(\'' + esc(emp.name) + '\')" style="color:var(--muted);border-color:var(--border)" title="Print Refusal Form">&#128438; Print Refusal</button>';
+      }
+    } else {
+      html += '<button class="act-btn act-mandate" onclick="doMandate(\'' + esc(emp.name) + '\')" title="Mandate">&#10003; Mandate</button> ';
+      html += '<button class="act-btn act-refuse" onclick="doRefuse(\'' + esc(emp.name) + '\')" title="Refuse">&#10007; Refuse</button>';
+    }
     html += '</td>';
     html += '</tr>';
   });
@@ -889,26 +1131,139 @@ function renderRanking(){
   html += '</tbody></table></div>';
   area.innerHTML = html;
 
-  // Attach OT input change listeners
+  // Attach OT input change listeners — re-sort and re-render, then restore focus
   area.querySelectorAll('.ot-input').forEach(inp => {
     inp.addEventListener('change', (e) => {
       const empName = e.target.dataset.emp;
-      const val = parseFloat(e.target.value) || 0;
-      _otOverrides[empName] = val;
-      // Re-sort and re-render
+      _otOverrides[empName] = parseFloat(e.target.value) || 0;
       sortRanked(_allRanked[_activeRole]);
       renderRanking();
+      // Restore focus to the same employee's input
+      const restored = area.querySelector('.ot-input[data-emp="' + empName + '"]');
+      if(restored) restored.focus();
     });
   });
 }
 
 // ===== MANDATE / REFUSE ACTIONS =====
 async function doMandate(empName){
+  const times = getMandateTimes();
+  if(!confirm('Mandate ' + empName + ' for ' + times.start + '-' + times.end + '?')) return;
   await recordAction(empName, 'MANDATED');
 }
 
 async function doRefuse(empName){
+  const times = getMandateTimes();
+  if(!confirm(empName + ' refused mandate for ' + times.start + '-' + times.end + '?')) return;
   await recordAction(empName, 'REFUSED');
+}
+
+async function doUndo(empName){
+  const iso = document.getElementById('selDate').value;
+  const today = toISODate(new Date());
+  if(iso !== today){ alert('You can only undo actions from today.'); return; }
+  if(!confirm('Undo action for ' + empName + '?')) return;
+  const times = getMandateTimes();
+  try {
+    const snap = await db.collection('mandates')
+      .where('date','==',iso)
+      .where('employee','==',empName)
+      .where('mandateStart','==',times.start)
+      .where('mandateEnd','==',times.end)
+      .get();
+    const batch = db.batch();
+    snap.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+    delete _mandateActions[empName];
+    renderRanking();
+  } catch(err){
+    console.error('Undo failed:', err);
+    alert('Undo failed: ' + (err.message || err));
+  }
+}
+
+function printRefusalForm(empName){
+  const iso = document.getElementById('selDate').value;
+  const shift = document.getElementById('selShift').value;
+  const times = getMandateTimes();
+  const blockStart = formatTime12(times.start);
+  const blockEnd = formatTime12(times.end);
+  const dateFormatted = parseISO(iso).toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+  const w = window.open('','_blank','width=800,height=900');
+  w.document.write(`<!doctype html><html><head><title>Refusal Form – ${esc(empName)}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Georgia,"Times New Roman",serif;color:#000;background:#fff;padding:0.5in 0.75in;font-size:11pt;line-height:1.45}
+h1{font-size:15pt;text-align:center;text-transform:uppercase;letter-spacing:2px;margin-bottom:4pt;font-weight:900}
+.subtitle{text-align:center;font-size:10pt;color:#444;margin-bottom:14pt;border-bottom:2px solid #000;padding-bottom:8pt}
+.field{margin-bottom:6pt}
+.field-label{font-weight:bold;display:inline}
+.field-value{border-bottom:1px solid #000;display:inline-block;min-width:250px;padding:0 4px;font-weight:normal}
+.field-value.short{min-width:120px}
+.body-text{margin:14pt 0;text-align:justify}
+.body-text p{margin-bottom:8pt}
+.sig-block{margin-top:24pt;page-break-inside:avoid}
+.sig-row{display:flex;justify-content:space-between;margin-bottom:28pt}
+.sig-col{width:48%}
+.sig-line{border-bottom:1px solid #000;height:1px;margin-bottom:4pt;margin-top:24pt}
+.sig-label{font-size:10pt;color:#333}
+.reason-block{margin:14pt 0}
+.reason-block .reason-label{font-weight:bold;margin-bottom:4pt}
+.reason-lines{border-bottom:1px solid #999;height:20pt;margin-bottom:2pt}
+.footer{margin-top:16pt;font-size:8pt;color:#666;text-align:center;border-top:1px solid #ccc;padding-top:6pt}
+@media print{body{padding:0.4in 0.6in}@page{margin:0.4in}}
+</style></head><body>
+<h1>Mandatory Overtime Refusal Form</h1>
+<div class="subtitle"></div>
+
+<div class="field"><span class="field-label">Employee Name:</span> <span class="field-value">${esc(empName)}</span></div>
+<div class="field"><span class="field-label">Date:</span> <span class="field-value short">${esc(dateFormatted)}</span></div>
+<div class="field"><span class="field-label">Shift:</span> <span class="field-value short">${esc(shift === 'DAY' ? 'Day Shift (0600–1800)' : 'Night Shift (1800–0600)')}</span></div>
+<div class="field"><span class="field-label">Role:</span> <span class="field-value short">${esc(_activeRole)}</span></div>
+<div class="field"><span class="field-label">Mandate Block:</span> <span class="field-value short">${esc(blockStart)} – ${esc(blockEnd)}</span></div>
+
+<div class="body-text">
+<p>The above-named employee was mandated for overtime for the date and time block specified above. The employee has <strong>refused</strong> this mandatory overtime assignment.</p>
+<p>By signing below, the employee acknowledges that they were informed of the mandatory overtime requirement and have chosen to decline. The employee understands that refusal of mandatory overtime is <strong>subject to disciplinary action</strong> in accordance with department policy.</p>
+<p>This form serves as official documentation of the refusal and will be placed in the employee's personnel file.</p>
+</div>
+
+<div class="reason-block">
+<div class="reason-label">Reason for Refusal (if provided):</div>
+<div class="reason-lines"></div>
+<div class="reason-lines"></div>
+<div class="reason-lines"></div>
+</div>
+
+<div class="sig-block">
+<div class="sig-row">
+<div class="sig-col">
+<div class="sig-line"></div>
+<div class="sig-label">Employee Signature</div>
+</div>
+<div class="sig-col">
+<div class="sig-line"></div>
+<div class="sig-label">Date</div>
+</div>
+</div>
+<div class="sig-row">
+<div class="sig-col">
+<div class="sig-line"></div>
+<div class="sig-label">Supervisor Signature</div>
+</div>
+<div class="sig-col">
+<div class="sig-line"></div>
+<div class="sig-label">Date</div>
+</div>
+</div>
+</div>
+
+<div class="footer">Generated by MandateOps &bull; ${esc(dateFormatted)}</div>
+</body></html>`);
+  w.document.close();
+  w.focus();
+  w.print();
 }
 
 async function recordAction(empName, action){
@@ -942,14 +1297,11 @@ async function recordAction(empName, action){
 function startLogListener(){
   if(_logUnsub){ _logUnsub(); _logUnsub = null; }
 
-  const iso = document.getElementById('selDate').value;
-  if(!iso) return;
-
   _logUnsub = db.collection('mandates')
-    .where('date','==',iso)
     .orderBy('timestamp','desc')
     .onSnapshot(snap => {
-      renderLog(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      _logEntries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderLog(_logEntries);
     }, err => {
       console.warn('Mandate log listener error:', err);
     });
@@ -957,9 +1309,13 @@ function startLogListener(){
 
 function renderLog(entries){
   const body = document.getElementById('logBody');
+  const mandated = entries.filter(e => e.action === 'MANDATED').length;
+  const refused = entries.filter(e => e.action === 'REFUSED').length;
+  const countText = entries.length ? ' (' + mandated + ' mandated, ' + refused + ' refused)' : '';
+  document.getElementById('logTitle').textContent = 'MANDATE LOG' + countText;
 
   if(!entries.length){
-    body.innerHTML = '<div class="log-empty">No mandate records for this date.</div>';
+    body.innerHTML = '<div class="log-empty">No mandate records yet.</div>';
     return;
   }
 
@@ -970,12 +1326,14 @@ function renderLog(entries){
       ? e.timestamp.toDate().toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' })
       : '';
 
-    html += '<div class="log-entry">';
-    html += '<span style="color:var(--muted);min-width:90px">' + esc(e.mandateStart||'') + '-' + esc(e.mandateEnd||'') + '</span>';
-    html += '<span style="font-weight:700;min-width:100px">' + esc(e.employee||'') + '</span>';
-    html += '<span style="color:var(--muted);min-width:40px">' + esc(roleAbbrev(e.role)) + '</span>';
+    const dimmed = e.role && e.role !== _activeRole ? ' opacity:.35;' : '';
+    html += '<div class="log-entry" style="' + dimmed + '">';
+    html += '<span style="color:var(--accent);font-weight:600">' + esc(e.date||'') + '</span>';
+    html += '<span style="color:var(--muted)">' + esc(e.mandateStart||'') + '-' + esc(e.mandateEnd||'') + '</span>';
+    html += '<span style="color:var(--muted)">' + esc(roleAbbrev(e.role)) + '</span>';
     html += '<span class="log-badge ' + badgeClass + '">' + esc(e.action||'') + '</span>';
-    html += '<span style="color:var(--muted);margin-left:auto;font-size:11px">' + esc(timeStr) + '</span>';
+    html += '<span style="font-weight:700">' + esc(e.employee||'') + '</span>';
+    html += '<span style="color:var(--muted);margin-left:auto">' + esc(timeStr) + '</span>';
     if(e.recordedBy){
       html += '<span style="color:var(--muted);font-size:10px">' + esc(e.recordedBy) + '</span>';
     }
@@ -1025,8 +1383,52 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('Failed to submit bug report. Try again.');
     }
   });
+
+  // Clear mandate log
+  document.getElementById('btnClearLog').addEventListener('click', async () => {
+    const pw = prompt('Enter password to clear the mandate log:');
+    if(pw !== '166637805'){ if(pw !== null) alert('Incorrect password.'); return; }
+    if(!confirm('This will permanently delete ALL mandate records. Continue?')) return;
+    try {
+      const snap = await db.collection('mandates').get();
+      const batch = db.batch();
+      snap.docs.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+      _mandateActions = {};
+      alert('Mandate log cleared.');
+    } catch(err){
+      console.error('Failed to clear mandate log:', err);
+      alert('Failed to clear log: ' + (err.message || err));
+    }
+  });
 });
 </script>
+
+<!-- How It Works Modal -->
+<div id="howItWorksModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;align-items:center;justify-content:center">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px 28px;max-width:520px;width:90%;max-height:85vh;overflow-y:auto;position:relative">
+    <h3 style="margin:0 0 16px;font-size:16px;color:var(--accent)">HOW MANDATEOPS WORKS</h3>
+    <div style="font-size:12px;line-height:1.7;color:var(--text)">
+      <p style="margin:0 0 12px;font-weight:700;color:var(--accent);font-size:13px">ELIGIBILITY</p>
+      <p style="margin:0 0 14px">Only employees whose shift ends at the block start time are shown. Absent employees, those with existing OT in that block, or anyone who would exceed 16 hours are excluded.</p>
+      <p style="margin:0 0 12px;font-weight:700;color:var(--accent);font-size:13px">STEPS</p>
+      <p style="margin:0 0 4px">1. Import OT first. Upload a Teams export (.xlsx/.csv) to load each employee's OT from the last 7 days. Resets on page reload.</p>
+      <p style="margin:0 0 4px">2. Pick a date, shift, and the 4-hour block you are mandating for, then click Generate.</p>
+      <p style="margin:0 0 4px">3. Click Mandate if the employee accepts, or Refuse if they decline. All actions are logged.</p>
+      <p style="margin:0 0 14px">4. Refused employees get a Print Refusal button — prints a formal refusal form for them to sign.</p>
+      <p style="margin:0 0 12px;font-weight:700;color:var(--accent);font-size:13px">RANKING ORDER</p>
+      <p style="margin:0 0 4px">1. Shortest work day &nbsp;2. Least OT (7 days) &nbsp;3. Highest seniority</p>
+      <p style="margin:0 0 14px;color:var(--muted)">OT hours can be manually adjusted. The list re-ranks automatically.</p>
+      <p style="margin:0 0 12px;font-weight:700;color:var(--accent);font-size:13px">CROSS-QUALIFICATION</p>
+      <p style="margin:0 0 4px">CT positions: check CT, then DP, then PIC.</p>
+      <p style="margin:0 0 4px">DP positions: check DP, then PIC.</p>
+      <p style="margin:0 0 4px">PIC positions: PIC only.</p>
+    </div>
+    <div style="text-align:right;margin-top:16px">
+      <button id="btnHowClose" style="padding:8px 20px;font-size:12px;font-weight:700;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);cursor:pointer">GOT IT</button>
+    </div>
+  </div>
+</div>
 
 <!-- Bug Report Modal -->
 <div id="bugReportModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:99999;display:none;align-items:center;justify-content:center">
