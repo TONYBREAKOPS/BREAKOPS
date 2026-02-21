@@ -163,6 +163,7 @@ body.light .nameCol{ color:#000 !important; font-weight:700 !important; }
 body.light .empName{ color:#000 !important; font-weight:700 !important; }
 body.light .rowPill{ background:rgba(0,0,0,.07) !important; color:#000 !important; font-weight:700 !important; }
 body.light .otBadge{ color:#b45309 !important; }
+body.light .swapBadge{ color:#0369a1 !important; border-color:rgba(3,105,161,.4) !important; }
 body.light .hrsIn{ color:#1a1a2e !important; }
 
 /* Light mode: error/note */
@@ -544,6 +545,36 @@ tbody tr:nth-last-child(2) td{border-bottom:none !important}
 .statusOk{color:var(--ok);font-weight:800}
 .otRow{background:rgba(255,214,0,.08)}
 .otBadge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,214,0,.35);color:#ffeaa6;font-size:12px;margin-left:6px}
+.swapBadge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid rgba(74,163,255,.45);color:#a3d4ff;font-size:11px;font-weight:700;margin-left:6px;cursor:default}
+
+/* Swap Modal */
+#swapModalBackdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10000;align-items:center;justify-content:center}
+#swapModalBackdrop.open{display:flex}
+#swapModalCard{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px 28px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+#swapModalCard h3{margin:0 0 16px;font-size:16px;font-weight:700;color:var(--text)}
+.swapRow{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.swapRow label{font-size:12px;font-weight:600;min-width:90px;color:var(--muted)}
+.swapRow select{flex:1;padding:8px 10px;font-size:13px;background:#0c1320;color:var(--text);border:1px solid var(--border);border-radius:8px}
+.swapArrow{text-align:center;font-size:20px;margin:4px 0;color:var(--accent)}
+.swapDays{margin:14px 0;display:flex;flex-wrap:wrap;gap:8px}
+.swapDays label{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer}
+.swapDays input[type="checkbox"]{accent-color:var(--accent)}
+#swapPreview{margin:12px 0;font-size:12px;max-height:180px;overflow-y:auto}
+#swapPreview table{width:100%;border-collapse:collapse}
+#swapPreview th,#swapPreview td{padding:5px 8px;border-bottom:1px solid var(--border);text-align:left;font-size:12px}
+#swapPreview th{color:var(--muted);font-weight:700}
+.swapPreviewArrow{color:var(--accent);font-weight:700}
+.swapBtns{display:flex;gap:10px;margin-top:14px}
+.swapBtns button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);font-size:13px;font-weight:700;cursor:pointer}
+#swapConfirmBtn{background:rgba(74,163,255,.15);border-color:rgba(74,163,255,.4);color:var(--accent)}
+#swapConfirmBtn:hover{background:rgba(74,163,255,.25)}
+#swapCancelBtn{background:transparent;color:var(--muted)}
+#swapError{color:var(--bad);font-size:12px;margin-top:8px;min-height:18px}
+.swapListTitle{font-size:13px;font-weight:700;margin:16px 0 8px;color:var(--muted);border-top:1px solid var(--border);padding-top:12px}
+.swapListItem{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:rgba(74,163,255,.06);border:1px solid rgba(74,163,255,.15);border-radius:8px;margin-bottom:6px;font-size:12px;font-weight:600}
+.swapListItem .swapRemove{background:none;border:none;color:var(--bad);font-size:16px;cursor:pointer;padding:0 4px;font-weight:700}
+body.light #swapModalCard{background:var(--card);border-color:var(--border)}
+body.light .swapRow select{background:var(--bg);color:#000;border-color:var(--border)}
 
 .statusBad{color:var(--bad);font-weight:800}
 .pulsing{outline:3px solid rgba(255,214,0,.85); box-shadow:0 0 0 6px rgba(255,214,0,.15)}
@@ -946,6 +977,17 @@ table, thead th, tbody td { text-transform: uppercase !important; }
   background:#3d1111 !important;
   color:#fca5a5 !important;
   border-color:#ef4444 !important;
+}
+.rowPill.tardy-needs-time{
+  box-shadow:0 0 0 3px #ef4444, 0 0 8px rgba(239,68,68,0.5);
+  background:#3d1111 !important;
+  color:#fca5a5 !important;
+  border-color:#ef4444 !important;
+  animation: tardyPulse 1.5s ease-in-out infinite;
+}
+@keyframes tardyPulse{
+  0%,100%{ box-shadow:0 0 0 3px #ef4444, 0 0 8px rgba(239,68,68,0.5); }
+  50%{ box-shadow:0 0 0 3px #ef4444, 0 0 16px rgba(239,68,68,0.8); }
 }
 .presentSel.trainer-ring{
   box-shadow:0 0 0 3px #3fe7b6, 0 0 8px rgba(63,231,182,0.5);
@@ -2992,6 +3034,31 @@ body.light .customSelBtn.typing-mode {
   </div>
 </div>
 
+<!-- Shift Swap Modal -->
+<div id="swapModalBackdrop">
+  <div id="swapModalCard">
+    <h3>Shift Swap</h3>
+    <div class="swapRow">
+      <label>Employee A</label>
+      <select id="swapEmpA"><option value="">— select —</option></select>
+    </div>
+    <div class="swapArrow">&#8693;</div>
+    <div class="swapRow">
+      <label>Employee B</label>
+      <select id="swapEmpB"><option value="">— select —</option></select>
+    </div>
+    <div style="font-size:12px;font-weight:600;color:var(--muted);margin:12px 0 4px">Apply to days:</div>
+    <div class="swapDays" id="swapDayChecks"></div>
+    <div id="swapPreview"></div>
+    <div id="swapError"></div>
+    <div class="swapBtns">
+      <button id="swapCancelBtn" onclick="closeSwapModal()">Cancel</button>
+      <button id="swapConfirmBtn" onclick="confirmSwap()">Confirm Swap</button>
+    </div>
+    <div id="swapActiveList"></div>
+  </div>
+</div>
+
 <!-- Login Overlay -->
 <div id="loginOverlay">
   <div class="login-box">
@@ -3091,6 +3158,8 @@ body.light .customSelBtn.typing-mode {
           <button id="btnImport" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Import OT</button>
           <button id="btnSaveXlsx" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Save XLSX</button>
           <button id="btnTimesheet" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Timesheet</button>
+          <button id="btnPrintDaily" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Print Daily</button>
+          <button id="btnShiftSwap" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#a3d4ff;cursor:pointer;border-bottom:1px solid #334155;">Shift Swap</button>
           <button id="btnBreakOPS" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:700;text-align:left;background:none;border:none;color:#f59e0b;cursor:pointer;">Push to BreakOPS</button>
         </div>
       </div>
@@ -3131,6 +3200,26 @@ body.light .customSelBtn.typing-mode {
   function sync(){ main.style.paddingBottom = (footer.offsetHeight + 16) + 'px'; }
   sync();
   new ResizeObserver(sync).observe(footer);
+})();
+
+// ===== jsPDF loader =====
+(function ensureJsPDF(){
+  if(window.jspdf) return;
+  const cdns=[
+    "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js",
+    "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js",
+    "https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js"
+  ];
+  let i=0;
+  function tryNext(){
+    if(window.jspdf||i>=cdns.length) return;
+    const s=document.createElement("script");
+    s.src=cdns[i++];
+    s.onload=()=>{ console.log("jsPDF loaded"); };
+    s.onerror=()=>{ tryNext(); };
+    document.head.appendChild(s);
+  }
+  tryNext();
 })();
 
 // ===== XLSX loader =====
@@ -3219,6 +3308,23 @@ let ABSENT_REASONS=[];
 
 let OT_BY_CTX=new Map(); // ctxKey -> array of OT entries
 let EDITS_BY_CTX=new Map(); // ctxKey -> Map(emp->edit)
+
+// ===== Shift Swaps =====
+let SHIFT_SWAPS = new Map(); // iso date -> array of {empA, empB, createdAt}
+let swapUnsubscribe = null;
+
+function getSwappedShift(emp, iso){
+  const swaps = SHIFT_SWAPS.get(iso);
+  if(!swaps) return null;
+  for(const sw of swaps){
+    if(sw.empA === emp) return sw.empB;
+    if(sw.empB === emp) return sw.empA;
+  }
+  return null;
+}
+function isSwapped(emp, iso){
+  return getSwappedShift(emp, iso) !== null;
+}
 
 function ctxKey(iso, shift, blockId){ return iso+"|"+shift+"|"+blockId; }
 function editsMapFor(key){ if(!EDITS_BY_CTX.has(key)) EDITS_BY_CTX.set(key,new Map()); return EDITS_BY_CTX.get(key); }
@@ -3587,6 +3693,219 @@ function startRealtimeSync(iso, shift) {
   });
 }
 
+// ===== Shift Swap Firestore Operations =====
+async function saveShiftSwap(iso, empA, empB){
+  const docRef = db.collection('shift_swaps').doc(iso);
+  try {
+    await db.runTransaction(async (tx) => {
+      const doc = await tx.get(docRef);
+      const swaps = doc.exists ? (doc.data().swaps || []) : [];
+      // Prevent double-swap: neither employee can already be in a swap for this date
+      for(const sw of swaps){
+        if(sw.empA === empA || sw.empB === empA || sw.empA === empB || sw.empB === empB){
+          throw new Error("One or both employees already have a swap for " + iso);
+        }
+      }
+      swaps.push({empA, empB, createdAt: Date.now()});
+      tx.set(docRef, {swaps}, {merge: true});
+    });
+    return true;
+  } catch(err){
+    console.error("saveShiftSwap failed:", err);
+    return err.message || "Save failed";
+  }
+}
+
+async function removeShiftSwap(iso, empA, empB){
+  const docRef = db.collection('shift_swaps').doc(iso);
+  try {
+    await db.runTransaction(async (tx) => {
+      const doc = await tx.get(docRef);
+      if(!doc.exists) return;
+      let swaps = doc.data().swaps || [];
+      swaps = swaps.filter(sw => !((sw.empA===empA && sw.empB===empB)||(sw.empA===empB && sw.empB===empA)));
+      tx.set(docRef, {swaps}, {merge: true});
+    });
+    return true;
+  } catch(err){
+    console.error("removeShiftSwap failed:", err);
+    return false;
+  }
+}
+
+async function loadShiftSwaps(iso){
+  try {
+    const doc = await db.collection('shift_swaps').doc(iso).get();
+    if(doc.exists && doc.data().swaps){
+      SHIFT_SWAPS.set(iso, doc.data().swaps);
+    } else {
+      SHIFT_SWAPS.set(iso, []);
+    }
+  } catch(err){
+    console.warn("loadShiftSwaps failed:", err);
+    SHIFT_SWAPS.set(iso, []);
+  }
+}
+
+function startSwapSync(iso){
+  if(swapUnsubscribe){ swapUnsubscribe(); swapUnsubscribe = null; }
+  if(!iso) return;
+  swapUnsubscribe = db.collection('shift_swaps').doc(iso).onSnapshot((doc) => {
+    if(doc.exists && doc.data().swaps){
+      SHIFT_SWAPS.set(iso, doc.data().swaps);
+    } else {
+      SHIFT_SWAPS.set(iso, []);
+    }
+    renderAll();
+  }, (err) => {
+    console.error("Swap sync error:", err);
+  });
+}
+
+// ===== Shift Swap Modal Logic =====
+function _swapWeekDates(){
+  // Build dates for the current week (Sat-Fri based on weekStart)
+  const wsVal = document.getElementById("weekStart") && document.getElementById("weekStart").value;
+  if(!wsVal) return [];
+  const ws = parseISO(wsVal);
+  const DAYS = ["Saturday","Sunday","Monday","Tuesday","Wednesday","Thursday","Friday"];
+  const dates = [];
+  for(let i=0;i<7;i++){
+    const d = new Date(ws.getTime() + i*86400000);
+    const iso = toISODate(d);
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    dates.push({iso, dayName: DAYS[i], label: DAYS[i].slice(0,3)+" "+mm+"/"+dd});
+  }
+  return dates;
+}
+
+function openSwapModal(){
+  const bd = document.getElementById("swapModalBackdrop");
+  // Populate employee dropdowns
+  const names = BASE_EMP.map(e=>e.Employee).sort();
+  const opts = '<option value="">— select —</option>' + names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("");
+  document.getElementById("swapEmpA").innerHTML = opts;
+  document.getElementById("swapEmpB").innerHTML = opts;
+  // Build day checkboxes for current week
+  const dates = _swapWeekDates();
+  const curISO = document.getElementById("workDate").value;
+  let chkHtml = "";
+  for(const d of dates){
+    const checked = (d.iso === curISO) ? " checked" : "";
+    chkHtml += `<label><input type="checkbox" value="${d.iso}" data-dayname="${d.dayName}"${checked}/> ${d.label}</label>`;
+  }
+  document.getElementById("swapDayChecks").innerHTML = chkHtml;
+  // Wire up change events on checkboxes
+  document.getElementById("swapDayChecks").querySelectorAll('input').forEach(cb => cb.addEventListener('change', updateSwapPreview));
+  document.getElementById("swapPreview").innerHTML = "";
+  document.getElementById("swapError").textContent = "";
+  renderSwapList();
+  bd.classList.add("open");
+}
+
+function closeSwapModal(){
+  document.getElementById("swapModalBackdrop").classList.remove("open");
+}
+
+function renderSwapList(){
+  const iso = document.getElementById("workDate").value;
+  const swaps = SHIFT_SWAPS.get(iso) || [];
+  const el = document.getElementById("swapActiveList");
+  if(!swaps.length){ el.innerHTML = ""; return; }
+  let html = '<div class="swapListTitle">Active Swaps ('+iso+')</div>';
+  for(const sw of swaps){
+    html += `<div class="swapListItem">
+      <span>${esc(sw.empA)} &#8596; ${esc(sw.empB)}</span>
+      <button class="swapRemove" onclick="confirmRemoveSwap('${esc(iso)}','${esc(sw.empA)}','${esc(sw.empB)}')" title="Remove swap">&times;</button>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+function updateSwapPreview(){
+  const empA = document.getElementById("swapEmpA").value;
+  const empB = document.getElementById("swapEmpB").value;
+  const el = document.getElementById("swapPreview");
+  if(!empA || !empB){ el.innerHTML = ""; return; }
+  if(empA === empB){ el.innerHTML = '<span style="color:var(--bad);font-size:12px">Cannot swap an employee with themselves.</span>'; return; }
+  const recA = BASE_EMP.find(e=>e.Employee===empA);
+  const recB = BASE_EMP.find(e=>e.Employee===empB);
+  if(!recA || !recB){ el.innerHTML = ""; return; }
+  // Get checked days
+  const checks = document.getElementById("swapDayChecks").querySelectorAll('input:checked');
+  if(!checks.length){ el.innerHTML = '<span style="color:var(--muted);font-size:12px">Select at least one day.</span>'; return; }
+  let html = '<table><thead><tr><th>Day</th><th>'+esc(empA)+'</th><th></th><th>'+esc(empB)+'</th><th>Status</th></tr></thead><tbody>';
+  for(const cb of checks){
+    const iso = cb.value;
+    const dayName = cb.dataset.dayname;
+    const shA = String(recA[dayName]||"").trim() || "OFF";
+    const shB = String(recB[dayName]||"").trim() || "OFF";
+    let status = "";
+    if(shA === shB) status = '<span style="color:var(--warn)">Same shift</span>';
+    else {
+      // Check if either already has a swap
+      const existing = SHIFT_SWAPS.get(iso) || [];
+      const conflict = existing.some(sw => sw.empA===empA||sw.empB===empA||sw.empA===empB||sw.empB===empB);
+      status = conflict ? '<span style="color:var(--bad)">Already swapped</span>' : '<span style="color:var(--ok)">OK</span>';
+    }
+    html += `<tr><td>${dayName.slice(0,3)}</td><td>${esc(shA)}</td><td class="swapPreviewArrow">&#8594;</td><td>${esc(shB)}</td><td>${status}</td></tr>`;
+  }
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+async function confirmSwap(){
+  const empA = document.getElementById("swapEmpA").value;
+  const empB = document.getElementById("swapEmpB").value;
+  const errEl = document.getElementById("swapError");
+  errEl.textContent = "";
+  if(!empA || !empB){ errEl.textContent = "Select both employees."; return; }
+  if(empA === empB){ errEl.textContent = "Cannot swap an employee with themselves."; return; }
+  const recA = BASE_EMP.find(e=>e.Employee===empA);
+  const recB = BASE_EMP.find(e=>e.Employee===empB);
+  if(!recA || !recB){ errEl.textContent = "Employee not found in roster."; return; }
+  const checks = document.getElementById("swapDayChecks").querySelectorAll('input:checked');
+  if(!checks.length){ errEl.textContent = "Select at least one day."; return; }
+
+  const errors = [];
+  let successCount = 0;
+  for(const cb of checks){
+    const iso = cb.value;
+    const dayName = cb.dataset.dayname;
+    const shA = String(recA[dayName]||"").trim();
+    const shB = String(recB[dayName]||"").trim();
+    if(shA === shB){
+      errors.push(dayName.slice(0,3)+": Both have same shift ("+shA+")");
+      continue;
+    }
+    // Load swaps for that date if not already loaded
+    if(!SHIFT_SWAPS.has(iso)) await loadShiftSwaps(iso);
+    const result = await saveShiftSwap(iso, empA, empB);
+    if(result === true){
+      successCount++;
+      startSwapSync(iso);
+    } else {
+      errors.push(dayName.slice(0,3)+": "+result);
+    }
+  }
+  if(successCount > 0){
+    renderSwapList();
+    updateSwapPreview();
+  }
+  if(errors.length){
+    errEl.textContent = errors.join("; ");
+  } else {
+    closeSwapModal();
+  }
+}
+
+async function confirmRemoveSwap(iso, empA, empB){
+  await removeShiftSwap(iso, empA, empB);
+  renderSwapList();
+  renderAll();
+}
+
 // ===== Workbook helpers =====
 function loadWorkbook(arrayBuf){ return XLSX.read(arrayBuf,{type:"array"}); }
 function getSheet(wb, names){
@@ -3745,7 +4064,16 @@ function parseDatabase(wb){
   if(!(seatsOk && absOk)) pS.classList.add("bad");
 }
 
-function shiftForDay(emp, dayName){ return String(emp[dayName]||"").trim(); }
+function shiftForDay(emp, dayName, iso){
+  if(iso){
+    const partner = getSwappedShift(emp.Employee, iso);
+    if(partner){
+      const partnerRec = BASE_EMP.find(e => e.Employee === partner);
+      if(partnerRec) return String(partnerRec[dayName]||"").trim();
+    }
+  }
+  return String(emp[dayName]||"").trim();
+}
 function parseShiftString(s){
   const str=String(s||"").toUpperCase().replace(/\s+/g,"");
   if(!str || str==="OFF") return null;
@@ -4138,7 +4466,7 @@ function computeRowsForBlock(iso, shift, block){
 
   // scheduled
   for(const e of BASE_EMP){
-    const shStr = shiftForDay(e, dname);
+    const shStr = shiftForDay(e, dname, iso);
     const sh=parseShiftString(shStr);
     if(!sh) continue;
     // overlap with this shift blocks only (DAY/NIGHT selection)
@@ -4158,7 +4486,9 @@ function computeRowsForBlock(iso, shift, block){
 
     const role = normalizeRole(ed.Role||e.POSITION);
     const present=(ed.Present||"YES");
-    const row={emp:e.Employee, sen:e.SENIORITY, shiftStr:shStr, role, present, hours, assignment:(ed.Assignment||""), workedStart, workedEnd, isOT:false};
+    const _isSwapped = isSwapped(e.Employee, iso);
+    const _swapPartner = _isSwapped ? getSwappedShift(e.Employee, iso) : null;
+    const row={emp:e.Employee, sen:e.SENIORITY, shiftStr:shStr, role, present, hours, assignment:(ed.Assignment||""), workedStart, workedEnd, isOT:false, isSwapped:_isSwapped, swapPartner:_swapPartner};
     if(present==="NO") res.ABSENT.push(row);
     else if(present==="PARTIAL"){
       if(res[role]) res[role].push(row);
@@ -4303,8 +4633,9 @@ function renderRoleTable(iso, shift, block, role, rows){
            ${renderSeatOptions(seatOpts, seat)}
          </select>`;
 
+    const swBadge = r.isSwapped ? `<span class="swapBadge" title="Swapped with ${esc(r.swapPartner||'')}">SW</span>` : "";
     html += `<tr${rowBg}>
-      <td class="nameCol">${r.isOT?`<span class="otNameWrap"><span class="empName">${esc(r.emp)}</span><span class="otBadge otBadgeTop">OT<button class="ot-edit-icon" onclick="showOTConfirm(event,'${esc(key)}','${esc(r.emp)}')">&#9998;</button></span></span>`:`<span class="empName">${esc(r.emp)}</span>`}${r.isTardy?`<span class="otBadge" style="background:#ef4444">T</span>`:(r.isPartial?`<span class="otBadge" style="background:#d4a017">P</span>`:"")}</td>
+      <td class="nameCol">${r.isOT?`<span class="otNameWrap"><span class="empName">${esc(r.emp)}</span><span class="otBadge otBadgeTop">OT<button class="ot-edit-icon" onclick="showOTConfirm(event,'${esc(key)}','${esc(r.emp)}')">&#9998;</button></span></span>`:`<span class="empName">${esc(r.emp)}</span>`}${r.isTardy?`<span class="otBadge" style="background:#ef4444">T</span>`:(r.isPartial?`<span class="otBadge" style="background:#d4a017">P</span>`:"")}${swBadge}</td>
       ${isAbsent ? "" : `<td class="ctrlCell roleCol">
         <select class="roleSel" onchange="setRoleVal('${esc(key)}','${esc(r.emp)}', this.value)">
           ${renderRoleOptions(roleNorm)}
@@ -4314,7 +4645,7 @@ function renderRoleTable(iso, shift, block, role, rows){
       <td class="ctrlCell workedCol">
         ${(r.isPartial||r.isTardy)
           ? `<span class="rowPill">${shortWorked(ws,we)}</span>`
-          : `<span class="rowPill editable" onclick="openTimeEdit(this,event)">${shortWorked(ws,we)}</span>
+          : `<span class="rowPill editable${present==="TARDY"&&!ed.WorkedStart?" tardy-needs-time":""}" onclick="openTimeEdit(this,event)">${shortWorked(ws,we)}</span>
         <span class="timeEdit">
           <input type="time" value="${esc(ws)}" data-timekey="${esc(key)}" data-timeemp="${esc(r.emp)}" data-timefield="WorkedStart" data-timeorig="${esc(ws)}"/>
           <input type="time" value="${esc(we)}" data-timekey="${esc(key)}" data-timeemp="${esc(r.emp)}" data-timefield="WorkedEnd" data-timeorig="${esc(we)}"/>
@@ -4366,9 +4697,10 @@ function renderOthTable(iso, shift, block, rows){
     const cmtKey = r.isTardy ? key+'|'+r.emp+'|TARDY' : (r.isPartial ? key+'|'+r.emp+'|PARTIAL' : key+'|'+r.emp);
 
     const rowBg = r.isOT ? " style='background:rgba(180,180,200,0.12)'" : "";
+    const swBadgeOth = r.isSwapped ? `<span class="swapBadge" title="Swapped with ${esc(r.swapPartner||'')}">SW</span>` : "";
 
     html += `<tr${rowBg}>
-      <td class="nameCol">${r.isOT?`<span class="otNameWrap"><span class="empName">${esc(r.emp)}</span><span class="otBadge otBadgeTop">OT<button class="ot-edit-icon" onclick="showOTConfirm(event,'${esc(key)}','${esc(r.emp)}')">&#9998;</button></span></span>`:`<span class="empName">${esc(r.emp)}</span>`}${r.isTardy?`<span class="otBadge" style="background:#ef4444">T</span>`:(r.isPartial?`<span class="otBadge" style="background:#d4a017">P</span>`:"")}</td>
+      <td class="nameCol">${r.isOT?`<span class="otNameWrap"><span class="empName">${esc(r.emp)}</span><span class="otBadge otBadgeTop">OT<button class="ot-edit-icon" onclick="showOTConfirm(event,'${esc(key)}','${esc(r.emp)}')">&#9998;</button></span></span>`:`<span class="empName">${esc(r.emp)}</span>`}${r.isTardy?`<span class="otBadge" style="background:#ef4444">T</span>`:(r.isPartial?`<span class="otBadge" style="background:#d4a017">P</span>`:"")}${swBadgeOth}</td>
       <td class="ctrlCell roleCol">
         <select class="roleSel" onchange="setRoleVal('${esc(key)}','${esc(r.emp)}', this.value)">
           ${renderRoleOptions(roleNorm)}
@@ -4386,7 +4718,7 @@ function renderOthTable(iso, shift, block, rows){
       <td class="ctrlCell workedCol">
         ${(r.isPartial||r.isTardy)
           ? `<span class="rowPill">${shortWorked(ws,we)}</span>`
-          : `<span class="rowPill editable" onclick="openTimeEdit(this,event)">${shortWorked(ws,we)}</span>
+          : `<span class="rowPill editable${present==="TARDY"&&!ed.WorkedStart?" tardy-needs-time":""}" onclick="openTimeEdit(this,event)">${shortWorked(ws,we)}</span>
         <span class="timeEdit">
           <input type="time" value="${esc(ws)}" data-timekey="${esc(key)}" data-timeemp="${esc(r.emp)}" data-timefield="WorkedStart" data-timeorig="${esc(ws)}"/>
           <input type="time" value="${esc(we)}" data-timekey="${esc(key)}" data-timeemp="${esc(r.emp)}" data-timefield="WorkedEnd" data-timeorig="${esc(we)}"/>
@@ -4636,7 +4968,7 @@ function _cascadeAbsentForward(key, emp){
   const empRec = BASE_EMP.find(e => e.Employee === emp);
   if(!empRec) return;
   const dname = dayNameFromISO(iso);
-  const shStr = shiftForDay(empRec, dname);
+  const shStr = shiftForDay(empRec, dname, iso);
   const sh = parseShiftString(shStr);
   if(!sh) return;
 
@@ -5358,6 +5690,7 @@ function updateUnfilledCount(){
       }
       // Unfilled absent reasons
       for(const r of (rows.ABSENT||[])){
+        if(r.isTardy) continue; // tardy reason is auto-filled
         const ed = ensureEdit(key, r.emp);
         if(r.isPartial){
           if(!(ed.PartialReason||"")) reasons++;
@@ -5856,7 +6189,9 @@ async function applyDaySelection(){
   // Load saved edits from Firebase for this date/shift
   const shift = document.getElementById("shiftSel").value;
   await loadEditsFromFirebase(iso, shift);
+  await loadShiftSwaps(iso);
   startRealtimeSync(iso, shift);
+  startSwapSync(iso);
   renderAll();
 }
 
@@ -5931,7 +6266,7 @@ function buildExportRowsForCurrent(){
         out.push({
           Date: iso,
           Shift: shift,
-          Block: b.label,
+          Block: b.id,
           Role: role,
           Employee: r.isPartial ? r.emp + " (P)" : ((ed.Present||r.present||"YES")==="TRAINER" ? r.emp + " (TNR)" : (ed.Present||r.present||"YES")==="TRAINEE" ? r.emp + " (TNE)" : r.emp),
           Seniority: r.sen,
@@ -5965,21 +6300,21 @@ function saveXlsx(){
       left:   {style:"thin", color:{rgb:"444444"}},
       right:  {style:"thin", color:{rgb:"444444"}}
     };
-    const sBlockHdr = {font:{bold:true,sz:9,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"1E3A5F"}}, alignment:{horizontal:"center",vertical:"center"}, border:border};
-    const sSectionHdr = {font:{bold:true,sz:8,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"2D4A6F"}}, alignment:{horizontal:"center",vertical:"center"}, border:border};
-    const sColHdr = {font:{bold:true,sz:7,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"3B5998"}}, alignment:{vertical:"center"}, border:border};
-    const sNormal = {font:{sz:8}, alignment:{vertical:"center"}, border:border};
-    const sRoleCalltaker = {font:{bold:true,sz:8,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"1A5276"}}, alignment:{horizontal:"center",vertical:"center"}, border:border};
-    const sRoleDispatcher = {font:{bold:true,sz:8,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"4A235A"}}, alignment:{horizontal:"center",vertical:"center"}, border:border};
-    const sRolePIC = {font:{bold:true,sz:8,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"0E6655"}}, alignment:{horizontal:"center",vertical:"center"}, border:border};
-    const sRoleSupervisor = {font:{bold:true,sz:8,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"7D6608"}}, alignment:{horizontal:"center",vertical:"center"}, border:border};
-    const sRoleAbsent = {font:{bold:true,sz:8,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"922B21"}}, alignment:{horizontal:"center",vertical:"center"}, border:border};
-    const sStatusShort = {font:{bold:true,sz:8,color:{rgb:"CC0000"}}, fill:{fgColor:{rgb:"FFF0F0"}}, alignment:{vertical:"center"}, border:border};
-    const sStatusGood = {font:{bold:true,sz:8,color:{rgb:"806600"}}, fill:{fgColor:{rgb:"FFFDE6"}}, alignment:{vertical:"center"}, border:border};
-    const sStatusOver = {font:{bold:true,sz:8,color:{rgb:"007744"}}, fill:{fgColor:{rgb:"E6FFF5"}}, alignment:{vertical:"center"}, border:border};
-    const sAdeqHdr = {font:{bold:true,sz:7,color:{rgb:"333333"}}, fill:{fgColor:{rgb:"D6E4F0"}}, alignment:{vertical:"center"}, border:border};
-    const sAdeqRow = {font:{sz:8,color:{rgb:"222222"}}, fill:{fgColor:{rgb:"EDF2F7"}}, alignment:{vertical:"center"}, border:border};
-    const sRoleOth = {font:{bold:true,sz:8,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"6B7280"}}, alignment:{horizontal:"center",vertical:"center"}, border:border};
+    const sBlockHdr = {font:{bold:true,sz:8,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"1E3A5F"}}, alignment:{horizontal:"center",vertical:"center"}, border:border};
+    const sSectionHdr = {font:{bold:true,sz:7,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"2D4A6F"}}, alignment:{horizontal:"center",vertical:"center"}, border:border};
+    const sColHdr = {font:{bold:true,sz:6,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"3B5998"}}, alignment:{vertical:"center"}, border:border};
+    const sNormal = {font:{sz:7}, alignment:{vertical:"center"}, border:border};
+    const sRoleCalltaker = {font:{bold:true,sz:7,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"1A5276"}}, alignment:{horizontal:"center",vertical:"center"}, border:border};
+    const sRoleDispatcher = {font:{bold:true,sz:7,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"4A235A"}}, alignment:{horizontal:"center",vertical:"center"}, border:border};
+    const sRolePIC = {font:{bold:true,sz:7,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"0E6655"}}, alignment:{horizontal:"center",vertical:"center"}, border:border};
+    const sRoleSupervisor = {font:{bold:true,sz:7,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"7D6608"}}, alignment:{horizontal:"center",vertical:"center"}, border:border};
+    const sRoleAbsent = {font:{bold:true,sz:7,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"922B21"}}, alignment:{horizontal:"center",vertical:"center"}, border:border};
+    const sStatusShort = {font:{bold:true,sz:7,color:{rgb:"CC0000"}}, fill:{fgColor:{rgb:"FFF0F0"}}, alignment:{vertical:"center"}, border:border};
+    const sStatusGood = {font:{bold:true,sz:7,color:{rgb:"806600"}}, fill:{fgColor:{rgb:"FFFDE6"}}, alignment:{vertical:"center"}, border:border};
+    const sStatusOver = {font:{bold:true,sz:7,color:{rgb:"007744"}}, fill:{fgColor:{rgb:"E6FFF5"}}, alignment:{vertical:"center"}, border:border};
+    const sAdeqHdr = {font:{bold:true,sz:6,color:{rgb:"333333"}}, fill:{fgColor:{rgb:"D6E4F0"}}, alignment:{vertical:"center"}, border:border};
+    const sAdeqRow = {font:{sz:7,color:{rgb:"222222"}}, fill:{fgColor:{rgb:"EDF2F7"}}, alignment:{vertical:"center"}, border:border};
+    const sRoleOth = {font:{bold:true,sz:7,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"6B7280"}}, alignment:{horizontal:"center",vertical:"center"}, border:border};
     const roleAbbr = {CALLTAKER:"CT",DISPATCHER:"DP",PIC:"PIC",SUPERVISOR:"SUP",ABSENT:"ABS",OTH:"OTH"};
     const roleHdrStyles = {CALLTAKER:sRoleCalltaker, DISPATCHER:sRoleDispatcher, PIC:sRolePIC, SUPERVISOR:sRoleSupervisor, ABSENT:sRoleAbsent, OTH:sRoleOth};
     const roleBgColors = {CALLTAKER:"E8F0FE", DISPATCHER:"F3E5F5", PIC:"E0F2F1", SUPERVISOR:"FFF8E1", ABSENT:"FDEDEC", OTH:"F3F4F6"};
@@ -6006,7 +6341,8 @@ function saveXlsx(){
 
     const ws = {};
     const roles = ["CALLTAKER","DISPATCHER","PIC","SUPERVISOR","ABSENT","OTH"];
-    const blockCols = 7; // columns per block: Name, Role, Seat, Worked, Hrs, Present, Cmt
+    const blockCols = 6; // columns per block: Name, Role, Seat, Worked, Hrs, Present
+    const allComments = []; // collect comments for separate sheet
     const totalCols = blocks.length * blockCols;
     const shiftLabel = shift === "NIGHT" ? "NIGHTS" : "DAYS";
     const dayName = dayNameFromISO(iso);
@@ -6079,7 +6415,7 @@ function saveXlsx(){
 
     for(const rd of adeqRoleDefs){
       /* Sub-header row */
-      const adeqSubHdr = {font:{bold:true,sz:10,color:{rgb:"1A3A5C"}}, fill:{fgColor:{rgb:"C8D8E8"}}, border:border};
+      const adeqSubHdr = {font:{bold:true,sz:7,color:{rgb:"1A3A5C"}}, fill:{fgColor:{rgb:"C8D8E8"}}, border:border};
       blocks.forEach((b, bi) => {
         const cs = bi * blockCols;
         setCell(ws, row, cs, rd.label, adeqSubHdr);
@@ -6124,8 +6460,8 @@ function saveXlsx(){
       const rolePlural = {CALLTAKER:"CT",DISPATCHER:"DP",PIC:"PIC",SUPERVISOR:"SUP",ABSENT:"ABS",OTH:"OTH"};
       const rHdrStyle = roleHdrStyles[role] || sSectionHdr;
       const bgColor = roleBgColors[role] || "FFFFFF";
-      const rowStyle = {font:{sz:8}, fill:{fgColor:{rgb:bgColor}}, alignment:{vertical:"center"}, border:border};
-      const emptyStyle = {font:{sz:8}, fill:{fgColor:{rgb:bgColor}}, alignment:{vertical:"center"}, border:border};
+      const rowStyle = {font:{sz:7}, fill:{fgColor:{rgb:bgColor}}, alignment:{vertical:"center"}, border:border};
+      const emptyStyle = {font:{sz:7}, fill:{fgColor:{rgb:bgColor}}, alignment:{vertical:"center"}, border:border};
 
       /* Role header row */
       blocks.forEach((b, bi) => {
@@ -6148,7 +6484,6 @@ function saveXlsx(){
         setCell(ws, row, cs+3, isAbsent ? "Msd" : "Wkd", sColHdr);
         setCell(ws, row, cs+4, "Hr", sColHdr);
         setCell(ws, row, cs+5, "Pr", sColHdr);
-        setCell(ws, row, cs+6, "Cmt", sColHdr);
         expandRange(ws, row, cs+blockCols-1);
       });
       row++;
@@ -6183,7 +6518,7 @@ function saveXlsx(){
             setCell(ws, row, cs+3, wStart && wEnd ? `${wStart}-${wEnd}` : "", rowStyle);
             setCell(ws, row, cs+4, hrs, rowStyle);
             setCell(ws, row, cs+5, present==="TARDY"?"T":(present==="PARTIAL"?"P":(present==="TRAINER"?"TNR":(present==="TRAINEE"?"TNE":(present==="YES"?"Y":"N")))), rowStyle);
-            setCell(ws, row, cs+6, cmtText, rowStyle);
+            if(cmtText) allComments.push({block:b.id, role:role, emp:String(r.emp).toUpperCase()+nameSuffix, comment:cmtText});
           } else {
             for(let c=cs;c<cs+blockCols;c++) setCell(ws, row, c, "", emptyStyle);
           }
@@ -6230,28 +6565,74 @@ function saveXlsx(){
       cols[s+3] = {wch:8};  // Worked
       cols[s+4] = {wch:3};  // Hrs
       cols[s+5] = {wch:2};  // Present
-      cols[s+6] = {wch:14}; // Comment
     }
     ws['!cols'] = cols;
 
-    /* Row heights - tight */
+    /* Row heights - tight to fit 1 page */
     ws['!rows'] = [];
     for(let r=0; r<totalRows; r++){
-      ws['!rows'][r] = {hpt:12};
+      ws['!rows'][r] = {hpt:10};
     }
 
-    /* Page setup for letter landscape - fit to 1 page wide */
+    /* Page setup for letter landscape - fit ALL rows+cols to exactly 1 page */
     ws['!pageSetup'] = {
       paperSize: 1,
       orientation: "landscape",
       fitToWidth: 1,
-      fitToHeight: 0,
-      scale: 65
+      fitToHeight: 1
     };
-    ws['!margins'] = {left:0.15, right:0.15, top:0.2, bottom:0.2, header:0.1, footer:0.1};
+    ws['!margins'] = {left:0.1, right:0.1, top:0.1, bottom:0.1, header:0, footer:0};
     ws['!print'] = {fitToPage: true};
 
     XLSX.utils.book_append_sheet(wb, ws, "Roster");
+
+    /* ---- Comments sheet ---- */
+    if(allComments.length > 0){
+      const cs2 = {};
+      const cHdr = {font:{bold:true,sz:10,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"1E3A5F"}}, alignment:{vertical:"center"}, border:border};
+      const cTitle = {font:{bold:true,sz:12,color:{rgb:"1E3A5F"}}, alignment:{horizontal:"center",vertical:"center"}};
+      const cRow = {font:{sz:10}, alignment:{vertical:"center",wrapText:true}, border:border};
+      const cRowAlt = {font:{sz:10}, fill:{fgColor:{rgb:"EDF2F7"}}, alignment:{vertical:"center",wrapText:true}, border:border};
+
+      let cr = 0;
+      /* Title row */
+      setCell(cs2, cr, 0, `COMMENTS — ${shiftLabel} ${dayName.slice(0,3).toUpperCase()} ${dateStr}`, cTitle);
+      for(let c=1;c<=3;c++) setCell(cs2, cr, c, "", cTitle);
+      if(!cs2['!merges']) cs2['!merges'] = [];
+      cs2['!merges'].push({s:{r:cr,c:0}, e:{r:cr,c:3}});
+      expandRange(cs2, cr, 3);
+      cr++;
+      cr++; // blank row
+
+      /* Column headers */
+      setCell(cs2, cr, 0, "EMPLOYEE", cHdr);
+      setCell(cs2, cr, 1, "BLOCK", cHdr);
+      setCell(cs2, cr, 2, "ROLE", cHdr);
+      setCell(cs2, cr, 3, "COMMENT", cHdr);
+      expandRange(cs2, cr, 3);
+      cr++;
+
+      /* Comment rows */
+      for(let i=0; i<allComments.length; i++){
+        const c = allComments[i];
+        const style = (i % 2 === 0) ? cRow : cRowAlt;
+        setCell(cs2, cr, 0, c.emp, style);
+        setCell(cs2, cr, 1, c.block, style);
+        setCell(cs2, cr, 2, c.role, style);
+        setCell(cs2, cr, 3, c.comment, style);
+        expandRange(cs2, cr, 3);
+        cr++;
+      }
+
+      cs2['!cols'] = [{wch:20},{wch:10},{wch:12},{wch:60}];
+      cs2['!rows'] = [];
+      for(let r=0;r<cr;r++) cs2['!rows'][r] = {hpt: r>=3 ? 18 : 16};
+      cs2['!pageSetup'] = {paperSize:1, orientation:"portrait", fitToWidth:1, fitToHeight:1};
+      cs2['!margins'] = {left:0.2, right:0.2, top:0.2, bottom:0.2, header:0, footer:0};
+      cs2['!print'] = {fitToPage:true};
+
+      XLSX.utils.book_append_sheet(wb, cs2, "Comments");
+    }
 
     const safeShift = String(shift).replace(/[^\w\-]+/g,'_');
     const fname = `SheetOps_${iso}_${safeShift}.xlsx`;
@@ -6265,8 +6646,412 @@ function saveXlsx(){
 
 document.getElementById("btnSaveXlsx").addEventListener("click", saveXlsx);
 
+/* ===== Print Daily: roster page 1, comments page 2 ===== */
+function printDaily(){
+  try{
+    if(!window.jspdf){
+      setErr("Loading PDF library… click Print Daily again in a few seconds.");
+      const s=document.createElement("script");
+      s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js";
+      s.onerror=()=>{
+        const s2=document.createElement("script");
+        s2.src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js";
+        document.head.appendChild(s2);
+      };
+      document.head.appendChild(s);
+      return;
+    }
+    const {jsPDF} = window.jspdf;
+    const iso = document.getElementById("workDate").value || "date";
+    const shift = document.getElementById("shiftSel").value || "shift";
+    const blocks = getBlocks();
+    const shiftLabel = shift === "NIGHT" ? "NIGHTS" : "DAYS";
+    const dayName = dayNameFromISO(iso);
+    const pts = iso.split("-");
+    const dateStr = `${pts[1]}/${pts[2]}/${pts[0].slice(-2)}`;
+    const title = `${shiftLabel} ${dayName.slice(0,3).toUpperCase()} ${dateStr}`;
+
+    const roles = ["CALLTAKER","DISPATCHER","PIC","SUPERVISOR","ABSENT","OTH"];
+    const roleAbbr = {CALLTAKER:"CT",DISPATCHER:"DP",PIC:"PIC",SUPERVISOR:"SUP",ABSENT:"ABS",OTH:"OTH"};
+    const roleRGB = {CALLTAKER:[26,82,118],DISPATCHER:[74,35,90],PIC:[14,102,85],SUPERVISOR:[125,102,8],ABSENT:[146,43,33],OTH:[107,114,128]};
+    const roleBgRGB = {CALLTAKER:[232,240,254],DISPATCHER:[243,229,245],PIC:[224,242,241],SUPERVISOR:[255,248,225],ABSENT:[253,237,236],OTH:[243,244,246]};
+    const adeqRoleDefs = [{key:"CALLTAKER",label:"CT"},{key:"DISPATCHER",label:"DP"},{key:"PIC",label:"PIC"}];
+
+    /* Gather all data */
+    const allRowsByRole = {};
+    const allAdeqRows = {};
+    const pdfComments = [];
+    for(const b of blocks){
+      allRowsByRole[b.id] = computeRowsForBlock(iso, shift, b);
+      allAdeqRows[b.id] = {};
+      for(const rd of adeqRoleDefs) allAdeqRows[b.id][rd.key] = buildAdeqRowsForRole(iso, shift, b, rd.key);
+    }
+
+    /* ---- Count total rows to calculate row height ---- */
+    let totalRows = 0;
+    totalRows++; // block header
+    totalRows++; // staffing numbers header
+    totalRows++; // adeq col headers
+    for(const rd of adeqRoleDefs){
+      totalRows++; // adeq sub-header
+      let mx=0; for(const b of blocks) mx=Math.max(mx, allAdeqRows[b.id][rd.key].length);
+      totalRows += mx;
+    }
+    for(const role of roles){
+      let hasAny=false;
+      for(const b of blocks) if((allRowsByRole[b.id][role]||[]).length) hasAny=true;
+      if(!hasAny) continue;
+      totalRows++; // role header
+      totalRows++; // col headers
+      let mx=0; for(const b of blocks) mx=Math.max(mx,(allRowsByRole[b.id][role]||[]).length);
+      totalRows += mx;
+    }
+
+    /* Page 1: portrait letter = 612 x 792 points */
+    const doc = new jsPDF({orientation:"portrait", unit:"pt", format:"letter"});
+    const pw = 612, ph = 792;
+    const margin = 2;
+    const usableW = pw - margin*2;
+    const usableH = ph - margin*2;
+    const rh = Math.floor((usableH / totalRows)*100)/100; // row height
+    const nBlocks = blocks.length;
+    const blockW = usableW / nBlocks;
+    /* Column ratios within a block: Name(35%), Rl(6%), Seat(14%), Wkd(20%), Hr(10%), Pr(8%), pad(7%) */
+    const colR = [0.35, 0.10, 0.15, 0.22, 0.10, 0.08];
+    const colW = colR.map(r => blockW * r);
+    const fontSize = Math.min(7, rh * 0.7);
+    const fontSizeSmall = fontSize * 0.85;
+
+    function hexToRGB(hex){ return [parseInt(hex.slice(0,2),16),parseInt(hex.slice(2,4),16),parseInt(hex.slice(4,6),16)]; }
+
+    /* Drawing helpers */
+    let y = margin;
+    function drawRow(fills, texts, opts={}){
+      const bold = opts.bold||false;
+      const txtColor = opts.color||[0,0,0];
+      const centered = opts.center||false;
+      const fs = opts.fs||fontSize;
+      const merge = opts.merge||false;
+      for(let bi=0;bi<nBlocks;bi++){
+        const bx = margin + bi*blockW;
+        if(merge){
+          const fill = fills[bi]||fills[0]||[255,255,255];
+          doc.setFillColor(fill[0],fill[1],fill[2]);
+          doc.rect(bx, y, blockW, rh, 'F');
+          doc.setDrawColor(100,100,100); doc.rect(bx, y, blockW, rh, 'S');
+          doc.setFontSize(fs);
+          doc.setFont("helvetica", bold?"bold":"normal");
+          doc.setTextColor(txtColor[0],txtColor[1],txtColor[2]);
+          const txt = texts[bi]||"";
+          if(centered) doc.text(txt, bx+blockW/2, y+rh*0.7, {align:"center"});
+          else doc.text(txt, bx+2, y+rh*0.7);
+        } else {
+          let cx = bx;
+          for(let ci=0;ci<6;ci++){
+            const fill = Array.isArray(fills[bi]) ? (Array.isArray(fills[bi][0])?fills[bi][ci]:fills[bi]) : [255,255,255];
+            doc.setFillColor(fill[0],fill[1],fill[2]);
+            doc.rect(cx, y, colW[ci], rh, 'F');
+            doc.setDrawColor(100,100,100); doc.rect(cx, y, colW[ci], rh, 'S');
+            const txt = (texts[bi]&&texts[bi][ci])||"";
+            const tc = (opts.cellColors&&opts.cellColors[bi]&&opts.cellColors[bi][ci])||txtColor;
+            doc.setTextColor(tc[0],tc[1],tc[2]);
+            doc.setFontSize(ci===0?fs:fontSizeSmall);
+            doc.setFont("helvetica", bold?"bold":"normal");
+            doc.text(String(txt), cx+1.5, y+rh*0.7);
+            cx += colW[ci];
+          }
+        }
+      }
+      y += rh;
+    }
+
+    /* Block headers */
+    drawRow(
+      blocks.map(()=>[30,58,95]),
+      blocks.map(b=>`${shiftLabel} ${b.id} ${dayName.slice(0,3).toUpperCase()} ${dateStr}`),
+      {bold:true, color:[255,255,255], center:true, merge:true}
+    );
+
+    /* Staffing numbers header */
+    drawRow(
+      blocks.map(()=>[45,74,111]),
+      blocks.map(()=>"STAFFING NUMBERS"),
+      {bold:true, color:[255,255,255], center:true, merge:true}
+    );
+
+    /* Adeq column headers */
+    drawRow(
+      blocks.map(()=>[214,228,240]),
+      blocks.map(()=>["Hr","Adeq","Sched","Stat","",""]),
+      {bold:true, color:[51,51,51]}
+    );
+
+    /* Adeq rows per role */
+    for(const rd of adeqRoleDefs){
+      drawRow(
+        blocks.map(()=>[200,216,232]),
+        blocks.map(()=>rd.label),
+        {bold:true, color:[26,58,92], center:true, merge:true}
+      );
+      let mx=0; for(const b of blocks) mx=Math.max(mx, allAdeqRows[b.id][rd.key].length);
+      for(let i=0;i<mx;i++){
+        const fills=[], texts=[], cellColors=[];
+        for(const b of blocks){
+          const ar = allAdeqRows[b.id][rd.key][i];
+          const bg=[237,242,247];
+          fills.push([bg,bg,bg,bg,bg,bg]);
+          if(ar){
+            const stC = ar.stTxt.includes("SHORT")?[204,0,0]:ar.stTxt.includes("OVER")?[0,119,68]:[128,102,0];
+            texts.push([ar.hour, ar.adeq, ar.sched, ar.stTxt, "", ""]);
+            cellColors.push([[34,34,34],[34,34,34],[34,34,34],stC,[34,34,34],[34,34,34]]);
+          } else { texts.push(["","","","","",""]); cellColors.push(null); }
+        }
+        drawRow(fills, texts, {color:[34,34,34], cellColors:cellColors});
+      }
+    }
+
+    /* Role tables */
+    for(const role of roles){
+      const isAbsent=role==="ABSENT", isOth=role==="OTH";
+      let hasAny=false;
+      for(const b of blocks) if((allRowsByRole[b.id][role]||[]).length) hasAny=true;
+      if(!hasAny) continue;
+
+      const rc = roleRGB[role]||[100,100,100];
+      const bg = roleBgRGB[role]||[255,255,255];
+
+      /* Role header */
+      drawRow(
+        blocks.map(()=>rc),
+        blocks.map(b=>`${roleAbbr[role]}: ${(allRowsByRole[b.id][role]||[]).length}`),
+        {bold:true, color:[255,255,255], center:true, merge:true}
+      );
+
+      /* Col headers */
+      drawRow(
+        blocks.map(()=>[[59,89,152],[59,89,152],[59,89,152],[59,89,152],[59,89,152],[59,89,152]]),
+        blocks.map(()=>["Name", isAbsent?"":"Rl", isAbsent?"Rsn":(isOth?"Rsn":"Seat"), isAbsent?"Msd":"Wkd", "Hr", "Pr"]),
+        {bold:true, color:[255,255,255]}
+      );
+
+      /* Data rows */
+      let mx=0; for(const b of blocks) mx=Math.max(mx,(allRowsByRole[b.id][role]||[]).length);
+      for(let i=0;i<mx;i++){
+        const fills=[], texts=[];
+        for(const b of blocks){
+          const list=allRowsByRole[b.id][role]||[];
+          fills.push([bg,bg,bg,bg,bg,bg]);
+          if(i<list.length){
+            const r=list[i];
+            const ctx=ctxKey(iso,shift,b.id);
+            const ed=ensureEdit(ctx,r.emp);
+            const roleNorm=normalizeRole(ed.Role||r.role);
+            const wStart=r.isPartial?(r.workedStart||""):(ed.WorkedStart||r.workedStart||"");
+            const wEnd=r.isPartial?(r.workedEnd||""):(ed.WorkedEnd||r.workedEnd||"");
+            const hrs=r.isPartial?r.hours:(ed.Hours!==""?Number(ed.Hours):r.hours);
+            const present=ed.Present||r.present||"YES";
+            const absReason=ed.AbsenceReason||"";
+            const nameSuffix=(r.isTardy?" (T)":r.isPartial?" (P)":present==="TRAINER"?" (TNR)":present==="TRAINEE"?" (TNE)":"")+(r.isOT?" (OT)":"");
+            const othType=ed.OthType||"";
+            const cmtKey=r.isTardy?ctx+'|'+r.emp+'|TARDY':(r.isPartial?ctx+'|'+r.emp+'|PARTIAL':ctx+'|'+r.emp);
+            const cmtText=(rowComments[cmtKey]||"").trim();
+            if(cmtText) pdfComments.push({block:b.id, role:role, emp:String(r.emp).toUpperCase()+nameSuffix, comment:cmtText});
+            const prStr=present==="TARDY"?"T":(present==="PARTIAL"?"P":(present==="TRAINER"?"TNR":(present==="TRAINEE"?"TNE":(present==="YES"?"Y":"N"))));
+            const seatVal=isAbsent?(r.isTardy?"TARDY":r.isPartial?(ed.PartialReason||""):absReason):(isOth?othType:(ed.Assignment||r.assignment||""));
+            const wkd=wStart&&wEnd?wStart+"-"+wEnd:"";
+            texts.push([String(r.emp).toUpperCase()+nameSuffix, isAbsent?"":(roleAbbr[roleNorm]||roleNorm), seatVal, wkd, hrs, prStr]);
+          } else { texts.push(["","","","","",""]); }
+        }
+        drawRow(fills, texts, {color:[0,0,0]});
+      }
+    }
+
+    /* Fill remaining page with empty space (border) */
+    if(y < ph - margin){
+      doc.setFillColor(255,255,255);
+      doc.rect(margin, y, usableW, ph-margin-y, 'F');
+    }
+
+    /* ---- Page 2: Comments (portrait) ---- */
+    if(pdfComments.length > 0){
+      doc.addPage("letter","portrait");
+      const cpw=612, cph=792;
+      const cm=20;
+      let cy=cm;
+
+      /* Title */
+      doc.setFontSize(14);
+      doc.setFont("helvetica","bold");
+      doc.setTextColor(30,58,95);
+      doc.text(`COMMENTS — ${title}`, cpw/2, cy+14, {align:"center"});
+      cy+=28;
+
+      /* Column widths: Employee(25%), Block(12%), Role(13%), Comment(50%) */
+      const cColW = [(cpw-cm*2)*0.22, (cpw-cm*2)*0.12, (cpw-cm*2)*0.13, (cpw-cm*2)*0.53];
+      const cHeaders = ["EMPLOYEE","BLOCK","ROLE","COMMENT"];
+      const cRowH = 18;
+
+      /* Header row */
+      let cx2=cm;
+      for(let ci=0;ci<4;ci++){
+        doc.setFillColor(30,58,95);
+        doc.rect(cx2, cy, cColW[ci], cRowH, 'F');
+        doc.setDrawColor(100,100,100); doc.rect(cx2, cy, cColW[ci], cRowH, 'S');
+        doc.setFontSize(9); doc.setFont("helvetica","bold"); doc.setTextColor(255,255,255);
+        doc.text(cHeaders[ci], cx2+4, cy+13);
+        cx2+=cColW[ci];
+      }
+      cy+=cRowH;
+
+      /* Comment rows */
+      for(let i=0;i<pdfComments.length;i++){
+        const c=pdfComments[i];
+        const altBg = i%2===0?[255,255,255]:[237,242,247];
+        const vals=[c.emp, c.block, c.role, c.comment];
+        /* Word-wrap comment to calculate row height */
+        doc.setFontSize(8); doc.setFont("helvetica","normal");
+        const wrapped = doc.splitTextToSize(c.comment, cColW[3]-6);
+        const lineH = 10;
+        const thisRowH = Math.max(cRowH, wrapped.length * lineH + 6);
+
+        cx2=cm;
+        for(let ci=0;ci<4;ci++){
+          doc.setFillColor(altBg[0],altBg[1],altBg[2]);
+          doc.rect(cx2, cy, cColW[ci], thisRowH, 'F');
+          doc.setDrawColor(100,100,100); doc.rect(cx2, cy, cColW[ci], thisRowH, 'S');
+          doc.setTextColor(0,0,0);
+          doc.setFontSize(8);
+          doc.setFont("helvetica", ci===0?"bold":"normal");
+          if(ci===3){
+            doc.text(wrapped, cx2+3, cy+lineH);
+          } else {
+            doc.text(String(vals[ci]), cx2+3, cy+13);
+          }
+          cx2+=cColW[ci];
+        }
+        cy+=thisRowH;
+      }
+    }
+
+    /* Save / open PDF */
+    const safeShift = String(shift).replace(/[^\w\-]+/g,'_');
+    const pdfBlob = doc.output('blob');
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    const win = window.open(pdfUrl, '_blank');
+    if(win){ win.onload = ()=>{ win.focus(); win.print(); }; }
+    else { doc.save(`ShiftOps_${iso}_${safeShift}.pdf`); }
+    clearErr();
+  }catch(err){
+    console.error(err);
+    setErr("Print failed: " + (err && err.message ? err.message : err));
+  }
+}
+document.getElementById("btnPrintDaily").addEventListener("click", printDaily);
+
+// Shift Swap button + modal backdrop close
+document.getElementById("btnShiftSwap").addEventListener("click", openSwapModal);
+document.getElementById("swapModalBackdrop").addEventListener("click", function(e){ if(e.target===this) closeSwapModal(); });
+document.getElementById("swapEmpA").addEventListener("change", updateSwapPreview);
+document.getElementById("swapEmpB").addEventListener("change", updateSwapPreview);
+
+/* ===== Supervisor List PDF ===== */
+const SUP_ASSIGNMENTS = {
+  "ADAMS": [
+    {last:"Cruz",first:"Alma"},{last:"White",first:"Ashly"},{last:"Wheat",first:"Madison"},
+    {last:"Harrison",first:"James"},{last:"Jones",first:"Beverly"},{last:"Dones",first:"Michelle"},
+    {last:"Guerra",first:"Rosemary"},{last:"Brown",first:"Victoria"},{last:"Galindo",first:"Deyonia"},
+    {last:"Pinnow",first:"Tiffani"},{last:"Mims",first:"Rendan"},{last:"Zamaguey",first:"Thelma"},
+    {last:"Fowler",first:"Laricia"},{last:"Reynolds",first:"Elliot"}
+  ],
+  "AGUIRRE": [
+    {last:"Olvera",first:"Juanita"},{last:"Thompkins",first:"Ishmael"},{last:"Sumner",first:"Jordan"},
+    {last:"Burnham",first:"Hudson"},{last:"Danford",first:"Alexis"},
+    {last:"Scroggins",first:"Jolie"},{last:"Gonzalez",first:"Stefany"},{last:"Valdez",first:"Ricky"},
+    {last:"Glenn",first:"Ethan"},{last:"Lindley",first:"D"},{last:"Marzahn",first:"Jeff"},
+    {last:"Santo",first:"Samantha"}
+  ],
+  "ALLISON": [
+    {last:"Baiza",first:"Nathaly"},{last:"Clayton",first:"Patty"},{last:"Merrill",first:"Crystal"},
+    {last:"Wright",first:"Molly"},{last:"Urrutia",first:"Aileen"},{last:"Glass",first:"Krista"},
+    {last:"Reed",first:"Andy"},{last:"Bly",first:"Hailey"},{last:"Pope",first:"Matthew"},
+    {last:"Young",first:"Laquita"},{last:"Brown",first:"Chris"},{last:"Rector",first:"Samantha"},
+    {last:"Garcia",first:"Anahi"}
+  ],
+  "CASSELL": [
+    {last:"Bryan",first:"Tim"},{last:"Dillard",first:"Alexis"},{last:"Jacobs",first:"Jason"},
+    {last:"Graves",first:"Gina"},{last:"Toledo",first:"Jesse"},{last:"Smothers",first:"Amanda"},
+    {last:"Ailshie",first:"Crystal"},{last:"Herrera",first:"JoCarol"},{last:"Pena",first:"Eric"},
+    {last:"Horner",first:"Sydney"},{last:"Rhoades",first:"James"},{last:"Shankman",first:"Danyelle"},
+    {last:"Dessellier",first:"Danielle"},{last:"Ramirez",first:"Traci"}
+  ],
+  "HATCHETT": [
+    {last:"Rodriguez",first:"Jose"},{last:"Sierra",first:"Joe"},{last:"Renfro",first:"Liv"},
+    {last:"Krock",first:"Ashley"},{last:"Daskou",first:"Rakyra"},{last:"Adamson",first:"John"},
+    {last:"Petrigni",first:"Samantha"},{last:"Moning",first:"Jeannette"},{last:"Walker",first:"Jennifer"},
+    {last:"Dorsey",first:"Sherri"},{last:"Allen",first:"Avery"}
+  ],
+  "LAZARO": [
+    {last:"Garcia",first:"Fernando"},{last:"Quinones",first:"Antonio"},{last:"Sigala",first:"Araceli"},
+    {last:"Leatham",first:"Laura"},{last:"Lorona",first:"Amanda"},{last:"Abram",first:"Larissa"},
+    {last:"Mahle",first:"Chloe"},{last:"Thomas",first:"Tayah"},{last:"Mcknight",first:"Zina"},
+    {last:"Maher",first:"Katrina"},{last:"Cox",first:"Emma"},{last:"Hall",first:"Michael Casey"},
+    {last:"Grounds",first:"Anita"}
+  ],
+  "MARTINEZ": [
+    {last:"Sanders",first:"Michelle"},{last:"Buglehall",first:"Matt"},{last:"Claudio",first:"Juan"},
+    {last:"Black",first:"Kevin"},{last:"Castleman",first:"Ezra"},{last:"Jackson",first:"Lakisha"},
+    {last:"Guerrero",first:"Miguel"},{last:"Hardin",first:"Brady"},{last:"Duran",first:"Carisma"},
+    {last:"Dodd",first:"Angelia"},{last:"Fowler",first:"Helen"}
+  ],
+  "NOLAN": [
+    {last:"Slack",first:"Kya"},{last:"Richardson",first:"Jasmine"},{last:"Brashear",first:"Andrea"},
+    {last:"Martinez",first:"Lizette"},{last:"Moore",first:"Allyson"},{last:"Perry",first:"Kendall"},
+    {last:"Warren",first:"Colton"},{last:"Hutta",first:"Monique"},{last:"Goldblatt",first:"David"}
+  ],
+  "PARRA": [
+    {last:"Adams",first:"Stephanie"},{last:"Maguda",first:"Andy"},{last:"Robles",first:"Caleb"},
+    {last:"Fuller",first:"Marcus"},{last:"Moncada",first:"Paola"},
+    {last:"Charles",first:"Amy"},{last:"Pham",first:"Jualian"},{last:"Trevino",first:"Stephanie"},
+    {last:"Banks",first:"Lynell"},{last:"Crossman",first:"Tanja"},{last:"Estrada",first:"Christopher"},
+    {last:"Guidry",first:"Melinda"},{last:"Henas",first:"Parra"}
+  ],
+  "MEDRANO": [
+    {last:"Perez",first:"Danielle"},{last:"Finch",first:"Martha"},{last:"Rinaldi",first:"Katie"},
+    {last:"Johnson",first:"Jessica"},{last:"Curry",first:"Matt"},{last:"Wiese",first:"Tracy"},
+    {last:"Gallagher",first:"Ralph"},{last:"Trejo",first:"Anna"},{last:"Martin",first:"Victoria"},
+    {last:"Dougherty",first:"Shelby"},{last:"Lutton",first:"Brianna"},{last:"Sandoval",first:"Marteen"},
+    {last:"Perez",first:"Johnny"},{last:"Clement",first:"Chris"}
+  ]
+};
+
+function matchSupEmp(last, first){
+  /* Match a supervisor-list entry to a BASE_EMP employee name */
+  const ln = last.toUpperCase().replace(/\s+/g,'');
+  const fi = (first||"").charAt(0).toUpperCase();
+  /* Exact match first */
+  let match = BASE_EMP.find(e => e.Employee.toUpperCase() === ln);
+  if(match) return match.Employee;
+  /* Last name + first initial (e.g. BROWNC, PEREZJ) */
+  if(fi){
+    match = BASE_EMP.find(e => e.Employee.toUpperCase() === ln + fi);
+    if(match) return match.Employee;
+  }
+  /* Starts-with match (only if unique) */
+  const starts = BASE_EMP.filter(e => e.Employee.toUpperCase().startsWith(ln));
+  if(starts.length === 1) return starts[0].Employee;
+  /* If multiple starts-with matches, use first initial to pick */
+  if(starts.length > 1 && fi){
+    const refined = starts.find(e => e.Employee.toUpperCase() === ln + fi);
+    if(refined) return refined.Employee;
+  }
+  /* Fallback: return "Last, First" as-is */
+  return last + ", " + first;
+}
+
 window.addEventListener('DOMContentLoaded', ()=>{
-  const today = new Date();
+  /* Treat anything before 0600 as the previous day */
+  const now = new Date();
+  const today = now.getHours() < 6 ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1) : now;
   const isoToday = toISODate(today);
 
   /* Populate pay period dropdown */
@@ -6626,7 +7411,7 @@ async function generateTimesheets(){
 
   let html = `<!doctype html><html><head><meta charset="utf-8"><title>Timesheets - PP</title>
 <style>
-@media print { .no-print{display:none!important} .page-break{page-break-before:always} }
+@media print { .no-print{display:none!important} .page-break{page-break-before:always} .emp-sheet{display:none!important} .emp-sheet.active{display:block!important} }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,sans-serif;font-size:11px;color:#000;padding:20px;text-transform:uppercase;display:flex;flex-direction:column;align-items:center}
 .disclaimer{border:3px solid red;padding:10px 28px;text-align:center;font-size:18px;font-weight:900;color:red;margin-bottom:18px;letter-spacing:1px}
@@ -6646,12 +7431,43 @@ th{background:#f0f0f0;font-weight:700}
   <label><b>Employee:</b></label>
   <select id="empPicker" onchange="showEmployee(this.value)" style="padding:6px;font-size:13px">`;
 
-  // Add employee options
+  // Build supervisor groups from SUP_ASSIGNMENTS matched to empMap
+  const supGroups = {};
+  const unmatchedNames = [];
+  for(const [sup, emps] of Object.entries(SUP_ASSIGNMENTS)){
+    const matched = [];
+    for(const e of emps){
+      const resolved = matchSupEmp(e.last, e.first);
+      if(empMap.has(resolved)){
+        matched.push(resolved);
+      } else {
+        unmatchedNames.push(sup + ": " + e.last + ", " + e.first + " → resolved as '" + resolved + "'" + (BASE_EMP.find(b=>b.Employee===resolved) ? " (in DB but not working today)" : " (NOT FOUND in DB)"));
+      }
+    }
+    if(matched.length > 0) supGroups[sup] = matched;
+  }
+  if(unmatchedNames.length){
+    console.warn("⚠ SUPERVISOR LIST — Unmatched employees (" + unmatchedNames.length + "):");
+    unmatchedNames.forEach(u => console.warn("  " + u));
+  } else {
+    console.log("✓ All supervisor list employees matched.");
+  }
+
+  // Add supervisor group options
+  html += `<optgroup label="── SUPERVISOR LISTS ──">`;
+  for(const sup of Object.keys(supGroups)){
+    html += `<option value="SUP:${esc(sup)}">${esc(sup)} EMPLOYEES (${supGroups[sup].length})</option>`;
+  }
+  html += `</optgroup>`;
+
+  // Add individual employee options
+  html += `<optgroup label="── INDIVIDUAL ──">`;
   for(const [name] of empMap){
     html += `<option value="${esc(name)}">${esc(name.toUpperCase())}</option>`;
   }
+  html += `</optgroup>`;
   html += `</select>
-  <button onclick="window.print()" style="padding:6px 16px;font-size:12px;cursor:pointer">Print</button>
+  <button onclick="printCurrent()" style="padding:6px 16px;font-size:12px;cursor:pointer">Print</button>
 </div>`;
 
   // Generate each employee's timesheet
@@ -6748,14 +7564,248 @@ th{background:#f0f0f0;font-weight:700}
     html += `</div><div class="page-break"></div>`;
   }
 
-  html += `<script>
-function showEmployee(name){
-  document.querySelectorAll('.emp-sheet').forEach(el=>{
-    el.style.display = (el.dataset.emp === name) ? 'block' : 'none';
+  // Serialize empMap data for PDF generation
+  const empDataJSON = JSON.stringify(Array.from(empMap.entries()).map(([name, data]) => {
+    return [name, {days: data.days, grandTotal: data.grandTotal, grandReg: data.grandReg, grandOT: data.grandOT}];
+  }));
+
+  html += `<scr`+`ipt>
+// Load jsPDF dynamically (avoids parser-blocking warning)
+(function(){
+  var cdns=[
+    "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js",
+    "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js",
+    "https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js"
+  ];
+  var i=0;
+  function tryNext(){
+    if(window.jspdf||i>=cdns.length) return;
+    var s=document.createElement("script");
+    s.src=cdns[i++];
+    s.onload=function(){};
+    s.onerror=function(){ tryNext(); };
+    document.head.appendChild(s);
+  }
+  tryNext();
+})();
+
+var EMP_DATA = new Map(${empDataJSON});
+var DAYABBR = ${JSON.stringify(DAYABBR)};
+var SUP_GROUPS = ${JSON.stringify(supGroups)};
+
+function getSelectedEmps(val){
+  if(val.startsWith('SUP:')){
+    var sup = val.slice(4);
+    return SUP_GROUPS[sup] || [];
+  }
+  return [val];
+}
+
+function showEmployee(val){
+  var emps = getSelectedEmps(val);
+  document.querySelectorAll('.emp-sheet').forEach(function(el){
+    el.style.display = emps.indexOf(el.dataset.emp) >= 0 ? 'block' : 'none';
   });
 }
+
+function printCurrent(){
+  if(!window.jspdf){
+    var s=document.createElement("script");
+    s.src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js";
+    s.onload=function(){ printCurrent(); };
+    s.onerror=function(){
+      var s2=document.createElement("script");
+      s2.src="https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js";
+      s2.onload=function(){ printCurrent(); };
+      s2.onerror=function(){ alert("Could not load PDF library. Check internet connection."); };
+      document.head.appendChild(s2);
+    };
+    document.head.appendChild(s);
+    return;
+  }
+  var val = document.getElementById('empPicker').value;
+  var empList = getSelectedEmps(val);
+  var validList = empList.filter(function(n){ return EMP_DATA.has(n); });
+  if(validList.length === 0){ alert("No timesheet data found."); return; }
+
+  var jsPDF = window.jspdf.jsPDF;
+  var doc = new jsPDF({orientation:"portrait", unit:"pt", format:"letter"});
+  var pw=612, ph=792, mx=30, my=30;
+  var usableW = pw - mx*2;
+  var cols = ["DAY","DATE","IN","OUT","IN","OUT","TOTAL"];
+  var cw = [usableW*0.07, usableW*0.14, usableW*0.14, usableW*0.14, usableW*0.14, usableW*0.14, usableW*0.12];
+  cw[6] = usableW - cw[0]-cw[1]-cw[2]-cw[3]-cw[4]-cw[5];
+  var rh = 14;
+  var y;
+
+  function drawTableRow(vals, opts){
+    opts = opts || {};
+    var bold = opts.bold || false;
+    var bg = opts.bg || null;
+    var tc = opts.color || [0,0,0];
+    var cx = mx;
+    for(var ci=0;ci<cols.length;ci++){
+      if(bg){ doc.setFillColor(bg[0],bg[1],bg[2]); doc.rect(cx, y, cw[ci], rh, "F"); }
+      doc.setDrawColor(0,0,0); doc.rect(cx, y, cw[ci], rh, "S");
+      doc.setFontSize(8); doc.setFont("helvetica", bold?"bold":"normal");
+      doc.setTextColor(tc[0],tc[1],tc[2]);
+      doc.text(String(vals[ci]||""), cx+2, y+10);
+      cx += cw[ci];
+    }
+    y += rh;
+  }
+
+  var sCols = 16;
+  var sw = usableW / sCols;
+  var sRh = 13;
+  function drawSummaryRow(vals, opts){
+    opts = opts || {};
+    var cx = mx;
+    for(var ci=0; ci<vals.length; ci++){
+      if(opts.bg){ doc.setFillColor(opts.bg[0],opts.bg[1],opts.bg[2]); doc.rect(cx, y, sw, sRh, "F"); }
+      doc.setDrawColor(0,0,0); doc.rect(cx, y, sw, sRh, "S");
+      doc.setFontSize(5.5); doc.setFont("helvetica", opts.bold?"bold":"normal");
+      doc.setTextColor(0,0,0);
+      doc.text(String(vals[ci]||""), cx+1, y+9);
+      cx += sw;
+    }
+    y += sRh;
+  }
+
+  for(var ei=0; ei<validList.length; ei++){
+    var name = validList[ei];
+    var data = EMP_DATA.get(name);
+    if(ei > 0) doc.addPage("letter","portrait");
+    y = my;
+
+    /* Disclaimer box */
+    doc.setDrawColor(255,0,0);
+    doc.setLineWidth(2);
+    doc.rect(mx, y, usableW, 28);
+    doc.setFontSize(14);
+    doc.setFont("helvetica","bold");
+    doc.setTextColor(255,0,0);
+    doc.text("UNOFFICIAL TIMESHEET", pw/2, y+18, {align:"center"});
+    y += 38;
+
+    /* Employee name */
+    doc.setFontSize(11);
+    doc.setFont("helvetica","bold");
+    doc.setTextColor(0,0,0);
+    doc.text("NAME: " + name.toUpperCase(), mx, y+11);
+    y += 22;
+
+    drawTableRow(cols, {bold:true, bg:[240,240,240]});
+
+    /* Data rows */
+    for(var di=0; di<data.days.length; di++){
+      var day = data.days[di];
+      var d = new Date(day.date + "T00:00:00");
+      var dayAbbr = DAYABBR[d.getDay()];
+      if(day.rows.length === 0){
+        drawTableRow([dayAbbr, day.date, "", "", "", "", "0.000"]);
+      } else {
+        var firstRow = true;
+        for(var ri=0; ri<day.rows.length; ri++){
+          var r = day.rows[ri];
+          var pairs = r.pairs || [];
+          var badge = r.isAbsent ? " [ABS]" : r.isOT ? " [OT]" : r.isTardy ? " [T]" : r.isPartial ? " [P]" : "";
+          var trBadge = r.isTrainer ? " [TNR]" : "";
+          if(pairs.length <= 1){
+            var p = pairs[0] || {};
+            var totalStr = r.isAbsent ? "0.000" : r.total.toFixed(3);
+            var rowColor = r.isAbsent ? [185,28,28] : r.isOT ? [29,78,216] : [0,0,0];
+            drawTableRow([
+              firstRow ? dayAbbr : "",
+              (firstRow ? day.date : "") + badge + trBadge,
+              p.inTime || "", "",
+              "", p.outTime || "",
+              totalStr
+            ], {color: rowColor});
+            firstRow = false;
+          } else {
+            for(var pi=0; pi<pairs.length; pi+=2){
+              var p1 = pairs[pi];
+              var p2 = pairs[pi+1] || null;
+              drawTableRow([
+                firstRow ? dayAbbr : "",
+                firstRow ? day.date + badge + trBadge : "",
+                p1.inTime||"", p1.outTime||"",
+                p2 ? p2.inTime : "", p2 ? p2.outTime : "",
+                pi===0 ? (r.isAbsent ? "0.000" : r.total.toFixed(3)) : ""
+              ]);
+              firstRow = false;
+            }
+          }
+        }
+      }
+    }
+
+    y += 10;
+
+    /* Total Reported Hours summary */
+    doc.setFontSize(9);
+    doc.setFont("helvetica","bold");
+    doc.text("TOTAL REPORTED HOURS:", mx, y+10);
+    y += 16;
+
+    var sHdr = ["Day"];
+    for(var di2=0; di2<data.days.length; di2++){
+      var d2 = new Date(data.days[di2].date + "T00:00:00");
+      var mm = String(d2.getMonth()+1);
+      var dd = String(d2.getDate()).padStart(2,"0");
+      sHdr.push(mm+"/"+dd+" "+DAYABBR[d2.getDay()]);
+    }
+    sHdr.push("Total");
+    drawSummaryRow(sHdr, {bold:true, bg:[240,240,240]});
+
+    var hwRow = ["Worked"];
+    for(var di3=0; di3<data.days.length; di3++) hwRow.push(data.days[di3].dayReg.toFixed(2));
+    hwRow.push(data.grandReg.toFixed(2));
+    drawSummaryRow(hwRow);
+
+    var otRow = ["OT"];
+    for(var di4=0; di4<data.days.length; di4++) otRow.push(data.days[di4].dayOT > 0 ? data.days[di4].dayOT.toFixed(2) : "");
+    otRow.push(data.grandOT.toFixed(2));
+    drawSummaryRow(otRow);
+
+    y += 10;
+
+    /* Hours breakdown */
+    var bw = usableW * 0.35;
+    var bRh = 16;
+    var labels = ["REGULAR HOURS:","OVERTIME HOURS:","TOTAL HOURS:"];
+    var vals2 = [data.grandReg.toFixed(2), data.grandOT.toFixed(2), data.grandTotal.toFixed(2)];
+    for(var bi=0; bi<3; bi++){
+      doc.setDrawColor(0,0,0);
+      doc.rect(mx, y, bw*0.6, bRh, "S");
+      doc.rect(mx+bw*0.6, y, bw*0.4, bRh, "S");
+      doc.setFontSize(9); doc.setFont("helvetica","bold"); doc.setTextColor(0,0,0);
+      doc.text(labels[bi], mx+4, y+11);
+      doc.setFont("helvetica","normal");
+      doc.text(vals2[bi], mx+bw*0.6+4, y+11);
+      y += bRh;
+    }
+
+    y += 14;
+
+    /* Disclaimer */
+    doc.setFontSize(7); doc.setFont("helvetica","normal"); doc.setTextColor(100,100,100);
+    var discTxt = "DISCLAIMER: This document is an unofficial estimate generated for reference purposes only. Miscalculations may occur due to manual data entry errors, system limitations, or incomplete records. The viewer is responsible for independently verifying all hours, dates, and pay-related information before relying on this data. This document is not guaranteed to be 100% accurate and should not be used as an official record of hours worked. Always cross-reference with official timekeeping systems and payroll records.";
+    var wrapped = doc.splitTextToSize(discTxt, usableW);
+    doc.text(wrapped, mx, y);
+  }
+
+  /* Open PDF for printing */
+  var blob = doc.output("blob");
+  var url = URL.createObjectURL(blob);
+  var pwin = window.open(url, "_blank");
+  if(pwin){ pwin.onload = function(){ pwin.focus(); pwin.print(); }; }
+  else { doc.save("Timesheet_" + val.replace("SUP:","") + ".pdf"); }
+}
+
 showEmployee(document.getElementById('empPicker').value);
-<\/script></body></html>`;
+<\/scr`+`ipt></body></html>`;
 
   win.document.write(html);
   win.document.close();
