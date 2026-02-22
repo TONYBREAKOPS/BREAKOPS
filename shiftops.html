@@ -3309,6 +3309,59 @@ let ABSENT_REASONS=[];
 let OT_BY_CTX=new Map(); // ctxKey -> array of OT entries
 let EDITS_BY_CTX=new Map(); // ctxKey -> Map(emp->edit)
 
+// ===== Vacations (synced from rotation_plans) =====
+let _vacations = [];
+let _vacUnsub = null;
+let _vacSaveTs = 0;
+
+function getVacDocRef(iso){
+  const d = parseISO(iso);
+  const yr = d.getFullYear();
+  const moIdx = d.getMonth(); // 0-based, matches rotationops convention
+  return db.collection('rotation_plans').doc('rotation_' + yr + '_' + moIdx);
+}
+
+function loadVacations(iso){
+  return getVacDocRef(iso).get().then(doc => {
+    if(doc.exists && Array.isArray(doc.data().vacations)){
+      _vacations = doc.data().vacations;
+    } else {
+      _vacations = [];
+    }
+  }).catch(e => console.warn('Failed to load vacations:', e));
+}
+
+function listenVacations(iso){
+  if(_vacUnsub) _vacUnsub();
+  _vacUnsub = getVacDocRef(iso).onSnapshot(doc => {
+    if(!doc.exists) return;
+    const data = doc.data();
+    if(Array.isArray(data.vacations)){
+      const incoming = JSON.stringify(data.vacations);
+      if(incoming !== JSON.stringify(_vacations)){
+        _vacations = data.vacations;
+        renderAll();
+      }
+    }
+  });
+}
+
+function isOnVacationDate(name, iso){
+  if(!_vacations.length) return false;
+  const nm = name.toUpperCase();
+  const dt = parseISO(iso).getTime();
+  const d = parseISO(iso);
+  const yr = d.getFullYear(); const mo = d.getMonth();
+  const monthEnd = new Date(yr, mo + 1, 0);
+  for(const v of _vacations){
+    if(v.name.toUpperCase() !== nm) continue;
+    const f = v.from ? new Date(v.from + 'T00:00:00') : new Date(yr, mo, 1);
+    const t = v.to ? new Date(v.to + 'T00:00:00') : monthEnd;
+    if(dt >= f.getTime() && dt <= t.getTime()) return true;
+  }
+  return false;
+}
+
 // ===== Shift Swaps =====
 let SHIFT_SWAPS = new Map(); // iso date -> array of {empA, empB, createdAt}
 let swapUnsubscribe = null;
@@ -3466,6 +3519,9 @@ async function loadFromFirebase(){
       });
     }
 
+    // Ensure VACATION is always available as an absence reason
+    if(!ABSENT_REASONS.includes("VACATION")) ABSENT_REASONS.unshift("VACATION");
+
     const seatsOk = Object.values(SEATS).some(arr=>Array.isArray(arr)&&arr.length);
     const absOk = (ABSENT_REASONS && ABSENT_REASONS.length);
     pS.textContent = (seatsOk ? "Seats: loaded" : "Seats: not loaded") + " · " + (absOk ? ("Absent Reasons: "+ABSENT_REASONS.length) : "Absent Reasons: not loaded");
@@ -3500,7 +3556,10 @@ async function saveEditsToFirebase(iso, shift){
       const blockId = ctxKey.split("|")[2];
       for(const [emp, edit] of editsMap.entries()){
         if(!allEdits[emp]) allEdits[emp] = {};
-        allEdits[emp][blockId] = edit;
+        const clean = {...edit};
+        delete clean._userEdited;
+        delete clean._vacAutoMarked;
+        allEdits[emp][blockId] = clean;
       }
     }
   }
@@ -3547,6 +3606,7 @@ async function loadEditsFromFirebase(iso, shift){
           for(const [blockId, edit] of Object.entries(blocks)){
             const ctx = ctxKey(iso, shift, blockId);
             const m = editsMapFor(ctx);
+            edit._userEdited = true; // loaded from saved data, don't override with vacation auto-mark
             m.set(emp, edit);
           }
         }
@@ -3660,6 +3720,7 @@ function startRealtimeSync(iso, shift) {
         for (const [blockId, edit] of Object.entries(blocks)) {
           const ctx = ctxKey(iso, shift, blockId);
           const m = editsMapFor(ctx);
+          edit._userEdited = true;
           m.set(emp, edit);
         }
       }
@@ -4477,6 +4538,14 @@ function computeRowsForBlock(iso, shift, block){
     const key=ctxKey(iso,shift,block.id);
     const ed=ensureEdit(key,e.Employee);
 
+    // Auto-mark vacation employees as absent (only if not already manually edited)
+    if(ed.Present==="YES" && !ed._userEdited && isOnVacationDate(e.Employee, iso)){
+      ed.Present="NO";
+      ed.Hours="0";
+      ed.AbsenceReason="VACATION";
+      ed._vacAutoMarked=true;
+    }
+
     const wStartMin = Math.max(bw.startMin, sh.start);
     const wEndMin = Math.min(bw.endMin, sh.end);
     const workedStart = ed.WorkedStart || minToHHMM(wStartMin%1440);
@@ -4990,6 +5059,7 @@ function _cascadeAbsentForward(key, emp){
 function setPresent(key, emp, val){
   const ed=ensureEdit(key,emp);
   ed.Present=val;
+  ed._userEdited=true;
   if(val==="NO") ed.Hours="0";
   if(val==="YES"){ ed.Hours=""; ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
   if(val==="TRAINER"){ ed.Hours=""; ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
@@ -6190,8 +6260,10 @@ async function applyDaySelection(){
   const shift = document.getElementById("shiftSel").value;
   await loadEditsFromFirebase(iso, shift);
   await loadShiftSwaps(iso);
+  await loadVacations(iso);
   startRealtimeSync(iso, shift);
   startSwapSync(iso);
+  listenVacations(iso);
   renderAll();
 }
 

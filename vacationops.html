@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>VacationOps</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23070c16'/%3E%3Ccircle cx='32' cy='32' r='30' fill='none' stroke='%23c0c8d4' stroke-width='2'/%3E%3Cpath d='M16 32 Q24 14 32 14 Q40 14 48 32' fill='none' stroke='%23e8ecf0' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='32' y1='14' x2='32' y2='48' stroke='%23e8ecf0' stroke-width='2.5' stroke-linecap='round'/%3E%3Cpath d='M32 48 Q32 52 36 50' fill='none' stroke='%23e8ecf0' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"/>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --bg:#0b0f14;--card:#111826;--panel:#0c1320;
+  --muted:#9aa4b2;--text:#e7eef8;--accent:#34d399;
+  --border:#233043;--ok:#3fe7b6;--bad:#ff6b6b;--warn:#ffe066;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;min-height:100vh;font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--text);background:var(--bg)}
+input,select,button{font-family:inherit}
+
+/* Login */
+#loginOverlay{position:fixed;inset:0;background:var(--bg);z-index:100000;display:flex;align-items:center;justify-content:center}
+#loginOverlay.hidden{display:none}
+.login-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px 40px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.login-box h2{margin:0 0 8px;font-size:24px;text-align:center}
+.login-box .subtitle{text-align:center;color:var(--muted);font-size:13px;margin-bottom:24px}
+.login-box label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+.login-box input{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:14px;margin-bottom:16px;outline:none}
+.login-box input:focus{border-color:var(--accent)}
+.login-box .btn-login{width:100%;padding:12px;border-radius:10px;border:none;background:var(--accent);color:#000;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px}
+.login-box .btn-login:hover{opacity:.9}
+.login-error{background:rgba(255,95,95,.12);border:1px solid rgba(255,95,95,.3);color:#ff6b6b;padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none}
+.login-error.show{display:block}
+
+/* Header */
+header{padding:14px 18px 12px;position:sticky;top:0;z-index:10;backdrop-filter:blur(10px);background:linear-gradient(180deg,rgba(11,15,20,.98),rgba(11,15,20,.75));border-bottom:1px solid var(--border)}
+h1{margin:0;font-size:24px;font-weight:900;letter-spacing:.04em}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:5px 10px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.02);color:var(--muted);font-size:11px;font-weight:700}
+.pill.good{border-color:rgba(52,211,153,.40);background:rgba(52,211,153,.10);color:#d7ffe9}
+
+/* Main */
+main{max-width:900px;margin:0 auto;padding:20px 18px}
+
+/* Card */
+.card{border:1px solid var(--border);border-radius:12px;background:var(--card);margin-bottom:16px;overflow:hidden}
+.card-header{padding:12px 14px;font-size:12px;font-weight:800;letter-spacing:.35px;color:var(--text);background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-body{padding:14px}
+
+/* Month selector */
+.month-bar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.month-bar button{padding:8px 14px;border-radius:10px;border:1px solid var(--border);background:var(--panel);color:var(--text);cursor:pointer;font-weight:700;font-size:13px}
+.month-bar button:hover{background:rgba(255,255,255,.06)}
+.month-bar .month-label{font-size:18px;font-weight:900;min-width:180px;text-align:center}
+
+/* Form */
+.vac-form{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;padding:14px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.02)}
+.vac-form .field{display:flex;flex-direction:column;gap:4px}
+.vac-form .field label{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.06em}
+.vac-form .field input,.vac-form .field select{padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:13px;outline:none}
+.vac-form .field input:focus,.vac-form .field select:focus{border-color:var(--accent)}
+.btn-add{padding:8px 18px;border-radius:8px;border:none;background:var(--accent);color:#000;font-size:13px;font-weight:800;cursor:pointer}
+.btn-add:hover{opacity:.9}
+.btn-add:disabled{opacity:.4;cursor:not-allowed}
+
+/* Table */
+.vac-table{width:100%;border-collapse:collapse;font-size:13px}
+.vac-table th{text-align:left;padding:8px 10px;font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--muted);border-bottom:2px solid var(--border);background:var(--panel)}
+.vac-table td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06)}
+.vac-table tr:hover td{background:rgba(255,255,255,.03)}
+.vac-table .name{font-weight:700}
+.vac-table .del-btn{color:var(--bad);cursor:pointer;font-size:16px;opacity:.5;transition:opacity .15s;border:none;background:none;padding:2px 6px}
+.vac-table .del-btn:hover{opacity:1}
+.vac-table .edit-btn{color:var(--accent);cursor:pointer;font-size:12px;opacity:.5;transition:opacity .15s;border:none;background:none;padding:2px 6px;font-weight:700}
+.vac-table .edit-btn:hover{opacity:1}
+.empty-msg{text-align:center;padding:20px;color:var(--muted);font-size:13px}
+
+/* Synced-to info */
+.sync-info{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.sync-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;font-size:10px;font-weight:700;border:1px solid rgba(52,211,153,.3);background:rgba(52,211,153,.06);color:#d7ffe9}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:10px;background:var(--card);border:1px solid var(--accent);color:var(--text);font-size:13px;font-weight:700;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="loginOverlay">
+  <div class="login-box">
+    <h2>VacationOps</h2>
+    <p class="subtitle">Sign in to manage vacations</p>
+    <div id="loginError" class="login-error"></div>
+    <form id="loginForm">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="you@example.com" required autocomplete="email"/>
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="Enter password" required autocomplete="current-password"/>
+      <button type="submit" class="btn-login" id="btnLogin">Sign In</button>
+    </form>
+  </div>
+</div>
+
+<header>
+  <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <svg width="34" height="34" viewBox="0 0 64 64" fill="none" style="flex-shrink:0">
+      <circle cx="32" cy="32" r="30" fill="#0c1320" stroke="#34d399" stroke-width="1.2"/>
+      <rect x="16" y="20" width="32" height="26" rx="3" stroke="#34d399" stroke-width="2" fill="none"/>
+      <line x1="16" y1="28" x2="48" y2="28" stroke="#34d399" stroke-width="1.5"/>
+      <line x1="24" y1="20" x2="24" y2="16" stroke="#34d399" stroke-width="2" stroke-linecap="round"/>
+      <line x1="40" y1="20" x2="40" y2="16" stroke="#34d399" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <h1>VacationOps</h1>
+      <span style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:600">Vacation &amp; Time Off Manager</span>
+    </div>
+    <div id="userInfo" style="margin-left:auto;display:none;align-items:center;gap:10px;font-size:12px">
+      <span class="pill good" id="pillStatus" style="font-size:10px;padding:4px 8px">Loading...</span>
+      <span id="userEmail" style="color:var(--text);font-weight:600;text-transform:uppercase"></span>
+      <button id="btnLogout" type="button" style="padding:4px 10px;font-size:11px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);cursor:pointer;font-weight:700">SIGN OUT</button>
+    </div>
+  </div>
+</header>
+
+<main id="mainArea">
+  <!-- Month selector -->
+  <div class="month-bar">
+    <button onclick="changeMonth(-1)">&larr; Prev</button>
+    <div class="month-label" id="monthLabel">--</div>
+    <button onclick="changeMonth(1)">Next &rarr;</button>
+  </div>
+
+  <!-- Add form -->
+  <div class="card">
+    <div class="card-header">ADD VACATION / TIME OFF</div>
+    <div class="card-body">
+      <div class="vac-form">
+        <div class="field" style="flex:1;min-width:150px">
+          <label>EMPLOYEE</label>
+          <select id="vacEmployee"><option value="">Select employee...</option></select>
+        </div>
+        <div class="field">
+          <label>FROM</label>
+          <input type="date" id="vacFrom"/>
+        </div>
+        <div class="field">
+          <label>TO</label>
+          <input type="date" id="vacTo"/>
+        </div>
+        <button class="btn-add" onclick="addVacation()">+ ADD</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vacation list -->
+  <div class="card">
+    <div class="card-header">
+      <span>VACATIONS &mdash; <span id="vacCount">0</span> entries</span>
+    </div>
+    <div class="card-body" id="vacListArea">
+      <div class="empty-msg">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Sync info -->
+  <div style="padding:4px 0">
+    <div style="font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.06em;margin-bottom:6px">SYNCED ACROSS</div>
+    <div class="sync-info">
+      <span class="sync-chip">ShiftOps</span>
+      <span class="sync-chip">StaffingOps</span>
+      <span class="sync-chip">RotationOps</span>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px">Changes here are reflected in all apps that use the vacation list in real time.</div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyA6KELmSyotefK0zhahQZ0-mbYur8_nTsg",
+  authDomain: "commandops-93846.firebaseapp.com",
+  databaseURL: "https://commandops-93846-default-rtdb.firebaseio.com",
+  projectId: "commandops-93846",
+  storageBucket: "commandops-93846.firebasestorage.app",
+  messagingSenderId: "262613721964",
+  appId: "1:262613721964:web:478a694d357234e3be4949"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+
+// Auth
+auth.onAuthStateChanged(user => {
+  const overlay = document.getElementById('loginOverlay');
+  const userInfo = document.getElementById('userInfo');
+  const userEmail = document.getElementById('userEmail');
+  if(user){
+    overlay.classList.add('hidden');
+    userInfo.style.display = 'flex';
+    userEmail.textContent = user.email;
+    init();
+  } else {
+    overlay.classList.remove('hidden');
+    userInfo.style.display = 'none';
+  }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const err = document.getElementById('loginError');
+    const btn = document.getElementById('btnLogin');
+    err.classList.remove('show');
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+    try { await auth.signInWithEmailAndPassword(email, password); }
+    catch(ex){
+      let msg = 'Sign in failed';
+      if(ex.code==='auth/user-not-found') msg='No account found';
+      else if(ex.code==='auth/wrong-password') msg='Incorrect password';
+      else if(ex.code==='auth/invalid-credential') msg='Invalid email or password';
+      err.textContent = msg; err.classList.add('show');
+    }
+    btn.disabled = false; btn.textContent = 'Sign In';
+  });
+  document.getElementById('btnLogout').addEventListener('click', () => auth.signOut());
+});
+
+// State
+let _employees = [];
+let _vacations = [];
+let _vacUnsub = null;
+let _vacSaveTs = 0;
+let _initDone = false;
+let _currentYear, _currentMonth; // 1-based month
+
+function esc(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/'/g,"&#39;").replace(/"/g,"&quot;");
+}
+
+// Init
+async function init(){
+  if(_initDone) return;
+  _initDone = true;
+  const now = new Date();
+  _currentYear = now.getFullYear();
+  _currentMonth = now.getMonth() + 1;
+  await loadEmployees();
+  populateEmployeeDropdown();
+  loadAndListen();
+}
+
+// Employees
+async function loadEmployees(){
+  const pill = document.getElementById('pillStatus');
+  try {
+    const snap = await db.collection('employees').get();
+    _employees = snap.docs.map(doc => {
+      const r = doc.data();
+      return { name: String(r.Employee || doc.id).toUpperCase() };
+    }).filter(r => r.name);
+    _employees.sort((a,b) => a.name.localeCompare(b.name));
+    pill.textContent = 'DB: ' + _employees.length + ' employees';
+    pill.classList.add('good');
+  } catch(e){
+    pill.textContent = 'DB: error';
+    console.error(e);
+  }
+}
+
+function populateEmployeeDropdown(){
+  const sel = document.getElementById('vacEmployee');
+  sel.innerHTML = '<option value="">Select employee...</option>';
+  _employees.forEach(e => {
+    sel.innerHTML += '<option value="' + esc(e.name) + '">' + esc(e.name) + '</option>';
+  });
+}
+
+// Firestore vacation doc
+function getVacDocRef(){
+  const moIdx = _currentMonth - 1; // 0-based for rotationops convention
+  return db.collection('rotation_plans').doc('rotation_' + _currentYear + '_' + moIdx);
+}
+
+function loadAndListen(){
+  if(_vacUnsub) _vacUnsub();
+  updateMonthLabel();
+
+  // Initial load
+  getVacDocRef().get().then(doc => {
+    if(doc.exists && Array.isArray(doc.data().vacations)){
+      _vacations = doc.data().vacations;
+    } else {
+      _vacations = [];
+    }
+    renderVacList();
+  }).catch(e => { console.warn(e); _vacations = []; renderVacList(); });
+
+  // Realtime listener
+  _vacUnsub = getVacDocRef().onSnapshot(doc => {
+    if(Date.now() - _vacSaveTs < 3000) return;
+    if(!doc.exists) return;
+    const data = doc.data();
+    if(Array.isArray(data.vacations)){
+      const incoming = JSON.stringify(data.vacations);
+      if(incoming !== JSON.stringify(_vacations)){
+        _vacations = data.vacations;
+        renderVacList();
+      }
+    }
+  });
+}
+
+function saveVacations(){
+  _vacSaveTs = Date.now();
+  getVacDocRef().set({ vacations: _vacations }, { merge: true })
+    .then(() => console.log('Vacations saved:', _vacations.length))
+    .catch(e => { console.warn(e); showToast('Save failed: ' + (e.message||e)); });
+}
+
+// Month navigation
+function changeMonth(dir){
+  _currentMonth += dir;
+  if(_currentMonth > 12){ _currentMonth = 1; _currentYear++; }
+  if(_currentMonth < 1){ _currentMonth = 12; _currentYear--; }
+  loadAndListen();
+}
+
+function updateMonthLabel(){
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('monthLabel').textContent = months[_currentMonth-1] + ' ' + _currentYear;
+}
+
+// Add vacation
+function addVacation(){
+  const name = document.getElementById('vacEmployee').value.trim().toUpperCase();
+  const from = document.getElementById('vacFrom').value;
+  const to = document.getElementById('vacTo').value;
+  if(!name){ showToast('Select an employee first'); return; }
+  if(from && to && from > to){ showToast('FROM date must be before TO date'); return; }
+  _vacations.push({ name, from: from || '', to: to || '' });
+  saveVacations();
+  document.getElementById('vacEmployee').value = '';
+  document.getElementById('vacFrom').value = '';
+  document.getElementById('vacTo').value = '';
+  renderVacList();
+  showToast(name + ' added to vacations');
+}
+
+// Delete vacation
+function deleteVacation(idx){
+  const name = _vacations[idx] ? _vacations[idx].name : '';
+  _vacations.splice(idx, 1);
+  saveVacations();
+  renderVacList();
+  showToast(name + ' removed from vacations');
+}
+
+// Edit vacation (inline)
+let _editingIdx = -1;
+function startEdit(idx){
+  _editingIdx = idx;
+  renderVacList();
+}
+function cancelEdit(){
+  _editingIdx = -1;
+  renderVacList();
+}
+function saveEdit(idx){
+  const fromEl = document.getElementById('editFrom_' + idx);
+  const toEl = document.getElementById('editTo_' + idx);
+  if(fromEl) _vacations[idx].from = fromEl.value || '';
+  if(toEl) _vacations[idx].to = toEl.value || '';
+  if(_vacations[idx].from && _vacations[idx].to && _vacations[idx].from > _vacations[idx].to){
+    showToast('FROM must be before TO'); return;
+  }
+  _editingIdx = -1;
+  saveVacations();
+  renderVacList();
+  showToast('Updated ' + _vacations[idx].name);
+}
+
+// Render
+function renderVacList(){
+  const area = document.getElementById('vacListArea');
+  const countEl = document.getElementById('vacCount');
+  countEl.textContent = _vacations.length;
+
+  if(_vacations.length === 0){
+    area.innerHTML = '<div class="empty-msg">No vacations set for this month. Use the form above to add entries.</div>';
+    return;
+  }
+
+  // Sort: by from date, then name
+  const sorted = _vacations.map((v,i) => ({...v, _idx:i})).sort((a,b) => {
+    if(a.from && b.from) return a.from.localeCompare(b.from);
+    if(a.from) return -1;
+    if(b.from) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  let html = '<table class="vac-table"><thead><tr><th>EMPLOYEE</th><th>FROM</th><th>TO</th><th></th></tr></thead><tbody>';
+  sorted.forEach(v => {
+    const i = v._idx;
+    if(_editingIdx === i){
+      html += '<tr style="background:rgba(52,211,153,.04)">';
+      html += '<td class="name">' + esc(v.name) + '</td>';
+      html += '<td><input type="date" id="editFrom_' + i + '" value="' + esc(v.from) + '" style="padding:4px 6px;font-size:12px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text)"/></td>';
+      html += '<td><input type="date" id="editTo_' + i + '" value="' + esc(v.to) + '" style="padding:4px 6px;font-size:12px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text)"/></td>';
+      html += '<td style="white-space:nowrap"><button onclick="saveEdit(' + i + ')" style="padding:3px 10px;font-size:11px;border-radius:6px;border:none;background:var(--accent);color:#000;font-weight:700;cursor:pointer">SAVE</button> ';
+      html += '<button onclick="cancelEdit()" style="padding:3px 8px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text);cursor:pointer">CANCEL</button></td>';
+      html += '</tr>';
+    } else {
+      html += '<tr>';
+      html += '<td class="name">' + esc(v.name) + '</td>';
+      html += '<td>' + (v.from || '<span style="color:var(--muted)">(start of month)</span>') + '</td>';
+      html += '<td>' + (v.to || '<span style="color:var(--muted)">(end of month)</span>') + '</td>';
+      html += '<td style="white-space:nowrap"><button class="edit-btn" onclick="startEdit(' + i + ')">EDIT</button><button class="del-btn" onclick="deleteVacation(' + i + ')">&times;</button></td>';
+      html += '</tr>';
+    }
+  });
+  html += '</tbody></table>';
+  area.innerHTML = html;
+}
+
+// Toast
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>

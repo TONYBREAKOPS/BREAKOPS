@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>StaffingOps</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23070c16'/%3E%3Ccircle cx='32' cy='32' r='30' fill='none' stroke='%23ffbe32' stroke-width='2' opacity='.4'/%3E%3Cline x1='12' y1='22' x2='52' y2='22' stroke='%23ffbe32' stroke-width='1.5' stroke-dasharray='3 2' opacity='.5'/%3E%3Crect x='14' y='26' width='6' height='22' rx='1.5' fill='%23ffbe32' opacity='.9'/%3E%3Crect x='22' y='18' width='6' height='30' rx='1.5' fill='%23ffbe32' opacity='.7'/%3E%3Crect x='30' y='30' width='6' height='18' rx='1.5' fill='%23ff6b6b' opacity='.6'/%3E%3Crect x='38' y='20' width='6' height='28' rx='1.5' fill='%23ffbe32' opacity='.8'/%3E%3Crect x='46' y='32' width='6' height='16' rx='1.5' fill='%23ff6b6b' opacity='.5'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23070c16'/%3E%3Ccircle cx='32' cy='32' r='30' fill='none' stroke='%23c0c8d4' stroke-width='2'/%3E%3Crect x='16' y='30' width='7' height='18' rx='1.5' fill='%23e8ecf0'/%3E%3Crect x='25' y='20' width='7' height='28' rx='1.5' fill='%23e8ecf0' opacity='.7'/%3E%3Crect x='34' y='36' width='7' height='12' rx='1.5' fill='%23e8ecf0' opacity='.5'/%3E%3Crect x='43' y='16' width='7' height='32' rx='1.5' fill='%23e8ecf0' opacity='.8'/%3E%3Cline x1='14' y1='24' x2='52' y2='24' stroke='%23e8ecf0' stroke-width='1.5' stroke-dasharray='3 2' opacity='.4'/%3E%3C/svg%3E">
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -12,7 +12,8 @@
 <style>
 :root{--bg:#0b0f16;--panel:#111826;--panel2:#0f1622;--line:#2a3446;--text:#e6edf7;--muted:#a8b3c7;--btn:#1f6feb;--btn2:#233047;--danger:#d94848;--ok:#22c55e;--warn:#eab308;--short:#dc2626}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+html,body{height:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text)}
 body.light{--bg:#f5f7fa;--panel:#ffffff;--panel2:#f0f2f5;--line:#d1d5db;--text:#1f2937;--muted:#6b7280;--btn:#2563eb;--btn2:#e5e7eb;--short:#dc2626;--ok:#16a34a;--warn:#ca8a04}
 
 /* Login */
@@ -289,72 +290,43 @@ tr.on-vacation .shift-sel{pointer-events:none}
 .ot-month-hdr{display:flex;align-items:center;justify-content:center;gap:14px;padding:10px 0}
 .ot-month-title{font-size:24px;font-weight:900;letter-spacing:2px;color:var(--text)}
 .ot-month-summary{font-size:12px;font-weight:700;color:var(--muted);text-align:center;margin-bottom:10px}
-.ot-month-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-.ot-cal-day-hdr{text-align:center;font-size:11px;font-weight:800;color:var(--muted);padding:6px 0;letter-spacing:1px}
-.ot-cal-cell{background:var(--panel);border:1px solid var(--line);border-radius:6px;min-height:90px;padding:5px 6px;font-size:10px;position:relative;transition:all .15s}
-.ot-cal-cell.empty{background:transparent;border-color:transparent}
-.ot-cal-cell.today{border-color:var(--btn);box-shadow:0 0 0 1px var(--btn)}
-.ot-cal-cell.has-ot{border-color:rgba(220,38,38,.4);background:rgba(220,38,38,.04)}
-.ot-cal-cell.no-ot{border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.03)}
-.ot-cal-date{font-size:14px;font-weight:800;margin-bottom:3px}
-.ot-cal-date.weekend{color:#818cf8}
-.ot-cal-ot-total{font-size:10px;font-weight:800;color:#ef4444;background:rgba(220,38,38,.15);padding:1px 6px;border-radius:8px;display:inline-block;margin-bottom:3px}
-.ot-cal-ok{font-size:10px;font-weight:700;color:#22c55e}
-.ot-cal-vac{font-size:9px;color:rgba(34,197,94,.7);font-weight:600;margin-bottom:2px;line-height:1.2}
-.ot-cal-blocks{display:flex;flex-direction:column;gap:1px}
-.ot-cal-blk{display:flex;align-items:center;gap:4px;font-size:9px;font-weight:700}
-.ot-cal-blk-label{color:var(--muted);min-width:42px}
-.ot-cal-blk-need{color:#ef4444;font-weight:800}
-.ot-cal-blk-bar{flex:1;height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
-.ot-cal-blk-fill{height:100%;background:#ef4444;border-radius:2px}
 
-/* OT horizontal scroll — matches rotationops scroll-x */
-.ot-scroll-x{overflow-x:auto;max-width:calc(100vw - 36px);padding-bottom:6px}
+/* OT horizontal scroll */
+.ot-scroll-x{overflow-x:auto;overflow-y:hidden;max-width:100%;max-height:100%;flex:1;padding-bottom:6px}
 
-/* Monthly staffing grid table */
-.ot-grid-tbl{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;font-size:11px}
-.ot-grid-tbl th{background:var(--panel);border:1px solid var(--line);padding:4px 4px;font-size:11px;font-weight:800;color:var(--muted);text-align:center;white-space:nowrap}
-.ot-grid-tbl th.blk-label{min-width:72px;text-align:right;padding-right:8px;letter-spacing:.5px;position:sticky;left:0;z-index:5;background:var(--panel);font-size:14px}
-.ot-grid-tbl th.date-hdr{min-width:120px;font-size:18px;font-weight:900;color:var(--text);padding:10px 4px}
-.ot-grid-tbl th.date-hdr.weekend{color:#818cf8}
-.ot-grid-tbl th.date-hdr.today{color:var(--btn);border-bottom-color:var(--btn)}
-.ot-grid-tbl .dow-row th{font-size:11px;font-weight:700;color:var(--muted);padding:2px 4px;border-top:none}
-.ot-grid-tbl .dow-row th.blk-label{position:sticky;left:0;z-index:5;background:var(--panel)}
-.ot-grid-tbl .vac-row td{font-size:10px;font-weight:600;color:rgba(34,197,94,.7);padding:2px 4px;text-align:center;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid var(--line)}
-.ot-grid-tbl .vac-row th{font-size:9px;font-weight:700;color:#22c55e}
-.ot-grid-tbl .vac-row th.blk-label{position:sticky;left:0;z-index:5;background:var(--panel)}
-.ot-grid-tbl td{border:1px solid var(--line);padding:14px 4px;text-align:center;font-weight:800;font-size:16px;min-width:120px}
-.ot-grid-tbl td.cell-short{background:#3b1111;color:#ef4444}
-.ot-grid-tbl td.cell-adeq{background:#302a0a;color:#eab308}
-.ot-grid-tbl td.cell-over{background:#0a2e1a;color:#22c55e}
-.ot-grid-tbl td.cell-empty{background:transparent;border-color:transparent}
-.ot-grid-tbl .blk-label-td{position:sticky;left:0;background:var(--panel);font-size:14px;font-weight:800;color:var(--muted);text-align:right;padding:14px 8px 14px 6px;z-index:5;white-space:nowrap;border:1px solid var(--line);min-width:72px}
-.ot-grid-tbl .shift-divider td,.ot-grid-tbl .shift-divider th{border-bottom:2px solid var(--btn);padding:0}
-.ot-grid-tbl .shift-label{font-size:9px;font-weight:900;letter-spacing:1px;text-align:center;padding:1px 3px}
-.ot-grid-tbl .shift-label.day{color:var(--text)}
-.ot-grid-tbl .shift-label.night{color:#818cf8}
+/* Month roster table */
+.ot-roster-tbl{border-collapse:separate;border-spacing:0;width:max-content;font-size:11px}
+.ot-roster-tbl th,.ot-roster-tbl td{border:1px solid rgba(255,255,255,.08);padding:4px 5px;vertical-align:top}
+.ot-roster-tbl th{background:var(--panel);font-weight:800;color:var(--muted);text-align:center;white-space:nowrap}
+.ot-roster-tbl th.sticky-col{position:sticky;left:0;z-index:5;background:rgba(15,22,34,.98);text-align:left;padding-left:10px;min-width:90px;font-size:13px;font-weight:900;letter-spacing:.5px}
+.ot-roster-tbl th.dayhead{font-size:12px;font-weight:900;color:var(--muted);padding:10px 4px;text-align:center}
+.ot-roster-tbl th.dayhead.weekend{color:#818cf8}
+.ot-roster-tbl th.dayhead.today{color:var(--btn);border-bottom-color:var(--btn)}
+.ot-roster-tbl th.subhead{font-size:10px;font-weight:800;color:var(--muted);padding:3px 4px;text-transform:none}
+.ot-roster-tbl td{min-width:130px}
+.ot-roster-tbl td.sticky-col{position:sticky;left:0;z-index:4;background:rgba(15,22,34,.98);font-size:12px;font-weight:900;color:var(--text);text-align:left;padding-left:10px;white-space:nowrap;min-width:90px}
+
+/* Name chips — RotationOps style */
+.ot-name{display:block;border-radius:8px;padding:6px 10px;margin:2px 0;font-size:11px;font-weight:700;min-width:110px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid rgba(255,255,255,.14)}
+.ot-num{display:inline-block;width:18px;height:18px;line-height:18px;border-radius:50%;background:rgba(0,0,0,.25);color:#fff;font-size:9px;font-weight:900;text-align:center;margin-right:6px;flex-shrink:0}
+.ot-name.needed{background:#dc2626!important;border:2px solid #fca5a5!important;color:#fff!important;font-weight:900!important;font-size:11px!important;letter-spacing:1px;animation:needPulse 1.2s ease-in-out infinite;text-shadow:0 1px 4px rgba(0,0,0,.5)}
+.ot-name.needed .ot-num{background:rgba(0,0,0,.35)}
+.ot-name.vac{background:rgba(125,211,252,.15);border-color:rgba(125,211,252,.3);color:#7dd3fc;font-weight:700}
+@keyframes needPulse{0%,100%{box-shadow:0 0 4px rgba(220,38,38,.4)}50%{box-shadow:0 0 14px rgba(220,38,38,.8),0 0 24px rgba(220,38,38,.3)}}
+.ct-badge{display:inline-block;margin-left:4px;padding:1px 5px;border-radius:4px;background:#0ea5e9;color:#fff;font-size:8px;font-weight:900;vertical-align:middle}
+.ot-badge{display:inline-block;margin-left:4px;padding:1px 5px;border-radius:4px;background:#dc2626;color:#fff;font-size:8px;font-weight:900;vertical-align:middle}
+#otAssignBox{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;min-width:300px;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,.6);z-index:10000}
+#otAssignBox.show{display:block}
+#otAssignBackdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999}
+#otAssignBackdrop.show{display:block}
+#otAssignBox select{width:100%;padding:8px 10px;font-size:13px;font-weight:700;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text);outline:none;margin-bottom:12px}
+#otAssignBox select:focus{border-color:var(--btn)}
 
 /* OT Explanation */
 .ot-explain{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:11px;line-height:1.6;color:var(--muted)}
 .ot-explain-title{font-size:12px;font-weight:800;color:var(--text);margin-bottom:4px;letter-spacing:.5px}
 .ot-explain ol{margin:4px 0 0 18px;padding:0}
 .ot-explain li{margin-bottom:2px}
-
-/* OT Detail List */
-.ot-detail-list{margin-top:12px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
-.ot-detail-hdr{background:var(--panel);padding:12px 16px;font-size:16px;font-weight:900;letter-spacing:1.5px;color:#ef4444;border-bottom:1px solid var(--line)}
-.ot-detail-tbl{width:auto;border-collapse:separate;border-spacing:0;font-size:15px}
-.ot-detail-tbl th{background:var(--panel);border:1px solid var(--line);padding:12px 20px;font-size:13px;font-weight:800;color:var(--muted);text-align:center;letter-spacing:.5px;white-space:nowrap;min-width:100px}
-.ot-detail-tbl th:first-child{text-align:left;padding-left:16px;position:sticky;left:0;z-index:5;background:var(--panel);min-width:130px}
-.ot-detail-tbl td{border:1px solid var(--line);padding:10px 20px;text-align:center;font-weight:700;white-space:nowrap;min-width:100px}
-.ot-detail-tbl td:first-child{text-align:left;font-weight:800;font-size:14px;padding-left:16px;position:sticky;left:0;z-index:4;background:var(--panel);min-width:130px}
-.ot-detail-tbl tr.weekend td:first-child{color:#818cf8;background:var(--panel)}
-.ot-detail-tbl td.need-cell{color:#ef4444;font-weight:900;font-size:16px;background:rgba(220,38,38,.08)}
-.ot-detail-tbl td.ok-cell{color:#22c55e;font-size:14px}
-.ot-detail-tbl tr:hover td{background:rgba(255,255,255,.03)}
-.ot-detail-tbl tr:hover td:first-child{background:var(--panel)}
-.ot-detail-tbl .total-col{color:#ef4444;font-weight:900;font-size:16px;background:rgba(220,38,38,.1)}
-.ot-detail-empty{padding:16px;text-align:center;color:#22c55e;font-weight:700;font-size:13px}
 
 /* Loading */
 .loading{display:flex;align-items:center;justify-content:center;height:300px;color:var(--muted);font-size:13px;font-weight:700}
@@ -384,8 +356,8 @@ tr.on-vacation .shift-sel{pointer-events:none}
     <div class="header-left">
       <h1><span class="role-flash"><span class="role-flash-inner" id="roleFlashInner">CT</span></span> StaffingOps</h1>
       <select class="role-sel" id="roleSelector">
-        <option value="DISPATCHER">DISPATCHER</option>
         <option value="CALLTAKER">CALLTAKER</option>
+        <option value="DISPATCHER">DISPATCHER</option>
         <option value="PIC">PIC</option>
       </select>
       <select class="role-sel" id="monthSelector"></select>
@@ -402,6 +374,12 @@ tr.on-vacation .shift-sel{pointer-events:none}
       </div>
     </div>
     <div class="header-right">
+      <div style="position:relative;display:inline-block">
+        <button class="btn" id="btnHowItWorks" style="border-color:rgba(74,163,255,.3);color:#4aa3ff;background:rgba(74,163,255,.06)">HOW IT WORKS</button>
+        <div id="howItWorksPopup" style="display:none;position:absolute;top:calc(100% + 6px);right:0;z-index:999;width:520px;max-height:80vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.5)">
+          <div id="howItWorksContent"></div>
+        </div>
+      </div>
       <button class="btn btn-vac-drawer" id="btnVacDrawer">VACATIONS</button>
       <button class="btn btn-hypo-drawer" id="btnHypoDrawer">HYPOTHETICALS</button>
       <button class="btn danger" id="btnReset" style="display:none">RESET ALL</button>
@@ -409,6 +387,7 @@ tr.on-vacation .shift-sel{pointer-events:none}
       <button class="btn" id="btnExport">EXPORT DATA</button>
       <button class="btn" id="btnCollapseRoster">SHOW ROSTER</button>
       <button class="btn" id="btnTheme"><span id="themeIcon">&#9728;&#65039;</span> <span id="themeLabel">LIGHT</span></button>
+      <button id="btnBugReport" type="button" title="Report a Bug" style="background:transparent;border:1px solid var(--muted);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted);display:inline-flex;align-items:center;gap:5px;transition:border-color .15s,color .15s;font-family:inherit" onmouseenter="this.style.borderColor='#ef4444';this.style.color='#ef4444'" onmouseleave="this.style.borderColor='var(--muted)';this.style.color='var(--muted)'">&#x1fab2; REPORT BUG</button>
       <div class="user-info"><span id="userEmail"></span><br><a href="#" id="btnLogout" style="color:var(--muted);font-size:9px">SIGN OUT</a></div>
     </div>
   </div>
@@ -416,7 +395,7 @@ tr.on-vacation .shift-sel{pointer-events:none}
 
   <div class="main-layout">
     <div class="grid-panel" id="gridPanel">
-      <div class="hire-panel" id="hirePanel"></div>
+      <div id="hirePanel" style="display:none"></div>
       <!-- STAFFING NUMBERS view -->
       <div id="staffingView">
         <div style="text-align:center;font-size:26px;font-weight:900;letter-spacing:2px;color:var(--text);padding:10px 0 0">STAFFING GRID</div>
@@ -478,15 +457,7 @@ tr.on-vacation .shift-sel{pointer-events:none}
   <div class="vac-drawer-backdrop" id="vacBackdrop"></div>
   <div class="vac-drawer" id="vacDrawer">
     <div class="vac-section">
-      <div class="vac-header">VACATIONS</div>
-      <div class="vac-form">
-        <select id="vacEmployee"><option value="">Select employee...</option></select>
-        <label style="font-size:10px;font-weight:800;color:var(--muted)">FROM</label>
-        <input type="date" id="vacFrom" />
-        <label style="font-size:10px;font-weight:800;color:var(--muted)">TO</label>
-        <input type="date" id="vacTo" />
-        <button class="btn-vac-add" id="btnVacAdd">+ ADD</button>
-      </div>
+      <div class="vac-header">VACATIONS <span style="font-size:10px;font-weight:600;color:var(--muted);margin-left:8px">(read-only — manage in VacationOps)</span></div>
       <div id="vacList"></div>
     </div>
   </div>
@@ -517,6 +488,35 @@ tr.on-vacation .shift-sel{pointer-events:none}
     <div class="modal-actions">
       <button class="btn primary" id="btnCopyExport">COPY TO CLIPBOARD</button>
       <button class="btn" id="btnCloseExport">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<div id="otAssignBackdrop"></div>
+<div id="otAssignBox">
+  <div style="font-weight:900;font-size:14px;margin-bottom:4px;letter-spacing:.5px" id="otAssignTitle">ASSIGN OT SLOT</div>
+  <div style="font-size:11px;color:var(--muted);margin-bottom:12px" id="otAssignInfo"></div>
+  <select id="otAssignSelect"><option value="">Select person...</option></select>
+  <div style="display:flex;gap:8px">
+    <button class="btn primary" id="btnOtAssign">ASSIGN</button>
+    <button class="btn" id="btnOtAssignCancel">CANCEL</button>
+  </div>
+</div>
+
+<div id="bugReportModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:99999;align-items:center;justify-content:center">
+  <div style="background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px;min-width:360px;max-width:440px;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)">
+    <h3 style="margin:0 0 15px;color:#ef4444">&#x1fab2; REPORT A BUG</h3>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:6px">YOUR NAME:</label>
+      <input type="text" id="bugReportName" placeholder="Enter your name" style="width:100%;padding:8px;font-size:13px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text);outline:none" />
+    </div>
+    <div style="margin-bottom:15px">
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:6px">DETAILS:</label>
+      <textarea id="bugReportDetails" placeholder="Describe the bug — what happened, what you expected, and what you were doing when it happened." style="width:100%;padding:8px;font-size:13px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text);min-height:120px;resize:vertical;font-family:inherit;outline:none"></textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button id="btnBugSubmit" style="padding:8px 16px;font-size:12px;font-weight:700;border-radius:6px;border:none;background:#ef4444;color:#fff;cursor:pointer">SUBMIT</button>
+      <button id="btnBugCancel" style="padding:8px 16px;font-size:12px;font-weight:700;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer">CANCEL</button>
     </div>
   </div>
 </div>
@@ -607,7 +607,7 @@ const BLOCKS = [
 ];
 
 // ========== ROLE CONFIG ==========
-let currentRole = 'DISPATCHER';
+let currentRole = 'CALLTAKER';
 let currentMonth = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); })();
 
 function getSettingsDocId() {
@@ -642,6 +642,7 @@ const ROLE_CONFIG = {
 };
 
 // ========== STATE ==========
+let _ALL_EMPLOYEES = []; // all positions — for OT assignment availability
 let ORIG_DISPATCHERS = [];
 let ADEQ = {};
 let dispatchers = [];
@@ -650,7 +651,11 @@ let excluded = new Set();
 let vacations = [];
 let BASELINE_SHORTFALL = 0;
 let BASELINE_GRID = null; // [dayIdx][blockIdx].current — cached on first load
-let rosterSort = 'seniority'; // 'seniority' or 'name'
+let rosterSort = 'name'; // 'seniority' or 'name'
+let _otAssignments = {}; // key "day-blockIdx" → [names]
+let _ctAssignments = {}; // key "day-blockIdx" → [names]  (from RotationOps CT)
+let _ctUnsub = null; // onSnapshot unsubscribe for rotation_plans
+let _rotationPlanDays = null; // full rotation plan days object for DISPATCHER read-only view
 
 // ========== DUAL HYPO SETS ==========
 let hypoSets = { A: [], B: [] };
@@ -682,15 +687,15 @@ async function loadAllData() {
 
     // Parse employees
     ORIG_DISPATCHERS = [];
+    _ALL_EMPLOYEES = [];
     empSnap.docs.forEach(doc => {
       const d = doc.data();
       const name = String(d.Employee || doc.id || "").trim().toUpperCase();
       if (!name) return;
       const pos = String(d.POSITION ?? d.Position ?? "").toUpperCase();
-      if (!ROLE_CONFIG[currentRole].posFilter(pos)) return;
-
-      ORIG_DISPATCHERS.push({
+      const emp = {
         name,
+        position: pos,
         isLead: ROLE_CONFIG[currentRole].sdEligible.has(name),
         seniority: Number(d.SENIORITY ?? d.Seniority ?? 999),
         schedule: {
@@ -702,9 +707,14 @@ async function loadAllData() {
           SATURDAY: normalizeShift(d.SATURDAY ?? ""),
           SUNDAY: normalizeShift(d.SUNDAY ?? "")
         }
-      });
+      };
+      _ALL_EMPLOYEES.push(emp);
+      if (ROLE_CONFIG[currentRole].posFilter(pos)) {
+        ORIG_DISPATCHERS.push(emp);
+      }
     });
     ORIG_DISPATCHERS.sort((a, b) => a.seniority - b.seniority);
+    _ALL_EMPLOYEES.sort((a, b) => a.seniority - b.seniority);
 
     // Parse adequate staffing
     ADEQ = {};
@@ -738,6 +748,7 @@ async function loadAllData() {
     await loadHypoState();
     listenSettings();
     listenVacations();
+    loadRotationCT();
     toggleRoster(true);
     renderAll();
   } catch (e) {
@@ -821,6 +832,100 @@ function isOnVacationDate(name, dateObj) {
   return false;
 }
 
+// ========== ROTATION CT LOADER ==========
+const _ROT_BLOCK_KEYS = ['0600-1000','1000-1400','1400-1800','1800-2200','2200-0200','0200-0600'];
+function loadRotationCT() {
+  if (_ctUnsub) { _ctUnsub(); _ctUnsub = null; }
+  _ctAssignments = {};
+  // RotationOps doc ID: rotation_{year}_{0-based monthIndex}
+  const [yr, mo] = currentMonth.split('-').map(Number);
+  const docId = 'rotation_' + yr + '_' + (mo - 1);
+  _ctUnsub = db.collection('rotation_plans').doc(docId).onSnapshot(doc => {
+    _ctAssignments = {};
+    _rotationPlanDays = null;
+    if (!doc.exists) return;
+    const data = doc.data();
+    if (!data || !data.plan || !data.plan.days) return;
+    const days = data.plan.days;
+    _rotationPlanDays = days;
+    for (const [dayKey, blocks] of Object.entries(days)) {
+      // dayKey = "YYYY-MM-DD"
+      const parts = dayKey.split('-');
+      if (parts.length !== 3) continue;
+      const dayOfMonth = parseInt(parts[2], 10);
+      if (!dayOfMonth) continue;
+      for (let bi = 0; bi < _ROT_BLOCK_KEYS.length; bi++) {
+        const bk = _ROT_BLOCK_KEYS[bi];
+        if (blocks[bk] && blocks[bk].ct && Array.isArray(blocks[bk].ct) && blocks[bk].ct.length > 0) {
+          const key = dayOfMonth + '-' + bi;
+          _ctAssignments[key] = blocks[bk].ct.map(n => String(n).toUpperCase());
+        }
+      }
+    }
+    renderAll();
+  });
+}
+
+// Map rotation block keys to the first hour start for adequate staffing lookup
+const _ROT_BLOCK_HOURS = [6, 10, 14, 18, 22, 26]; // start hours for each OT block
+const _ROT_BLOCK_TO_DAY_IDX = { 0:6, 1:0, 2:1, 3:2, 4:3, 5:4, 6:5 }; // JS dow → DAYS index
+
+function computeMonthlyFromRotation() {
+  const [yr, mo] = currentMonth.split('-').map(Number);
+  const daysInMonth = new Date(yr, mo, 0).getDate();
+  const result = [];
+  if (!_rotationPlanDays) return result;
+  for (let date = 1; date <= daysInMonth; date++) {
+    const dateObj = new Date(yr, mo - 1, date);
+    const dow = dateObj.getDay();
+    const dayIdx = _ROT_BLOCK_TO_DAY_IDX[dow];
+    const day = DAYS[dayIdx];
+    const dayKey = yr + '-' + String(mo).padStart(2,'0') + '-' + String(date).padStart(2,'0');
+    const dayData = _rotationPlanDays[dayKey];
+    // Vacations for this date
+    const vacNamesOnDate = [];
+    for (const v of vacations) {
+      const f = v.from ? new Date(v.from + 'T00:00:00') : new Date(yr, mo - 1, 1);
+      const t = v.to ? new Date(v.to + 'T00:00:00') : new Date(yr, mo, 0);
+      if (dateObj.getTime() >= f.getTime() && dateObj.getTime() <= t.getTime()) vacNamesOnDate.push(v.name.toUpperCase());
+    }
+    const blocks = [];
+    for (let bi = 0; bi < _ROT_BLOCK_KEYS.length; bi++) {
+      const bk = _ROT_BLOCK_KEYS[bi];
+      const bd = dayData ? dayData[bk] : null;
+      const names = [];
+      const otNames = [];
+      // Look up adequate staffing from the ADEQ table for this day + block hour
+      const blockHour = _ROT_BLOCK_HOURS[bi];
+      const adeqBlock = { start: blockHour, end: blockHour + 1 };
+      const needed = getNeededForBlock(day, adeqBlock);
+      let filled = 0;
+      if (bd) {
+        // Regular assignments
+        if (bd.assignments) {
+          for (const [ch, nm] of Object.entries(bd.assignments)) {
+            if (nm && String(nm).trim()) {
+              filled++;
+              const nameUp = String(nm).trim().toUpperCase();
+              const isOT = (bd.ot || []).some(o => String(o).toUpperCase() === nameUp);
+              if (isOT) {
+                otNames.push(nameUp);
+              } else {
+                names.push({ name: nameUp, isLead: false });
+              }
+            }
+          }
+        }
+      }
+      names.sort((a, b) => a.name.localeCompare(b.name));
+      const otNeed = Math.max(0, needed - filled);
+      blocks.push({ label: _ROT_BLOCK_KEYS[bi], names, needed, current: filled, otNeed, delta: filled - needed, ctNames: [], otNames });
+    }
+    result.push({ date, dow, vacNames: [...new Set(vacNamesOnDate)].sort(), blocks });
+  }
+  return result;
+}
+
 // 4-hour OT blocks matching rotationops
 const OT_BLOCKS = [
   { label: '6A-10A',  hourStart: 6,  hourEnd: 10, blockIdxs: [0,1,2,3] },
@@ -869,13 +974,19 @@ function computeOTNeeds() {
     // Aggregate into 4-hour OT blocks
     const dateBlocks = [];
     let dateTotalOT = 0;
-    for (const ob of OT_BLOCKS) {
+    for (let obi = 0; obi < OT_BLOCKS.length; obi++) {
+      const ob = OT_BLOCKS[obi];
       let maxShort = 0;
       for (const bi of ob.blockIdxs) {
         if (hourlyStaffing[bi].delta < 0) {
           maxShort = Math.max(maxShort, Math.abs(hourlyStaffing[bi].delta));
         }
       }
+      // Subtract CT + OT coverage
+      const ctKey = date + '-' + obi;
+      const ctCount = (_ctAssignments[ctKey] || []).length;
+      const otCount = (_otAssignments[ctKey] || []).length;
+      maxShort = Math.max(0, maxShort - ctCount - otCount);
       if (maxShort > 0) {
         dateBlocks.push({ label: ob.label, need: maxShort });
         dateTotalOT += maxShort;
@@ -904,7 +1015,7 @@ function computeMonthlyStaffing() {
   const [yr, mo] = currentMonth.split('-').map(Number);
   const daysInMonth = new Date(yr, mo, 0).getDate();
   const jsDay2idx = { 0:6, 1:0, 2:1, 3:2, 4:3, 5:4, 6:5 };
-  const result = []; // result[dateIdx] = { date, dow, vacNames, blocks: [{label, current, needed, delta}] }
+  const result = [];
 
   for (let date = 1; date <= daysInMonth; date++) {
     const dateObj = new Date(yr, mo - 1, date);
@@ -923,31 +1034,48 @@ function computeMonthlyStaffing() {
     }
     const vacSet = new Set(vacNamesOnDate);
 
-    // Compute hourly staffing — uses ORIG dispatchers only, no hypotheticals
-    const hourly = [];
+    // Compute per-hour: who is working + needed count
+    const hourlyNames = [];
+    const hourlyNeeded = [];
     for (let bi = 0; bi < BLOCKS.length; bi++) {
       const block = BLOCKS[bi];
-      let current = 0;
+      const names = [];
       for (let i = 0; i < ORIG_DISPATCHERS.length; i++) {
         if (vacSet.has(ORIG_DISPATCHERS[i].name.toUpperCase())) continue;
-        if (shiftCoversBlock(ORIG_DISPATCHERS[i].schedule[day], block)) current++;
+        if (shiftCoversBlock(ORIG_DISPATCHERS[i].schedule[day], block)) {
+          names.push({ name: ORIG_DISPATCHERS[i].name, isLead: ORIG_DISPATCHERS[i].isLead });
+        }
       }
-      const needed = getNeededForBlock(day, block);
-      hourly.push({ current, needed, delta: current - needed });
+      hourlyNames.push(names);
+      hourlyNeeded.push(getNeededForBlock(day, block));
     }
 
-    // Aggregate into 4-hour blocks
+    // Aggregate into 4-hour OT blocks: use first hour of each block for names/needed
     const blocks = [];
-    for (const ob of OT_BLOCKS) {
-      let totalCurrent = 0, totalNeeded = 0, maxShort = 0;
+    for (let obi = 0; obi < OT_BLOCKS.length; obi++) {
+      const ob = OT_BLOCKS[obi];
+      // Use the first hour-block index to get the representative names
+      const repIdx = ob.blockIdxs[0];
+      const names = hourlyNames[repIdx];
+      const needed = hourlyNeeded[repIdx];
+      // Also compute max shortfall across all hours in this OT block
+      let maxShort = 0;
       for (const bi of ob.blockIdxs) {
-        totalCurrent += hourly[bi].current;
-        totalNeeded += hourly[bi].needed;
-        if (hourly[bi].delta < 0) maxShort = Math.max(maxShort, Math.abs(hourly[bi].delta));
+        const delta = hourlyNames[bi].length - hourlyNeeded[bi];
+        if (delta < 0) maxShort = Math.max(maxShort, Math.abs(delta));
       }
-      const avgCurrent = Math.round(totalCurrent / ob.blockIdxs.length);
-      const avgNeeded = Math.round(totalNeeded / ob.blockIdxs.length);
-      blocks.push({ label: ob.label, current: avgCurrent, needed: avgNeeded, delta: avgCurrent - avgNeeded, otNeed: maxShort });
+      names.sort((a, b) => {
+        if (a.isLead !== b.isLead) return a.isLead ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+      // CT dispatchers from RotationOps
+      const ctKey = date + '-' + obi;
+      const ctNames = (_ctAssignments[ctKey] || []).slice();
+      // OT manually assigned
+      const otNames = (_otAssignments[ctKey] || []).slice();
+      // Reduce otNeed by CT + OT coverage
+      const adjustedOtNeed = Math.max(0, maxShort - ctNames.length - otNames.length);
+      blocks.push({ label: ob.label, names, needed, current: names.length, otNeed: adjustedOtNeed, delta: names.length - needed, ctNames, otNames });
     }
 
     result.push({ date, dow, vacNames: [...vacSet].sort(), blocks });
@@ -964,133 +1092,166 @@ function renderMonthlyOTView() {
   const today = new Date();
   const todayDate = (today.getFullYear() === yr && today.getMonth() === mo - 1) ? today.getDate() : -1;
   const DOW_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const roleLabel = ROLE_CONFIG[currentRole].label;
+  const roleSingular = roleLabel.replace(/S$/, '');
 
-  const monthly = computeMonthlyStaffing();
-  const needs = computeOTNeeds();
+  const isDispatcher = currentRole === 'DISPATCHER';
+  const monthly = isDispatcher ? computeMonthlyFromRotation() : computeMonthlyStaffing();
   let grandTotal = 0, daysWithOT = 0;
-  for (const d of needs) { grandTotal += d.totalOT; daysWithOT++; }
+  if (!isDispatcher) {
+    const needs = computeOTNeeds();
+    for (const d of needs) { grandTotal += d.totalOT; daysWithOT++; }
+  } else {
+    for (const d of monthly) { for (const b of d.blocks) { if (b.otNeed > 0) { grandTotal += b.otNeed; } } if (d.blocks.some(b => b.otNeed > 0)) daysWithOT++; }
+  }
+
+  const colsPerDay = 6;
+
+  // Build a stable color map for all employees — soft pastels
+  const NAME_COLORS = [
+    'rgba(245,158,11,.25)',
+    'rgba(16,185,129,.25)',
+    'rgba(59,130,246,.25)',
+    'rgba(239,68,68,.25)',
+    'rgba(168,85,247,.25)',
+    'rgba(14,165,233,.25)',
+    'rgba(244,63,94,.25)',
+    'rgba(34,197,94,.25)',
+    'rgba(250,204,21,.25)',
+    'rgba(99,102,241,.25)',
+    'rgba(236,72,153,.25)',
+    'rgba(20,184,166,.25)',
+  ];
+  const nameColorMap = {};
+  let colorIdx = 0;
+  for (const emp of ORIG_DISPATCHERS) {
+    if (!nameColorMap[emp.name]) {
+      nameColorMap[emp.name] = NAME_COLORS[colorIdx % NAME_COLORS.length];
+      colorIdx++;
+    }
+  }
+  // Also assign colors for CT dispatchers and OT assignees
+  for (const d of monthly) {
+    for (const b of d.blocks) {
+      for (const n of (b.ctNames || [])) { if (!nameColorMap[n]) { nameColorMap[n] = NAME_COLORS[colorIdx % NAME_COLORS.length]; colorIdx++; } }
+      for (const n of (b.otNames || [])) { if (!nameColorMap[n]) { nameColorMap[n] = NAME_COLORS[colorIdx % NAME_COLORS.length]; colorIdx++; } }
+    }
+  }
+
+  // Day border style — thicker border between every 2 days
+  function dayBorder(dateIdx) {
+    return dateIdx % 2 === 0 ? 'border-left:3px solid rgba(255,255,255,.2);' : '';
+  }
 
   // Header
   let html = '<div class="ot-month-hdr">';
-  html += '<span class="ot-month-title">' + ROLE_CONFIG[currentRole].label + ' OT NEEDS — ' + MONTHS[mo - 1] + ' ' + yr + '</span>';
-  html += '<button class="btn" id="btnExportOT" style="font-size:10px;padding:5px 14px;background:rgba(220,38,38,.15);color:#ef4444;border-color:rgba(220,38,38,.3)">EXPORT OT NEEDS</button>';
+  html += '<span class="ot-month-title">' + roleLabel + ' — ' + MONTHS[mo - 1] + ' ' + yr + '</span>';
+  if (!isDispatcher) {
+    html += '<button class="btn" id="btnExportOT" style="font-size:10px;padding:5px 14px;background:rgba(220,38,38,.15);color:#ef4444;border-color:rgba(220,38,38,.3)">EXPORT OT NEEDS</button>';
+  }
   html += '</div>';
 
-  if (grandTotal > 0) {
+  if (isDispatcher) {
+    html += '<div class="ot-month-summary" style="color:var(--muted)">Read-only — from RotationOps' + (grandTotal > 0 ? ' &mdash; ' + grandTotal + ' unfilled slot' + (grandTotal !== 1 ? 's' : '') : '') + '</div>';
+  } else if (grandTotal > 0) {
     html += '<div class="ot-month-summary">' + grandTotal + ' total OT slot' + (grandTotal !== 1 ? 's' : '') + ' needed across ' + daysWithOT + ' day' + (daysWithOT !== 1 ? 's' : '') + '</div>';
   } else {
     html += '<div class="ot-month-summary" style="color:#22c55e">No overtime needed — adequate staffing all month</div>';
   }
 
-  // Calculation explanation (collapsible)
-  html += '<details class="ot-explain">';
-  html += '<summary class="ot-explain-title" style="cursor:pointer;user-select:none">HOW ' + ROLE_CONFIG[currentRole].label + ' OT NEEDS ARE CALCULATED ▸</summary>';
-  html += '<ol>';
-  html += '<li>Each day of the month is checked against the <strong>adequate staffing</strong> requirements (the minimum number of ' + ROLE_CONFIG[currentRole].label.toLowerCase() + ' needed per hour).</li>';
-  html += '<li>For every 1-hour block, the number of <strong>currently scheduled</strong> ' + ROLE_CONFIG[currentRole].label.toLowerCase() + ' (excluding those on vacation that day) is compared to the <strong>required minimum</strong>.</li>';
-  html += '<li>Hours are grouped into <strong>4-hour OT blocks</strong> (6A-10A, 10A-2P, 2P-6P, 6P-10P, 10P-2A, 2A-6A). Within each 4-hour block, the <strong>worst shortfall</strong> (largest gap between required and scheduled across the 4 hours) becomes the OT need for that block.</li>';
-  html += '<li>The total OT need for a day is the <strong>sum of all 4-hour block shortfalls</strong>. Only blocks with a shortfall (scheduled &lt; required) are counted.</li>';
-  html += '</ol>';
-  html += '</details>';
-
-  // ===== Monthly Staffing Grid Table (horizontal scroll only) =====
+  // Month roster table
   html += '<div class="ot-scroll-x">';
-  html += '<table class="ot-grid-tbl">';
+  html += '<table class="ot-roster-tbl">';
 
-  // Date header row
-  html += '<thead><tr><th class="blk-label"></th>';
-  for (const d of monthly) {
+  // Row 1: Date headers spanning all 6 blocks each
+  html += '<thead><tr><th class="sticky-col" rowspan="2">STAFF</th>';
+  for (let di = 0; di < monthly.length; di++) {
+    const d = monthly[di];
     const isWknd = d.dow === 0 || d.dow === 6;
     const isTdy = d.date === todayDate;
-    html += '<th class="date-hdr' + (isWknd ? ' weekend' : '') + (isTdy ? ' today' : '') + '">' + d.date + '</th>';
+    html += '<th class="dayhead' + (isWknd ? ' weekend' : '') + (isTdy ? ' today' : '') + '" colspan="' + colsPerDay + '" style="' + dayBorder(di) + '">' + DOW_LABELS[d.dow] + ' ' + mo + '/' + d.date + '</th>';
   }
   html += '</tr>';
 
-  // Day-of-week row
-  html += '<tr class="dow-row"><th class="blk-label"></th>';
-  for (const d of monthly) html += '<th>' + DOW_LABELS[d.dow] + '</th>';
-  html += '</tr>';
-
-  // Vacation row
-  html += '<tr class="vac-row"><th class="blk-label" style="color:#22c55e;font-size:8px">VAC</th>';
-  for (const d of monthly) {
-    html += '<td title="' + (d.vacNames.length ? d.vacNames.join(', ') : '') + '">' + (d.vacNames.length ? d.vacNames.length : '') + '</td>';
+  // Row 2: Block sub-headers (all 6 per day)
+  html += '<tr>';
+  for (let di = 0; di < monthly.length; di++) {
+    for (let bi = 0; bi < OT_BLOCKS.length; bi++) {
+      const db = (bi === 0) ? dayBorder(di) : '';
+      html += '<th class="subhead" style="' + db + '">' + OT_BLOCKS[bi].label + '</th>';
+    }
   }
   html += '</tr></thead><tbody>';
 
-  // Day shift label
-  html += '<tr class="shift-divider"><td class="blk-label-td shift-label day" colspan="' + (monthly.length + 1) + '">DAY SHIFT</td></tr>';
-
-  // Block rows — day blocks first (6A-10A, 10A-2P, 2P-6P)
-  for (let bi = 0; bi < 3; bi++) {
-    html += '<tr><td class="blk-label-td">' + OT_BLOCKS[bi].label + '</td>';
-    for (const d of monthly) {
+  // Single STAFF data row — all 6 blocks per day
+  html += '<tr><td class="sticky-col">' + roleLabel + '</td>';
+  for (let di = 0; di < monthly.length; di++) {
+    const d = monthly[di];
+    for (let bi = 0; bi < 6; bi++) {
       const b = d.blocks[bi];
-      const cls = b.delta < 0 ? 'cell-short' : b.delta === 0 ? 'cell-adeq' : 'cell-over';
-      html += '<td class="' + cls + '" title="' + b.current + '/' + b.needed + '">' + b.current + '/' + b.needed + '</td>';
+      const db = (bi === 0) ? dayBorder(di) : '';
+      html += '<td style="' + db + '">';
+      let count = 0;
+      // 1. Regular calltaker names
+      for (const p of b.names) {
+        count++;
+        const bg = nameColorMap[p.name] || 'rgba(255,255,255,.08)';
+        html += '<div class="ot-name" style="background:' + bg + '"><span class="ot-num">' + count + '</span>' + esc(p.name) + '</div>';
+      }
+      // 2. DISP IN CT names (blue badge)
+      for (const cn of (b.ctNames || [])) {
+        count++;
+        const bg = nameColorMap[cn] || 'rgba(255,255,255,.08)';
+        html += '<div class="ot-name" style="background:' + bg + '"><span class="ot-num">' + count + '</span>' + esc(cn) + '<span class="ct-badge">DISP IN CT</span></div>';
+      }
+      // 3. OT-assigned names (red badge — click to remove, read-only for DISPATCHER)
+      for (const on of (b.otNames || [])) {
+        count++;
+        const bg = nameColorMap[on] || 'rgba(255,255,255,.08)';
+        if (isDispatcher) {
+          html += '<div class="ot-name" style="background:' + bg + '"><span class="ot-num">' + count + '</span>' + esc(on) + '<span class="ot-badge">OT</span></div>';
+        } else {
+          html += '<div class="ot-name" style="background:' + bg + ';cursor:pointer" onclick="removeOTAssign(\'' + esc(on).replace(/'/g, "\\'") + '\',' + d.date + ',' + bi + ')" title="Click to remove"><span class="ot-num">' + count + '</span>' + esc(on) + '<span class="ot-badge">OT</span></div>';
+        }
+      }
+      // 4. Remaining NEEDED badges (clickable for CT/PIC, read-only for DISPATCHER)
+      for (let n = 0; n < b.otNeed; n++) {
+        count++;
+        if (isDispatcher) {
+          html += '<div class="ot-name needed"><span class="ot-num">' + count + '</span>' + roleSingular + ' NEEDED</div>';
+        } else {
+          html += '<div class="ot-name needed" style="cursor:pointer" onclick="openOTAssignBox(' + d.date + ',' + bi + ')"><span class="ot-num">' + count + '</span>' + roleSingular + ' NEEDED</div>';
+        }
+      }
+      // 5. Block status summary
+      const totalFilled = b.names.length + (b.ctNames||[]).length + (b.otNames||[]).length;
+      const over = totalFilled - b.needed;
+      if (b.otNeed > 0) {
+        html += '<div style="text-align:center;font-size:9px;font-weight:900;color:#ef4444;padding:4px 0;letter-spacing:.5px;border-top:1px solid rgba(220,38,38,.2);margin-top:3px">NEED ' + b.otNeed + '</div>';
+      } else if (over > 0) {
+        html += '<div style="text-align:center;font-size:9px;font-weight:900;color:#818cf8;padding:4px 0;letter-spacing:.5px;border-top:1px solid rgba(129,140,248,.2);margin-top:3px">OVER +' + over + '</div>';
+      } else {
+        html += '<div style="text-align:center;font-size:9px;font-weight:900;color:#22c55e;padding:4px 0;letter-spacing:.5px;border-top:1px solid rgba(34,197,94,.2);margin-top:3px">FULL STAFFED</div>';
+      }
+      html += '</td>';
     }
-    html += '</tr>';
   }
+  html += '</tr>';
 
-  // Night shift label
-  html += '<tr class="shift-divider"><td class="blk-label-td shift-label night" colspan="' + (monthly.length + 1) + '">NIGHT SHIFT</td></tr>';
-
-  // Block rows — night blocks (6P-10P, 10P-2A, 2A-6A)
-  for (let bi = 3; bi < 6; bi++) {
-    html += '<tr><td class="blk-label-td">' + OT_BLOCKS[bi].label + '</td>';
-    for (const d of monthly) {
-      const b = d.blocks[bi];
-      const cls = b.delta < 0 ? 'cell-short' : b.delta === 0 ? 'cell-adeq' : 'cell-over';
-      html += '<td class="' + cls + '" title="' + b.current + '/' + b.needed + '">' + b.current + '/' + b.needed + '</td>';
+  // VACATION row — spans all 6 sub-columns per day
+  html += '<tr><td class="sticky-col" style="color:#7dd3fc">VACATION</td>';
+  for (let di = 0; di < monthly.length; di++) {
+    const d = monthly[di];
+    html += '<td colspan="' + colsPerDay + '" style="' + dayBorder(di) + '">';
+    for (const vn of d.vacNames) {
+      html += '<div class="ot-name vac">' + esc(vn) + '</div>';
     }
-    html += '</tr>';
-  }
-
-  // OT needs summary row
-  html += '<tr style="border-top:2px solid var(--line)"><td class="blk-label-td" style="color:#ef4444;font-size:9px;font-weight:900">OT NEED</td>';
-  for (const d of monthly) {
-    const total = d.blocks.reduce((s, b) => s + b.otNeed, 0);
-    if (total > 0) {
-      html += '<td style="background:rgba(220,38,38,.15);color:#ef4444;font-weight:900;font-size:11px">' + total + '</td>';
-    } else {
-      html += '<td style="color:#22c55e;font-size:10px;font-weight:700">OK</td>';
-    }
+    if (!d.vacNames.length) html += '<span style="color:var(--muted);font-size:9px">&mdash;</span>';
+    html += '</td>';
   }
   html += '</tr>';
 
   html += '</tbody></table>';
-  html += '</div>'; // close horizontal scroll wrapper
-
-  // ===== OT Detail List =====
-  html += '<div class="ot-detail-list">';
-  html += '<div class="ot-detail-hdr">OT SLOTS NEEDED BY DATE &amp; BLOCK — ' + MONTHS[mo - 1] + ' ' + yr + '</div>';
-  if (needs.length > 0) {
-    html += '<table class="ot-detail-tbl"><thead><tr>';
-    html += '<th>DATE</th>';
-    for (const ob of OT_BLOCKS) html += '<th>' + ob.label + '</th>';
-    html += '<th>TOTAL</th><th style="text-align:left">ON VACATION</th>';
-    html += '</tr></thead><tbody>';
-    for (const d of needs) {
-      const blockMap = {};
-      for (const b of d.blocks) blockMap[b.label] = b.need;
-      html += '<tr class="' + (d.isWeekend ? 'weekend' : '') + '">';
-      html += '<td>' + d.dateStr + ' ' + d.dayName + '</td>';
-      for (const ob of OT_BLOCKS) {
-        const n = blockMap[ob.label] || 0;
-        if (n > 0) {
-          html += '<td class="need-cell">' + n + '</td>';
-        } else {
-          html += '<td class="ok-cell">—</td>';
-        }
-      }
-      html += '<td class="total-col">' + d.totalOT + '</td>';
-      html += '<td style="font-size:10px;color:rgba(34,197,94,.7);text-align:left">' + (d.vacNames.length ? d.vacNames.join(', ') : '—') + '</td>';
-      html += '</tr>';
-    }
-    html += '</tbody></table>';
-  } else {
-    html += '<div class="ot-detail-empty">No overtime needed — adequate staffing all month</div>';
-  }
   html += '</div>';
 
   wrap.innerHTML = html;
@@ -1332,49 +1493,115 @@ function computeHireNeeds() {
   return { morning: mHires, swing: sHires, night: nHires, total: mHires + sHires + nHires, shortfalls };
 }
 
-function renderHirePanel() {
-  const panel = document.getElementById('hirePanel');
-  const needs = computeHireNeeds();
+function renderHirePanel() {}
 
-  if (needs.shortfalls === 0) {
-    panel.className = 'hire-panel show';
-    panel.innerHTML = '<span class="hire-ok">ADEQUATELY STAFFED — NO HIRES NEEDED</span>';
-    return;
+// ========== OT ASSIGNMENT ==========
+function saveOTAssignments() {
+  _saveTs = Date.now();
+  SETTINGS_REF.set({ otAssignments: _otAssignments }, { merge: true });
+}
+
+function getOTAvailable(dayOfMonth, blockIdx) {
+  const key = dayOfMonth + '-' + blockIdx;
+  const [yr, mo] = currentMonth.split('-').map(Number);
+  const dateObj = new Date(yr, mo - 1, dayOfMonth);
+  const jsDay2idx = { 0:6, 1:0, 2:1, 3:2, 4:3, 5:4, 6:5 };
+  const dayIdx = jsDay2idx[dateObj.getDay()];
+  const day = DAYS[dayIdx];
+  // Build set of everyone already working this block (across ALL positions)
+  const workingSet = new Set();
+  for (const emp of _ALL_EMPLOYEES) {
+    if (isOnVacationDate(emp.name, dateObj)) continue;
+    const ob = OT_BLOCKS[blockIdx];
+    for (const bi of ob.blockIdxs) {
+      if (shiftCoversBlock(emp.schedule[day], BLOCKS[bi])) { workingSet.add(emp.name.toUpperCase()); break; }
+    }
   }
-
-  if (needs.total === 0) { panel.className = 'hire-panel'; return; }
-
-  panel.className = 'hire-panel show';
-  let html = '';
-  html += '<div style="text-align:center;min-width:70px">';
-  html += '<div class="hire-total">' + needs.total + '</div>';
-  html += '<div class="hire-total-label">NEW HIRES<br>NEEDED</div>';
-  html += '</div>';
-  html += '<div style="width:1px;height:36px;background:rgba(56,189,248,.2)"></div>';
-  html += '<div class="hire-breakdown">';
-
-  if (needs.morning > 0) {
-    html += '<div class="hire-row">';
-    html += '<span class="hire-row-count">' + needs.morning + '</span>';
-    html += '<div><div class="hire-row-shift">6A-2P</div><div class="hire-row-desc">Day shift gaps</div></div>';
-    html += '</div>';
+  const ctNames = _ctAssignments[key] || [];
+  for (const n of ctNames) workingSet.add(n.toUpperCase());
+  const assigned = (_otAssignments[key] || []).map(n => n.toUpperCase());
+  // Group available by position
+  const groups = {};
+  for (const emp of _ALL_EMPLOYEES) {
+    const nm = emp.name.toUpperCase();
+    if (workingSet.has(nm)) continue;
+    if (isOnVacationDate(emp.name, dateObj)) continue;
+    if (assigned.includes(nm)) continue;
+    const pos = emp.position || 'OTHER';
+    if (!groups[pos]) groups[pos] = [];
+    groups[pos].push(emp.name);
   }
-  if (needs.swing > 0) {
-    html += '<div class="hire-row">';
-    html += '<span class="hire-row-count">' + needs.swing + '</span>';
-    html += '<div><div class="hire-row-shift">2P-10P</div><div class="hire-row-desc">Swing shift gaps</div></div>';
-    html += '</div>';
-  }
-  if (needs.night > 0) {
-    html += '<div class="hire-row">';
-    html += '<span class="hire-row-count">' + needs.night + '</span>';
-    html += '<div><div class="hire-row-shift">10P-6A</div><div class="hire-row-desc">Night shift gaps</div></div>';
-    html += '</div>';
-  }
+  return groups;
+}
 
-  html += '</div>';
-  html += '<div style="font-size:9px;color:var(--muted);text-align:right;min-width:80px">' + needs.shortfalls + ' shortfall<br>cells remain</div>';
-  panel.innerHTML = html;
+let _otAssignCtx = null; // { dayOfMonth, blockIdx }
+
+function openOTAssignBox(dayOfMonth, blockIdx) {
+  _otAssignCtx = { dayOfMonth, blockIdx };
+  const [yr, mo] = currentMonth.split('-').map(Number);
+  const dateObj = new Date(yr, mo - 1, dayOfMonth);
+  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  document.getElementById('otAssignTitle').textContent = 'ASSIGN OT SLOT';
+  document.getElementById('otAssignInfo').textContent = DOW[dateObj.getDay()] + ' ' + mo + '/' + dayOfMonth + ' — ' + OT_BLOCKS[blockIdx].label;
+  const sel = document.getElementById('otAssignSelect');
+  sel.innerHTML = '<option value="">Select person...</option>';
+  const groups = getOTAvailable(dayOfMonth, blockIdx);
+  // Show current role first, then others
+  const posOrder = ['CALLTAKER','DISPATCHER','PIC','SUPERVISOR'];
+  const roleLabel = ROLE_CONFIG[currentRole]?.label || currentRole;
+  // Put matching positions first
+  const sorted = Object.keys(groups).sort((a, b) => {
+    const ai = posOrder.indexOf(a), bi2 = posOrder.indexOf(b);
+    return (ai === -1 ? 99 : ai) - (bi2 === -1 ? 99 : bi2);
+  });
+  for (const pos of sorted) {
+    const names = groups[pos];
+    if (!names.length) continue;
+    const grp = document.createElement('optgroup');
+    grp.label = pos + 'S';
+    for (const nm of names) {
+      const opt = document.createElement('option');
+      opt.value = nm;
+      opt.textContent = nm;
+      grp.appendChild(opt);
+    }
+    sel.appendChild(grp);
+  }
+  document.getElementById('otAssignBackdrop').classList.add('show');
+  document.getElementById('otAssignBox').classList.add('show');
+}
+
+function closeOTAssignBox() {
+  document.getElementById('otAssignBackdrop').classList.remove('show');
+  document.getElementById('otAssignBox').classList.remove('show');
+  _otAssignCtx = null;
+}
+
+document.getElementById('btnOtAssign').addEventListener('click', () => {
+  if (!_otAssignCtx) return;
+  const name = document.getElementById('otAssignSelect').value;
+  if (!name) return;
+  const { dayOfMonth, blockIdx } = _otAssignCtx;
+  const key = dayOfMonth + '-' + blockIdx;
+  if (!_otAssignments[key]) _otAssignments[key] = [];
+  if (!_otAssignments[key].includes(name)) {
+    _otAssignments[key].push(name);
+    saveOTAssignments();
+    renderMonthlyOTView();
+  }
+  closeOTAssignBox();
+});
+
+document.getElementById('btnOtAssignCancel').addEventListener('click', closeOTAssignBox);
+document.getElementById('otAssignBackdrop').addEventListener('click', closeOTAssignBox);
+
+function removeOTAssign(name, dayOfMonth, blockIdx) {
+  const key = dayOfMonth + '-' + blockIdx;
+  if (!_otAssignments[key]) return;
+  _otAssignments[key] = _otAssignments[key].filter(n => n !== name);
+  if (_otAssignments[key].length === 0) delete _otAssignments[key];
+  saveOTAssignments();
+  renderMonthlyOTView();
 }
 
 // ========== RENDERING ==========
@@ -1383,12 +1610,22 @@ function renderAll() {
   const staffingView = document.getElementById('staffingView');
   const otMonthView = document.getElementById('otMonthView');
   const hypoBtn = document.getElementById('btnHypoDrawer');
+  const printBtn = document.getElementById('btnPrintChanges');
+  const exportBtn = document.getElementById('btnExport');
+  const resetBtn = document.getElementById('btnReset');
+  const rosterBtn = document.getElementById('btnCollapseRoster');
   const gridPanel = document.getElementById('gridPanel');
   const mainLayout = gridPanel.parentElement;
   if (mode === 'staffing') {
     staffingView.style.display = '';
     otMonthView.style.display = 'none';
+    otMonthView.style.flex = '';
     if (hypoBtn) hypoBtn.style.display = '';
+    if (printBtn) printBtn.style.display = '';
+    if (exportBtn) exportBtn.style.display = '';
+    if (resetBtn) resetBtn.style.display = '';
+    gridPanel.style.overflowX = '';
+    gridPanel.style.overflowY = '';
     gridPanel.style.overflow = 'auto';
     mainLayout.style.height = 'calc(100vh - 52px)';
     mainLayout.style.overflow = 'hidden';
@@ -1396,11 +1633,19 @@ function renderAll() {
     renderStatusBar();
   } else {
     staffingView.style.display = 'none';
-    otMonthView.style.display = '';
+    otMonthView.style.display = 'flex';
+    otMonthView.style.flexDirection = 'column';
+    otMonthView.style.flex = '1';
+    otMonthView.style.overflow = 'hidden';
     if (hypoBtn) hypoBtn.style.display = 'none';
-    gridPanel.style.overflow = 'visible';
-    mainLayout.style.height = 'auto';
-    mainLayout.style.overflow = 'visible';
+    if (printBtn) printBtn.style.display = 'none';
+    if (exportBtn) exportBtn.style.display = 'none';
+    if (resetBtn) resetBtn.style.display = 'none';
+    gridPanel.style.overflow = 'hidden';
+    gridPanel.style.overflowX = 'hidden';
+    gridPanel.style.overflowY = 'hidden';
+    mainLayout.style.height = 'calc(100vh - 52px)';
+    mainLayout.style.overflow = 'hidden';
     toggleHypoDrawer(false);
     renderMonthlyOTView();
   }
@@ -1562,7 +1807,12 @@ function renderRoster() {
   // Build index list and sort
   const indices = [];
   for (let i = 0; i < dispatchers.length; i++) indices.push(i);
-  if (rosterSort === 'name') indices.sort((a, b) => dispatchers[a].name.localeCompare(dispatchers[b].name));
+  if (rosterSort === 'name') indices.sort((a, b) => {
+    const aLead = dispatchers[a].isLead ? 0 : 1;
+    const bLead = dispatchers[b].isLead ? 0 : 1;
+    if (aLead !== bLead) return aLead - bLead;
+    return dispatchers[a].name.localeCompare(dispatchers[b].name);
+  });
 
   for (const i of indices) {
     const d = dispatchers[i];
@@ -1577,14 +1827,7 @@ function renderRoster() {
 
     for (const day of DAYS) {
       const val = d.schedule[day] || "OFF";
-      const orig = ORIG_DISPATCHERS[i] ? ORIG_DISPATCHERS[i].schedule[day] : "";
-      const changed = val !== orig;
-      html += `<td class="${changed ? 'cell-changed' : ''}">`;
-      html += `<select class="shift-sel ${val === 'OFF' ? 'off-val' : ''}" onchange="onShiftChange(${i},'${day}',this.value)">`;
-      for (const s of VALID_SHIFTS) {
-        html += `<option value="${s}" ${s === val ? 'selected' : ''}>${s}</option>`;
-      }
-      html += '</select></td>';
+      html += `<td class="${val === 'OFF' ? 'off-val' : ''}" style="text-align:center;font-size:10px;font-weight:700">${val}</td>`;
     }
 
     html += `<td class="hrs-col">${weeklyHours(d.schedule)}h</td>`;
@@ -1731,6 +1974,12 @@ function populateDispatcherPicker() {
 }
 
 function renderImpact() {
+  const mode = document.getElementById('viewMode')?.value || 'ot';
+  if (mode === 'ot') {
+    document.getElementById('impactBar').style.display = 'none';
+    document.getElementById('btnReset').style.display = 'none';
+    return;
+  }
   const { grid } = computeStaffing();
   let shortSlots = 0;
   for (let d = 0; d < 7; d++) for (let b = 0; b < BLOCKS.length; b++) {
@@ -2273,6 +2522,16 @@ function listenSettings() {
       }
     }
 
+    // OT assignments
+    if (data.otAssignments !== undefined) {
+      const incoming = JSON.stringify(data.otAssignments);
+      const current = JSON.stringify(_otAssignments);
+      if (incoming !== current) {
+        _otAssignments = data.otAssignments || {};
+        changed = true;
+      }
+    }
+
     // New dual-set format
     if (data.hypoSetA !== undefined || data.hypoSetB !== undefined) {
       const newA = _deserializeHypoSet(data.hypoSetA);
@@ -2318,6 +2577,9 @@ async function switchRole(newRole) {
   currentRole = newRole;
   SETTINGS_REF = db.collection('staffingops').doc(getSettingsDocId());
   if (_settingsUnsub) { _settingsUnsub(); _settingsUnsub = null; }
+  if (_ctUnsub) { _ctUnsub(); _ctUnsub = null; }
+  _otAssignments = {};
+  _ctAssignments = {};
   _hypoApplied = false;
   _appliedHypoSet = null;
   _activeHypoTab = 'A';
@@ -2335,9 +2597,12 @@ async function switchMonth(newMonth) {
   SETTINGS_REF = db.collection('staffingops').doc(getSettingsDocId());
   if (_settingsUnsub) { _settingsUnsub(); _settingsUnsub = null; }
   if (_vacUnsub) { _vacUnsub(); _vacUnsub = null; }
+  if (_ctUnsub) { _ctUnsub(); _ctUnsub = null; }
   _hypoApplied = false;
   _appliedHypoSet = null;
   _activeHypoTab = 'A';
+  _otAssignments = {};
+  _ctAssignments = {};
   updateApplyBar();
   resetState();
   dispatchers = ORIG_DISPATCHERS.map(d => ({
@@ -2349,6 +2614,7 @@ async function switchMonth(newMonth) {
   await loadHypoState();
   listenSettings();
   listenVacations();
+  loadRotationCT();
   renderAll();
 }
 
@@ -2495,44 +2761,21 @@ function renderVacSection() {
   const list = document.getElementById('vacList');
   if (!list) return;
   if (vacations.length === 0) {
-    list.innerHTML = '<div class="vac-empty">No vacations set. Use the form above to add vacation entries.</div>';
+    list.innerHTML = '<div class="vac-empty">No vacations for this month.</div>';
     return;
   }
-  let html = '<table class="vac-tbl"><thead><tr><th>Employee</th><th>From</th><th>To</th><th></th></tr></thead><tbody>';
+  let html = '<table class="vac-tbl"><thead><tr><th>Employee</th><th>From</th><th>To</th></tr></thead><tbody>';
   for (let i = 0; i < vacations.length; i++) {
     const v = vacations[i];
     const fromStr = v.from || '(start of month)';
     const toStr = v.to || '(end of month)';
-    html += `<tr><td class="vac-name">${esc(v.name)}</td><td>${fromStr}</td><td>${toStr}</td>`;
-    html += `<td><button class="vac-del" onclick="deleteVacation(${i})">&times;</button></td></tr>`;
+    html += `<tr><td class="vac-name">${esc(v.name)}</td><td>${fromStr}</td><td>${toStr}</td></tr>`;
   }
   html += '</tbody></table>';
   list.innerHTML = html;
 }
-function addVacation() {
-  const name = document.getElementById('vacEmployee').value.trim().toUpperCase();
-  const from = document.getElementById('vacFrom').value;
-  const to = document.getElementById('vacTo').value;
-  if (!name) { showToast('Select an employee first'); return; }
-  if (from && to && from > to) { showToast('FROM date must be before TO date'); return; }
-  vacations.push({ name, from: from || '', to: to || '' });
-  saveVacations();
-  document.getElementById('vacEmployee').value = '';
-  document.getElementById('vacFrom').value = '';
-  document.getElementById('vacTo').value = '';
-  renderAll();
-  showToast(name + ' added to vacations');
-}
-function deleteVacation(idx) {
-  const name = vacations[idx]?.name || '';
-  vacations.splice(idx, 1);
-  saveVacations();
-  renderAll();
-  showToast(name + ' removed from vacations');
-}
 document.getElementById('btnVacDrawer').addEventListener('click', () => toggleVacDrawer());
 document.getElementById('vacBackdrop').addEventListener('click', () => toggleVacDrawer(false));
-document.getElementById('btnVacAdd').addEventListener('click', addVacation);
 
 // ========== HYPOTHETICALS ==========
 
@@ -3406,6 +3649,122 @@ function printSetReport() {
   win.document.close();
   win.focus();
   setTimeout(() => win.print(), 400);
+}
+
+// ===== BUG REPORT =====
+document.getElementById('btnBugReport').addEventListener('click', () => {
+  document.getElementById('bugReportName').value = '';
+  document.getElementById('bugReportDetails').value = '';
+  document.getElementById('bugReportModal').style.display = 'flex';
+});
+document.getElementById('btnBugCancel').addEventListener('click', () => {
+  document.getElementById('bugReportModal').style.display = 'none';
+});
+document.getElementById('bugReportModal').addEventListener('click', (e) => {
+  if (e.target.id === 'bugReportModal') document.getElementById('bugReportModal').style.display = 'none';
+});
+document.getElementById('btnBugSubmit').addEventListener('click', async () => {
+  const name = document.getElementById('bugReportName').value.trim();
+  const details = document.getElementById('bugReportDetails').value.trim();
+  if (!name || !details) { alert('Please fill in both fields.'); return; }
+  try {
+    await db.collection('bugReports').add({
+      name: name,
+      details: details,
+      app: 'StaffingOps',
+      reportedBy: auth.currentUser ? auth.currentUser.email : 'unknown',
+      timestamp: new Date().toISOString(),
+      status: 'open'
+    });
+    document.getElementById('bugReportModal').style.display = 'none';
+    alert('Bug report submitted. Thank you!');
+  } catch (err) {
+    console.error('Bug report failed:', err);
+    alert('Failed to submit bug report. Try again.');
+  }
+});
+
+// ===== HOW IT WORKS =====
+(function initHowItWorks(){
+  const btn = document.getElementById('btnHowItWorks');
+  const popup = document.getElementById('howItWorksPopup');
+  if(!btn||!popup) return;
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const open = popup.style.display !== 'none';
+    popup.style.display = open ? 'none' : 'block';
+    if(!open) renderHowItWorks();
+  });
+  document.addEventListener('click', e => {
+    if(!popup.contains(e.target) && e.target !== btn) popup.style.display = 'none';
+  });
+  popup.addEventListener('click', e => e.stopPropagation());
+})();
+
+function renderHowItWorks(){
+  const el = document.getElementById('howItWorksContent');
+  if(!el) return;
+  const s = 'style="color:var(--text)"';
+  const hdr = 'style="font-weight:800;font-size:12px;color:#4aa3ff;margin-top:14px;margin-bottom:4px;letter-spacing:.04em"';
+
+  el.innerHTML =
+    '<div style="font-weight:900;font-size:16px;color:var(--text);margin-bottom:4px">HOW IT WORKS</div>' +
+    '<div style="font-size:11px;color:var(--muted);margin-bottom:14px">StaffingOps OT Needs — quick reference.</div>' +
+
+    '<div ' + hdr + '>TWO VIEWS</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '<b ' + s + '>OT NEEDS</b> &mdash; Month calendar showing who works each 4-hour block and where overtime is needed.<br>' +
+      '<b ' + s + '>STAFFING NUMBERS</b> &mdash; Weekly grid showing hourly staffing counts vs. adequate levels.' +
+    '</div>' +
+
+    '<div ' + hdr + '>READING THE MONTH VIEW</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '&bull; Each day has <b ' + s + '>6 blocks</b>: 6A-10A, 10A-2P, 2P-6P, 6P-10P, 10P-2A, 2A-6A.<br>' +
+      '&bull; <b ' + s + '>Numbered chips</b> = staff scheduled for that block.<br>' +
+      '&bull; <b ' + s + '>Blue "DISP IN CT"</b> badge = a dispatcher assigned to calltaking in RotationOps. They count toward calltaker staffing.<br>' +
+      '&bull; <b ' + s + '>Red "OT"</b> badge = someone you manually assigned as overtime.<br>' +
+      '&bull; <b ' + s + '>Red pulsing "NEEDED"</b> = remaining unfilled slots that still need coverage.' +
+    '</div>' +
+
+    '<div ' + hdr + '>ASSIGNING OT</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '&bull; <b ' + s + '>Click a red NEEDED badge</b> &mdash; A popup opens with a dropdown of everyone not scheduled during that block.<br>' +
+      '&bull; The dropdown is <b ' + s + '>grouped by position</b>: Calltakers, Dispatchers, PICs, Supervisors. Anyone from any position can fill the slot as OT.<br>' +
+      '&bull; <b ' + s + '>Pick a name and hit ASSIGN</b> &mdash; They appear with a red OT badge and the NEEDED count goes down.<br>' +
+      '&bull; <b ' + s + '>Click an OT chip to remove</b> &mdash; The assignment is removed and the NEEDED count goes back up.<br>' +
+      '&bull; Assignments <b ' + s + '>save to Firestore</b> and sync across all open sessions in real time.' +
+    '</div>' +
+
+    '<div ' + hdr + '>DISP IN CT (AUTOMATIC)</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '&bull; When dispatchers are assigned to CT in <b ' + s + '>RotationOps</b>, they automatically appear here with a blue badge.<br>' +
+      '&bull; They <b ' + s + '>reduce the NEEDED count</b> just like a regular calltaker or OT assignment.<br>' +
+      '&bull; This is <b ' + s + '>read-only</b> &mdash; to change CT assignments, use RotationOps.' +
+    '</div>' +
+
+    '<div ' + hdr + '>EXPORT</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '&bull; <b ' + s + '>EXPORT OT NEEDS</b> &mdash; Downloads an XLSX with only the remaining unfilled slots (after CT and OT assignments are subtracted).<br>' +
+      '&bull; Format is ready to upload to Teams Shifts.' +
+    '</div>' +
+
+    '<div style="margin-top:16px;text-align:center">' +
+      '<button onclick="printHowItWorksStaffing()" style="background:#4aa3ff;color:#fff;border:none;border-radius:8px;padding:8px 22px;font-size:12px;font-weight:700;cursor:pointer">PRINT THIS GUIDE</button>' +
+    '</div>';
+}
+
+function printHowItWorksStaffing(){
+  const content = document.getElementById('howItWorksContent');
+  if(!content) return;
+  const w = window.open('','_blank','width=700,height=900');
+  w.document.write('<!doctype html><html><head><title>StaffingOps - How It Works</title>' +
+    '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,-apple-system,sans-serif;color:#111;background:#fff;padding:0.5in 0.75in;font-size:11pt;line-height:1.6}' +
+    '@media print{body{padding:0.4in 0.6in}@page{margin:0.4in}}</style></head><body>');
+  w.document.write(content.innerHTML.replace(/color:var\(--text\)/g,'color:#111').replace(/color:var\(--muted\)/g,'color:#555'));
+  w.document.write('</body></html>');
+  w.document.close();
+  w.focus();
+  w.print();
 }
 </script>
 </body>
