@@ -982,9 +982,9 @@ function computeOTNeeds() {
           maxShort = Math.max(maxShort, Math.abs(hourlyStaffing[bi].delta));
         }
       }
-      // Subtract CT + OT coverage
+      // Subtract CT (calltaker only) + OT coverage
       const ctKey = date + '-' + obi;
-      const ctCount = (_ctAssignments[ctKey] || []).length;
+      const ctCount = currentRole === 'CALLTAKER' ? (_ctAssignments[ctKey] || []).length : 0;
       const otCount = (_otAssignments[ctKey] || []).length;
       maxShort = Math.max(0, maxShort - ctCount - otCount);
       if (maxShort > 0) {
@@ -1068,9 +1068,9 @@ function computeMonthlyStaffing() {
         if (a.isLead !== b.isLead) return a.isLead ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
-      // CT dispatchers from RotationOps
+      // CT dispatchers from RotationOps (calltaker only)
       const ctKey = date + '-' + obi;
-      const ctNames = (_ctAssignments[ctKey] || []).slice();
+      const ctNames = currentRole === 'CALLTAKER' ? (_ctAssignments[ctKey] || []).slice() : [];
       // OT manually assigned
       const otNames = (_otAssignments[ctKey] || []).slice();
       // Reduce otNeed by CT + OT coverage
