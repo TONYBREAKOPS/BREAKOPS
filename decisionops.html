@@ -104,7 +104,7 @@ main{padding:14px 18px 20px}
 
 /* ── Split layout ── */
 .split-layout{display:flex;gap:16px;align-items:flex-start}
-.split-left{width:300px;flex-shrink:0;position:sticky;top:90px}
+.split-left{width:420px;flex-shrink:0;position:sticky;top:90px}
 .split-right{flex:1;min-width:0}
 @media(max-width:900px){
   .split-layout{flex-direction:column}
@@ -133,10 +133,11 @@ main{padding:14px 18px 20px}
 }
 .topic-item:last-child{border-bottom:none}
 .topic-item:hover{background:rgba(255,255,255,.04)}
-.topic-item.active{background:rgba(74,163,255,.1);border-left:3px solid var(--accent)}
+.topic-item.active{background:rgba(74,163,255,.15);border-left:4px solid var(--accent);box-shadow:inset 0 0 0 1px rgba(74,163,255,.25),0 0 12px rgba(74,163,255,.15)}
+.topic-item.active .topic-title{color:#fff;font-size:14px;font-weight:900}
 .topic-item.decided{opacity:.5}
 .topic-num{font-weight:900;color:var(--accent);width:20px;text-align:center;flex-shrink:0}
-.topic-title{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topic-title{flex:1;font-weight:600;word-break:break-word}
 .topic-time{font-size:10px;color:var(--muted);flex-shrink:0}
 
 /* ── Phase badges ── */
@@ -149,6 +150,7 @@ main{padding:14px 18px 20px}
 .phase-NARROW{border:1px solid rgba(255,224,102,.4);color:#fff3c4;background:rgba(255,224,102,.1)}
 .phase-VOTE{border:1px solid rgba(168,85,247,.4);color:#e9d5ff;background:rgba(168,85,247,.1)}
 .phase-DECIDED{border:1px solid rgba(63,231,182,.4);color:#d7ffe9;background:rgba(63,231,182,.1)}
+.phase-TABLED{border:1px solid rgba(255,179,71,.45);color:#ffe0b2;background:rgba(255,179,71,.1)}
 
 /* ── Option cards ── */
 .option-card{
@@ -175,7 +177,7 @@ main{padding:14px 18px 20px}
 .vote-card:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.2)}
 .vote-card.selected{border-color:var(--accent);background:rgba(74,163,255,.15);box-shadow:0 0 0 3px rgba(74,163,255,.2)}
 .vote-card.winner{border-color:var(--ok);background:rgba(63,231,182,.1)}
-.vote-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}
+.vote-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:16px 0}
 @media(max-width:900px){.vote-grid{grid-template-columns:1fr}}
 
 /* ── Action items ── */
@@ -243,10 +245,21 @@ main{padding:14px 18px 20px}
 
 /* ── Reorder arrows ── */
 .reorder-btn{
-  padding:2px 6px;font-size:14px;border:none;background:none;
+  padding:4px 8px;font-size:18px;border:none;background:none;
   color:var(--muted);cursor:pointer;line-height:1;
+  border-radius:6px;transition:all .15s;
 }
-.reorder-btn:hover{color:var(--accent)}
+.reorder-btn:hover{color:var(--accent);background:rgba(74,163,255,.12)}
+.reorder-btn:active{transform:scale(.9)}
+
+/* ── Move-to-next button ── */
+.move-next-btn{
+  padding:2px 8px;font-size:10px;font-weight:800;border-radius:6px;
+  border:1px solid rgba(74,163,255,.3);color:var(--accent);
+  background:rgba(74,163,255,.06);cursor:pointer;white-space:nowrap;
+  transition:all .15s;
+}
+.move-next-btn:hover{background:rgba(74,163,255,.18);border-color:rgba(74,163,255,.5)}
 
 /* ── Loading ── */
 .loading{text-align:center;padding:30px;color:var(--muted);font-size:13px}
@@ -356,11 +369,20 @@ main{padding:14px 18px 20px}
       <h1 style="text-align:left">DecisionOps</h1>
       <span style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:600">Meeting Decision Engine</span>
     </div>
-    <div id="meetingHeaderInfo" style="display:none;align-items:center;gap:10px;margin-left:16px">
+    <div id="meetingHeaderInfo" style="display:none;align-items:center;gap:10px;margin-left:16px;flex-wrap:wrap">
+      <span id="headerActiveTopic" style="display:none;font-size:16px;font-weight:900;letter-spacing:.02em"></span>
       <span id="headerTimer" class="timer-display" style="display:none">--:--</span>
+      <button id="headerExtend1Btn" onclick="handleExtendTimer(1)" style="display:none;padding:6px 14px;font-size:13px;border-radius:10px;font-weight:800;border:1px solid rgba(74,163,255,.3);color:var(--accent);background:rgba(74,163,255,.08)">+1m</button>
+      <button id="headerExtendBtn" onclick="handleExtendTimer(5)" style="display:none;padding:6px 14px;font-size:13px;border-radius:10px;font-weight:800;border:1px solid rgba(74,163,255,.3);color:var(--accent);background:rgba(74,163,255,.08)">+5m</button>
       <span id="headerForecast" class="pill accent" style="display:none"></span>
     </div>
     <div id="userInfo" style="margin-left:auto;display:none;align-items:center;gap:10px;font-size:12px">
+      <div style="position:relative;display:inline-block">
+        <button id="btnHowItWorks" type="button" style="padding:4px 10px;font-size:11px;border-radius:8px;font-weight:700;border:1px solid rgba(74,163,255,.3);color:var(--accent);background:rgba(74,163,255,.06)">HOW IT WORKS</button>
+        <div id="howItWorksPopup" style="display:none;position:absolute;top:calc(100% + 6px);right:0;z-index:999;width:600px;max-height:80vh;overflow-y:auto;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.5)">
+          <div id="howItWorksContent"></div>
+        </div>
+      </div>
       <span class="pill good" id="pillStatus" style="font-size:10px;padding:4px 8px">DB: loading...</span>
       <span class="user-email" id="userEmail" style="color:var(--text);font-weight:600;text-transform:uppercase"></span>
       <button id="btnLogout" type="button" style="padding:4px 10px;font-size:11px;border-radius:8px">SIGN OUT</button>
@@ -384,6 +406,10 @@ let _view = 'LANDING';
 let _employees = [];
 let _initDone = false;
 let _narrowSelection = [];  // temp state: which options facilitator has selected during NARROW
+let _editingTopicId = null;  // which topic is being edited inline
+let _editingMeetingTitle = false;
+let _speakerInterval = null;
+let _expandedQueueNotes = {};  // { topicId: true/false } track which queue notes are expanded
 
 // ===== HELPERS =====
 function esc(s){
@@ -433,7 +459,131 @@ async function init(){
   }
 
   await loadEmployees();
+  initHowItWorks();
   renderLanding();
+}
+
+// ===== HOW IT WORKS =====
+function initHowItWorks(){
+  const btn = document.getElementById('btnHowItWorks');
+  const popup = document.getElementById('howItWorksPopup');
+  if(!btn || !popup) return;
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = popup.style.display !== 'none';
+    popup.style.display = isOpen ? 'none' : 'block';
+    if(!isOpen) renderHowItWorks();
+  });
+
+  document.addEventListener('click', (e) => {
+    if(!popup.contains(e.target) && e.target !== btn){
+      popup.style.display = 'none';
+    }
+  });
+
+  popup.addEventListener('click', (e) => e.stopPropagation());
+}
+
+function renderHowItWorks(){
+  const el = document.getElementById('howItWorksContent');
+  if(!el) return;
+
+  const s = 'style="color:var(--text)"';
+  const hdr = 'style="font-weight:800;font-size:12px;color:var(--accent);margin-top:14px;margin-bottom:4px;letter-spacing:.04em"';
+
+  el.innerHTML =
+    '<div style="font-weight:900;font-size:16px;color:var(--text);margin-bottom:4px">HOW IT WORKS</div>' +
+    '<div style="font-size:11px;color:var(--muted);margin-bottom:14px">A complete guide to running meetings with DecisionOps.</div>' +
+
+    '<div ' + hdr + '>MEETING LIFECYCLE</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '<b ' + s + '>1. Create</b> &mdash; Give the meeting a title. You become the facilitator (app controller).<br>' +
+      '<b ' + s + '>2. Setup</b> &mdash; Add topics and participants. Set time limits per topic. Add prep notes.<br>' +
+      '<b ' + s + '>3. Start</b> &mdash; Hit START MEETING. The first topic moves to DISCUSS automatically.<br>' +
+      '<b ' + s + '>4. Run</b> &mdash; Work through topics: Discuss &rarr; Narrow &rarr; Vote &rarr; Decided.<br>' +
+      '<b ' + s + '>5. Stop / Resume</b> &mdash; Pause the meeting at any time. Resume or Restart (resets all progress).<br>' +
+      '<b ' + s + '>6. End</b> &mdash; End the meeting. Unresolved topics can be carried into a follow-up meeting automatically.' +
+    '</div>' +
+
+    '<div ' + hdr + '>TOPIC PHASES</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '<span class="phase-badge phase-WAITING" style="font-size:9px;padding:2px 8px;margin-right:4px">WAITING</span> Not yet started. Reorder, add notes, edit details.<br>' +
+      '<span class="phase-badge phase-DISCUSS" style="font-size:9px;padding:2px 8px;margin-right:4px">DISCUSS</span> Active discussion. Propose options, track speakers, take notes. Timer running.<br>' +
+      '<span class="phase-badge phase-NARROW" style="font-size:9px;padding:2px 8px;margin-right:4px">NARROW</span> Facilitator selects 2&ndash;4 finalist options from all proposals.<br>' +
+      '<span class="phase-badge phase-VOTE" style="font-size:9px;padding:2px 8px;margin-right:4px">VOTE</span> Per-person live voting board. Each participant picks one finalist. Facilitator closes voting to reveal results.<br>' +
+      '<span class="phase-badge phase-DECIDED" style="font-size:9px;padding:2px 8px;margin-right:4px">DECIDED</span> Winner shown, vote breakdown displayed. Add action items with owners and due dates.<br>' +
+      '<span class="phase-badge phase-TABLED" style="font-size:9px;padding:2px 8px;margin-right:4px">TABLED</span> Deferred. Can be reopened later or carried to a follow-up meeting.' +
+    '</div>' +
+
+    '<div ' + hdr + '>TOPIC QUEUE</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '&bull; <b ' + s + '>Reorder</b> &mdash; Use the up/down arrows on WAITING and TABLED topics to change priority.<br>' +
+      '&bull; <b ' + s + '>Move to Next</b> &mdash; Click the NEXT button on a WAITING topic to move it right after the current topic so it\'s discussed next.<br>' +
+      '&bull; <b ' + s + '>Edit</b> &mdash; Click the pencil icon to edit title, description, submitted by, notes, or time limit.<br>' +
+      '&bull; <b ' + s + '>Notes</b> &mdash; Click the clipboard icon to expand notes for any topic in the queue. Add prep notes before discussion starts. Notes auto-expand when the topic becomes active.<br>' +
+      '&bull; <b ' + s + '>Remove</b> &mdash; Click &times; to delete a WAITING topic.' +
+    '</div>' +
+
+    '<div ' + hdr + '>DISCUSSING A TOPIC</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '&bull; <b ' + s + '>Timer</b> &mdash; Countdown timer starts when discussion begins. Shows in the header. Use +1m / +5m to extend.<br>' +
+      '&bull; <b ' + s + '>Speaker Tracking</b> &mdash; Click a participant\'s name to mark them as the active speaker. A per-speaker countdown runs (1 min default, extendable). Time is logged per person.<br>' +
+      '&bull; <b ' + s + '>Options</b> &mdash; Anyone can propose solutions. Type and click "+ Add Option".<br>' +
+      '&bull; <b ' + s + '>Consensus</b> &mdash; If everyone agrees, click "Declare Consensus" and type the decision. Skips voting entirely.<br>' +
+      '&bull; <b ' + s + '>Table</b> &mdash; Defer the topic. It moves to the TABLED section and can be reopened later.<br>' +
+      '&bull; <b ' + s + '>Advance</b> &mdash; With 2 options, go straight to Vote. With 3+, go to Narrow first.' +
+    '</div>' +
+
+    '<div ' + hdr + '>VOTING</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '&bull; <b ' + s + '>Per-person board</b> &mdash; Each participant\'s vote is shown in real time. Click an option next to a participant to cast or change their vote.<br>' +
+      '&bull; <b ' + s + '>Close Voting</b> &mdash; Facilitator clicks "Close Voting & Reveal" to determine the winner.<br>' +
+      '&bull; <b ' + s + '>Tie-breaker</b> &mdash; If tied, the facilitator picks the winner from the tied options.<br>' +
+      '&bull; <b ' + s + '>Finalize</b> &mdash; Click "Finalize Decision" to move the topic to DECIDED.' +
+    '</div>' +
+
+    '<div ' + hdr + '>DECIDED &amp; ACTION ITEMS</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '&bull; <b ' + s + '>Duration</b> &mdash; Shows how long the topic actually took vs. allocated time. Green = under, orange = slightly over, red = well over.<br>' +
+      '&bull; <b ' + s + '>Participation</b> &mdash; Per-person speaking time recorded during discussion.<br>' +
+      '&bull; <b ' + s + '>Action Items</b> &mdash; Add tasks with an owner and optional due date. Overdue items highlight red.<br>' +
+      '&bull; <b ' + s + '>Next Topic</b> &mdash; Click "Next Topic" to auto-advance to the next undecided topic.' +
+    '</div>' +
+
+    '<div ' + hdr + '>PARTICIPANTS &amp; FACILITATOR</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '&bull; <b ' + s + '>Search</b> &mdash; Type a name to search the employee database. Click to add.<br>' +
+      '&bull; <b ' + s + '>Group Add</b> &mdash; Type "SUP" or "SUPERVISORS" to add all supervisors. "DP" or "DISPATCHERS" for all dispatchers.<br>' +
+      '&bull; <b ' + s + '>Guest</b> &mdash; Type any name not in the database and add them as a Guest.<br>' +
+      '&bull; <b ' + s + '>Facilitator</b> &mdash; Use the FACILITATOR dropdown in the participants card to designate who is leading the meeting.' +
+    '</div>' +
+
+    '<div ' + hdr + '>SUMMARIES</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '&bull; <b ' + s + '>COPY</b> &mdash; Copies a plain-text summary to clipboard. Includes decisions, votes, per-person votes, duration, participation, notes, and action items with due dates.<br>' +
+      '&bull; <b ' + s + '>PRINT</b> &mdash; Opens a formatted print-ready summary in a new window.<br>' +
+      '&bull; <b ' + s + '>Forecast</b> &mdash; The header shows estimated end time based on remaining topic time limits.' +
+    '</div>' +
+
+    '<div style="margin-top:16px;text-align:center">' +
+      '<button onclick="printHowItWorksDecision()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 22px;font-size:12px;font-weight:700;cursor:pointer">PRINT THIS GUIDE</button>' +
+    '</div>';
+}
+
+function printHowItWorksDecision(){
+  const content = document.getElementById('howItWorksContent');
+  if(!content) return;
+  const w = window.open('','_blank','width=700,height=900');
+  w.document.write('<!doctype html><html><head><title>DecisionOps - How It Works</title>' +
+    '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,-apple-system,sans-serif;color:#111;background:#fff;padding:0.5in 0.75in;font-size:11pt;line-height:1.6}' +
+    '.phase-badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:8pt;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border:1px solid #ccc;margin-right:4px}' +
+    '@media print{body{padding:0.4in 0.6in}@page{margin:0.4in}}</style></head><body>');
+  w.document.write(content.innerHTML.replace(/color:var\(--text\)/g,'color:#111').replace(/color:var\(--accent\)/g,'color:#2563eb').replace(/color:var\(--muted\)/g,'color:#555'));
+  w.document.write('</body></html>');
+  w.document.close();
+  w.focus();
+  w.print();
 }
 
 // ===== LOAD EMPLOYEES =====
@@ -514,9 +664,10 @@ async function loadActiveMeetings(){
       const topicCount = (d.topics||[]).length;
       const decided = (d.topics||[]).filter(t=>t.phase==='DECIDED').length;
       const statusClass = d.status === 'ACTIVE' ? 'good' : d.status === 'STOPPED' ? 'warn' : 'accent';
+      const dateStr = d.createdAt && d.createdAt.toDate ? fmtDate(d.createdAt.toDate()) : '';
       html += '<div class="meeting-list-item" onclick="joinMeeting(\'' + esc(doc.id) + '\')">';
       html += '<div style="flex:1"><div style="font-weight:700">' + esc(d.title||'Untitled') + '</div>';
-      html += '<div style="font-size:11px;color:var(--muted)">By ' + esc(d.createdBy||'') + ' &bull; ' + topicCount + ' topics (' + decided + ' decided)</div></div>';
+      html += '<div style="font-size:11px;color:var(--muted)">' + esc(dateStr) + ' &bull; By ' + esc(d.createdBy||'') + ' &bull; ' + topicCount + ' topics (' + decided + ' decided)</div></div>';
       html += '<span class="pill ' + statusClass + '" style="font-size:10px">' + esc(d.status) + '</span>';
       html += '</div>';
     });
@@ -624,6 +775,21 @@ function renderMeeting(){
   const activeIdx = _meetingDoc.activeTopicIndex;
   const activeTopic = (activeIdx >= 0 && activeIdx < topics.length) ? topics[activeIdx] : null;
 
+  // Update header active topic display
+  const headerTopicEl = document.getElementById('headerActiveTopic');
+  if(headerTopicEl){
+    if(activeTopic && activeTopic.phase !== 'WAITING'){
+      const phaseLabels = { DISCUSS:'DISCUSSING:', NARROW:'NARROWING:', VOTE:'VOTING:', DECIDED:'DECIDED:', TABLED:'TABLED:' };
+      const phaseColors = { DISCUSS:'#4aa3ff', NARROW:'#ffe066', VOTE:'#a855f7', DECIDED:'#3fe7b6', TABLED:'#ffb347' };
+      const label = phaseLabels[activeTopic.phase] || (activeTopic.phase + ':');
+      const color = phaseColors[activeTopic.phase] || 'var(--text)';
+      headerTopicEl.innerHTML = '<span style="color:' + color + '">' + esc(label) + '</span> ' + esc(activeTopic.title);
+      headerTopicEl.style.display = 'inline';
+    } else {
+      headerTopicEl.style.display = 'none';
+    }
+  }
+
   // Update timer
   updateTimerDisplay(activeTopic);
 
@@ -636,10 +802,24 @@ function renderMeeting(){
   const totalMin = topics.reduce((s,t) => s + (t.timeLimit||10), 0);
   const meetingStatus = _meetingDoc.status;
 
+  const meetingDateStr = _meetingDoc.createdAt && _meetingDoc.createdAt.toDate ? fmtDate(_meetingDoc.createdAt.toDate()) : '';
+
   html += '<div class="forecast-bar" id="forecastBar" style="flex-wrap:wrap">';
-  html += '<span>Meeting: <strong>' + esc(_meetingDoc.title) + '</strong></span>';
+  if(_isFacilitator && _editingMeetingTitle){
+    html += '<span style="display:flex;align-items:center;gap:6px">';
+    html += '<input type="text" id="editMeetingTitleInput" value="' + esc(_meetingDoc.title) + '" style="padding:4px 8px;font-size:13px;font-weight:700;width:220px"/>';
+    html += '<button class="primary" onclick="handleSaveMeetingTitle()" style="padding:3px 10px;font-size:11px;border-radius:8px">SAVE</button>';
+    html += '<button onclick="_editingMeetingTitle=false;renderMeeting()" style="padding:3px 8px;font-size:11px;border-radius:8px">CANCEL</button>';
+    html += '</span>';
+  } else {
+    html += '<span>Meeting: <strong>' + esc(_meetingDoc.title) + '</strong>';
+    if(_isFacilitator) html += ' <span onclick="_editingMeetingTitle=true;renderMeeting()" title="Edit title" style="cursor:pointer;font-size:13px;opacity:.5;transition:opacity .15s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5">&#9998;</span>';
+    html += '</span>';
+  }
+  if(meetingDateStr) html += '<span style="color:var(--muted);font-size:11px">' + esc(meetingDateStr) + '</span>';
   html += '<span class="pill ' + (meetingStatus==='ACTIVE'?'good':meetingStatus==='STOPPED'?'warn':'accent') + '" style="font-size:10px">' + esc(meetingStatus) + '</span>';
   html += '<span style="color:var(--muted);font-size:11px">Participants: <strong style="color:var(--text)">' + (_meetingDoc.participants||[]).length + '</strong></span>';
+  if(_meetingDoc.facilitatorName) html += '<span style="color:var(--muted);font-size:11px">Facilitator: <strong style="color:var(--accent)">' + esc(_meetingDoc.facilitatorName) + '</strong></span>';
 
   // Duration estimate
   if(topics.length > 0){
@@ -666,6 +846,7 @@ function renderMeeting(){
   }
 
   if(meetingStatus !== 'SETUP'){
+    html += '<button onclick="handleCopySummary()" id="btnCopySummary" style="padding:4px 10px;font-size:11px;border-radius:8px;border:1px solid var(--border);color:var(--muted);background:rgba(255,255,255,.04)">COPY</button>';
     html += '<button onclick="printSummary()" style="padding:4px 10px;font-size:11px;border-radius:8px;border:1px solid var(--border);color:var(--muted);background:rgba(255,255,255,.04)">PRINT</button>';
   }
   html += '<button onclick="renderLanding()" style="padding:4px 10px;font-size:11px;border-radius:8px;border:1px solid var(--border);color:var(--muted);background:rgba(255,255,255,.04)">LEAVE</button>';
@@ -707,7 +888,7 @@ function renderMeeting(){
   } else if(!activeTopic){
     if(topics.length === 0){
       html += '<div class="card"><div class="card-body loading">No topics yet.' + (_isFacilitator ? ' Add topics in the queue.' : ' Waiting for facilitator to add topics.') + '</div></div>';
-    } else if(topics.every(t=>t.phase==='DECIDED')){
+    } else if(topics.every(t=>t.phase==='DECIDED' || t.phase==='TABLED')){
       html += '<div class="card"><div class="card-body" style="text-align:center;padding:40px">';
       html += '<div style="font-size:40px;margin-bottom:12px">&#9989;</div>';
       html += '<div style="font-size:16px;font-weight:800;margin-bottom:8px">All Topics Decided</div>';
@@ -723,6 +904,9 @@ function renderMeeting(){
 
   html += '</div>';
   main.innerHTML = html;
+
+  // Start speaker countdown timer if active
+  updateSpeakerTimer(activeTopic);
 }
 
 // ===== RENDER QUEUE =====
@@ -738,50 +922,109 @@ function renderQueue(topics, activeIdx){
   html += '<div id="addTopicForm" style="display:none;padding:10px 12px;border-bottom:1px solid var(--border)">';
   html += '<input type="text" id="newTopicTitle" placeholder="Topic title" style="width:100%;margin-bottom:6px"/>';
   html += '<input type="text" id="newTopicDesc" placeholder="Description (optional)" style="width:100%;margin-bottom:6px"/>';
+  html += '<input type="text" id="newTopicSubmittedBy" placeholder="Submitted by (optional)" style="width:100%;margin-bottom:6px"/>';
+  html += '<textarea id="newTopicNotes" placeholder="Notes / talking points (optional)" style="width:100%;min-height:50px;resize:vertical;padding:8px 10px;font-size:12px;border-radius:12px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-family:inherit;margin-bottom:6px"></textarea>';
   html += '<div style="display:flex;gap:6px;align-items:center">';
   html += '<label style="font-size:11px;color:var(--muted);white-space:nowrap">Time limit:</label>';
   html += '<input type="number" id="newTopicTime" value="10" min="1" max="120" style="width:60px;padding:6px 8px;text-align:center"/> <span style="font-size:11px;color:var(--muted)">min</span>';
   html += '<button class="primary" onclick="handleAddTopic()" style="margin-left:auto;padding:6px 14px;font-size:11px">ADD</button>';
   html += '</div></div>';
 
-  // Waiting topics
-  const waiting = topics.filter((t,i) => t.phase !== 'DECIDED');
+  // Split topics into waiting/active, tabled, and decided
+  const waiting = topics.filter(t => t.phase !== 'DECIDED' && t.phase !== 'TABLED');
+  const tabled = topics.filter(t => t.phase === 'TABLED');
   const decided = topics.filter(t => t.phase === 'DECIDED');
 
-  if(waiting.length === 0 && decided.length === 0){
+  if(waiting.length === 0 && tabled.length === 0 && decided.length === 0){
     html += '<div style="padding:16px;text-align:center;color:var(--muted);font-size:12px">No topics added yet.</div>';
   }
 
-  waiting.forEach((topic, wi) => {
+  // Friendly phase labels
+  const _queuePhaseLabels = { DISCUSS:'DISCUSSING', NARROW:'NARROWING', VOTE:'VOTING', DECIDED:'DECIDED', TABLED:'TABLED', WAITING:'WAITING' };
+
+  // Helper to render a topic queue item with inline edit
+  function renderQueueItem(topic, wi, sectionLabel){
     const origIdx = topics.indexOf(topic);
     const isActive = origIdx === activeIdx;
-    html += '<div class="topic-item' + (isActive ? ' active' : '') + '" onclick="handleSelectTopic(' + origIdx + ')">';
-    if(_isFacilitator && topic.phase === 'WAITING'){
-      html += '<div style="display:flex;flex-direction:column">';
-      html += '<span class="reorder-btn" onclick="event.stopPropagation();handleReorder(' + origIdx + ',-1)" title="Move up">&#9650;</span>';
-      html += '<span class="reorder-btn" onclick="event.stopPropagation();handleReorder(' + origIdx + ',1)" title="Move down">&#9660;</span>';
-      html += '</div>';
+    const isEditing = _editingTopicId === topic.id;
+    const isDecided = topic.phase === 'DECIDED';
+    const isTabled = topic.phase === 'TABLED';
+    const qLabel = _queuePhaseLabels[topic.phase] || topic.phase;
+    let h = '';
+    h += '<div class="topic-item' + (isActive ? ' active' : '') + (isDecided ? ' decided' : '') + '" onclick="handleSelectTopic(' + origIdx + ')">';
+    if(_isFacilitator && (topic.phase === 'WAITING' || topic.phase === 'TABLED')){
+      h += '<div style="display:flex;flex-direction:column">';
+      h += '<span class="reorder-btn" onclick="event.stopPropagation();handleReorder(' + origIdx + ',-1)" title="Move up">&#9650;</span>';
+      h += '<span class="reorder-btn" onclick="event.stopPropagation();handleReorder(' + origIdx + ',1)" title="Move down">&#9660;</span>';
+      h += '</div>';
     }
-    html += '<span class="topic-num">' + (wi+1) + '</span>';
-    html += '<span class="topic-title">' + esc(topic.title) + '</span>';
-    html += '<span class="phase-badge phase-' + esc(topic.phase) + '">' + esc(topic.phase) + '</span>';
-    html += '<span class="topic-time">' + topic.timeLimit + 'm</span>';
-    if(_isFacilitator && topic.phase === 'WAITING'){
-      html += '<span class="opt-remove" onclick="event.stopPropagation();handleRemoveTopic(\'' + esc(topic.id) + '\')" title="Remove">&times;</span>';
+    h += '<span class="topic-num"' + (isDecided ? ' style="color:var(--ok)"' : '') + '>' + (isDecided ? '&#10003;' : (wi+1)) + '</span>';
+    h += '<div style="flex:1;min-width:0"><span class="topic-title" style="display:block">' + esc(topic.title) + '</span>';
+    if(topic.submittedBy) h += '<span style="font-size:10px;color:var(--muted);display:block;margin-top:1px">by ' + esc(topic.submittedBy) + '</span>';
+    h += '</div>';
+    if((topic.notes||'').trim()){
+      h += '<span onclick="event.stopPropagation();toggleQueueNotes(\'' + esc(topic.id) + '\')" title="Has notes — click to expand" style="cursor:pointer;font-size:13px;color:var(--accent);flex-shrink:0;padding:2px 4px;border-radius:4px;transition:background .15s" onmouseover="this.style.background=\'rgba(74,163,255,.12)\'" onmouseout="this.style.background=\'none\'">&#128221;</span>';
+    } else if(_isFacilitator && !isDecided){
+      h += '<span onclick="event.stopPropagation();toggleQueueNotes(\'' + esc(topic.id) + '\')" title="Add notes" style="cursor:pointer;font-size:13px;color:var(--muted);flex-shrink:0;opacity:.4;padding:2px 4px;border-radius:4px;transition:all .15s" onmouseover="this.style.opacity=\'1\';this.style.background=\'rgba(255,255,255,.06)\'" onmouseout="this.style.opacity=\'.4\';this.style.background=\'none\'">&#128221;</span>';
     }
-    html += '</div>';
-  });
+    h += '<span class="phase-badge phase-' + esc(topic.phase) + '">' + esc(qLabel) + '</span>';
+    h += '<span class="topic-time">' + topic.timeLimit + 'm</span>';
+    if(_isFacilitator){
+      h += '<span onclick="event.stopPropagation();startEditTopic(\'' + esc(topic.id) + '\')" title="Edit" style="cursor:pointer;font-size:13px;opacity:.5;transition:opacity .15s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5">&#9998;</span>';
+    }
+    if(_isFacilitator && topic.phase === 'WAITING' && _meetingDoc && _meetingDoc.activeTopicIndex >= 0){
+      h += '<span class="move-next-btn" onclick="event.stopPropagation();handleMoveToNext(' + origIdx + ')" title="Move to discuss next">NEXT</span>';
+    }
+    if(_isFacilitator && topic.phase === 'WAITING'){
+      h += '<span class="opt-remove" onclick="event.stopPropagation();handleRemoveTopic(\'' + esc(topic.id) + '\')" title="Remove">&times;</span>';
+    }
+    if(_isFacilitator && isTabled){
+      h += '<button onclick="event.stopPropagation();handleReopenTopic(\'' + esc(topic.id) + '\')" style="padding:2px 8px;font-size:10px;border-radius:6px;border:1px solid rgba(74,163,255,.3);color:var(--accent);background:rgba(74,163,255,.06)">Reopen</button>';
+    }
+    h += '</div>';
+
+    // Collapsible notes panel for queue items
+    const _hasNotes = (topic.notes||'').trim();
+    const _notesOpen = _expandedQueueNotes[topic.id];
+    if(_hasNotes || (_isFacilitator && !isDecided)){
+      h += '<div id="queueNotes_' + esc(topic.id) + '_wrap" style="display:' + (_notesOpen ? 'block' : 'none') + ';border-bottom:1px solid var(--border);background:rgba(255,255,255,.02)" onclick="event.stopPropagation()">';
+      if(_isFacilitator && !isDecided){
+        h += '<div style="padding:8px 12px">';
+        h += '<textarea id="queueNotes_' + esc(topic.id) + '" onblur="handleSaveQueueNotes(\'' + esc(topic.id) + '\',' + origIdx + ')" placeholder="Add notes / talking points..." style="width:100%;min-height:60px;resize:vertical;padding:8px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-family:inherit">' + esc(topic.notes||'') + '</textarea>';
+        h += '</div>';
+      } else if(_hasNotes){
+        h += '<div style="padding:8px 12px;font-size:12px;color:var(--muted);white-space:pre-wrap">' + esc(topic.notes) + '</div>';
+      }
+      h += '</div>';
+    }
+
+    // Inline edit form
+    if(isEditing && _isFacilitator){
+      h += '<div onclick="event.stopPropagation()" style="padding:10px 12px;border-bottom:1px solid var(--border);background:rgba(74,163,255,.04)">';
+      h += '<input type="text" id="editTopicTitle" value="' + esc(topic.title) + '" placeholder="Topic title" style="width:100%;margin-bottom:6px"/>';
+      h += '<input type="text" id="editTopicDesc" value="' + esc(topic.description||'') + '" placeholder="Description (optional)" style="width:100%;margin-bottom:6px"/>';
+      h += '<input type="text" id="editTopicSubmittedBy" value="' + esc(topic.submittedBy||'') + '" placeholder="Submitted by (optional)" style="width:100%;margin-bottom:6px"/>';
+      h += '<textarea id="editTopicNotes" placeholder="Notes / talking points (optional)" style="width:100%;min-height:50px;resize:vertical;padding:8px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-family:inherit;margin-bottom:6px">' + esc(topic.notes||'') + '</textarea>';
+      h += '<div style="display:flex;gap:6px;align-items:center">';
+      h += '<label style="font-size:11px;color:var(--muted);white-space:nowrap">Time limit:</label>';
+      h += '<input type="number" id="editTopicTime" value="' + (topic.timeLimit||10) + '" min="1" max="120" style="width:60px;padding:6px 8px;text-align:center"/> <span style="font-size:11px;color:var(--muted)">min</span>';
+      h += '<button class="primary" onclick="handleSaveTopicEdit(\'' + esc(topic.id) + '\',' + origIdx + ')" style="margin-left:auto;padding:6px 14px;font-size:11px">SAVE</button>';
+      h += '<button onclick="cancelEditTopic()" style="padding:6px 10px;font-size:11px">CANCEL</button>';
+      h += '</div></div>';
+    }
+    return h;
+  }
+
+  waiting.forEach((topic, wi) => { html += renderQueueItem(topic, wi, 'waiting'); });
+
+  if(tabled.length > 0){
+    html += '<div style="padding:8px 12px;font-size:10px;font-weight:800;color:#ffe0b2;letter-spacing:.1em;border-bottom:1px solid var(--border);background:rgba(255,179,71,.06)">TABLED (' + tabled.length + ')</div>';
+    tabled.forEach((topic, ti) => { html += renderQueueItem(topic, ti, 'tabled'); });
+  }
 
   if(decided.length > 0){
     html += '<div style="padding:8px 12px;font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.1em;border-bottom:1px solid var(--border);background:rgba(63,231,182,.04)">DECIDED (' + decided.length + ')</div>';
-    decided.forEach(topic => {
-      const origIdx = topics.indexOf(topic);
-      html += '<div class="topic-item decided" onclick="handleSelectTopic(' + origIdx + ')">';
-      html += '<span class="topic-num" style="color:var(--ok)">&#10003;</span>';
-      html += '<span class="topic-title">' + esc(topic.title) + '</span>';
-      html += '<span class="phase-badge phase-DECIDED">DECIDED</span>';
-      html += '</div>';
-    });
+    decided.forEach((topic, di) => { html += renderQueueItem(topic, di, 'decided'); });
   }
 
   html += '</div>';
@@ -791,15 +1034,38 @@ function renderQueue(topics, activeIdx){
 // ===== RENDER PARTICIPANTS CARD =====
 function renderParticipantsCard(){
   const participants = _meetingDoc.participants || [];
+  const facilitatorName = _meetingDoc.facilitatorName || '';
   let html = '<div class="card" style="margin-top:12px;overflow:visible">';
   html += '<div class="card-header" style="border-radius:12px 12px 0 0"><span>PARTICIPANTS (' + participants.length + ')</span></div>';
   html += '<div class="card-body" style="padding:10px 12px;overflow:visible">';
+
+  // Facilitator selector
+  if(participants.length > 0){
+    html += '<div style="margin-bottom:10px;padding:8px 12px;border-radius:8px;border:1px solid rgba(74,163,255,.25);background:rgba(74,163,255,.04)">';
+    html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+    html += '<span style="font-size:11px;font-weight:800;color:var(--accent);letter-spacing:.06em">FACILITATOR</span>';
+    if(_isFacilitator){
+      html += '<select id="facilitatorSelect" onchange="handleChangeFacilitator(this.value)" style="flex:1;min-width:120px;padding:5px 8px;font-size:12px;font-weight:700;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);cursor:pointer">';
+      html += '<option value="">-- Select --</option>';
+      participants.forEach(p => {
+        const sel = facilitatorName === p.name ? ' selected' : '';
+        html += '<option value="' + esc(p.name) + '"' + sel + '>' + esc(p.name) + '</option>';
+      });
+      html += '</select>';
+    } else {
+      html += '<span style="font-size:13px;font-weight:700;color:var(--text)">' + esc(facilitatorName || 'Not assigned') + '</span>';
+    }
+    html += '</div></div>';
+  }
 
   // Participant chips
   if(participants.length > 0){
     html += '<div style="margin-bottom:8px">';
     participants.forEach(p => {
-      html += '<span class="participant-chip">' + esc(p.name);
+      const isFac = facilitatorName === p.name;
+      html += '<span class="participant-chip" style="' + (isFac ? 'border-color:rgba(74,163,255,.5);background:rgba(74,163,255,.1)' : '') + '">';
+      if(isFac) html += '<span style="font-size:10px;color:var(--accent)" title="Facilitator">&#9733;</span> ';
+      html += esc(p.name);
       const roleTag = p.role === 'SUPERVISOR' ? 'SUP' : p.role === 'GUEST' ? 'GUEST' : 'DP';
       html += '<span style="font-size:9px;color:var(--muted);margin-left:2px">' + esc(roleTag) + '</span>';
       if(_isFacilitator){
@@ -908,9 +1174,64 @@ async function handleRemoveParticipant(name){
   const p = (_meetingDoc.participants||[]).find(x => x.name === name);
   if(!p) return;
   try {
-    await db.collection('decisionMeetings').doc(_meetingId).update({
-      participants: firebase.firestore.FieldValue.arrayRemove(p)
-    });
+    const update = { participants: firebase.firestore.FieldValue.arrayRemove(p) };
+    if(_meetingDoc.facilitatorName === name) update.facilitatorName = '';
+    await db.collection('decisionMeetings').doc(_meetingId).update(update);
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== FACILITATOR SELECTION =====
+async function handleChangeFacilitator(name){
+  if(!_isFacilitator || !_meetingId) return;
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ facilitatorName: name });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== MEETING TITLE EDITING =====
+async function handleSaveMeetingTitle(){
+  if(!_meetingId) return;
+  const input = document.getElementById('editMeetingTitleInput');
+  const newTitle = (input.value||'').trim();
+  if(!newTitle){ alert('Title cannot be empty.'); return; }
+  _editingMeetingTitle = false;
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ title: newTitle });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== TOPIC EDITING =====
+function startEditTopic(topicId){
+  _editingTopicId = (_editingTopicId === topicId) ? null : topicId;
+  renderMeeting();
+}
+
+function cancelEditTopic(){
+  _editingTopicId = null;
+  renderMeeting();
+}
+
+async function handleSaveTopicEdit(topicId, idx){
+  if(!_meetingDoc || !_meetingId) return;
+  const titleEl = document.getElementById('editTopicTitle');
+  const descEl = document.getElementById('editTopicDesc');
+  const submittedByEl = document.getElementById('editTopicSubmittedBy');
+  const notesEl = document.getElementById('editTopicNotes');
+  const timeEl = document.getElementById('editTopicTime');
+  const newTitle = (titleEl.value||'').trim();
+  if(!newTitle){ alert('Title cannot be empty.'); return; }
+  const newDesc = (descEl.value||'').trim();
+  const newSubmittedBy = (submittedByEl ? submittedByEl.value||'' : '').trim();
+  const newNotes = (notesEl ? notesEl.value||'' : '').trim();
+  const newTime = parseInt(timeEl.value) || 10;
+
+  const topics = [...(_meetingDoc.topics||[])];
+  if(!topics[idx] || topics[idx].id !== topicId) return;
+  topics[idx] = { ...topics[idx], title: newTitle, description: newDesc, submittedBy: newSubmittedBy, notes: newNotes, timeLimit: Math.max(1, Math.min(120, newTime)) };
+
+  _editingTopicId = null;
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
   } catch(err){ console.error(err); alert('Failed: ' + err.message); }
 }
 
@@ -924,6 +1245,8 @@ async function handleAddTopic(){
   const title = (document.getElementById('newTopicTitle').value||'').trim();
   if(!title){ alert('Enter a topic title.'); return; }
   const desc = (document.getElementById('newTopicDesc').value||'').trim();
+  const notesEl = document.getElementById('newTopicNotes');
+  const notes = (notesEl ? notesEl.value||'' : '').trim();
   const time = parseInt(document.getElementById('newTopicTime').value) || 10;
 
   const newTopic = {
@@ -939,7 +1262,17 @@ async function handleAddTopic(){
     winner: '',
     actionItems: [],
     timerStartedAt: null,
-    decidedAt: null
+    decidedAt: null,
+    notes: notes,
+    submittedBy: (document.getElementById('newTopicSubmittedBy').value||'').trim(),
+    consensusDecision: false,
+    tieBreaker: false,
+    tiedOptions: [],
+    namedVotes: {},
+    speakerLog: {},
+    activeSpeaker: '',
+    speakerStartedAt: null,
+    speakerTimeLimit: 60
   };
 
   try {
@@ -973,6 +1306,21 @@ async function handleReorder(idx, dir){
   } catch(err){ console.error(err); alert('Failed: ' + err.message); }
 }
 
+async function handleMoveToNext(idx){
+  if(!_meetingDoc || !_meetingId || !_isFacilitator) return;
+  const topics = [...(_meetingDoc.topics||[])];
+  let activeIdx = _meetingDoc.activeTopicIndex;
+  if(activeIdx < 0 || idx === activeIdx || idx === activeIdx + 1) return;
+  const [topic] = topics.splice(idx, 1);
+  // Recalculate activeIdx after removal
+  if(idx < activeIdx) activeIdx--;
+  const insertAt = activeIdx + 1;
+  topics.splice(insertAt, 0, topic);
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics, activeTopicIndex: activeIdx });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
 async function handleSelectTopic(idx){
   if(!_isFacilitator) return;
   if(!_meetingDoc || !_meetingId) return;
@@ -993,15 +1341,27 @@ async function handleSelectTopic(idx){
 
 // ===== RENDER ACTIVE TOPIC =====
 function renderActiveTopic(topic, idx){
+  const phaseLabels = { DISCUSS:'DISCUSSING', NARROW:'NARROWING', VOTE:'VOTING', DECIDED:'DECIDED', TABLED:'TABLED' };
+  const phaseLabel = phaseLabels[topic.phase] || topic.phase;
   let html = '<div class="card">';
-  html += '<div class="card-header">';
-  html += '<span class="phase-badge phase-' + esc(topic.phase) + '" style="margin-right:8px">' + esc(topic.phase) + '</span>';
-  html += '<span style="font-size:14px;font-weight:800">' + esc(topic.title) + '</span>';
+  html += '<div class="card-header" style="padding:14px 16px">';
+  html += '<span class="phase-badge phase-' + esc(topic.phase) + '" style="margin-right:10px;font-size:11px;padding:4px 12px">' + esc(phaseLabel) + '</span>';
+  html += '<span style="font-size:16px;font-weight:900">' + esc(topic.title) + '</span>';
+  if(topic.submittedBy) html += '<span style="font-size:10px;color:var(--muted);margin-left:8px">Submitted by ' + esc(topic.submittedBy) + '</span>';
   html += '</div>';
   html += '<div class="card-body">';
 
   if(topic.description){
     html += '<div style="color:var(--muted);font-size:12px;margin-bottom:14px">' + esc(topic.description) + '</div>';
+  }
+
+  // Notes section (collapsible, visible during active phases)
+  if(topic.phase !== 'DECIDED'){
+    html += '<details style="margin-bottom:14px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.02)"' + ((topic.notes||'').trim() ? ' open' : '') + '>';
+    html += '<summary style="padding:8px 12px;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;letter-spacing:.06em">NOTES</summary>';
+    html += '<div style="padding:0 12px 10px">';
+    html += '<textarea id="topicNotes_' + esc(topic.id) + '" onblur="handleSaveNotes(\'' + esc(topic.id) + '\',' + idx + ')" placeholder="Shared meeting notes for this topic..." style="width:100%;min-height:80px;resize:vertical;padding:8px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-family:inherit">' + esc(topic.notes||'') + '</textarea>';
+    html += '</div></details>';
   }
 
   // Phase-specific content
@@ -1018,6 +1378,51 @@ function renderActiveTopic(topic, idx){
 function renderDiscuss(topic, idx){
   let html = '';
   const options = topic.options || [];
+  const participants = _meetingDoc.participants || [];
+  const speakerLog = topic.speakerLog || {};
+  const activeSpeaker = topic.activeSpeaker || '';
+
+  // ── Speaker Tracking ──
+  html += '<div style="margin-bottom:16px">';
+  html += '<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-bottom:8px">SPEAKING</div>';
+
+  if(participants.length === 0){
+    html += '<div style="color:var(--muted);font-size:12px;padding:8px">Add participants to track speaking.</div>';
+  } else {
+    html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">';
+    participants.forEach((p, pi) => {
+      const isActive = activeSpeaker === p.name;
+      let totalSec = speakerLog[p.name] || 0;
+      // Include current session for active speaker
+      if(isActive && topic.speakerStartedAt){
+        const sMs = topic.speakerStartedAt.toDate ? topic.speakerStartedAt.toDate().getTime() : (topic.speakerStartedAt.seconds * 1000);
+        totalSec += Math.max(0, Math.floor((Date.now() - sMs) / 1000));
+      }
+      const timeStr = totalSec > 0 ? fmtMinSec(totalSec) : '--:--';
+      html += '<div onclick="handleSetSpeaker(\'' + esc(topic.id) + '\',' + pi + ',' + idx + ')" ';
+      html += 'style="padding:8px 14px;border-radius:10px;cursor:pointer;font-size:12px;font-weight:700;';
+      html += 'border:2px solid ' + (isActive ? 'var(--accent)' : 'var(--border)') + ';';
+      html += 'background:' + (isActive ? 'rgba(74,163,255,.2)' : 'rgba(255,255,255,.03)') + ';';
+      html += 'color:' + (isActive ? '#fff' : 'var(--muted)') + ';transition:all .15s;display:flex;align-items:center;gap:6px">';
+      if(isActive) html += '<span style="font-size:14px">&#9654;</span>';
+      html += esc(p.name);
+      html += '<span style="font-size:10px;opacity:.7">' + timeStr + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+
+    // Active speaker bar with countdown
+    if(activeSpeaker){
+      html += '<div id="speakerBar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border-radius:10px;border:1px solid rgba(74,163,255,.25);background:rgba(74,163,255,.06)">';
+      html += '<span style="font-size:13px;font-weight:800;color:var(--accent)">&#9654; ' + esc(activeSpeaker) + '</span>';
+      html += '<span id="speakerCountdown" class="timer-display" style="font-size:16px;padding:4px 12px">--:--</span>';
+      html += '<button onclick="handleExtendSpeaker(\'' + esc(topic.id) + '\',' + idx + ')" style="padding:6px 14px;font-size:13px;border-radius:10px;font-weight:800;border:1px solid rgba(74,163,255,.3);color:var(--accent);background:rgba(74,163,255,.08)">+1m</button>';
+      html += '<button onclick="handleStopSpeaker(\'' + esc(topic.id) + '\',' + idx + ')" style="padding:6px 12px;font-size:12px;border-radius:10px;font-weight:700;border:1px solid rgba(255,107,107,.3);color:var(--bad);background:rgba(255,107,107,.08)">Stop</button>';
+      html += '<span id="speakerWrapUp" style="display:none;font-size:12px;color:var(--bad);font-weight:800;background:rgba(255,107,107,.12);padding:4px 10px;border-radius:6px">Time\'s up &mdash; please wrap up!</span>';
+      html += '</div>';
+    }
+  }
+  html += '</div>';
 
   html += '<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-bottom:8px">PROPOSED OPTIONS (' + options.length + ')</div>';
 
@@ -1040,12 +1445,18 @@ function renderDiscuss(topic, idx){
   html += '<button class="primary" onclick="handleAddOption(\'' + esc(topic.id) + '\',\'' + idx + '\')" style="white-space:nowrap">+ Add Option</button>';
   html += '</div>';
 
-  // Facilitator: advance button
+  // Facilitator: advance, consensus, and table buttons
   if(_isFacilitator){
     const canAdvance = options.length >= 2;
-    html += '<div style="margin-top:16px;text-align:right">';
-    html += '<button class="primary" onclick="handleAdvancePhase(\'' + esc(topic.id) + '\',' + idx + ',\'NARROW\')" ' + (canAdvance ? '' : 'disabled') + ' title="' + (canAdvance ? '' : 'Need at least 2 options') + '">';
-    html += 'Advance to Narrow &#8594;</button>';
+    html += '<div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">';
+    html += '<button onclick="handleTableTopic(\'' + esc(topic.id) + '\',' + idx + ')" style="border-color:rgba(255,179,71,.3);color:#ffe0b2;background:rgba(255,179,71,.08)">Table Topic</button>';
+    html += '<button onclick="handleDeclareConsensus(\'' + esc(topic.id) + '\',' + idx + ')" style="border-color:rgba(63,231,182,.3);color:var(--ok);background:rgba(63,231,182,.08)">Declare Consensus</button>';
+    if(options.length === 2){
+      html += '<button class="primary" onclick="handleSkipToVote(\'' + esc(topic.id) + '\',' + idx + ')">Advance to Vote &#8594;</button>';
+    } else {
+      html += '<button class="primary" onclick="handleAdvancePhase(\'' + esc(topic.id) + '\',' + idx + ',\'NARROW\')" ' + (canAdvance ? '' : 'disabled') + ' title="' + (canAdvance ? '' : 'Need at least 2 options') + '">';
+      html += 'Advance to Narrow &#8594;</button>';
+    }
     html += '</div>';
   }
 
@@ -1059,14 +1470,14 @@ function renderNarrow(topic, idx){
   const finalists = topic.finalists || [];
 
   if(!_isFacilitator){
-    html += '<div style="text-align:center;padding:20px;color:var(--muted)">Facilitator is narrowing options to the top 2...</div>';
+    html += '<div style="text-align:center;padding:20px;color:var(--muted)">Facilitator is narrowing options to 2\u20134 finalists...</div>';
     if(finalists.length > 0){
-      html += '<div style="font-size:11px;color:var(--muted);text-align:center">' + finalists.length + ' of 2 selected</div>';
+      html += '<div style="font-size:11px;color:var(--muted);text-align:center">' + finalists.length + ' selected so far</div>';
     }
     return html;
   }
 
-  html += '<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-bottom:8px">SELECT TOP 2 OPTIONS (' + finalists.length + '/2)</div>';
+  html += '<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-bottom:8px">SELECT 2\u20134 FINALISTS (' + finalists.length + ' selected)</div>';
 
   options.forEach(opt => {
     const isSel = finalists.includes(opt.id);
@@ -1076,8 +1487,10 @@ function renderNarrow(topic, idx){
     html += '</div>';
   });
 
-  html += '<div style="margin-top:16px;text-align:right">';
-  html += '<button class="primary" onclick="handleAdvancePhase(\'' + esc(topic.id) + '\',' + idx + ',\'VOTE\')" ' + (finalists.length === 2 ? '' : 'disabled') + '>';
+  const canAdvance = finalists.length >= 2;
+  html += '<div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">';
+  html += '<button onclick="handleTableTopic(\'' + esc(topic.id) + '\',' + idx + ')" style="border-color:rgba(255,179,71,.3);color:#ffe0b2;background:rgba(255,179,71,.08)">Table Topic</button>';
+  html += '<button class="primary" onclick="handleAdvancePhase(\'' + esc(topic.id) + '\',' + idx + ',\'VOTE\')" ' + (canAdvance ? '' : 'disabled') + '>';
   html += 'Advance to Vote &#8594;</button>';
   html += '</div>';
 
@@ -1089,40 +1502,50 @@ function renderVote(topic, idx){
   let html = '';
   const options = topic.options || [];
   const finalists = topic.finalists || [];
-  const votes = topic.votes || {};
-  const votedUsers = topic.votedUsers || [];
-  const participantCount = (_meetingDoc.participants||[]).length;
-  const allVoted = participantCount > 0 && votedUsers.length >= participantCount;
-  const votingClosed = !!topic.winner;
-  const hasVoted = _userHash && votedUsers.includes(_userHash);
+  const namedVotes = topic.namedVotes || {};
+  const participants = _meetingDoc.participants || [];
+  const votedCount = Object.keys(namedVotes).length;
+  const isTieBreaker = !!topic.tieBreaker;
+  const tiedOptions = topic.tiedOptions || [];
 
   const finalistOptions = finalists.map(fId => options.find(o => o.id === fId)).filter(Boolean);
 
-  if(!votingClosed && !allVoted){
-    html += '<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-bottom:4px">CAST YOUR VOTE</div>';
-    html += '<div style="font-size:12px;color:var(--muted);margin-bottom:12px">' + votedUsers.length + ' of ' + participantCount + ' voted' + (hasVoted ? ' &bull; <span style="color:var(--ok)">You voted</span>' : '') + '</div>';
+  // Derive vote counts from namedVotes
+  const derivedVotes = {};
+  Object.values(namedVotes).forEach(oId => { derivedVotes[oId] = (derivedVotes[oId]||0) + 1; });
+  const totalVotes = Object.values(derivedVotes).reduce((a,b)=>a+b, 0);
+
+  // Tie-breaker mode: facilitator picks the winner
+  if(isTieBreaker && !topic.winner){
+    html += '<div style="font-size:11px;font-weight:700;color:var(--warn);letter-spacing:.06em;margin-bottom:4px">TIE DETECTED</div>';
+    html += '<div style="font-size:12px;color:var(--muted);margin-bottom:12px">The following options are tied. ' + (_isFacilitator ? 'Choose the winner:' : 'Waiting for facilitator to break the tie.') + '</div>';
 
     html += '<div class="vote-grid">';
-    finalistOptions.forEach(opt => {
-      html += '<div class="vote-card" onclick="handleCastVote(\'' + esc(topic.id) + '\',\'' + esc(opt.id) + '\',' + idx + ')">';
-      html += esc(opt.text);
+    tiedOptions.forEach(tiedId => {
+      const opt = options.find(o => o.id === tiedId);
+      if(!opt) return;
+      const count = derivedVotes[opt.id] || 0;
+      const pct = totalVotes > 0 ? Math.round(count / totalVotes * 100) : 0;
+      html += '<div class="vote-card" style="flex-direction:column;gap:8px;border-color:var(--warn);' + (_isFacilitator ? 'cursor:pointer' : 'cursor:default') + '"' + (_isFacilitator ? ' onclick="handleBreakTie(\'' + esc(topic.id) + '\',\'' + esc(opt.id) + '\',' + idx + ')"' : '') + '>';
+      html += '<div>' + esc(opt.text) + '</div>';
+      html += '<div style="font-size:20px;font-weight:900;color:var(--warn)">' + count + ' vote' + (count !== 1 ? 's' : '') + ' (' + pct + '%)</div>';
+      if(_isFacilitator) html += '<div style="font-size:10px;color:var(--accent);font-weight:700">CLICK TO SELECT</div>';
       html += '</div>';
     });
     html += '</div>';
 
-    if(_isFacilitator){
-      html += '<div style="margin-top:12px;text-align:right">';
-      html += '<button onclick="handleCloseVoting(\'' + esc(topic.id) + '\',' + idx + ')" style="border-color:rgba(255,224,102,.3);color:var(--warn)">Close Voting &amp; Reveal</button>';
-      html += '</div>';
-    }
-  } else {
-    // Show results
-    const totalVotes = Object.values(votes).reduce((a,b)=>a+b, 0);
+    // Show per-person breakdown
+    html += renderVoteBreakdown(namedVotes, options, participants);
+    return html;
+  }
+
+  // Winner determined — show results
+  if(topic.winner){
     const winId = topic.winner;
     html += '<div style="font-size:11px;font-weight:700;color:var(--ok);letter-spacing:.06em;margin-bottom:12px">RESULTS</div>';
     html += '<div class="vote-grid">';
     finalistOptions.forEach(opt => {
-      const count = votes[opt.id] || 0;
+      const count = derivedVotes[opt.id] || 0;
       const pct = totalVotes > 0 ? Math.round(count / totalVotes * 100) : 0;
       const isWinner = opt.id === winId;
       html += '<div class="vote-card' + (isWinner ? ' winner' : '') + '" style="cursor:default;flex-direction:column;gap:8px">';
@@ -1133,19 +1556,78 @@ function renderVote(topic, idx){
     });
     html += '</div>';
 
-    if(_isFacilitator && !topic.winner){
-      // Edge case: all voted but facilitator hasn't confirmed
-      html += '<div style="margin-top:12px;text-align:right">';
-      html += '<button class="primary" onclick="handleCloseVoting(\'' + esc(topic.id) + '\',' + idx + ')">Confirm Winner &#8594;</button>';
-      html += '</div>';
-    }
-    if(_isFacilitator && topic.winner){
+    // Show per-person breakdown
+    html += renderVoteBreakdown(namedVotes, options, participants);
+
+    if(_isFacilitator){
       html += '<div style="margin-top:12px;text-align:right">';
       html += '<button class="primary" onclick="handleAdvancePhase(\'' + esc(topic.id) + '\',' + idx + ',\'DECIDED\')">Finalize Decision &#8594;</button>';
       html += '</div>';
     }
+    return html;
   }
 
+  // ── Active Voting: Per-Person Board ──
+  html += '<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-bottom:4px">LIVE VOTING</div>';
+  html += '<div style="font-size:12px;color:var(--muted);margin-bottom:12px">' + votedCount + ' of ' + participants.length + ' voted</div>';
+
+  if(participants.length === 0){
+    html += '<div style="color:var(--muted);font-size:12px;padding:16px;text-align:center;border:1px dashed var(--border);border-radius:10px">Add participants to the meeting to enable voting.</div>';
+  } else {
+    participants.forEach((p, pi) => {
+      const pVote = namedVotes[p.name];
+      const hasVoted = !!pVote;
+      html += '<div style="margin-bottom:6px;border:1px solid ' + (hasVoted ? 'rgba(74,163,255,.25)' : 'var(--border)') + ';border-radius:10px;padding:10px 12px;background:' + (hasVoted ? 'rgba(74,163,255,.04)' : 'rgba(255,255,255,.02)') + ';transition:all .2s">';
+      html += '<div style="font-size:12px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px">';
+      html += esc(p.name);
+      if(hasVoted) html += '<span style="font-size:9px;color:var(--ok);font-weight:800;background:rgba(63,231,182,.12);padding:2px 6px;border-radius:4px">VOTED</span>';
+      else html += '<span style="font-size:9px;color:var(--muted);font-weight:700">WAITING</span>';
+      html += '</div>';
+      html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+      finalistOptions.forEach(opt => {
+        const isSelected = pVote === opt.id;
+        html += '<div onclick="handleNamedVote(\'' + esc(topic.id) + '\',' + pi + ',\'' + esc(opt.id) + '\',' + idx + ')" ';
+        html += 'style="flex:1;min-width:90px;padding:10px 8px;text-align:center;border-radius:8px;cursor:pointer;';
+        html += 'border:2px solid ' + (isSelected ? 'var(--accent)' : 'var(--border)') + ';';
+        html += 'background:' + (isSelected ? 'rgba(74,163,255,.2)' : 'rgba(255,255,255,.03)') + ';';
+        html += 'color:' + (isSelected ? '#fff' : 'var(--muted)') + ';';
+        html += 'font-size:12px;font-weight:' + (isSelected ? '800' : '600') + ';transition:all .15s">';
+        if(isSelected) html += '&#10003; ';
+        html += esc(opt.text);
+        html += '</div>';
+      });
+      html += '</div></div>';
+    });
+  }
+
+  // Facilitator controls
+  if(_isFacilitator){
+    const canClose = votedCount > 0;
+    html += '<div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">';
+    html += '<button onclick="handleTableTopic(\'' + esc(topic.id) + '\',' + idx + ')" style="border-color:rgba(255,179,71,.3);color:#ffe0b2;background:rgba(255,179,71,.08)">Table Topic</button>';
+    html += '<button onclick="handleCloseVoting(\'' + esc(topic.id) + '\',' + idx + ')" ' + (canClose ? '' : 'disabled') + ' style="border-color:rgba(255,224,102,.3);color:var(--warn)">Close Voting &amp; Reveal</button>';
+    html += '</div>';
+  }
+
+  return html;
+}
+
+// Helper: per-person vote breakdown
+function renderVoteBreakdown(namedVotes, options, participants){
+  if(!participants || participants.length === 0) return '';
+  const entries = Object.entries(namedVotes);
+  if(entries.length === 0) return '';
+  let html = '<div style="margin-top:14px;border-top:1px solid var(--border);padding-top:10px">';
+  html += '<div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-bottom:6px">VOTES BY PERSON</div>';
+  participants.forEach(p => {
+    const votedFor = namedVotes[p.name];
+    const opt = votedFor ? options.find(o => o.id === votedFor) : null;
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px">';
+    html += '<span style="font-weight:700;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</span>';
+    html += '<span style="color:' + (opt ? 'var(--accent)' : 'var(--muted)') + '">' + (opt ? '&#10003; ' + esc(opt.text) : '\u2014') + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
   return html;
 }
 
@@ -1157,23 +1639,77 @@ function renderDecided(topic, idx){
   const finalists = topic.finalists || [];
   const winOpt = options.find(o => o.id === topic.winner);
   const totalVotes = Object.values(votes).reduce((a,b)=>a+b, 0);
+  const isConsensus = !!topic.consensusDecision;
 
   html += '<div style="text-align:center;padding:16px 0">';
-  html += '<div style="font-size:11px;color:var(--ok);font-weight:800;letter-spacing:.1em;margin-bottom:8px">DECISION MADE</div>';
+  html += '<div style="font-size:11px;color:var(--ok);font-weight:800;letter-spacing:.1em;margin-bottom:8px">' + (isConsensus ? 'CONSENSUS' : 'DECISION MADE') + '</div>';
   if(winOpt){
     html += '<div style="font-size:20px;font-weight:900;color:var(--text);margin-bottom:8px">' + esc(winOpt.text) + '</div>';
   }
 
-  // Vote breakdown
-  const finalistOptions = finalists.map(fId => options.find(o => o.id === fId)).filter(Boolean);
-  html += '<div style="font-size:12px;color:var(--muted)">';
-  finalistOptions.forEach((opt, i) => {
-    const count = votes[opt.id] || 0;
-    html += esc(opt.text) + ': <strong>' + count + '</strong>';
-    if(i < finalistOptions.length - 1) html += ' &nbsp;&bull;&nbsp; ';
-  });
-  html += ' &nbsp;(' + totalVotes + ' total)';
-  html += '</div></div>';
+  // Vote breakdown (only if not consensus)
+  if(!isConsensus){
+    const finalistOptions = finalists.map(fId => options.find(o => o.id === fId)).filter(Boolean);
+    html += '<div style="font-size:12px;color:var(--muted)">';
+    finalistOptions.forEach((opt, i) => {
+      const count = votes[opt.id] || 0;
+      html += esc(opt.text) + ': <strong>' + count + '</strong>';
+      if(i < finalistOptions.length - 1) html += ' &nbsp;&bull;&nbsp; ';
+    });
+    html += ' &nbsp;(' + totalVotes + ' total)';
+    html += '</div>';
+  } else {
+    html += '<div style="font-size:12px;color:var(--ok);font-style:italic">Decided by consensus</div>';
+  }
+
+  // Actual time vs allocated
+  if(topic.timerStartedAt && topic.decidedAt){
+    const startMs = topic.timerStartedAt.toDate ? topic.timerStartedAt.toDate().getTime() : (topic.timerStartedAt.seconds * 1000);
+    const endMs = topic.decidedAt.toDate ? topic.decidedAt.toDate().getTime() : (topic.decidedAt.seconds * 1000);
+    const actualMin = Math.round((endMs - startMs) / 60000);
+    const allocMin = topic.timeLimit || 10;
+    const ratio = actualMin / allocMin;
+    const durColor = ratio <= 1 ? 'var(--ok)' : ratio <= 1.25 ? 'var(--warn)' : 'var(--bad)';
+    html += '<div style="margin-top:8px;font-size:13px;font-weight:700;color:' + durColor + '">Took ' + actualMin + 'm / ' + allocMin + 'm allocated</div>';
+  }
+  html += '</div>';
+
+  // Per-person vote breakdown
+  const namedVotes = topic.namedVotes || {};
+  if(!isConsensus && Object.keys(namedVotes).length > 0){
+    const participants = _meetingDoc.participants || [];
+    html += renderVoteBreakdown(namedVotes, options, participants);
+  }
+
+  // Read-only notes
+  if((topic.notes||'').trim()){
+    html += '<div style="border-top:1px solid var(--border);padding-top:14px;margin-top:8px;margin-bottom:14px">';
+    html += '<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-bottom:6px">NOTES</div>';
+    html += '<div style="font-size:12px;color:var(--muted);white-space:pre-wrap;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:8px;padding:10px 12px">' + esc(topic.notes) + '</div>';
+    html += '</div>';
+  }
+
+  // Participation stats
+  const speakerLog = topic.speakerLog || {};
+  const allParticipants = (_meetingDoc.participants || []);
+  const speakerEntries = Object.entries(speakerLog).filter(([,s]) => s > 0);
+  if(allParticipants.length > 0){
+    html += '<div style="border-top:1px solid var(--border);padding-top:14px;margin-top:14px">';
+    html += '<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-bottom:8px">PARTICIPATION</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px">';
+    allParticipants.forEach(p => {
+      const sec = speakerLog[p.name] || 0;
+      const spoke = sec > 0;
+      const mins = Math.floor(sec / 60);
+      const secs = sec % 60;
+      const timeStr = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
+      const bg = spoke ? 'rgba(63,231,182,.15)' : 'rgba(255,255,255,.04)';
+      const color = spoke ? 'var(--ok)' : 'var(--muted)';
+      const label = spoke ? esc(p.name) + ' — ' + timeStr : esc(p.name) + ' — did not speak';
+      html += '<span style="display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;background:' + bg + ';color:' + color + ';border:1px solid ' + (spoke ? 'rgba(63,231,182,.3)' : 'var(--border)') + '">' + label + '</span>';
+    });
+    html += '</div></div>';
+  }
 
   // Action items
   const actionItems = topic.actionItems || [];
@@ -1181,9 +1717,13 @@ function renderDecided(topic, idx){
   html += '<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-bottom:8px">ACTION ITEMS (' + actionItems.length + ')</div>';
 
   actionItems.forEach((ai, aiIdx) => {
+    const isOverdue = ai.dueDate && new Date(ai.dueDate + 'T23:59:59') < new Date();
     html += '<div class="action-item">';
     html += '<span class="action-task">' + esc(ai.task) + '</span>';
     html += '<span class="action-owner">' + esc(ai.owner) + '</span>';
+    if(ai.dueDate){
+      html += '<span style="font-size:11px;font-weight:700;margin-left:6px;padding:2px 8px;border-radius:6px;' + (isOverdue ? 'color:var(--bad);background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.3)' : 'color:var(--muted);background:rgba(255,255,255,.04);border:1px solid var(--border)') + '">Due ' + esc(ai.dueDate) + '</span>';
+    }
     if(_isFacilitator){
       html += ' <span class="opt-remove" onclick="handleRemoveAction(\'' + esc(topic.id) + '\',' + idx + ',' + aiIdx + ')" style="font-size:14px">&times;</span>';
     }
@@ -1191,9 +1731,10 @@ function renderDecided(topic, idx){
   });
 
   if(_isFacilitator){
-    html += '<div style="display:flex;gap:6px;margin-top:10px">';
-    html += '<input type="text" id="actionTask" placeholder="Action item..." style="flex:1;padding:8px 10px;font-size:12px"/>';
+    html += '<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">';
+    html += '<input type="text" id="actionTask" placeholder="Action item..." style="flex:1;min-width:140px;padding:8px 10px;font-size:12px"/>';
     html += '<input type="text" id="actionOwner" placeholder="Owner" style="width:120px;padding:8px 10px;font-size:12px"/>';
+    html += '<input type="date" id="actionDueDate" title="Due date (optional)" style="width:140px;padding:8px 10px;font-size:12px"/>';
     html += '<button onclick="handleAddAction(\'' + esc(topic.id) + '\',' + idx + ')" style="padding:8px 12px;font-size:12px">Add</button>';
     html += '</div>';
   }
@@ -1202,7 +1743,7 @@ function renderDecided(topic, idx){
   // Next topic button
   if(_isFacilitator){
     const topics = _meetingDoc.topics || [];
-    const hasNext = topics.some((t,i) => i !== idx && t.phase !== 'DECIDED');
+    const hasNext = topics.some((t,i) => i !== idx && t.phase !== 'DECIDED' && t.phase !== 'TABLED');
     if(hasNext){
       html += '<div style="margin-top:16px;text-align:right">';
       html += '<button class="primary" onclick="handleNextTopic()">Next Topic &#8594;</button>';
@@ -1250,10 +1791,22 @@ async function handleToggleFinalist(topicId, optionId, idx){
   if(finalists.includes(optionId)){
     finalists = finalists.filter(f => f !== optionId);
   } else {
-    if(finalists.length >= 2) return; // max 2
+    if(finalists.length >= 4) return; // max 4
     finalists.push(optionId);
   }
   topics[idx] = { ...topics[idx], finalists };
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== SKIP TO VOTE (2 options, no narrowing needed) =====
+async function handleSkipToVote(topicId, idx){
+  if(!_isFacilitator) return;
+  const topics = [...(_meetingDoc.topics||[])];
+  if(!topics[idx]) return;
+  const opts = topics[idx].options || [];
+  topics[idx] = { ...topics[idx], phase: 'VOTE', finalists: opts.map(o => o.id) };
   try {
     await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
   } catch(err){ console.error(err); alert('Failed: ' + err.message); }
@@ -1276,7 +1829,51 @@ async function handleAdvancePhase(topicId, idx, nextPhase){
   } catch(err){ console.error(err); alert('Failed: ' + err.message); }
 }
 
-// ===== VOTING =====
+// ===== NAMED VOTING (per-person live board) =====
+async function handleNamedVote(topicId, participantIdx, optionId, topicIdx){
+  if(!_meetingId || !_meetingDoc) return;
+  const participants = _meetingDoc.participants || [];
+  const p = participants[participantIdx];
+  if(!p) return;
+  const participantName = p.name;
+
+  const ref = db.collection('decisionMeetings').doc(_meetingId);
+  try {
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if(!snap.exists) throw new Error('Meeting not found');
+      const data = snap.data();
+      const topics = [...(data.topics||[])];
+      if(!topics[topicIdx]) throw new Error('Topic not found');
+
+      const topic = { ...topics[topicIdx] };
+      if(topic.winner) return; // voting already closed
+
+      const namedVotes = { ...(topic.namedVotes||{}) };
+
+      // Toggle: clicking the same option again removes the vote
+      if(namedVotes[participantName] === optionId){
+        delete namedVotes[participantName];
+      } else {
+        namedVotes[participantName] = optionId;
+      }
+      topic.namedVotes = namedVotes;
+
+      // Recompute aggregate votes from namedVotes
+      const votes = {};
+      Object.values(namedVotes).forEach(oId => { votes[oId] = (votes[oId]||0) + 1; });
+      topic.votes = votes;
+
+      topics[topicIdx] = topic;
+      tx.update(ref, { topics });
+    });
+  } catch(err){
+    console.error(err);
+    alert('Vote failed: ' + (err.message||err));
+  }
+}
+
+// ===== LEGACY VOTING (kept for backward compat) =====
 async function handleCastVote(topicId, optionId, idx){
   if(!_userHash){ alert('Auth error.'); return; }
   const ref = db.collection('decisionMeetings').doc(_meetingId);
@@ -1310,7 +1907,13 @@ async function handleCastVote(topicId, optionId, idx){
         // Determine winner
         const maxVotes = Math.max(...Object.values(votes));
         const winners = Object.keys(votes).filter(k => votes[k] === maxVotes);
-        topic.winner = winners[0]; // first in case of tie
+        if(winners.length > 1){
+          // Tie — let facilitator break it
+          topic.tieBreaker = true;
+          topic.tiedOptions = winners;
+        } else {
+          topic.winner = winners[0];
+        }
       }
 
       topics[idx] = topic;
@@ -1331,7 +1934,11 @@ async function handleCloseVoting(topicId, idx){
   if(!topics[idx]) return;
 
   const topic = { ...topics[idx] };
-  const votes = topic.votes || {};
+  const namedVotes = topic.namedVotes || {};
+
+  // Derive vote counts from namedVotes
+  const votes = {};
+  Object.values(namedVotes).forEach(oId => { votes[oId] = (votes[oId]||0) + 1; });
   const voteEntries = Object.entries(votes);
 
   if(voteEntries.length === 0){
@@ -1339,9 +1946,17 @@ async function handleCloseVoting(topicId, idx){
     return;
   }
 
+  topic.votes = votes;
   const maxVotes = Math.max(...voteEntries.map(([,v])=>v));
   const winners = voteEntries.filter(([,v])=>v===maxVotes).map(([k])=>k);
-  topic.winner = winners[0];
+
+  if(winners.length > 1){
+    // Tie detected — let facilitator break it
+    topic.tieBreaker = true;
+    topic.tiedOptions = winners;
+  } else {
+    topic.winner = winners[0];
+  }
   topics[idx] = topic;
 
   try {
@@ -1353,13 +1968,17 @@ async function handleCloseVoting(topicId, idx){
 async function handleAddAction(topicId, idx){
   const taskInput = document.getElementById('actionTask');
   const ownerInput = document.getElementById('actionOwner');
+  const dueDateInput = document.getElementById('actionDueDate');
   const task = (taskInput.value||'').trim();
   const owner = (ownerInput.value||'').trim();
+  const dueDate = (dueDateInput ? dueDateInput.value||'' : '').trim();
   if(!task){ alert('Enter an action item.'); return; }
 
   const topics = [...(_meetingDoc.topics||[])];
   if(!topics[idx]) return;
-  const actionItems = [...(topics[idx].actionItems||[]), { task, owner: owner || 'Unassigned' }];
+  const newItem = { task, owner: owner || 'Unassigned' };
+  if(dueDate) newItem.dueDate = dueDate;
+  const actionItems = [...(topics[idx].actionItems||[]), newItem];
   topics[idx] = { ...topics[idx], actionItems };
 
   try {
@@ -1383,10 +2002,10 @@ async function handleRemoveAction(topicId, idx, aiIdx){
 async function handleNextTopic(){
   if(!_isFacilitator || !_meetingDoc) return;
   const topics = _meetingDoc.topics || [];
-  // Find next non-decided topic
+  // Find next non-decided, non-tabled topic
   let nextIdx = -1;
   for(let i = 0; i < topics.length; i++){
-    if(topics[i].phase !== 'DECIDED'){
+    if(topics[i].phase !== 'DECIDED' && topics[i].phase !== 'TABLED'){
       nextIdx = i;
       break;
     }
@@ -1456,7 +2075,17 @@ async function handleRestartMeeting(){
     winner: '',
     actionItems: [],
     timerStartedAt: null,
-    decidedAt: null
+    decidedAt: null,
+    notes: '',
+    submittedBy: t.submittedBy || '',
+    consensusDecision: false,
+    tieBreaker: false,
+    tiedOptions: [],
+    namedVotes: {},
+    speakerLog: {},
+    activeSpeaker: '',
+    speakerStartedAt: null,
+    speakerTimeLimit: 60
   }));
 
   try {
@@ -1473,6 +2102,55 @@ async function handleEndMeeting(){
   if(!confirm('End this meeting? It will be moved to past meetings.')) return;
   try {
     await db.collection('decisionMeetings').doc(_meetingId).update({ status: 'ENDED' });
+
+    // Feature 7: Carry forward unresolved topics
+    const topics = _meetingDoc.topics || [];
+    const unresolved = topics.filter(t => t.phase !== 'DECIDED');
+    if(unresolved.length > 0){
+      const doCarry = confirm(unresolved.length + ' topic(s) are unresolved. Create a follow-up meeting with these topics?');
+      if(doCarry){
+        const email = auth.currentUser ? auth.currentUser.email : 'unknown';
+        const carryTopics = unresolved.map(t => ({
+          id: genId(),
+          title: t.title,
+          description: t.description || '',
+          timeLimit: t.timeLimit || 10,
+          phase: 'WAITING',
+          options: [],
+          finalists: [],
+          votes: {},
+          votedUsers: [],
+          winner: '',
+          actionItems: [],
+          timerStartedAt: null,
+          decidedAt: null,
+          notes: '',
+          submittedBy: t.submittedBy || '',
+          consensusDecision: false,
+          tieBreaker: false,
+          tiedOptions: [],
+          namedVotes: {},
+          speakerLog: {},
+          activeSpeaker: '',
+          speakerStartedAt: null,
+          speakerTimeLimit: 60
+        }));
+        const ref = await db.collection('decisionMeetings').add({
+          title: (_meetingDoc.title || 'Meeting') + ' (Follow-up)',
+          createdBy: email,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          facilitator: email,
+          status: 'SETUP',
+          startedAt: null,
+          participants: _meetingDoc.participants || [],
+          topics: carryTopics,
+          activeTopicIndex: -1
+        });
+        joinMeeting(ref.id);
+        return;
+      }
+    }
+
     renderLanding();
   } catch(err){ console.error(err); alert('Failed: ' + err.message); }
 }
@@ -1494,17 +2172,26 @@ async function viewPastMeeting(meetingId){
 // ===== TIMER =====
 function clearTimerInterval(){
   if(_timerInterval){ clearInterval(_timerInterval); _timerInterval = null; }
+  clearSpeakerInterval();
 }
 
 function updateTimerDisplay(topic){
   const el = document.getElementById('headerTimer');
+  const ext1Btn = document.getElementById('headerExtend1Btn');
+  const extBtn = document.getElementById('headerExtendBtn');
   if(!el) return;
 
-  if(!topic || !topic.timerStartedAt || topic.phase === 'DECIDED' || topic.phase === 'WAITING'){
+  if(!topic || !topic.timerStartedAt || topic.phase === 'DECIDED' || topic.phase === 'WAITING' || topic.phase === 'TABLED'){
     el.style.display = 'none';
+    if(ext1Btn) ext1Btn.style.display = 'none';
+    if(extBtn) extBtn.style.display = 'none';
     clearTimerInterval();
     return;
   }
+
+  // Show extend buttons for facilitator when timer is active
+  if(ext1Btn) ext1Btn.style.display = _isFacilitator ? 'inline-block' : 'none';
+  if(extBtn) extBtn.style.display = _isFacilitator ? 'inline-block' : 'none';
 
   el.style.display = 'inline-flex';
 
@@ -1531,7 +2218,7 @@ function updateForecast(topics, activeIdx){
   const el = document.getElementById('headerForecast');
   if(!el) return;
 
-  const undecided = topics.filter(t => t.phase !== 'DECIDED');
+  const undecided = topics.filter(t => t.phase !== 'DECIDED' && t.phase !== 'TABLED');
   if(undecided.length === 0){
     el.style.display = 'none';
     return;
@@ -1555,6 +2242,342 @@ function updateForecast(topics, activeIdx){
   el.textContent = 'Est. end: ' + fmtTime(estEnd) + ' (~' + Math.ceil(totalMinLeft) + ' min left)';
 }
 
+// ===== NOTES =====
+function toggleQueueNotes(topicId){
+  _expandedQueueNotes[topicId] = !_expandedQueueNotes[topicId];
+  // Toggle DOM directly to avoid full re-render (preserves scroll, textarea focus)
+  const wrap = document.getElementById('queueNotes_' + topicId + '_wrap');
+  if(wrap) wrap.style.display = _expandedQueueNotes[topicId] ? 'block' : 'none';
+}
+
+async function handleSaveQueueNotes(topicId, idx){
+  if(!_meetingDoc || !_meetingId) return;
+  const textarea = document.getElementById('queueNotes_' + topicId);
+  if(!textarea) return;
+  const newNotes = textarea.value || '';
+  const topics = [...(_meetingDoc.topics||[])];
+  if(!topics[idx] || topics[idx].id !== topicId) return;
+  if(topics[idx].notes === newNotes) return;
+  topics[idx] = { ...topics[idx], notes: newNotes };
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
+  } catch(err){ console.error(err); }
+}
+
+async function handleSaveNotes(topicId, idx){
+  if(!_meetingDoc || !_meetingId) return;
+  const textarea = document.getElementById('topicNotes_' + topicId);
+  if(!textarea) return;
+  const newNotes = textarea.value || '';
+  const topics = [...(_meetingDoc.topics||[])];
+  if(!topics[idx] || topics[idx].id !== topicId) return;
+  if(topics[idx].notes === newNotes) return; // no change
+  topics[idx] = { ...topics[idx], notes: newNotes };
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
+  } catch(err){ console.error(err); }
+}
+
+// ===== DECLARE CONSENSUS =====
+async function handleDeclareConsensus(topicId, idx){
+  if(!_isFacilitator) return;
+  const decision = prompt('Enter the consensus decision:');
+  if(!decision || !decision.trim()) return;
+  const topics = [...(_meetingDoc.topics||[])];
+  if(!topics[idx]) return;
+  const syntheticOpt = { id: genId(), text: decision.trim(), addedBy: 'consensus' };
+  topics[idx] = {
+    ...topics[idx],
+    phase: 'DECIDED',
+    options: [...(topics[idx].options||[]), syntheticOpt],
+    winner: syntheticOpt.id,
+    consensusDecision: true,
+    decidedAt: firebase.firestore.Timestamp.now()
+  };
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== TABLE / REOPEN TOPIC =====
+async function handleTableTopic(topicId, idx){
+  if(!_isFacilitator) return;
+  const topics = [...(_meetingDoc.topics||[])];
+  if(!topics[idx]) return;
+  topics[idx] = { ...topics[idx], phase: 'TABLED' };
+  const update = { topics };
+  // If this was the active topic, deselect it
+  if(_meetingDoc.activeTopicIndex === idx) update.activeTopicIndex = -1;
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update(update);
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+async function handleReopenTopic(topicId){
+  if(!_isFacilitator || !_meetingDoc) return;
+  const topics = [...(_meetingDoc.topics||[])];
+  const idx = topics.findIndex(t => t.id === topicId);
+  if(idx < 0) return;
+  topics[idx] = { ...topics[idx], phase: 'WAITING' };
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== SPEAKER TRACKING =====
+function clearSpeakerInterval(){
+  if(_speakerInterval){ clearInterval(_speakerInterval); _speakerInterval = null; }
+}
+
+function updateSpeakerTimer(topic){
+  clearSpeakerInterval();
+  if(!topic || !topic.activeSpeaker || !topic.speakerStartedAt || topic.phase !== 'DISCUSS') return;
+
+  const el = document.getElementById('speakerCountdown');
+  const wrapEl = document.getElementById('speakerWrapUp');
+  const barEl = document.getElementById('speakerBar');
+  if(!el) return;
+
+  const startMs = topic.speakerStartedAt.toDate ? topic.speakerStartedAt.toDate().getTime() : (topic.speakerStartedAt.seconds * 1000);
+  const limitSec = topic.speakerTimeLimit || 60;
+
+  function tick(){
+    const elapsed = Math.floor((Date.now() - startMs) / 1000);
+    const remaining = Math.max(0, limitSec - elapsed);
+    el.textContent = fmtMinSec(remaining);
+    el.classList.remove('urgent','expired');
+    if(remaining <= 0){
+      el.classList.add('expired');
+      if(wrapEl) wrapEl.style.display = 'inline';
+      if(barEl){ barEl.style.borderColor = 'rgba(255,107,107,.4)'; barEl.style.background = 'rgba(255,107,107,.08)'; }
+    } else if(remaining <= 15){
+      el.classList.add('urgent');
+      if(wrapEl) wrapEl.style.display = 'none';
+      if(barEl){ barEl.style.borderColor = 'rgba(255,107,107,.3)'; barEl.style.background = 'rgba(255,107,107,.05)'; }
+    } else {
+      if(wrapEl) wrapEl.style.display = 'none';
+      if(barEl){ barEl.style.borderColor = 'rgba(74,163,255,.25)'; barEl.style.background = 'rgba(74,163,255,.06)'; }
+    }
+  }
+  tick();
+  _speakerInterval = setInterval(tick, 1000);
+}
+
+async function handleSetSpeaker(topicId, participantIdx, topicIdx){
+  if(!_meetingId || !_meetingDoc) return;
+  const participants = _meetingDoc.participants || [];
+  const p = participants[participantIdx];
+  if(!p) return;
+
+  const ref = db.collection('decisionMeetings').doc(_meetingId);
+  try {
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if(!snap.exists) throw new Error('Meeting not found');
+      const data = snap.data();
+      const topics = [...(data.topics||[])];
+      if(!topics[topicIdx]) throw new Error('Topic not found');
+
+      const topic = { ...topics[topicIdx] };
+      const speakerLog = { ...(topic.speakerLog||{}) };
+
+      // Save elapsed time for current speaker
+      if(topic.activeSpeaker && topic.speakerStartedAt){
+        const sMs = topic.speakerStartedAt.toDate ? topic.speakerStartedAt.toDate().getTime() : (topic.speakerStartedAt.seconds * 1000);
+        const elapsed = Math.max(0, Math.floor((Date.now() - sMs) / 1000));
+        speakerLog[topic.activeSpeaker] = (speakerLog[topic.activeSpeaker] || 0) + elapsed;
+      }
+
+      // Toggle off if clicking same person, otherwise switch
+      if(topic.activeSpeaker === p.name){
+        topic.activeSpeaker = '';
+        topic.speakerStartedAt = null;
+        topic.speakerTimeLimit = 60;
+      } else {
+        topic.activeSpeaker = p.name;
+        topic.speakerStartedAt = firebase.firestore.Timestamp.now();
+        topic.speakerTimeLimit = 60;
+      }
+
+      topic.speakerLog = speakerLog;
+      topics[topicIdx] = topic;
+      tx.update(ref, { topics });
+    });
+  } catch(err){
+    console.error(err);
+    alert('Failed: ' + (err.message||err));
+  }
+}
+
+async function handleExtendSpeaker(topicId, topicIdx){
+  if(!_meetingId || !_meetingDoc) return;
+  const topics = [...(_meetingDoc.topics||[])];
+  if(!topics[topicIdx]) return;
+  topics[topicIdx] = { ...topics[topicIdx], speakerTimeLimit: (topics[topicIdx].speakerTimeLimit || 60) + 60 };
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+async function handleStopSpeaker(topicId, topicIdx){
+  if(!_meetingId || !_meetingDoc) return;
+  const ref = db.collection('decisionMeetings').doc(_meetingId);
+  try {
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if(!snap.exists) return;
+      const data = snap.data();
+      const topics = [...(data.topics||[])];
+      if(!topics[topicIdx]) return;
+
+      const topic = { ...topics[topicIdx] };
+      const speakerLog = { ...(topic.speakerLog||{}) };
+
+      if(topic.activeSpeaker && topic.speakerStartedAt){
+        const sMs = topic.speakerStartedAt.toDate ? topic.speakerStartedAt.toDate().getTime() : (topic.speakerStartedAt.seconds * 1000);
+        const elapsed = Math.max(0, Math.floor((Date.now() - sMs) / 1000));
+        speakerLog[topic.activeSpeaker] = (speakerLog[topic.activeSpeaker] || 0) + elapsed;
+      }
+
+      topic.activeSpeaker = '';
+      topic.speakerStartedAt = null;
+      topic.speakerTimeLimit = 60;
+      topic.speakerLog = speakerLog;
+      topics[topicIdx] = topic;
+      tx.update(ref, { topics });
+    });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== EXTEND TIMER =====
+async function handleExtendTimer(minutes){
+  if(!_isFacilitator || !_meetingDoc) return;
+  const mins = minutes || 5;
+  const idx = _meetingDoc.activeTopicIndex;
+  if(idx < 0) return;
+  const topics = [...(_meetingDoc.topics||[])];
+  if(!topics[idx] || !topics[idx].timerStartedAt) return;
+  topics[idx] = { ...topics[idx], timeLimit: (topics[idx].timeLimit || 10) + mins };
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== TIE-BREAKER =====
+async function handleBreakTie(topicId, optionId, idx){
+  if(!_isFacilitator) return;
+  const topics = [...(_meetingDoc.topics||[])];
+  if(!topics[idx]) return;
+  topics[idx] = { ...topics[idx], winner: optionId, tieBreaker: false, tiedOptions: [] };
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+// ===== COPY SUMMARY =====
+async function handleCopySummary(){
+  if(!_meetingDoc) return;
+  const topics = _meetingDoc.topics || [];
+  const decided = topics.filter(t => t.phase === 'DECIDED');
+  const dateStr = _meetingDoc.createdAt && _meetingDoc.createdAt.toDate
+    ? fmtDate(_meetingDoc.createdAt.toDate()) : 'Unknown date';
+  const participants = (_meetingDoc.participants||[]).map(p => p.name).join(', ');
+
+  let text = 'MEETING SUMMARY\n';
+  text += _meetingDoc.title + ' - ' + dateStr + '\n';
+  if(_meetingDoc.facilitatorName) text += 'Facilitator: ' + _meetingDoc.facilitatorName + '\n';
+  text += 'Participants: ' + (participants || 'None recorded') + '\n';
+  text += '---\n\n';
+
+  if(decided.length === 0){
+    text += 'No decisions recorded.\n';
+  } else {
+    decided.forEach((topic, i) => {
+      const options = topic.options || [];
+      const votes = topic.votes || {};
+      const finalists = topic.finalists || [];
+      const winOpt = options.find(o => o.id === topic.winner);
+      const totalVotes = Object.values(votes).reduce((a,b)=>a+b, 0);
+      const actionItems = topic.actionItems || [];
+      const isConsensus = !!topic.consensusDecision;
+
+      text += (i+1) + '. ' + topic.title + '\n';
+      if(topic.submittedBy) text += '   Submitted by: ' + topic.submittedBy + '\n';
+      if(topic.description) text += '   ' + topic.description + '\n';
+      text += '   Decision' + (isConsensus ? ' (Consensus)' : '') + ': ' + (winOpt ? winOpt.text : 'N/A') + '\n';
+      if(topic.timerStartedAt && topic.decidedAt){
+        const _sMs = topic.timerStartedAt.toDate ? topic.timerStartedAt.toDate().getTime() : (topic.timerStartedAt.seconds * 1000);
+        const _eMs = topic.decidedAt.toDate ? topic.decidedAt.toDate().getTime() : (topic.decidedAt.seconds * 1000);
+        const _actMin = Math.round((_eMs - _sMs) / 60000);
+        text += '   Duration: ' + _actMin + 'm (allocated: ' + (topic.timeLimit||10) + 'm)\n';
+      }
+      if(!isConsensus && finalists.length > 0){
+        const voteStrs = finalists.map(fId => {
+          const opt = options.find(o => o.id === fId);
+          return opt ? opt.text + ': ' + (votes[fId]||0) : '';
+        }).filter(Boolean);
+        text += '   Votes: ' + voteStrs.join(' | ') + ' (' + totalVotes + ' total)\n';
+        // Per-person votes
+        const nv = topic.namedVotes || {};
+        if(Object.keys(nv).length > 0){
+          Object.entries(nv).forEach(([name, oId]) => {
+            const opt = options.find(o => o.id === oId);
+            text += '     ' + name + ' -> ' + (opt ? opt.text : '?') + '\n';
+          });
+        }
+      }
+      if((topic.notes||'').trim()){
+        text += '   Notes: ' + topic.notes.trim() + '\n';
+      }
+      // Participation
+      const sLog = topic.speakerLog || {};
+      const allParts = (_meetingDoc.participants||[]);
+      if(allParts.length > 0 && Object.values(sLog).some(s => s > 0)){
+        text += '   Participation:\n';
+        allParts.forEach(p => {
+          const sec = sLog[p.name] || 0;
+          if(sec > 0){ const m=Math.floor(sec/60),s=sec%60; text += '     ' + p.name + ': ' + (m>0?m+'m '+s+'s':s+'s') + '\n'; }
+          else { text += '     ' + p.name + ': did not speak\n'; }
+        });
+      }
+      if(actionItems.length > 0){
+        text += '   Action Items:\n';
+        actionItems.forEach(ai => {
+          let aiLine = '     - ' + ai.task + ' (' + ai.owner + ')';
+          if(ai.dueDate) aiLine += ' [Due: ' + ai.dueDate + ']';
+          text += aiLine + '\n';
+        });
+      }
+      text += '\n';
+    });
+  }
+
+  // Include tabled topics
+  const tabledTopics = topics.filter(t => t.phase === 'TABLED');
+  if(tabledTopics.length > 0){
+    text += 'TABLED TOPICS:\n';
+    tabledTopics.forEach(t => { text += '  - ' + t.title + '\n'; });
+    text += '\n';
+  }
+
+  text += '---\nGenerated by DecisionOps';
+
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById('btnCopySummary');
+    if(btn){
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      btn.style.color = 'var(--ok)';
+      btn.style.borderColor = 'rgba(63,231,182,.4)';
+      setTimeout(() => { btn.textContent = orig; btn.style.color = 'var(--muted)'; btn.style.borderColor = 'var(--border)'; }, 2000);
+    }
+  } catch(err){
+    console.error(err);
+    alert('Failed to copy: ' + (err.message||err));
+  }
+}
+
 // ===== PRINT SUMMARY =====
 function printSummary(){
   if(!_meetingDoc) return;
@@ -1575,23 +2598,64 @@ function printSummary(){
 
     topicsHtml += '<div class="topic-section">';
     topicsHtml += '<h3>' + (i+1) + '. ' + esc(topic.title) + '</h3>';
+    if(topic.submittedBy) topicsHtml += '<p class="desc" style="font-size:9pt;color:#888">Submitted by: ' + esc(topic.submittedBy) + '</p>';
     if(topic.description) topicsHtml += '<p class="desc">' + esc(topic.description) + '</p>';
 
-    topicsHtml += '<div class="decision"><strong>Decision:</strong> ' + esc(winOpt ? winOpt.text : 'N/A') + '</div>';
+    const isConsensus = !!topic.consensusDecision;
+    topicsHtml += '<div class="decision"><strong>Decision' + (isConsensus ? ' (Consensus)' : '') + ':</strong> ' + esc(winOpt ? winOpt.text : 'N/A') + '</div>';
+    if(topic.timerStartedAt && topic.decidedAt){
+      const _sMs2 = topic.timerStartedAt.toDate ? topic.timerStartedAt.toDate().getTime() : (topic.timerStartedAt.seconds * 1000);
+      const _eMs2 = topic.decidedAt.toDate ? topic.decidedAt.toDate().getTime() : (topic.decidedAt.seconds * 1000);
+      const _actMin2 = Math.round((_eMs2 - _sMs2) / 60000);
+      const _allocMin2 = topic.timeLimit || 10;
+      const _dColor = _actMin2 <= _allocMin2 ? '#2ecc71' : _actMin2 <= _allocMin2 * 1.25 ? '#e67e22' : '#e74c3c';
+      topicsHtml += '<div style="font-size:10pt;color:' + _dColor + ';font-weight:bold;margin-bottom:4pt">Duration: ' + _actMin2 + 'm (allocated: ' + _allocMin2 + 'm)</div>';
+    }
 
-    topicsHtml += '<div class="votes">Votes: ';
-    finalists.forEach((fId, fi) => {
-      const opt = options.find(o => o.id === fId);
-      if(!opt) return;
-      topicsHtml += esc(opt.text) + ': <strong>' + (votes[fId]||0) + '</strong>';
-      if(fi < finalists.length - 1) topicsHtml += ' &bull; ';
-    });
-    topicsHtml += ' (' + totalVotes + ' total)</div>';
+    if(!isConsensus){
+      topicsHtml += '<div class="votes">Votes: ';
+      finalists.forEach((fId, fi) => {
+        const opt = options.find(o => o.id === fId);
+        if(!opt) return;
+        topicsHtml += esc(opt.text) + ': <strong>' + (votes[fId]||0) + '</strong>';
+        if(fi < finalists.length - 1) topicsHtml += ' &bull; ';
+      });
+      topicsHtml += ' (' + totalVotes + ' total)</div>';
+      // Per-person votes
+      const nv = topic.namedVotes || {};
+      if(Object.keys(nv).length > 0){
+        topicsHtml += '<div class="votes" style="margin-top:4pt"><em>Per person:</em> ';
+        topicsHtml += Object.entries(nv).map(([name, oId]) => {
+          const opt = options.find(o => o.id === oId);
+          return esc(name) + ' &rarr; ' + esc(opt ? opt.text : '?');
+        }).join(' &bull; ');
+        topicsHtml += '</div>';
+      }
+    }
+
+    if((topic.notes||'').trim()){
+      topicsHtml += '<div class="actions" style="margin-top:6pt"><strong>Notes:</strong><p style="margin:4pt 0 0;white-space:pre-wrap;font-size:10pt;color:#444">' + esc(topic.notes) + '</p></div>';
+    }
+
+    // Participation
+    const sLog = topic.speakerLog || {};
+    const allParts = (_meetingDoc.participants||[]);
+    if(allParts.length > 0 && Object.values(sLog).some(s => s > 0)){
+      topicsHtml += '<div class="actions" style="margin-top:6pt"><strong>Participation:</strong> ';
+      topicsHtml += allParts.map(p => {
+        const sec = sLog[p.name] || 0;
+        if(sec > 0){ const m=Math.floor(sec/60),s=sec%60; return esc(p.name)+': '+(m>0?m+'m '+s+'s':s+'s'); }
+        return esc(p.name)+': did not speak';
+      }).join(' &bull; ');
+      topicsHtml += '</div>';
+    }
 
     if(actionItems.length > 0){
       topicsHtml += '<div class="actions"><strong>Action Items:</strong><ul>';
       actionItems.forEach(ai => {
-        topicsHtml += '<li>' + esc(ai.task) + ' — <em>' + esc(ai.owner) + '</em></li>';
+        topicsHtml += '<li>' + esc(ai.task) + ' — <em>' + esc(ai.owner) + '</em>';
+        if(ai.dueDate) topicsHtml += ' <span style="color:#888;font-size:9pt">[Due: ' + esc(ai.dueDate) + ']</span>';
+        topicsHtml += '</li>';
       });
       topicsHtml += '</ul></div>';
     }
@@ -1620,7 +2684,7 @@ function printSummary(){
   '@media print{body{padding:0.4in 0.6in}@page{margin:0.4in}}' +
   '</style></head><body>' +
   '<h1>Meeting Summary</h1>' +
-  '<div class="meta">' + esc(_meetingDoc.title) + ' &bull; ' + esc(dateStr) + '<br/>Participants: ' + (participants || 'None recorded') + '</div>' +
+  '<div class="meta">' + esc(_meetingDoc.title) + ' &bull; ' + esc(dateStr) + (_meetingDoc.facilitatorName ? '<br/>Facilitator: <strong>' + esc(_meetingDoc.facilitatorName) + '</strong>' : '') + '<br/>Participants: ' + (participants || 'None recorded') + '</div>' +
   (decided.length === 0 ? '<p style="text-align:center;color:#666">No decisions recorded.</p>' : topicsHtml) +
   '<div class="footer">Generated by DecisionOps &bull; ' + esc(dateStr) + '</div>' +
   '</body></html>');
