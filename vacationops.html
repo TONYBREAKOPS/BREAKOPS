@@ -3,16 +3,18 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>VacationOps</title>
+<title>AttendanceOps</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23070c16'/%3E%3Ccircle cx='32' cy='32' r='30' fill='none' stroke='%23c0c8d4' stroke-width='2'/%3E%3Cpath d='M16 32 Q24 14 32 14 Q40 14 48 32' fill='none' stroke='%23e8ecf0' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='32' y1='14' x2='32' y2='48' stroke='%23e8ecf0' stroke-width='2.5' stroke-linecap='round'/%3E%3Cpath d='M32 48 Q32 52 36 50' fill='none' stroke='%23e8ecf0' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"/>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <style>
 :root{
   --bg:#0b0f14;--card:#111826;--panel:#0c1320;
   --muted:#9aa4b2;--text:#e7eef8;--accent:#34d399;
   --border:#233043;--ok:#3fe7b6;--bad:#ff6b6b;--warn:#ffe066;
+  --train:#60a5fa;
 }
 *,*::before,*::after{box-sizing:border-box}
 body{margin:0;min-height:100vh;font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--text);background:var(--bg)}
@@ -46,14 +48,46 @@ main{max-width:900px;margin:0 auto;padding:20px 18px}
 .card-header{padding:12px 14px;font-size:12px;font-weight:800;letter-spacing:.35px;color:var(--text);background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
 .card-body{padding:14px}
 
+/* List type selector */
+.list-type-bar{display:flex;gap:0;margin-bottom:16px;border-radius:10px;overflow:hidden;border:1px solid var(--border);width:fit-content}
+.list-type-btn{padding:10px 24px;border:none;background:var(--panel);color:var(--muted);font-size:13px;font-weight:800;letter-spacing:.04em;cursor:pointer;transition:background .15s,color .15s}
+.list-type-btn:hover{background:rgba(255,255,255,.04);color:var(--text)}
+#btnTypeVac.active{background:rgba(52,211,153,.12);color:var(--accent)}
+#btnTypeTrain.active{background:rgba(96,165,250,.12);color:var(--train)}
+#btnTypeAbs.active{background:rgba(255,107,107,.12);color:var(--bad)}
+
+/* Absence type badges */
+.abs-type-tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:800;letter-spacing:.04em}
+.abs-type-tag.absent{background:rgba(255,107,107,.12);color:var(--bad);border:1px solid rgba(255,107,107,.25)}
+.abs-type-tag.tardy{background:rgba(255,224,102,.12);color:var(--warn);border:1px solid rgba(255,224,102,.25)}
+.abs-type-tag.partial{background:rgba(255,165,0,.12);color:#ffa500;border:1px solid rgba(255,165,0,.25)}
+
+/* Grouped absence sections */
+.abs-group{margin-bottom:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.abs-group-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+.abs-group-header:hover{background:rgba(255,255,255,.03)}
+.abs-group-name{font-size:14px;font-weight:800;color:var(--text)}
+.abs-group-count{font-size:12px;font-weight:800;color:var(--bad)}
+.abs-group-body{background:var(--card)}
+
 /* Month selector */
 .month-bar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
 .month-bar button{padding:8px 14px;border-radius:10px;border:1px solid var(--border);background:var(--panel);color:var(--text);cursor:pointer;font-weight:700;font-size:13px}
 .month-bar button:hover{background:rgba(255,255,255,.06)}
 .month-bar .month-label{font-size:18px;font-weight:900;min-width:180px;text-align:center}
+.month-bar .btn-all{border-color:var(--border);background:var(--panel);color:var(--text)}
+.month-bar .btn-all.active{border-color:var(--accent);background:rgba(52,211,153,.12);color:var(--accent)}
+
+/* Filter bar */
+.filter-bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.filter-bar label{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.06em}
+.filter-bar select,.filter-bar input[type="text"]{padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:13px;outline:none;font-weight:600}
+.filter-bar select:focus,.filter-bar input[type="text"]:focus{border-color:var(--accent)}
+.filter-sep{width:1px;height:20px;background:var(--border);margin:0 4px}
+.month-tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:800;letter-spacing:.04em;background:rgba(52,211,153,.10);color:var(--accent);border:1px solid rgba(52,211,153,.2)}
 
 /* Form */
-.vac-form{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;padding:14px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.02)}
+.vac-form{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;padding:14px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.02)}
 .vac-form .field{display:flex;flex-direction:column;gap:4px}
 .vac-form .field label{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.06em}
 .vac-form .field input,.vac-form .field select{padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:13px;outline:none}
@@ -61,6 +95,8 @@ main{max-width:900px;margin:0 auto;padding:20px 18px}
 .btn-add{padding:8px 18px;border-radius:8px;border:none;background:var(--accent);color:#000;font-size:13px;font-weight:800;cursor:pointer}
 .btn-add:hover{opacity:.9}
 .btn-add:disabled{opacity:.4;cursor:not-allowed}
+.btn-add-train{padding:8px 18px;border-radius:8px;border:none;background:var(--train);color:#000;font-size:13px;font-weight:800;cursor:pointer}
+.btn-add-train:hover{opacity:.9}
 
 /* Table */
 .vac-table{width:100%;border-collapse:collapse;font-size:13px}
@@ -73,10 +109,44 @@ main{max-width:900px;margin:0 auto;padding:20px 18px}
 .vac-table .edit-btn{color:var(--accent);cursor:pointer;font-size:12px;opacity:.5;transition:opacity .15s;border:none;background:none;padding:2px 6px;font-weight:700}
 .vac-table .edit-btn:hover{opacity:1}
 .empty-msg{text-align:center;padding:20px;color:var(--muted);font-size:13px}
+.vac-table tr.imported td{background:rgba(255,224,102,.06);border-left:3px solid var(--warn)}
+.import-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:800;background:rgba(255,224,102,.15);color:var(--warn);border:1px solid rgba(255,224,102,.25);margin-left:6px;vertical-align:middle}
+
+/* Site tags */
+.site-tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:800;letter-spacing:.04em}
+.site-tag.on{background:rgba(52,211,153,.12);color:var(--accent);border:1px solid rgba(52,211,153,.25)}
+.site-tag.off{background:rgba(255,107,107,.12);color:var(--bad);border:1px solid rgba(255,107,107,.25)}
 
 /* Synced-to info */
 .sync-info{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
 .sync-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;font-size:10px;font-weight:700;border:1px solid rgba(52,211,153,.3);background:rgba(52,211,153,.06);color:#d7ffe9}
+
+/* Import */
+.import-drop{border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s}
+.import-drop:hover,.import-drop.dragover{border-color:var(--accent);background:rgba(52,211,153,.04)}
+.import-drop input{display:none}
+.import-log{margin-top:12px;max-height:300px;overflow-y:auto;font-size:12px;font-family:monospace;background:rgba(0,0,0,.3);border-radius:8px;padding:10px;display:none}
+.import-log.show{display:block}
+.import-log .ok{color:var(--ok)} .import-log .err{color:var(--bad)} .import-log .warn{color:var(--warn)}
+.import-log div{padding:1px 0}
+.import-preview{margin-top:10px;max-height:250px;overflow-y:auto;font-size:12px}
+.import-preview table{width:100%;border-collapse:collapse}
+.import-preview th{text-align:left;padding:4px 8px;font-size:10px;font-weight:800;color:var(--muted);border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel)}
+.import-preview td{padding:4px 8px;border-bottom:1px solid rgba(255,255,255,.04)}
+.btn-upload{padding:10px 24px;border-radius:8px;border:none;background:var(--accent);color:#000;font-size:14px;font-weight:800;cursor:pointer;margin-top:10px}
+.btn-upload:hover{opacity:.9}
+.btn-upload:disabled{opacity:.4;cursor:not-allowed}
+
+/* Disambiguation modal */
+.disambig-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50000;display:flex;align-items:center;justify-content:center}
+.disambig-box{background:var(--card);border:1px solid var(--warn);border-radius:14px;padding:24px 28px;max-width:420px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.disambig-box h3{margin:0 0 6px;font-size:16px;color:var(--warn)}
+.disambig-box .disambig-info{font-size:12px;color:var(--muted);margin-bottom:16px}
+.disambig-box .disambig-info strong{color:var(--text)}
+.disambig-box .disambig-btn{display:block;width:100%;padding:10px 14px;margin-bottom:8px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;text-align:left;transition:border-color .15s,background .15s}
+.disambig-box .disambig-btn:hover{border-color:var(--accent);background:rgba(52,211,153,.06)}
+.disambig-box .disambig-skip{display:block;width:100%;padding:8px 14px;margin-top:4px;border-radius:8px;border:1px solid rgba(255,107,107,.3);background:rgba(255,107,107,.06);color:var(--bad);font-size:12px;font-weight:700;cursor:pointer;text-align:center}
+.disambig-box .disambig-skip:hover{background:rgba(255,107,107,.12)}
 
 /* Toast */
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:10px;background:var(--card);border:1px solid var(--accent);color:var(--text);font-size:13px;font-weight:700;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
@@ -88,8 +158,8 @@ main{max-width:900px;margin:0 auto;padding:20px 18px}
 <!-- Login -->
 <div id="loginOverlay">
   <div class="login-box">
-    <h2>VacationOps</h2>
-    <p class="subtitle">Sign in to manage vacations</p>
+    <h2>AttendanceOps</h2>
+    <p class="subtitle">Sign in to manage attendance</p>
     <div id="loginError" class="login-error"></div>
     <form id="loginForm">
       <label>Email</label>
@@ -111,8 +181,8 @@ main{max-width:900px;margin:0 auto;padding:20px 18px}
       <line x1="40" y1="20" x2="40" y2="16" stroke="#34d399" stroke-width="2" stroke-linecap="round"/>
     </svg>
     <div>
-      <h1>VacationOps</h1>
-      <span style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:600">Vacation &amp; Time Off Manager</span>
+      <h1>AttendanceOps</h1>
+      <span style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:600">Attendance Manager</span>
     </div>
     <div id="userInfo" style="margin-left:auto;display:none;align-items:center;gap:10px;font-size:12px">
       <span class="pill good" id="pillStatus" style="font-size:10px;padding:4px 8px">Loading...</span>
@@ -123,42 +193,146 @@ main{max-width:900px;margin:0 auto;padding:20px 18px}
 </header>
 
 <main id="mainArea">
+  <!-- List type selector -->
+  <div class="list-type-bar">
+    <button class="list-type-btn active" id="btnTypeVac" onclick="setListType('vac')">VACATIONS</button>
+    <button class="list-type-btn" id="btnTypeTrain" onclick="setListType('train')">TRAINING</button>
+    <button class="list-type-btn" id="btnTypeAbs" onclick="setListType('abs')">ABSENCES</button>
+  </div>
   <!-- Month selector -->
   <div class="month-bar">
-    <button onclick="changeMonth(-1)">&larr; Prev</button>
+    <button id="btnPrev" onclick="changeMonth(-1)">&larr; Prev</button>
     <div class="month-label" id="monthLabel">--</div>
-    <button onclick="changeMonth(1)">Next &rarr;</button>
+    <button id="btnNext" onclick="changeMonth(1)">Next &rarr;</button>
+    <button class="btn-all" id="btnAll" onclick="toggleAllView()">ALL</button>
+  </div>
+  <!-- Filter bar -->
+  <div class="filter-bar" id="filterBar" style="display:none">
+    <label>MONTH</label>
+    <select id="filterMonth" onchange="renderAll()">
+      <option value="">All months</option>
+    </select>
+    <div class="filter-sep"></div>
+    <label>EMPLOYEE</label>
+    <input type="text" id="filterEmployee" placeholder="Search name..." oninput="renderAll()" style="width:150px"/>
+    <span id="filterCount" style="font-size:11px;color:var(--muted)"></span>
   </div>
 
-  <!-- Add form -->
-  <div class="card">
-    <div class="card-header">ADD VACATION / TIME OFF</div>
-    <div class="card-body">
-      <div class="vac-form">
-        <div class="field" style="flex:1;min-width:150px">
-          <label>EMPLOYEE</label>
-          <select id="vacEmployee"><option value="">Select employee...</option></select>
+  <!-- Vacation section -->
+  <div id="sectionVac">
+    <!-- Add vacation form -->
+    <div class="card">
+      <div class="card-header">ADD VACATION / TIME OFF</div>
+      <div class="card-body">
+        <div class="vac-form">
+          <div class="field" style="flex:1;min-width:150px">
+            <label>EMPLOYEE</label>
+            <select id="vacEmployee"><option value="">Select employee...</option></select>
+          </div>
+          <div class="field">
+            <label>FROM</label>
+            <input type="date" id="vacFrom"/>
+          </div>
+          <div class="field">
+            <label>TO</label>
+            <input type="date" id="vacTo"/>
+          </div>
+          <button class="btn-add" onclick="addVacation()">+ ADD</button>
         </div>
-        <div class="field">
-          <label>FROM</label>
-          <input type="date" id="vacFrom"/>
+      </div>
+    </div>
+
+    <!-- Vacation list -->
+    <div class="card">
+      <div class="card-header">
+        <span>VACATIONS &mdash; <span id="vacCount">0</span> entries</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="text" id="vacEmployeeSearch" placeholder="Search employee..." oninput="renderAll()" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:12px;font-weight:600;outline:none;width:180px"/>
+          <button onclick="fixMisplacedEntries()" style="padding:4px 12px;font-size:10px;font-weight:800;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--warn);cursor:pointer;letter-spacing:.04em">FIX MISPLACED</button>
         </div>
-        <div class="field">
-          <label>TO</label>
-          <input type="date" id="vacTo"/>
+      </div>
+      <div class="card-body" id="vacListArea">
+        <div class="empty-msg">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Import from xlsx -->
+    <div class="card">
+      <div class="card-header" style="border-color:rgba(255,224,102,.25)">IMPORT VACATIONS FROM XLSX</div>
+      <div class="card-body">
+        <div class="import-drop" id="importDrop" onclick="document.getElementById('importFiles').click()">
+          <input type="file" id="importFiles" multiple accept=".xlsx,.xls" onchange="handleImportFiles(this.files)"/>
+          <div style="font-size:13px;font-weight:700;margin-bottom:4px">Drop .xlsx files here or click to browse</div>
+          <div style="font-size:11px;color:var(--muted)">Supports: Call Taker, Dispatcher, Leads, PIC, SUP vacation sign-up sheets</div>
         </div>
-        <button class="btn-add" onclick="addVacation()">+ ADD</button>
+        <div id="importStatus" style="display:none;margin-top:10px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,224,102,.3);background:rgba(255,224,102,.06);font-size:12px;font-weight:700;color:var(--warn)"></div>
+        <div id="importActions" style="display:none;margin-top:10px">
+          <button class="btn-upload" id="btnImportUpload" onclick="doImportUpload()">Commit to Firestore</button>
+          <button onclick="exportImportJSON()" style="padding:10px 16px;border-radius:8px;border:1px solid rgba(255,224,102,.3);background:rgba(255,224,102,.08);color:var(--warn);font-size:13px;font-weight:700;cursor:pointer;margin-left:8px">Copy JSON</button>
+          <button onclick="clearImport()" style="padding:10px 16px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;margin-left:8px">Discard Import</button>
+        </div>
+        <div class="import-log" id="importLog"></div>
       </div>
     </div>
   </div>
 
-  <!-- Vacation list -->
-  <div class="card">
-    <div class="card-header">
-      <span>VACATIONS &mdash; <span id="vacCount">0</span> entries</span>
+  <!-- Training section -->
+  <div id="sectionTrain" style="display:none">
+    <!-- Add training form -->
+    <div class="card">
+      <div class="card-header" style="border-color:rgba(96,165,250,.25)">ADD TRAINING</div>
+      <div class="card-body">
+        <div class="vac-form">
+          <div class="field" style="flex:1;min-width:150px">
+            <label>EMPLOYEE</label>
+            <select id="trainEmployee"><option value="">Select employee...</option></select>
+          </div>
+          <div class="field">
+            <label>FROM</label>
+            <input type="date" id="trainFrom"/>
+          </div>
+          <div class="field">
+            <label>TO</label>
+            <input type="date" id="trainTo"/>
+          </div>
+          <div class="field">
+            <label>LOCATION</label>
+            <select id="trainSite" style="min-width:110px">
+              <option value="ON_SITE">On Site</option>
+              <option value="OFF_SITE">Off Site</option>
+            </select>
+          </div>
+          <button class="btn-add-train" onclick="addTraining()">+ ADD</button>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--muted)">Off Site &rarr; ShiftOps marks as absent (reason: Training). On Site &rarr; present as normal.</div>
+      </div>
     </div>
-    <div class="card-body" id="vacListArea">
-      <div class="empty-msg">Loading...</div>
+
+    <!-- Training list -->
+    <div class="card">
+      <div class="card-header" style="border-color:rgba(96,165,250,.25)">
+        <span>TRAINING &mdash; <span id="trainCount">0</span> entries</span>
+      </div>
+      <div class="card-body" id="trainListArea">
+        <div class="empty-msg">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Absences section -->
+  <div id="sectionAbs" style="display:none">
+    <!-- Search + Table -->
+    <div class="card">
+      <div class="card-header" style="border-color:rgba(255,107,107,.25)">
+        <span>ABSENCES &mdash; <span id="absCount">0</span> entries</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="text" id="absEmployeeSearch" placeholder="Search employee..." oninput="renderAbsList()" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:12px;font-weight:600;outline:none;width:180px"/>
+          <button onclick="dismissAllAbsences()" style="padding:5px 12px;font-size:10px;font-weight:800;border-radius:6px;border:1px solid rgba(255,107,107,.3);background:rgba(255,107,107,.08);color:var(--bad);cursor:pointer;letter-spacing:.04em;white-space:nowrap">DISMISS ALL</button>
+        </div>
+      </div>
+      <div class="card-body" id="absListArea">
+        <div class="empty-msg">Loading...</div>
+      </div>
     </div>
   </div>
 
@@ -170,7 +344,7 @@ main{max-width:900px;margin:0 auto;padding:20px 18px}
       <span class="sync-chip">StaffingOps</span>
       <span class="sync-chip">RotationOps</span>
     </div>
-    <div style="font-size:11px;color:var(--muted);margin-top:8px">Changes here are reflected in all apps that use the vacation list in real time.</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px">Changes here are reflected in all apps that use the attendance data in real time.</div>
   </div>
 </main>
 
@@ -235,10 +409,41 @@ document.addEventListener('DOMContentLoaded', () => {
 // State
 let _employees = [];
 let _vacations = [];
+let _training = [];
 let _vacUnsub = null;
 let _vacSaveTs = 0;
 let _initDone = false;
 let _currentYear, _currentMonth; // 1-based month
+let _allMode = false;
+let _allVacations = [];  // [{name,from,to,monthKey,monthLabel,docId}]
+let _allTraining = [];   // [{name,from,to,site,monthKey,monthLabel,docId}]
+let _allUnsubs = [];
+let _listType = 'vac'; // 'vac', 'train', or 'abs'
+
+// Absence state
+let _absences = [];
+let _allAbsences = [];
+let _absLoading = false;
+let _dismissedAbs = new Set();
+const ABS_TRACK_REASONS = new Set(['SICK','FAMILY','PERSONAL','FMLA']);
+
+function setListType(type){
+  _listType = type;
+  document.getElementById('btnTypeVac').classList.toggle('active', type === 'vac');
+  document.getElementById('btnTypeTrain').classList.toggle('active', type === 'train');
+  document.getElementById('btnTypeAbs').classList.toggle('active', type === 'abs');
+  document.getElementById('sectionVac').style.display = type === 'vac' ? '' : 'none';
+  document.getElementById('sectionTrain').style.display = type === 'train' ? '' : 'none';
+  document.getElementById('sectionAbs').style.display = type === 'abs' ? '' : 'none';
+  if(type === 'abs' && _absences.length === 0 && !_absLoading && !_allMode){
+    loadAbsencesForMonth(_currentYear, _currentMonth);
+  }
+  if(type === 'abs' && _allMode && _allAbsences.length === 0 && !_absLoading){
+    loadAllAbsences();
+  }
+}
+
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 function esc(s){
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/'/g,"&#39;").replace(/"/g,"&quot;");
@@ -252,7 +457,8 @@ async function init(){
   _currentYear = now.getFullYear();
   _currentMonth = now.getMonth() + 1;
   await loadEmployees();
-  populateEmployeeDropdown();
+  populateEmployeeDropdowns();
+  loadDismissed();
   loadAndListen();
 }
 
@@ -274,17 +480,19 @@ async function loadEmployees(){
   }
 }
 
-function populateEmployeeDropdown(){
-  const sel = document.getElementById('vacEmployee');
-  sel.innerHTML = '<option value="">Select employee...</option>';
-  _employees.forEach(e => {
-    sel.innerHTML += '<option value="' + esc(e.name) + '">' + esc(e.name) + '</option>';
+function populateEmployeeDropdowns(){
+  ['vacEmployee','trainEmployee'].forEach(id => {
+    const sel = document.getElementById(id);
+    sel.innerHTML = '<option value="">Select employee...</option>';
+    _employees.forEach(e => {
+      sel.innerHTML += '<option value="' + esc(e.name) + '">' + esc(e.name) + '</option>';
+    });
   });
 }
 
 // Firestore vacation doc
 function getVacDocRef(){
-  const moIdx = _currentMonth - 1; // 0-based for rotationops convention
+  const moIdx = _currentMonth - 1;
   return db.collection('rotation_plans').doc('rotation_' + _currentYear + '_' + moIdx);
 }
 
@@ -292,28 +500,41 @@ function loadAndListen(){
   if(_vacUnsub) _vacUnsub();
   updateMonthLabel();
 
-  // Initial load
+  // Reload absences if tab active
+  if(_listType === 'abs') loadAbsencesForMonth(_currentYear, _currentMonth);
+
   getVacDocRef().get().then(doc => {
-    if(doc.exists && Array.isArray(doc.data().vacations)){
-      _vacations = doc.data().vacations;
+    if(doc.exists){
+      const d = doc.data();
+      _vacations = Array.isArray(d.vacations) ? d.vacations : [];
+      _training = Array.isArray(d.training) ? d.training : [];
     } else {
       _vacations = [];
+      _training = [];
     }
-    renderVacList();
-  }).catch(e => { console.warn(e); _vacations = []; renderVacList(); });
+    renderAll();
+  }).catch(e => { console.warn(e); _vacations = []; _training = []; renderAll(); });
 
-  // Realtime listener
   _vacUnsub = getVacDocRef().onSnapshot(doc => {
     if(Date.now() - _vacSaveTs < 3000) return;
     if(!doc.exists) return;
     const data = doc.data();
+    let changed = false;
     if(Array.isArray(data.vacations)){
       const incoming = JSON.stringify(data.vacations);
       if(incoming !== JSON.stringify(_vacations)){
         _vacations = data.vacations;
-        renderVacList();
+        changed = true;
       }
     }
+    if(Array.isArray(data.training)){
+      const incoming = JSON.stringify(data.training);
+      if(incoming !== JSON.stringify(_training)){
+        _training = data.training;
+        changed = true;
+      }
+    }
+    if(changed) renderAll();
   });
 }
 
@@ -324,8 +545,16 @@ function saveVacations(){
     .catch(e => { console.warn(e); showToast('Save failed: ' + (e.message||e)); });
 }
 
+function saveTraining(){
+  _vacSaveTs = Date.now();
+  getVacDocRef().set({ training: _training }, { merge: true })
+    .then(() => console.log('Training saved:', _training.length))
+    .catch(e => { console.warn(e); showToast('Save failed: ' + (e.message||e)); });
+}
+
 // Month navigation
 function changeMonth(dir){
+  if(_allMode) exitAllView();
   _currentMonth += dir;
   if(_currentMonth > 12){ _currentMonth = 1; _currentYear++; }
   if(_currentMonth < 1){ _currentMonth = 12; _currentYear--; }
@@ -333,45 +562,301 @@ function changeMonth(dir){
 }
 
 function updateMonthLabel(){
-  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  document.getElementById('monthLabel').textContent = months[_currentMonth-1] + ' ' + _currentYear;
+  document.getElementById('monthLabel').textContent = MONTH_NAMES[_currentMonth-1] + ' ' + _currentYear;
 }
 
-// Add vacation
-function addVacation(){
+// ALL view
+function toggleAllView(){
+  if(_allMode){ exitAllView(); return; }
+  _allMode = true;
+  document.getElementById('btnAll').classList.add('active');
+  document.getElementById('btnPrev').style.display = 'none';
+  document.getElementById('btnNext').style.display = 'none';
+  document.getElementById('monthLabel').textContent = 'ALL MONTHS';
+  document.getElementById('filterBar').style.display = 'flex';
+  if(_vacUnsub){ _vacUnsub(); _vacUnsub = null; }
+  loadAllData();
+  if(_listType === 'abs') loadAllAbsences();
+}
+
+function exitAllView(){
+  _allMode = false;
+  document.getElementById('btnAll').classList.remove('active');
+  document.getElementById('btnPrev').style.display = '';
+  document.getElementById('btnNext').style.display = '';
+  document.getElementById('filterBar').style.display = 'none';
+  document.getElementById('filterEmployee').value = '';
+  _allUnsubs.forEach(fn => fn());
+  _allUnsubs = [];
+  _allVacations = [];
+  _allTraining = [];
+  _allAbsences = [];
+  loadAndListen();
+}
+
+async function loadAllData(){
+  _allUnsubs.forEach(fn => fn());
+  _allUnsubs = [];
+  _allVacations = [];
+  _allTraining = [];
+
+  document.getElementById('vacListArea').innerHTML = '<div class="empty-msg">Loading all months...</div>';
+  document.getElementById('trainListArea').innerHTML = '<div class="empty-msg">Loading all months...</div>';
+
+  try {
+    const snap = await db.collection('rotation_plans').get();
+    const filterSel = document.getElementById('filterMonth');
+    filterSel.innerHTML = '<option value="">All months</option>';
+    const monthKeysSet = new Set();
+    const monthKeysList = [];
+
+    snap.docs.forEach(doc => {
+      const data = doc.data();
+      const m = doc.id.match(/^rotation_(\d{4})_(\d+)$/);
+      if(!m) return;
+      const year = parseInt(m[1]);
+      const moIdx = parseInt(m[2]);
+      const monthLabel = MONTH_NAMES[moIdx] + ' ' + year;
+      const monthKey = year + '-' + String(moIdx).padStart(2,'0');
+
+      const hasVac = Array.isArray(data.vacations) && data.vacations.length > 0;
+      const hasTrain = Array.isArray(data.training) && data.training.length > 0;
+      if(!hasVac && !hasTrain) return;
+
+      if(!monthKeysSet.has(monthKey)){
+        monthKeysSet.add(monthKey);
+        monthKeysList.push({ key: monthKey, label: monthLabel });
+      }
+
+      if(hasVac){
+        data.vacations.forEach(v => {
+          _allVacations.push({ name:v.name||'', from:v.from||'', to:v.to||'', monthKey, monthLabel, docId:doc.id });
+        });
+      }
+      if(hasTrain){
+        data.training.forEach(t => {
+          _allTraining.push({ name:t.name||'', from:t.from||'', to:t.to||'', site:t.site||'ON_SITE', monthKey, monthLabel, docId:doc.id });
+        });
+      }
+    });
+
+    monthKeysList.sort((a,b) => a.key.localeCompare(b.key));
+    monthKeysList.forEach(mk => {
+      filterSel.innerHTML += '<option value="' + esc(mk.key) + '">' + esc(mk.label) + '</option>';
+    });
+
+    renderAll();
+
+    // Realtime listeners per doc
+    monthKeysSet.forEach(key => {
+      const parts = key.split('-');
+      const docId = 'rotation_' + parts[0] + '_' + parseInt(parts[1]);
+      const unsub = db.collection('rotation_plans').doc(docId).onSnapshot(docSnap => {
+        if(Date.now() - _vacSaveTs < 3000) return;
+        if(!_allMode) return;
+        if(!docSnap.exists) return;
+        const d = docSnap.data();
+
+        const m2 = docId.match(/^rotation_(\d{4})_(\d+)$/);
+        if(!m2) return;
+        const yr = parseInt(m2[1]);
+        const mi = parseInt(m2[2]);
+        const mLabel = MONTH_NAMES[mi] + ' ' + yr;
+        const mKey = yr + '-' + String(mi).padStart(2,'0');
+
+        // Replace vac entries for this month
+        if(Array.isArray(d.vacations)){
+          _allVacations = _allVacations.filter(v => v.monthKey !== mKey);
+          d.vacations.forEach(v => {
+            _allVacations.push({ name:v.name||'', from:v.from||'', to:v.to||'', monthKey:mKey, monthLabel:mLabel, docId });
+          });
+        }
+        // Replace training entries for this month
+        if(Array.isArray(d.training)){
+          _allTraining = _allTraining.filter(t => t.monthKey !== mKey);
+          d.training.forEach(t => {
+            _allTraining.push({ name:t.name||'', from:t.from||'', to:t.to||'', site:t.site||'ON_SITE', monthKey:mKey, monthLabel:mLabel, docId });
+          });
+        }
+        renderAll();
+      });
+      _allUnsubs.push(unsub);
+    });
+
+  } catch(e){
+    console.error('loadAllData error:', e);
+    document.getElementById('vacListArea').innerHTML = '<div class="empty-msg">Error loading data.</div>';
+    document.getElementById('trainListArea').innerHTML = '<div class="empty-msg">Error loading data.</div>';
+  }
+}
+
+// ── Helpers for employee filter ──
+function getEmployeeFilter(){
+  const el = document.getElementById('filterEmployee');
+  return el ? el.value.trim().toUpperCase() : '';
+}
+function matchesEmployeeFilter(name, filter){
+  if(!filter) return true;
+  return name.toUpperCase().includes(filter);
+}
+
+// ── Add vacation ──
+async function addVacation(){
   const name = document.getElementById('vacEmployee').value.trim().toUpperCase();
   const from = document.getElementById('vacFrom').value;
   const to = document.getElementById('vacTo').value;
   if(!name){ showToast('Select an employee first'); return; }
   if(from && to && from > to){ showToast('FROM date must be before TO date'); return; }
-  _vacations.push({ name, from: from || '', to: to || '' });
-  saveVacations();
+
+  if(_allMode){
+    let targetYear = _currentYear, targetMo = _currentMonth;
+    if(from){
+      const d = new Date(from + 'T00:00:00');
+      targetYear = d.getFullYear();
+      targetMo = d.getMonth() + 1;
+    } else {
+      const fv = document.getElementById('filterMonth').value;
+      if(fv){
+        const parts = fv.split('-');
+        targetYear = parseInt(parts[0]);
+        targetMo = parseInt(parts[1]) + 1;
+      }
+    }
+    const moIdx = targetMo - 1;
+    const docId = 'rotation_' + targetYear + '_' + moIdx;
+    const docRef = db.collection('rotation_plans').doc(docId);
+    try {
+      _vacSaveTs = Date.now();
+      const doc = await docRef.get();
+      let vacs = (doc.exists && Array.isArray(doc.data().vacations)) ? doc.data().vacations : [];
+      vacs.push({ name, from: from||'', to: to||'' });
+      await docRef.set({ vacations: vacs }, { merge: true });
+      const mLabel = MONTH_NAMES[moIdx] + ' ' + targetYear;
+      const mKey = targetYear + '-' + String(moIdx).padStart(2,'0');
+      _allVacations.push({ name, from:from||'', to:to||'', monthKey:mKey, monthLabel:mLabel, docId });
+      renderAll();
+      showToast(name + ' added to ' + mLabel);
+    } catch(e){ console.error(e); showToast('Add failed'); }
+  } else {
+    _vacations.push({ name, from: from||'', to: to||'' });
+    saveVacations();
+    renderAll();
+    showToast(name + ' added to vacations');
+  }
+
   document.getElementById('vacEmployee').value = '';
   document.getElementById('vacFrom').value = '';
   document.getElementById('vacTo').value = '';
-  renderVacList();
-  showToast(name + ' added to vacations');
 }
 
-// Delete vacation
+// ── Add training ──
+async function addTraining(){
+  const name = document.getElementById('trainEmployee').value.trim().toUpperCase();
+  const from = document.getElementById('trainFrom').value;
+  const to = document.getElementById('trainTo').value;
+  const site = document.getElementById('trainSite').value;
+  if(!name){ showToast('Select an employee first'); return; }
+  if(from && to && from > to){ showToast('FROM date must be before TO date'); return; }
+
+  if(_allMode){
+    let targetYear = _currentYear, targetMo = _currentMonth;
+    if(from){
+      const d = new Date(from + 'T00:00:00');
+      targetYear = d.getFullYear();
+      targetMo = d.getMonth() + 1;
+    } else {
+      const fv = document.getElementById('filterMonth').value;
+      if(fv){
+        const parts = fv.split('-');
+        targetYear = parseInt(parts[0]);
+        targetMo = parseInt(parts[1]) + 1;
+      }
+    }
+    const moIdx = targetMo - 1;
+    const docId = 'rotation_' + targetYear + '_' + moIdx;
+    const docRef = db.collection('rotation_plans').doc(docId);
+    try {
+      _vacSaveTs = Date.now();
+      const doc = await docRef.get();
+      let arr = (doc.exists && Array.isArray(doc.data().training)) ? doc.data().training : [];
+      arr.push({ name, from:from||'', to:to||'', site });
+      await docRef.set({ training: arr }, { merge: true });
+      const mLabel = MONTH_NAMES[moIdx] + ' ' + targetYear;
+      const mKey = targetYear + '-' + String(moIdx).padStart(2,'0');
+      _allTraining.push({ name, from:from||'', to:to||'', site, monthKey:mKey, monthLabel:mLabel, docId });
+      renderAll();
+      showToast(name + ' training added to ' + mLabel);
+    } catch(e){ console.error(e); showToast('Add failed'); }
+  } else {
+    _training.push({ name, from:from||'', to:to||'', site });
+    saveTraining();
+    renderAll();
+    showToast(name + ' training added');
+  }
+
+  document.getElementById('trainEmployee').value = '';
+  document.getElementById('trainFrom').value = '';
+  document.getElementById('trainTo').value = '';
+  document.getElementById('trainSite').value = 'ON_SITE';
+}
+
+// ── Delete vacation (single month) ──
 function deleteVacation(idx){
   const name = _vacations[idx] ? _vacations[idx].name : '';
   _vacations.splice(idx, 1);
   saveVacations();
-  renderVacList();
+  renderAll();
   showToast(name + ' removed from vacations');
 }
 
-// Edit vacation (inline)
+// ── Delete training (single month) ──
+function deleteTraining(idx){
+  const name = _training[idx] ? _training[idx].name : '';
+  _training.splice(idx, 1);
+  saveTraining();
+  renderAll();
+  showToast(name + ' removed from training');
+}
+
+// ── Delete from ALL view ──
+async function deleteAllVac(docId, name, from, to){
+  try {
+    const docRef = db.collection('rotation_plans').doc(docId);
+    const doc = await docRef.get();
+    if(!doc.exists) return;
+    let vacs = doc.data().vacations || [];
+    const idx = vacs.findIndex(v => v.name === name && v.from === from && v.to === to);
+    if(idx === -1){ showToast('Entry not found'); return; }
+    vacs.splice(idx, 1);
+    _vacSaveTs = Date.now();
+    await docRef.set({ vacations: vacs }, { merge: true });
+    _allVacations = _allVacations.filter(v => !(v.docId === docId && v.name === name && v.from === from && v.to === to));
+    renderAll();
+    showToast(name + ' removed');
+  } catch(e){ console.error(e); showToast('Delete failed'); }
+}
+
+async function deleteAllTrain(docId, name, from, to, site){
+  try {
+    const docRef = db.collection('rotation_plans').doc(docId);
+    const doc = await docRef.get();
+    if(!doc.exists) return;
+    let arr = doc.data().training || [];
+    const idx = arr.findIndex(t => t.name === name && t.from === from && t.to === to && t.site === site);
+    if(idx === -1){ showToast('Entry not found'); return; }
+    arr.splice(idx, 1);
+    _vacSaveTs = Date.now();
+    await docRef.set({ training: arr }, { merge: true });
+    _allTraining = _allTraining.filter(t => !(t.docId === docId && t.name === name && t.from === from && t.to === to && t.site === site));
+    renderAll();
+    showToast(name + ' removed');
+  } catch(e){ console.error(e); showToast('Delete failed'); }
+}
+
+// ── Edit vacation (inline, single-month) ──
 let _editingIdx = -1;
-function startEdit(idx){
-  _editingIdx = idx;
-  renderVacList();
-}
-function cancelEdit(){
-  _editingIdx = -1;
-  renderVacList();
-}
+function startEdit(idx){ _editingIdx = idx; renderAll(); }
+function cancelEdit(){ _editingIdx = -1; renderAll(); }
 function saveEdit(idx){
   const fromEl = document.getElementById('editFrom_' + idx);
   const toEl = document.getElementById('editTo_' + idx);
@@ -382,23 +867,62 @@ function saveEdit(idx){
   }
   _editingIdx = -1;
   saveVacations();
-  renderVacList();
+  renderAll();
   showToast('Updated ' + _vacations[idx].name);
 }
 
-// Render
+// ── Edit training (inline, single-month) ──
+let _editingTrainIdx = -1;
+function startEditTrain(idx){ _editingTrainIdx = idx; renderAll(); }
+function cancelEditTrain(){ _editingTrainIdx = -1; renderAll(); }
+function saveEditTrain(idx){
+  const fromEl = document.getElementById('editTrainFrom_' + idx);
+  const toEl = document.getElementById('editTrainTo_' + idx);
+  const siteEl = document.getElementById('editTrainSite_' + idx);
+  if(fromEl) _training[idx].from = fromEl.value || '';
+  if(toEl) _training[idx].to = toEl.value || '';
+  if(siteEl) _training[idx].site = siteEl.value;
+  if(_training[idx].from && _training[idx].to && _training[idx].from > _training[idx].to){
+    showToast('FROM must be before TO'); return;
+  }
+  _editingTrainIdx = -1;
+  saveTraining();
+  renderAll();
+  showToast('Updated ' + _training[idx].name);
+}
+
+// ══════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════
+function renderAll(){
+  if(_allMode){
+    renderAllVacList();
+    renderAllTrainList();
+    if(_listType === 'abs'){ renderAbsList(); }
+  } else {
+    renderVacList();
+    renderTrainList();
+    if(_listType === 'abs'){ renderAbsList(); }
+  }
+}
+
+// ── Single-month vacation ──
 function renderVacList(){
   const area = document.getElementById('vacListArea');
   const countEl = document.getElementById('vacCount');
-  countEl.textContent = _vacations.length;
+  const vacSearch = ((document.getElementById('vacEmployeeSearch') || {}).value || '').trim().toUpperCase();
 
-  if(_vacations.length === 0){
-    area.innerHTML = '<div class="empty-msg">No vacations set for this month. Use the form above to add entries.</div>';
+  let filtered = _vacations.map((v,i) => ({...v, _idx:i}));
+  if(vacSearch) filtered = filtered.filter(v => v.name.toUpperCase().includes(vacSearch));
+
+  countEl.textContent = filtered.length;
+
+  if(filtered.length === 0){
+    area.innerHTML = '<div class="empty-msg">' + (_vacations.length === 0 ? 'No vacations set for this month.' : 'No vacations matching search.') + '</div>';
     return;
   }
 
-  // Sort: by from date, then name
-  const sorted = _vacations.map((v,i) => ({...v, _idx:i})).sort((a,b) => {
+  const sorted = filtered.sort((a,b) => {
     if(a.from && b.from) return a.from.localeCompare(b.from);
     if(a.from) return -1;
     if(b.from) return 1;
@@ -427,6 +951,1001 @@ function renderVacList(){
   });
   html += '</tbody></table>';
   area.innerHTML = html;
+}
+
+// ── Single-month training ──
+function renderTrainList(){
+  const area = document.getElementById('trainListArea');
+  const countEl = document.getElementById('trainCount');
+  countEl.textContent = _training.length;
+
+  if(_training.length === 0){
+    area.innerHTML = '<div class="empty-msg">No training set for this month.</div>';
+    return;
+  }
+
+  const sorted = _training.map((t,i) => ({...t, _idx:i})).sort((a,b) => {
+    if(a.from && b.from) return a.from.localeCompare(b.from);
+    if(a.from) return -1;
+    if(b.from) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  let html = '<table class="vac-table"><thead><tr><th>EMPLOYEE</th><th>FROM</th><th>TO</th><th>LOCATION</th><th></th></tr></thead><tbody>';
+  sorted.forEach(t => {
+    const i = t._idx;
+    const siteLabel = t.site === 'OFF_SITE' ? 'Off Site' : 'On Site';
+    const siteCls = t.site === 'OFF_SITE' ? 'off' : 'on';
+    if(_editingTrainIdx === i){
+      html += '<tr style="background:rgba(96,165,250,.04)">';
+      html += '<td class="name">' + esc(t.name) + '</td>';
+      html += '<td><input type="date" id="editTrainFrom_' + i + '" value="' + esc(t.from) + '" style="padding:4px 6px;font-size:12px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text)"/></td>';
+      html += '<td><input type="date" id="editTrainTo_' + i + '" value="' + esc(t.to) + '" style="padding:4px 6px;font-size:12px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text)"/></td>';
+      html += '<td><select id="editTrainSite_' + i + '" style="padding:4px 6px;font-size:12px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text)">';
+      html += '<option value="ON_SITE"' + (t.site==='ON_SITE'?' selected':'') + '>On Site</option>';
+      html += '<option value="OFF_SITE"' + (t.site==='OFF_SITE'?' selected':'') + '>Off Site</option></select></td>';
+      html += '<td style="white-space:nowrap"><button onclick="saveEditTrain(' + i + ')" style="padding:3px 10px;font-size:11px;border-radius:6px;border:none;background:var(--train);color:#000;font-weight:700;cursor:pointer">SAVE</button> ';
+      html += '<button onclick="cancelEditTrain()" style="padding:3px 8px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text);cursor:pointer">CANCEL</button></td>';
+      html += '</tr>';
+    } else {
+      html += '<tr>';
+      html += '<td class="name">' + esc(t.name) + '</td>';
+      html += '<td>' + (t.from || '<span style="color:var(--muted)">--</span>') + '</td>';
+      html += '<td>' + (t.to || '<span style="color:var(--muted)">--</span>') + '</td>';
+      html += '<td><span class="site-tag ' + siteCls + '">' + siteLabel + '</span></td>';
+      html += '<td style="white-space:nowrap"><button class="edit-btn" onclick="startEditTrain(' + i + ')">EDIT</button><button class="del-btn" onclick="deleteTraining(' + i + ')">&times;</button></td>';
+      html += '</tr>';
+    }
+  });
+  html += '</tbody></table>';
+  area.innerHTML = html;
+}
+
+// ── ALL-mode vacation ──
+function renderAllVacList(){
+  const area = document.getElementById('vacListArea');
+  const countEl = document.getElementById('vacCount');
+  const filterVal = document.getElementById('filterMonth').value;
+  const empFilter = getEmployeeFilter();
+  const vacSearch = ((document.getElementById('vacEmployeeSearch') || {}).value || '').trim().toUpperCase();
+
+  let list = _allVacations;
+  if(filterVal) list = list.filter(v => v.monthKey === filterVal);
+  if(empFilter) list = list.filter(v => matchesEmployeeFilter(v.name, empFilter));
+  if(vacSearch) list = list.filter(v => v.name.toUpperCase().includes(vacSearch));
+
+  countEl.textContent = list.length;
+  const fcEl = document.getElementById('filterCount');
+  const isFiltered = filterVal || empFilter || vacSearch;
+  fcEl.textContent = list.length + ' vac' + (isFiltered ? ' (filtered)' : ' total');
+
+  if(list.length === 0){
+    area.innerHTML = '<div class="empty-msg">No vacations found' + (filterVal || empFilter ? ' matching filters' : '') + '.</div>';
+    return;
+  }
+
+  const sorted = list.slice().sort((a,b) => {
+    const mc = a.monthKey.localeCompare(b.monthKey);
+    if(mc !== 0) return mc;
+    if(a.from && b.from) return a.from.localeCompare(b.from);
+    if(a.from) return -1;
+    if(b.from) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  let html = '<table class="vac-table"><thead><tr><th>MONTH</th><th>EMPLOYEE</th><th>FROM</th><th>TO</th><th></th></tr></thead><tbody>';
+  let lastMonth = '';
+  sorted.forEach(v => {
+    const showMonth = v.monthLabel !== lastMonth;
+    lastMonth = v.monthLabel;
+    const isImported = v._imported;
+    html += '<tr' + (isImported ? ' class="imported"' : '') + '>';
+    html += '<td>' + (showMonth ? '<span class="month-tag">' + esc(v.monthLabel) + '</span>' : '') + '</td>';
+    html += '<td class="name">' + esc(v.name) + (isImported ? '<span class="import-badge">NEW</span>' : '') + '</td>';
+    html += '<td>' + (v.from || '<span style="color:var(--muted)">--</span>') + '</td>';
+    html += '<td>' + (v.to || '<span style="color:var(--muted)">--</span>') + '</td>';
+    html += '<td><button class="del-btn" onclick="deleteAllVac(\'' + esc(v.docId) + '\',\'' + esc(v.name) + '\',\'' + esc(v.from) + '\',\'' + esc(v.to) + '\')">&times;</button></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  area.innerHTML = html;
+}
+
+// ── ALL-mode training ──
+function renderAllTrainList(){
+  const area = document.getElementById('trainListArea');
+  const countEl = document.getElementById('trainCount');
+  const filterVal = document.getElementById('filterMonth').value;
+  const empFilter = getEmployeeFilter();
+
+  let list = _allTraining;
+  if(filterVal) list = list.filter(t => t.monthKey === filterVal);
+  if(empFilter) list = list.filter(t => matchesEmployeeFilter(t.name, empFilter));
+
+  countEl.textContent = list.length;
+
+  if(list.length === 0){
+    area.innerHTML = '<div class="empty-msg">No training found' + (filterVal || empFilter ? ' matching filters' : '') + '.</div>';
+    return;
+  }
+
+  const sorted = list.slice().sort((a,b) => {
+    const mc = a.monthKey.localeCompare(b.monthKey);
+    if(mc !== 0) return mc;
+    if(a.from && b.from) return a.from.localeCompare(b.from);
+    if(a.from) return -1;
+    if(b.from) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  let html = '<table class="vac-table"><thead><tr><th>MONTH</th><th>EMPLOYEE</th><th>FROM</th><th>TO</th><th>LOCATION</th><th></th></tr></thead><tbody>';
+  let lastMonth = '';
+  sorted.forEach(t => {
+    const showMonth = t.monthLabel !== lastMonth;
+    lastMonth = t.monthLabel;
+    const siteLabel = t.site === 'OFF_SITE' ? 'Off Site' : 'On Site';
+    const siteCls = t.site === 'OFF_SITE' ? 'off' : 'on';
+    html += '<tr>';
+    html += '<td>' + (showMonth ? '<span class="month-tag">' + esc(t.monthLabel) + '</span>' : '') + '</td>';
+    html += '<td class="name">' + esc(t.name) + '</td>';
+    html += '<td>' + (t.from || '<span style="color:var(--muted)">--</span>') + '</td>';
+    html += '<td>' + (t.to || '<span style="color:var(--muted)">--</span>') + '</td>';
+    html += '<td><span class="site-tag ' + siteCls + '">' + siteLabel + '</span></td>';
+    html += '<td><button class="del-btn" onclick="deleteAllTrain(\'' + esc(t.docId) + '\',\'' + esc(t.name) + '\',\'' + esc(t.from) + '\',\'' + esc(t.to) + '\',\'' + esc(t.site) + '\')">&times;</button></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  area.innerHTML = html;
+}
+
+// ══════════════════════════════════════
+//  ABSENCES (from ShiftOps daily_edits)
+// ══════════════════════════════════════
+
+// Load dismissed absences from Firestore
+async function loadDismissed(){
+  try {
+    const snap = await db.collection('dismissed_absences').get();
+    snap.docs.forEach(doc => _dismissedAbs.add(doc.id));
+  } catch(e){ console.warn('loadDismissed:', e); }
+}
+
+// Dismiss an absence (hide it without touching ShiftOps data)
+async function dismissAbsence(employee, date, shift){
+  const key = employee + '_' + date + '_' + shift;
+  try {
+    await db.collection('dismissed_absences').doc(key).set({
+      employee, date, shift, dismissedAt: new Date().toISOString()
+    });
+    _dismissedAbs.add(key);
+    renderAbsList();
+
+    showToast('Dismissed ' + employee + ' ' + date);
+  } catch(e){ console.error(e); showToast('Dismiss failed'); }
+}
+
+// Dismiss ALL visible absences at once
+async function dismissAllAbsences(){
+  const source = _allMode ? _allAbsences : _absences;
+  const toDismiss = source.filter(a => {
+    const key = a.employee + '_' + a.date + '_' + a.shift;
+    return !_dismissedAbs.has(key);
+  });
+  if(toDismiss.length === 0){ showToast('Nothing to dismiss'); return; }
+  if(!confirm('Dismiss all ' + toDismiss.length + ' absences? They will be hidden until new ones come in from ShiftOps.')) return;
+
+  const batch = db.batch();
+  const now = new Date().toISOString();
+  toDismiss.forEach(a => {
+    const key = a.employee + '_' + a.date + '_' + a.shift;
+    batch.set(db.collection('dismissed_absences').doc(key), {
+      employee: a.employee, date: a.date, shift: a.shift, dismissedAt: now
+    });
+    _dismissedAbs.add(key);
+  });
+
+  try {
+    await batch.commit();
+    renderAbsList();
+    showToast('Dismissed ' + toDismiss.length + ' absences');
+  } catch(e){
+    console.error(e);
+    showToast('Dismiss all failed: ' + (e.message || e));
+  }
+}
+
+// Extract absences from a daily_edits document
+function extractAbsencesFromDoc(data, arr){
+  const dateStr = data.date || '';
+  if(!dateStr) return;
+  const edits = data.edits;
+  if(!edits || typeof edits !== 'object') return;
+
+  // Track seen employee+date+shift combos to dedupe across blocks
+  const seen = new Set();
+
+  for(const [empKey, empData] of Object.entries(edits)){
+    if(!empData || typeof empData !== 'object') continue;
+    const employee = empKey.toUpperCase();
+
+    for(const [blockKey, blockData] of Object.entries(empData)){
+      if(!blockData || typeof blockData !== 'object') continue;
+
+      const present = String(blockData.Present || '').toUpperCase();
+      const reason = String(blockData.AbsenceReason || blockData.PartialReason || '').toUpperCase();
+      const shift = String(data.shift || data.shiftType || blockData.Shift || '').toUpperCase();
+
+      // Skip VACATION and TRAINING — those have their own tabs
+      if(reason === 'VACATION' || reason === 'TRAINING') continue;
+
+      let type = null;
+      if(present === 'NO' && ABS_TRACK_REASONS.has(reason)){
+        type = 'ABSENT';
+      } else if(present === 'TARDY'){
+        type = 'TARDY';
+      } else if(present === 'PARTIAL'){
+        const partialReason = String(blockData.PartialReason || '').toUpperCase();
+        if(ABS_TRACK_REASONS.has(partialReason)){
+          type = 'PARTIAL';
+        }
+      }
+
+      if(!type) continue;
+
+      const dedupeKey = employee + '|' + dateStr + '|' + shift;
+      if(seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+
+      arr.push({
+        employee,
+        date: dateStr,
+        shift: shift || 'N/A',
+        reason: reason || (type === 'TARDY' ? 'TARDY' : 'UNKNOWN'),
+        type
+      });
+    }
+  }
+}
+
+// Load absences for a specific month
+async function loadAbsencesForMonth(year, month){
+  _absLoading = true;
+  const area = document.getElementById('absListArea');
+  area.innerHTML = '<div class="empty-msg">Loading absences...</div>';
+
+  try {
+    const startDate = year + '-' + String(month).padStart(2,'0') + '-01';
+    const endDay = new Date(year, month, 0).getDate();
+    const endDate = year + '-' + String(month).padStart(2,'0') + '-' + String(endDay).padStart(2,'0');
+
+    const snap = await db.collection('daily_edits')
+      .where('date','>=', startDate)
+      .where('date','<=', endDate)
+      .get();
+
+    _absences = [];
+    snap.docs.forEach(doc => {
+      extractAbsencesFromDoc(doc.data(), _absences);
+    });
+
+    renderAbsList();
+
+  } catch(e){
+    console.error('loadAbsencesForMonth:', e);
+    area.innerHTML = '<div class="empty-msg">Error loading absences.</div>';
+  }
+  _absLoading = false;
+}
+
+// Load all absences (past 12 months) for ALL mode
+async function loadAllAbsences(){
+  _absLoading = true;
+  const area = document.getElementById('absListArea');
+  area.innerHTML = '<div class="empty-msg">Loading all absences (past 12 months)...</div>';
+
+  try {
+    const now = new Date();
+    const past = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+    const startDate = past.getFullYear() + '-' + String(past.getMonth()+1).padStart(2,'0') + '-01';
+    const endDate = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(new Date(now.getFullYear(), now.getMonth()+1, 0).getDate()).padStart(2,'0');
+
+    const snap = await db.collection('daily_edits')
+      .where('date','>=', startDate)
+      .where('date','<=', endDate)
+      .get();
+
+    _allAbsences = [];
+    snap.docs.forEach(doc => {
+      extractAbsencesFromDoc(doc.data(), _allAbsences);
+    });
+
+    renderAbsList();
+
+  } catch(e){
+    console.error('loadAllAbsences:', e);
+    area.innerHTML = '<div class="empty-msg">Error loading absences.</div>';
+  }
+  _absLoading = false;
+}
+
+// Render absences table — grouped by employee (A-Z), dates newest-first
+function renderAbsList(){
+  const area = document.getElementById('absListArea');
+  const countEl = document.getElementById('absCount');
+  const source = _allMode ? _allAbsences : _absences;
+  const absSearch = (document.getElementById('absEmployeeSearch') || {}).value || '';
+  const absSearchUpper = absSearch.trim().toUpperCase();
+  const empFilter = _allMode ? getEmployeeFilter() : '';
+  const monthFilter = _allMode ? document.getElementById('filterMonth').value : '';
+
+  // Filter out dismissed entries
+  let list = source.filter(a => {
+    const key = a.employee + '_' + a.date + '_' + a.shift;
+    return !_dismissedAbs.has(key);
+  });
+
+  // Apply name search (always active)
+  if(absSearchUpper) list = list.filter(a => a.employee.toUpperCase().includes(absSearchUpper));
+
+  // Apply filters in ALL mode
+  if(empFilter) list = list.filter(a => matchesEmployeeFilter(a.employee, empFilter));
+  if(monthFilter){
+    list = list.filter(a => {
+      if(!a.date) return false;
+      const d = new Date(a.date + 'T00:00:00');
+      const mKey = d.getFullYear() + '-' + String(d.getMonth()).padStart(2,'0');
+      return mKey === monthFilter;
+    });
+  }
+
+  countEl.textContent = list.length;
+
+  if(list.length === 0){
+    area.innerHTML = '<div class="empty-msg">No absences found' + (empFilter || monthFilter ? ' matching filters' : '') + '.</div>';
+    return;
+  }
+
+  // Group by employee
+  const groups = {};
+  list.forEach(a => {
+    if(!groups[a.employee]) groups[a.employee] = [];
+    groups[a.employee].push(a);
+  });
+
+  // Sort employees alphabetically
+  const sortedNames = Object.keys(groups).sort((a,b) => a.localeCompare(b));
+
+  // Sort each group's entries by date descending (newest first)
+  sortedNames.forEach(name => {
+    groups[name].sort((a,b) => b.date.localeCompare(a.date));
+  });
+
+  let html = '';
+  sortedNames.forEach(name => {
+    const entries = groups[name];
+    html += '<div class="abs-group">';
+    html += '<div class="abs-group-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'\':\' none\'">';
+    html += '<span class="abs-group-name">' + esc(name) + '</span>';
+    html += '<span class="abs-group-count">' + entries.length + ' total</span>';
+    html += '</div>';
+    html += '<div class="abs-group-body">';
+    html += '<table class="vac-table"><thead><tr><th>DATE</th><th>SHIFT</th><th>REASON</th><th>TYPE</th><th></th></tr></thead><tbody>';
+    entries.forEach(a => {
+      const typeCls = a.type === 'TARDY' ? 'tardy' : a.type === 'PARTIAL' ? 'partial' : 'absent';
+      html += '<tr>';
+      html += '<td>' + esc(a.date) + '</td>';
+      html += '<td>' + esc(a.shift) + '</td>';
+      html += '<td>' + esc(a.reason) + '</td>';
+      html += '<td><span class="abs-type-tag ' + typeCls + '">' + esc(a.type) + '</span></td>';
+      html += '<td><button class="del-btn" onclick="dismissAbsence(\'' + esc(a.employee) + '\',\'' + esc(a.date) + '\',\'' + esc(a.shift) + '\')" title="Dismiss">&times;</button></td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    html += '</div></div>';
+  });
+
+  area.innerHTML = html;
+}
+
+
+// ══════════════════════════════════════
+//  XLSX IMPORT
+// ══════════════════════════════════════
+
+const IMPORT_TYPOS = {
+  'CRYSTAL AISHIE':'AILSHIE','JOE SIERERA':'SIERRA','ZINA MCKNIGHT':'MCKNIGHT',
+  'RAMIRES':'RAMIREZ','LIV RENFRO':'RENFRO',
+  'JOLIE RIVERA':'SCROGGINS','RAINES':'MEDRANO'
+};
+
+// Names that have multiple DB matches — always ask user to pick
+const IMPORT_ASK_NAMES = new Set(['ADAMS','BROWN','FOWLER','GARCIA','PEREZ']);
+
+let _importReady = {};    // docId -> [{name, from, to}]
+let _importPending = false; // true when imported data is shown in tables but not committed
+
+function getDbNames(){
+  return _employees.map(e => e.name.toUpperCase());
+}
+
+// Returns: string (matched DB name), null (skip), or {ambiguous:true, name, source, candidates:[...]}
+function matchImportName(xlsxName, source){
+  const upper = xlsxName.toUpperCase().trim();
+  if(upper === 'BLOCKED' || upper === 'GARCIA M' || upper === 'GARCIAM') return null;
+  if(IMPORT_TYPOS[upper]) return IMPORT_TYPOS[upper];
+
+  const dbNames = getDbNames();
+  const parts = xlsxName.trim().split(/\s+/);
+  const last = parts[parts.length - 1].toUpperCase();
+
+  if(parts.length === 1){
+    // Last-name only — check ask list first
+    if(IMPORT_ASK_NAMES.has(last)){
+      const candidates = dbNames.filter(n => n.startsWith(last));
+      if(candidates.length > 1) return { ambiguous:true, name:upper, source:source||'', candidates };
+      if(candidates.length === 1) return candidates[0];
+      return null;
+    }
+    if(dbNames.includes(last)) return last;
+    const matches = dbNames.filter(n => n.startsWith(last));
+    if(matches.length === 1) return matches[0];
+    if(matches.length > 1) return { ambiguous:true, name:upper, source:source||'', candidates:matches };
+    return null;
+  }
+
+  const first = parts[0].toUpperCase();
+
+  // Full name with first+last — try initial matching first for ask-list names
+  if(IMPORT_ASK_NAMES.has(last)){
+    const withInitial = last + first[0];
+    if(dbNames.includes(withInitial)) return withInitial;
+    // Initial didn't match — ask user
+    const candidates = dbNames.filter(n => n.startsWith(last));
+    if(candidates.length > 1) return { ambiguous:true, name:upper, source:source||'', candidates };
+    if(candidates.length === 1) return candidates[0];
+    return null;
+  }
+
+  if(dbNames.includes(last)) return last;
+  const withInitial = last + first[0];
+  if(dbNames.includes(withInitial)) return withInitial;
+  const matches = dbNames.filter(n => n.startsWith(last));
+  if(matches.length === 1) return matches[0];
+  if(matches.length > 1){
+    const refined = matches.filter(n => n === withInitial);
+    if(refined.length === 1) return refined[0];
+    return { ambiguous:true, name:upper, source:source||'', candidates:matches };
+  }
+  return null;
+}
+
+// Drag & drop
+document.addEventListener('DOMContentLoaded', () => {
+  const drop = document.getElementById('importDrop');
+  if(!drop) return;
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('dragover'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+  drop.addEventListener('drop', e => {
+    e.preventDefault();
+    drop.classList.remove('dragover');
+    handleImportFiles(e.dataTransfer.files);
+  });
+});
+
+function handleImportFiles(files){
+  if(!files || !files.length) return;
+  const log = document.getElementById('importLog');
+  log.innerHTML = '';
+  log.classList.add('show');
+  _importReady = {};
+  _importPending = false;
+
+  const allEntries = [];
+  let filesRead = 0;
+
+  ilog('Reading ' + files.length + ' file(s)...');
+
+  for(const file of files){
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      try {
+        // Read with cellDates:true so dates come as JS Date objects
+        const data = new Uint8Array(ev.target.result);
+        const wb = XLSX.read(data, {type:'array', cellDates:true});
+        ilog('Parsed: ' + file.name + ' (' + wb.SheetNames.length + ' sheets)', 'ok');
+
+        for(const sname of wb.SheetNames){
+          if(sname.toLowerCase().includes('assignment')) continue;
+          const ws = wb.Sheets[sname];
+          if(!ws) continue;
+
+          // Walk cells directly instead of sheet_to_json for better date handling
+          const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+          let sheetEntries = 0;
+
+          for(let R = range.s.r; R <= range.e.r; R++){
+            // Col A (0) = week start, Col C (2) = week end
+            const cellA = ws[XLSX.utils.encode_cell({r:R, c:0})];
+            const cellC = ws[XLSX.utils.encode_cell({r:R, c:2})];
+            const weekStart = cellToDate(cellA);
+            if(!weekStart) continue;
+
+            // Cols D-J (3-9) = Sat,Sun,Mon,Tue,Wed,Thu,Fri
+            for(let C = 3; C <= 9; C++){
+              const cell = ws[XLSX.utils.encode_cell({r:R, c:C})];
+              if(!cell) continue;
+              let val = cell.w || cell.v; // .w is formatted, .v is raw
+              if(!val || typeof val !== 'string') continue;
+              val = val.trim();
+              if(!val) continue;
+              // Skip non-name entries
+              if(val.includes('@') || /^\d/.test(val)) continue;
+              if(/cassell|cxl|approved|blocked/i.test(val.toLowerCase())) continue;
+              if(val.toUpperCase() === 'BLOCKED') continue;
+
+              const dayOffset = C - 3;
+              const vacDate = new Date(weekStart.getTime());
+              vacDate.setDate(vacDate.getDate() + dayOffset);
+
+              allEntries.push({
+                name: val,
+                date: fmtISO(vacDate),
+                source: file.name + ' / ' + sname
+              });
+              sheetEntries++;
+            }
+          }
+          if(sheetEntries > 0) ilog('  ' + sname + ': ' + sheetEntries + ' day entries');
+        }
+      } catch(ex){
+        ilog('Error reading ' + file.name + ': ' + ex.message, 'err');
+        console.error(ex);
+      }
+
+      filesRead++;
+      if(filesRead === files.length){
+        processImportEntries(allEntries);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+function cellToDate(cell){
+  if(!cell) return null;
+  // If cellDates:true worked, cell.v is a Date (UTC midnight)
+  if(cell.v instanceof Date && !isNaN(cell.v.getTime())){
+    // Extract UTC components to avoid timezone shift
+    const d = cell.v;
+    return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  }
+  // If it's a number (Excel serial)
+  if(typeof cell.v === 'number'){
+    // Excel serial -> JS Date (Excel epoch is 1900-01-01, off by 1 due to Lotus bug)
+    const serial = cell.v;
+    const utc_days = Math.floor(serial - 25569);
+    const ms = utc_days * 86400 * 1000;
+    const tmp = new Date(ms);
+    return new Date(tmp.getUTCFullYear(), tmp.getUTCMonth(), tmp.getUTCDate());
+  }
+  // Try parsing string
+  const s = String(cell.w || cell.v || '').trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return new Date(+m[1], +m[2]-1, +m[3]);
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if(m){
+    let yr = +m[3]; if(yr < 100) yr += 2000;
+    return new Date(yr, +m[1]-1, +m[2]);
+  }
+  return null;
+}
+
+function fmtISO(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+async function processImportEntries(allEntries){
+  ilog('');
+  ilog('Total day entries parsed: ' + allEntries.length);
+
+  if(allEntries.length === 0){
+    ilog('No vacation entries found. Check that the files have the expected format.', 'err');
+    return;
+  }
+
+  // Group by raw name + source for role-aware matching
+  const byRawSource = {};
+  for(const e of allEntries){
+    const key = e.name + '||' + (e.source || '');
+    if(!byRawSource[key]) byRawSource[key] = { name: e.name, source: e.source, dates: new Set() };
+    byRawSource[key].dates.add(e.date);
+  }
+
+  // First pass: identify ambiguous names that need user input
+  const ambiguousQueue = []; // {name, source, candidates, dates}
+  const resolved = {};       // raw key -> dbName
+  const byDb = {};
+  const unmatched = [];
+  const seenAmbig = new Set();
+
+  for(const [key, entry] of Object.entries(byRawSource)){
+    const result = matchImportName(entry.name, entry.source);
+    if(result === null){
+      unmatched.push({name: entry.name, days: entry.dates.size, source: entry.source});
+    } else if(typeof result === 'object' && result.ambiguous){
+      // Only ask once per unique name+source combo
+      const ambigKey = result.name + '||' + entry.source;
+      if(!seenAmbig.has(ambigKey)){
+        seenAmbig.add(ambigKey);
+        ambiguousQueue.push({ ...result, dates: entry.dates, _key: key });
+      }
+    } else {
+      // Clean match
+      resolved[key] = result;
+      if(!byDb[result]) byDb[result] = new Set();
+      for(const d of entry.dates) byDb[result].add(d);
+    }
+  }
+
+  // Ask user to disambiguate each ambiguous name one at a time
+  for(const ambig of ambiguousQueue){
+    ilog('');
+    ilog('Ambiguous: "' + ambig.name + '" from [' + ambig.source + '] matches multiple DB names. Asking you...', 'warn');
+
+    const chosen = await showDisambigDialog(ambig.name, ambig.source, ambig.candidates);
+
+    if(chosen){
+      ilog('  You chose: ' + chosen, 'ok');
+      // Apply to all entries with this raw name from this source
+      for(const [key, entry] of Object.entries(byRawSource)){
+        if(resolved[key]) continue;
+        const r = matchImportName(entry.name, entry.source);
+        if(r && typeof r === 'object' && r.ambiguous && r.name === ambig.name){
+          resolved[key] = chosen;
+          if(!byDb[chosen]) byDb[chosen] = new Set();
+          for(const d of entry.dates) byDb[chosen].add(d);
+        }
+      }
+    } else {
+      ilog('  Skipped "' + ambig.name + '"', 'warn');
+    }
+  }
+
+  if(unmatched.length){
+    ilog('');
+    ilog('UNMATCHED NAMES (' + unmatched.length + '):', 'warn');
+    for(const u of unmatched){
+      ilog('  ' + u.name + ' (' + u.days + ' days) from [' + (u.source||'?') + '] - skipped', 'warn');
+    }
+  }
+
+  // Build ranges grouped by month
+  const byMonth = {};
+  for(const [dbName, dateSet] of Object.entries(byDb)){
+    const dates = Array.from(dateSet).sort();
+    let i = 0;
+    while(i < dates.length){
+      let start = dates[i], end = dates[i];
+      while(i + 1 < dates.length){
+        const d1 = new Date(dates[i] + 'T00:00:00');
+        const d2 = new Date(dates[i+1] + 'T00:00:00');
+        if((d2 - d1) <= 86400000){ end = dates[i+1]; i++; }
+        else break;
+      }
+      const d = new Date(start + 'T00:00:00');
+      const docId = 'rotation_' + d.getFullYear() + '_' + d.getMonth();
+      if(!byMonth[docId]) byMonth[docId] = [];
+      byMonth[docId].push({ name: dbName, from: start, to: end });
+      i++;
+    }
+  }
+
+  _importReady = byMonth;
+  const totalRanges = Object.values(byMonth).reduce((s, a) => s + a.length, 0);
+
+  ilog('');
+  ilog('Matched ' + Object.keys(byDb).length + ' employees, ' + totalRanges + ' ranges across ' + Object.keys(byMonth).length + ' months', 'ok');
+
+  // Inject into the page tables so user can see them in context
+  injectImportIntoView();
+}
+
+// Show disambiguation dialog — returns a Promise that resolves to the chosen DB name or null (skip)
+function showDisambigDialog(name, source, candidates){
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'disambig-overlay';
+
+    let btns = '';
+    for(const c of candidates){
+      btns += '<button class="disambig-btn" data-choice="' + esc(c) + '">' + esc(c) + '</button>';
+    }
+
+    overlay.innerHTML =
+      '<div class="disambig-box">' +
+        '<h3>Which employee?</h3>' +
+        '<div class="disambig-info">"<strong>' + esc(name) + '</strong>" from <strong>' + esc(source) + '</strong> matches multiple employees in the database. Please pick the correct one:</div>' +
+        btns +
+        '<button class="disambig-skip" data-choice="_skip">Skip this name</button>' +
+      '</div>';
+
+    overlay.addEventListener('click', function(e){
+      const btn = e.target.closest('[data-choice]');
+      if(!btn) return;
+      const choice = btn.getAttribute('data-choice');
+      overlay.remove();
+      resolve(choice === '_skip' ? null : choice);
+    });
+
+    document.body.appendChild(overlay);
+  });
+}
+
+// Inject imported entries into the live vacation tables (marked as pending)
+function injectImportIntoView(){
+  _importPending = true;
+
+  // Switch to ALL mode so user can see everything
+  if(!_allMode) toggleAllView();
+
+  // Wait a moment for ALL mode to load, then inject
+  const waitForAll = setInterval(() => {
+    if(_allVacations !== undefined){
+      clearInterval(waitForAll);
+      doInject();
+    }
+  }, 300);
+
+  function doInject(){
+    // Tag imported entries and add to _allVacations
+    for(const [docId, entries] of Object.entries(_importReady)){
+      const m = docId.match(/^rotation_(\d{4})_(\d+)$/);
+      if(!m) continue;
+      const yr = parseInt(m[1]);
+      const mi = parseInt(m[2]);
+      const mLabel = MONTH_NAMES[mi] + ' ' + yr;
+      const mKey = yr + '-' + String(mi).padStart(2,'0');
+
+      for(const e of entries){
+        // Check for duplicate already in _allVacations
+        const isDupe = _allVacations.some(v =>
+          v.name === e.name && v.from === e.from && v.to === e.to && v.monthKey === mKey
+        );
+        if(!isDupe){
+          _allVacations.push({
+            name: e.name, from: e.from, to: e.to,
+            monthKey: mKey, monthLabel: mLabel, docId,
+            _imported: true  // flag for styling
+          });
+        }
+      }
+    }
+
+    renderAll();
+
+    const totalNew = _allVacations.filter(v => v._imported).length;
+    const statusEl = document.getElementById('importStatus');
+    statusEl.style.display = 'block';
+    statusEl.textContent = totalNew + ' imported entries loaded into the tables (highlighted in yellow). Review them, then click "Commit to Firestore" to save.';
+    document.getElementById('importActions').style.display = 'flex';
+
+    ilog('');
+    ilog(totalNew + ' entries injected into the vacation tables. Review them above.', 'ok');
+    ilog('Click "Commit to Firestore" to save, or "Discard Import" to remove them.');
+  }
+}
+
+async function doImportUpload(){
+  const btn = document.getElementById('btnImportUpload');
+  btn.disabled = true;
+  btn.textContent = 'Committing...';
+
+  const docIds = Object.keys(_importReady).sort();
+  let totalAdded = 0, totalSkipped = 0, errors = 0;
+
+  for(const docId of docIds){
+    const newEntries = _importReady[docId];
+    try {
+      const docRef = db.collection('rotation_plans').doc(docId);
+      const existing = await docRef.get();
+      let existingVac = (existing.exists && Array.isArray(existing.data().vacations)) ? existing.data().vacations : [];
+
+      let added = 0;
+      for(const nv of newEntries){
+        const isDupe = existingVac.some(ev => ev.name === nv.name && ev.from === nv.from && ev.to === nv.to);
+        if(!isDupe){
+          existingVac.push(nv);
+          added++;
+        } else {
+          totalSkipped++;
+        }
+      }
+
+      await docRef.set({ vacations: existingVac }, { merge: true });
+      totalAdded += added;
+      const m = docId.match(/^rotation_(\d{4})_(\d+)$/);
+      const label = MONTH_NAMES[parseInt(m[2])] + ' ' + m[1];
+      ilog(label + ': ' + added + ' saved' + (newEntries.length - added > 0 ? ', ' + (newEntries.length - added) + ' dupes skipped' : ''), 'ok');
+    } catch(e){
+      ilog(docId + ': ERROR - ' + e.message, 'err');
+      errors++;
+    }
+  }
+
+  ilog('');
+  if(errors === 0){
+    ilog('DONE! ' + totalAdded + ' ranges committed to Firestore, ' + totalSkipped + ' duplicates skipped.', 'ok');
+  } else {
+    ilog('Completed with ' + errors + ' errors. ' + totalAdded + ' saved.', 'warn');
+  }
+
+  // Clear import state, remove _imported flags
+  _importPending = false;
+  _allVacations.forEach(v => delete v._imported);
+  _importReady = {};
+  document.getElementById('importStatus').style.display = 'none';
+  document.getElementById('importActions').style.display = 'none';
+  btn.textContent = 'Commit to Firestore';
+  btn.disabled = false;
+
+  showToast('Committed ' + totalAdded + ' vacation entries to Firestore');
+
+  // Reload from Firestore to get clean state
+  loadAllData();
+}
+
+function exportImportJSON(){
+  // Build a summary: docId -> entries, plus stats
+  const out = { _summary: {}, entries: _importReady };
+  let totalRanges = 0, totalEmployees = new Set();
+  for(const [docId, entries] of Object.entries(_importReady)){
+    const m = docId.match(/^rotation_(\d{4})_(\d+)$/);
+    const label = m ? MONTH_NAMES[parseInt(m[2])] + ' ' + m[1] : docId;
+    out._summary[docId] = { month: label, count: entries.length };
+    totalRanges += entries.length;
+    entries.forEach(e => totalEmployees.add(e.name));
+  }
+  out._total = { employees: totalEmployees.size, ranges: totalRanges, months: Object.keys(_importReady).length };
+
+  const json = JSON.stringify(out, null, 2);
+  navigator.clipboard.writeText(json).then(() => {
+    showToast('JSON copied to clipboard (' + totalRanges + ' ranges)');
+    ilog('JSON copied to clipboard - paste it to verify.', 'ok');
+  }).catch(() => {
+    // Fallback: open in a new window
+    const w = window.open('', '_blank');
+    w.document.write('<pre style="font-size:12px;white-space:pre-wrap">' + json.replace(/</g,'&lt;') + '</pre>');
+    showToast('JSON opened in new tab (clipboard blocked)');
+  });
+}
+
+function clearImport(){
+  // Remove imported entries from tables
+  _allVacations = _allVacations.filter(v => !v._imported);
+  _importReady = {};
+  _importPending = false;
+  document.getElementById('importStatus').style.display = 'none';
+  document.getElementById('importActions').style.display = 'none';
+  document.getElementById('importLog').innerHTML = '';
+  document.getElementById('importLog').classList.remove('show');
+  document.getElementById('importFiles').value = '';
+  document.getElementById('btnImportUpload').disabled = false;
+  document.getElementById('btnImportUpload').textContent = 'Commit to Firestore';
+  renderAll();
+  showToast('Import discarded');
+}
+
+function ilog(msg, cls){
+  const el = document.getElementById('importLog');
+  el.innerHTML += '<div' + (cls ? ' class="' + cls + '"' : '') + '>' + esc(msg) + '</div>';
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── Fix misplaced entries ──
+// Scans ALL rotation_plans docs, moves vacations & training to the correct month based on FROM date
+async function fixMisplacedEntries(){
+  showToast('Scanning all months...');
+  try {
+    const snap = await db.collection('rotation_plans').get();
+    // Build a map: docId -> { vacations, training }
+    const docs = {};
+    snap.docs.forEach(doc => {
+      const m = doc.id.match(/^rotation_(\d{4})_(\d+)$/);
+      if(!m) return;
+      const data = doc.data();
+      docs[doc.id] = {
+        year: parseInt(m[1]),
+        moIdx: parseInt(m[2]),
+        vacations: Array.isArray(data.vacations) ? data.vacations.slice() : [],
+        training: Array.isArray(data.training) ? data.training.slice() : []
+      };
+    });
+
+    let movedVac = 0, movedTrain = 0;
+    const writes = {}; // docId -> { vacations, training } (only changed ones)
+
+    function ensureDoc(year, moIdx){
+      const id = 'rotation_' + year + '_' + moIdx;
+      if(!docs[id]) docs[id] = { year, moIdx, vacations: [], training: [] };
+      if(!writes[id]) writes[id] = { vacations: docs[id].vacations.slice(), training: docs[id].training.slice() };
+      return id;
+    }
+
+    // Check vacations
+    for(const [docId, info] of Object.entries(docs)){
+      const remaining = [];
+      for(const v of info.vacations){
+        if(!v.from){ remaining.push(v); continue; }
+        const d = new Date(v.from + 'T00:00:00');
+        const correctYear = d.getFullYear();
+        const correctMo = d.getMonth(); // 0-based
+        if(correctYear === info.year && correctMo === info.moIdx){
+          remaining.push(v);
+        } else {
+          // Move to correct doc
+          const targetId = ensureDoc(correctYear, correctMo);
+          writes[targetId].vacations.push(v);
+          movedVac++;
+          // Mark source as changed
+          if(!writes[docId]) writes[docId] = { vacations: info.vacations.slice(), training: info.training.slice() };
+        }
+      }
+      if(remaining.length !== info.vacations.length){
+        if(!writes[docId]) writes[docId] = { vacations: info.vacations.slice(), training: info.training.slice() };
+        writes[docId].vacations = remaining;
+      }
+    }
+
+    // Check training
+    for(const [docId, info] of Object.entries(docs)){
+      const remaining = [];
+      for(const t of info.training){
+        if(!t.from){ remaining.push(t); continue; }
+        const d = new Date(t.from + 'T00:00:00');
+        const correctYear = d.getFullYear();
+        const correctMo = d.getMonth();
+        if(correctYear === info.year && correctMo === info.moIdx){
+          remaining.push(t);
+        } else {
+          const targetId = ensureDoc(correctYear, correctMo);
+          writes[targetId].training.push(t);
+          movedTrain++;
+          if(!writes[docId]) writes[docId] = { vacations: info.vacations.slice(), training: info.training.slice() };
+        }
+      }
+      if(remaining.length !== info.training.length){
+        if(!writes[docId]) writes[docId] = { vacations: info.vacations.slice(), training: info.training.slice() };
+        writes[docId].training = remaining;
+      }
+    }
+
+    if(movedVac === 0 && movedTrain === 0){
+      showToast('All entries are in the correct month already');
+      return;
+    }
+
+    // Write all changes
+    _vacSaveTs = Date.now();
+    const batch = db.batch();
+    for(const [docId, data] of Object.entries(writes)){
+      const ref = db.collection('rotation_plans').doc(docId);
+      batch.set(ref, { vacations: data.vacations, training: data.training }, { merge: true });
+    }
+    await batch.commit();
+
+    showToast('Moved ' + movedVac + ' vacation(s) and ' + movedTrain + ' training(s) to correct months');
+
+    // Reload
+    if(_allMode){
+      loadAllData();
+    } else {
+      loadAndListen();
+    }
+
+  } catch(e){
+    console.error('fixMisplacedEntries error:', e);
+    showToast('Fix failed: ' + (e.message || e));
+  }
 }
 
 // Toast

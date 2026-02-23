@@ -3362,6 +3362,51 @@ function isOnVacationDate(name, iso){
   return false;
 }
 
+// ===== Training (synced from rotation_plans) =====
+let _trainingList = [];
+
+function loadTraining(iso){
+  return getVacDocRef(iso).get().then(doc => {
+    if(doc.exists && Array.isArray(doc.data().training)){
+      _trainingList = doc.data().training;
+    } else {
+      _trainingList = [];
+    }
+  }).catch(e => console.warn('Failed to load training:', e));
+}
+
+function listenTraining(iso){
+  // Piggyback on the existing vacation listener doc — add a second onSnapshot
+  getVacDocRef(iso).onSnapshot(doc => {
+    if(!doc.exists) return;
+    const data = doc.data();
+    if(Array.isArray(data.training)){
+      const incoming = JSON.stringify(data.training);
+      if(incoming !== JSON.stringify(_trainingList)){
+        _trainingList = data.training;
+        renderAll();
+      }
+    }
+  });
+}
+
+// Returns "ON_SITE" | "OFF_SITE" | null
+function isOnTrainingDate(name, iso){
+  if(!_trainingList.length) return null;
+  const nm = name.toUpperCase();
+  const dt = parseISO(iso).getTime();
+  const d = parseISO(iso);
+  const yr = d.getFullYear(); const mo = d.getMonth();
+  const monthEnd = new Date(yr, mo + 1, 0);
+  for(const t of _trainingList){
+    if((t.name||'').toUpperCase() !== nm) continue;
+    const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
+    const e = t.to ? new Date(t.to + 'T00:00:00') : monthEnd;
+    if(dt >= f.getTime() && dt <= e.getTime()) return t.site || 'ON_SITE';
+  }
+  return null;
+}
+
 // ===== Shift Swaps =====
 let SHIFT_SWAPS = new Map(); // iso date -> array of {empA, empB, createdAt}
 let swapUnsubscribe = null;
@@ -4544,6 +4589,17 @@ function computeRowsForBlock(iso, shift, block){
       ed.Hours="0";
       ed.AbsenceReason="VACATION";
       ed._vacAutoMarked=true;
+    }
+
+    // Auto-mark off-site training as absent (only if not already manually edited)
+    if(ed.Present==="YES" && !ed._userEdited && !ed._vacAutoMarked){
+      const trainSite = isOnTrainingDate(e.Employee, iso);
+      if(trainSite === 'OFF_SITE'){
+        ed.Present="NO";
+        ed.Hours="0";
+        ed.AbsenceReason="TRAINING";
+        ed._vacAutoMarked=true;
+      }
     }
 
     const wStartMin = Math.max(bw.startMin, sh.start);
@@ -6261,9 +6317,11 @@ async function applyDaySelection(){
   await loadEditsFromFirebase(iso, shift);
   await loadShiftSwaps(iso);
   await loadVacations(iso);
+  await loadTraining(iso);
   startRealtimeSync(iso, shift);
   startSwapSync(iso);
   listenVacations(iso);
+  listenTraining(iso);
   renderAll();
 }
 
@@ -7149,6 +7207,11 @@ window.addEventListener('DOMContentLoaded', ()=>{
   /* Build day dropdown and select today */
   buildDaySel();
   document.getElementById("daySel").value = isoToday;
+
+  /* Auto-select shift: DAY 0600-1759, NIGHT 1800-0559 */
+  if (now.getHours() >= 18 || now.getHours() < 6) {
+    document.getElementById("shiftSel").value = "NIGHT";
+  }
 
   /* PP change rebuilds day dropdown */
   ppSel.addEventListener("change", () => {

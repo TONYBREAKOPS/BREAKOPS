@@ -536,13 +536,13 @@
     const docId = `rotation_${plan.meta.year}_${plan.meta.monthIndex}`;
     console.log("SAVE: Writing to docId:", docId);
     try {
-      // Use set WITHOUT merge to fully replace the document
+      // Use set with merge so we don't overwrite fields managed by other apps
       await db.collection('rotation_plans').doc(docId).set({
         plan: plan,
         vacations: vac,
         trainers: training,
         savedAt: new Date().toISOString()
-      });
+      }, { merge: true });
       console.log("SAVE: SUCCESS for", docId);
 
       // Verify the write by reading it back from the server
@@ -636,12 +636,41 @@
         return;
       }
 
+      // Check if vacations/training changed (from AttendanceOps or other source)
+      const currentVac = JSON.parse(localStorage.getItem("rotation_vac_ranges_v2") || "[]");
+      const incomingVac = data.vacations || [];
+      const vacChanged = JSON.stringify(incomingVac) !== JSON.stringify(currentVac);
+
+      const currentTraining = JSON.parse(localStorage.getItem("rotation_training_v2") || "[]");
+      const incomingTraining = data.trainers || [];
+      const trainingChanged = JSON.stringify(incomingTraining) !== JSON.stringify(currentTraining);
+
       // Skip if this is the same data we already have (prevents circular save loop)
       const currentPlan = JSON.parse(localStorage.getItem("rotation_plan_v2") || "null");
-      if (currentPlan && currentPlan.meta && data.plan && data.plan.meta
+      const planSame = currentPlan && currentPlan.meta && data.plan && data.plan.meta
           && JSON.stringify(currentPlan.meta) === JSON.stringify(data.plan.meta)
-          && data.savedAt === (currentPlan._savedAt || "")) {
+          && data.savedAt === (currentPlan._savedAt || "");
+
+      if (planSame && !vacChanged && !trainingChanged) {
         console.log("REALTIME: SKIPPED (same data already loaded)");
+        setSyncStatus("LIVE", "good");
+        return;
+      }
+
+      // If only vacations/training changed (from AttendanceOps), update just those
+      if (planSame && (vacChanged || trainingChanged)) {
+        console.log("REALTIME: vacation/training update from external source");
+        if (vacChanged) {
+          originalSetItem.call(localStorage, "rotation_vac_ranges_v2", JSON.stringify(incomingVac));
+        }
+        if (trainingChanged) {
+          originalSetItem.call(localStorage, "rotation_training_v2", JSON.stringify(incomingTraining));
+        }
+        // Refresh views
+        const dk = document.getElementById("dayPick")?.value;
+        if (dk && typeof renderDay === "function") { renderDay(dk); renderWeek(dk); }
+        if (typeof renderMonth === "function") renderMonth(year, monthIndex);
+        if (typeof renderExceptions === "function") renderExceptions();
         setSyncStatus("LIVE", "good");
         return;
       }
@@ -817,7 +846,9 @@
 
         <div id="tab_day">
           <div style="margin-bottom:8px; display:flex; gap:12px; align-items:center;">
-            <button class="btn secondary" id="btnExportNeedsDay" style="font-size:11px; padding:6px 14px; border-radius:6px; white-space:nowrap; margin-left:auto;">EXPORT OPEN SHIFTS</button>
+            <button class="btn" id="btnSendDayShift" style="font-size:11px; padding:6px 14px; border-radius:6px; white-space:nowrap; background:#16A34A; color:#fff; font-weight:700; border:none; cursor:pointer; box-shadow:0 4px 12px rgba(22,163,74,.22); margin-left:auto;">SEND DAY SHIFT</button>
+            <button class="btn" id="btnSendNightShift" style="font-size:11px; padding:6px 14px; border-radius:6px; white-space:nowrap; background:#7C3AED; color:#fff; font-weight:700; border:none; cursor:pointer; box-shadow:0 4px 12px rgba(124,58,237,.22);">SEND NIGHT SHIFT</button>
+            <button class="btn secondary" id="btnExportNeedsDay" style="font-size:11px; padding:6px 14px; border-radius:6px; white-space:nowrap;">EXPORT OPEN SHIFTS</button>
           </div>
           <div id="dayTableWrap"></div>
 
@@ -1229,9 +1260,80 @@ function getNewHires() {
   const hires = loadJSON(STORAGE.hires, []);
   return Array.isArray(hires) ? hires : [];
 }
+let _crossMonthVac = [];
+let _crossMonthTraining = [];
+
 function getVacRanges() {
   const v = loadJSON(STORAGE.vac, []);
   return Array.isArray(v) ? v : [];
+}
+function getVacRangesWithCrossMonth() {
+  return getVacRanges().concat(_crossMonthVac);
+}
+function getTrainerRangesWithCrossMonth() {
+  return getTrainerRanges().concat(_crossMonthTraining);
+}
+
+async function loadCrossMonthData(year, monthIndex) {
+  _crossMonthVac = [];
+  _crossMonthTraining = [];
+  // Get first day of current month for comparison
+  const firstOfMonth = new Date(year, monthIndex, 1, 12, 0, 0, 0);
+  const firstISO = ymd(firstOfMonth);
+
+  // Check previous month's doc for ranges that bleed into current month
+  let prevYear = year, prevMo = monthIndex - 1;
+  if (prevMo < 0) { prevMo = 11; prevYear--; }
+  const prevDocId = `rotation_${prevYear}_${prevMo}`;
+
+  try {
+    const doc = await db.collection('rotation_plans').doc(prevDocId).get();
+    if (doc.exists) {
+      const data = doc.data();
+      if (Array.isArray(data.vacations)) {
+        for (const v of data.vacations) {
+          if (v.to && v.to >= firstISO && v.from && v.from < firstISO) {
+            _crossMonthVac.push({ name: v.name, from: v.from, to: v.to, _crossMonth: monthName(prevMo) + ' ' + prevYear });
+          }
+        }
+      }
+      if (Array.isArray(data.trainers || data.training)) {
+        const arr = data.trainers || data.training || [];
+        for (const t of arr) {
+          if (t.to && t.to >= firstISO && t.from && t.from < firstISO) {
+            _crossMonthTraining.push({ name: t.name, from: t.from, to: t.to, blocks: t.blocks || [], _crossMonth: monthName(prevMo) + ' ' + prevYear });
+          }
+        }
+      }
+    }
+  } catch (e) { console.warn('loadCrossMonthData prev error:', e); }
+
+  // Also check next month's doc for ranges that start in current month but are stored in next
+  // (shouldn't happen since ranges are stored by FROM, but just in case)
+  let nextYear = year, nextMo = monthIndex + 1;
+  if (nextMo > 11) { nextMo = 0; nextYear++; }
+  const lastOfMonth = new Date(year, monthIndex + 1, 0, 12, 0, 0, 0);
+  const lastISO = ymd(lastOfMonth);
+  const nextDocId = `rotation_${nextYear}_${nextMo}`;
+
+  try {
+    const doc = await db.collection('rotation_plans').doc(nextDocId).get();
+    if (doc.exists) {
+      const data = doc.data();
+      if (Array.isArray(data.vacations)) {
+        for (const v of data.vacations) {
+          if (v.from && v.from <= lastISO && v.from >= firstISO) {
+            // This range starts in current month but is stored in next — shouldn't normally happen
+          }
+          // Check if a range FROM next month has a FROM that's actually in current month range
+          // Actually what matters: ranges from next month whose FROM <= lastOfCurrentMonth
+          // But those would be stored in current month. The real case: nothing needed here.
+        }
+      }
+    }
+  } catch (e) { /* ignore */ }
+
+  console.log('Cross-month: ' + _crossMonthVac.length + ' vac, ' + _crossMonthTraining.length + ' training from prev month');
 }
 function getTrainerRanges() {
   const t = loadJSON(STORAGE.training, []);
@@ -1247,7 +1349,7 @@ function getTrainees() {
   return getTrainerRanges().map(r => r.name);
 }
 function isTrainee(name, dayKey, blockKey) {
-  const ranges = getTrainerRanges();
+  const ranges = getTrainerRangesWithCrossMonth();
   const nm = String(name || "").trim().toUpperCase();
   const dateObj = dayKey ? parseYMD(dayKey) : null;
   const dt = dateObj ? dateObj.getTime() : null;
@@ -1278,7 +1380,7 @@ function traineeBlocked(name, dayKey, blockKey, channelUpper) {
 }
 
 function isExcluded(name, dateObj) {
-  const ranges = getVacRanges();
+  const ranges = getVacRangesWithCrossMonth();
   const nm = String(name||"").trim().toUpperCase();
   const dt = dateObj ? dateObj.getTime() : null;
   return ranges.some(r => {
@@ -8462,9 +8564,14 @@ function renderExceptions() {
   html += '<button class="btn secondary" id="btnAddVac" style="font-size:11px; padding:6px 12px; border-radius:6px; white-space:nowrap;">ADD</button>';
   html += '</div>';
   html += '<table style="width:100%; table-layout:fixed;"><thead><tr><th style="text-align:left; width:35%;">NAME</th><th style="width:25%;">FROM</th><th style="width:25%;">TO</th><th style="width:15%;"></th></tr></thead><tbody>';
-  if (vacRanges.length) {
-    vacRanges.forEach((r, idx) => {
-      html += `<tr><td style="text-align:left; font-weight:700;">${escapeHtml((r.name||"").toUpperCase())}</td><td>${r.from||"—"}</td><td>${r.to||"rest of month"}</td><td><button class="btn danger exc-del-vac" data-i="${idx}" style="font-size:10px; padding:3px 8px;">X</button></td></tr>`;
+  const dispatcherSet = new Set(names.map(n => n.toUpperCase()));
+  const allVacDisplay = vacRanges.concat(_crossMonthVac).filter(r => dispatcherSet.has(String(r.name||"").trim().toUpperCase()));
+  if (allVacDisplay.length) {
+    allVacDisplay.forEach((r, idx) => {
+      const isCross = !!r._crossMonth;
+      const nameHtml = escapeHtml((r.name||"").toUpperCase()) + (isCross ? ' <span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(125,211,252,.12);color:#7dd3fc;border:1px solid rgba(125,211,252,.25);margin-left:4px;font-weight:800;">FROM ' + escapeHtml(r._crossMonth).toUpperCase() + '</span>' : '');
+      const delBtn = isCross ? '' : `<button class="btn danger exc-del-vac" data-i="${idx}" style="font-size:10px; padding:3px 8px;">X</button>`;
+      html += `<tr${isCross ? ' style="opacity:.7;"' : ''}><td style="text-align:left; font-weight:700;">${nameHtml}</td><td>${r.from||"—"}</td><td>${r.to||"rest of month"}</td><td>${delBtn}</td></tr>`;
     });
   } else {
     html += '<tr><td colspan="4" style="color:var(--muted); font-size:11px;">No exclusions.</td></tr>';
@@ -8515,6 +8622,14 @@ function renderExceptions() {
   }
 
   html += '<table style="width:100%; table-layout:fixed;"><thead><tr><th style="text-align:left; width:22%;">NAME</th><th style="width:14%;">FROM</th><th style="width:14%;">TO</th><th style="width:34%;">BLOCKS</th><th style="width:16%;"></th></tr></thead><tbody>';
+  // Show cross-month trainers first, then current month trainers
+  if (_crossMonthTraining.length) {
+    _crossMonthTraining.forEach((r) => {
+      const blocksLabel = (r.blocks && r.blocks.length > 0) ? r.blocks.map(k => { const m2 = _blockOpts.find(o=>o.key===k); return m2 ? m2.label : k; }).join(', ') : 'ALL';
+      const nameHtml = escapeHtml((r.name||"").toUpperCase()) + ' <span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(125,211,252,.12);color:#7dd3fc;border:1px solid rgba(125,211,252,.25);margin-left:4px;font-weight:800;">FROM ' + escapeHtml(r._crossMonth).toUpperCase() + '</span>';
+      html += `<tr style="opacity:.7;"><td style="text-align:left; font-weight:700;">${nameHtml}</td><td>${r.from||"—"}</td><td>${r.to||"rest of month"}</td><td style="font-size:10px;">${blocksLabel}</td><td></td></tr>`;
+    });
+  }
   if (trainerRanges.length) {
     trainerRanges.forEach((r, idx) => {
       const blocksLabel = (r.blocks && r.blocks.length > 0) ? r.blocks.map(k => { const m = _blockOpts.find(o=>o.key===k); return m ? m.label : k; }).join(', ') : 'ALL';
@@ -8528,7 +8643,8 @@ function renderExceptions() {
       });
       html += `<tr id="tr-edit-${idx}" style="display:none;"><td colspan="3" style="text-align:left; font-size:9px; color:var(--muted); padding:6px 0;">EDITING BLOCKS FOR <b>${escapeHtml((r.name||"").toUpperCase())}</b></td><td style="padding:6px 0;"><div style="display:flex; gap:3px; flex-wrap:wrap;">${editCbs}</div></td><td style="white-space:nowrap; padding:6px 0;"><button class="btn secondary exc-save-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px; margin-right:2px;">SAVE</button><button class="btn secondary exc-cancel-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px;">CANCEL</button></td></tr>`;
     });
-  } else {
+  }
+  if (!trainerRanges.length && !_crossMonthTraining.length) {
     html += '<tr><td colspan="5" style="color:var(--muted); font-size:11px;">No trainers.</td></tr>';
   }
   html += '</tbody></table></div>';
@@ -8922,9 +9038,59 @@ ${fairnessTable}
 }
 
 // ========== PRINT: MONTHLY ROSTER (landscape, legal paper) ==========
-function printMonthRoster(mode) {
+function printAllRosters() {
   const plan = loadPlan();
   if (!plan || !plan.days) { showToast("No plan loaded. Randomize a month first."); return; }
+  const year = plan.meta.year;
+  const monthIndex = plan.meta.monthIndex;
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const monthLabel = monthNames[monthIndex] + " " + year;
+
+  const sections = [];
+  for (const m of ["DAY","NIGHT","SPLIT","SD"]) {
+    const result = buildMonthRosterHTML(m);
+    if (result) sections.push(result);
+  }
+  if (!sections.length) { showToast("No roster data found."); return; }
+
+  // Use the CSS from the first section (they're all the same base style)
+  const css = sections[0].css;
+  let body = '';
+  sections.forEach((s, i) => {
+    if (i > 0) body += '<div style="page-break-before:always;"></div>';
+    body += '<h1>' + monthLabel + ' \u2014 ' + s.shiftLabel + ' Rotation Roster</h1>';
+    body += '<div class="subtitle">Each cell shows ' + s.blockCount + ' blocks top-to-bottom (' + s.blockShortStr + ') \u2022 Generated ' + new Date().toLocaleDateString() + '</div>';
+    body += s.table;
+    body += s.legend;
+  });
+
+  const w = window.open("", "_blank");
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + monthLabel + ' All Rosters</title><style>' + css + '</style></head><body>' + body + '<script>window.onload = function(){ window.print(); };<\/script></body></html>');
+  w.document.close();
+}
+
+function printMonthRoster(mode) {
+  const result = buildMonthRosterHTML(mode);
+  if (!result) return;
+  const plan = loadPlan();
+  const year = plan.meta.year;
+  const monthIndex = plan.meta.monthIndex;
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const monthLabel = monthNames[monthIndex] + " " + year;
+
+  const w = window.open("", "_blank");
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + monthLabel + ' ' + result.shiftLabel + ' Roster</title><style>' + result.css + '</style></head><body>');
+  w.document.write('<h1>' + monthLabel + ' \u2014 ' + result.shiftLabel + ' Rotation Roster</h1>');
+  w.document.write('<div class="subtitle">Each cell shows ' + result.blockCount + ' blocks top-to-bottom (' + result.blockShortStr + ') \u2022 Generated ' + new Date().toLocaleDateString() + '</div>');
+  w.document.write(result.table);
+  w.document.write(result.legend);
+  w.document.write('<script>window.onload = function(){ window.print(); };<\/script></body></html>');
+  w.document.close();
+}
+
+function buildMonthRosterHTML(mode) {
+  const plan = loadPlan();
+  if (!plan || !plan.days) { showToast("No plan loaded. Randomize a month first."); return null; }
 
   const year = plan.meta.year;
   const monthIndex = plan.meta.monthIndex;
@@ -9016,7 +9182,7 @@ function printMonthRoster(mode) {
     });
   }
 
-  if (!people.length) { showToast("No people found for " + shiftLabel + " roster."); return; }
+  if (!people.length) { return null; }
 
   // Build assignment map: assignMap[dk][bk] = Map(NAME -> channel)
   const assignMap = {};
@@ -9102,9 +9268,7 @@ function printMonthRoster(mode) {
   }
   legend += ' &nbsp;&nbsp;&bull;&nbsp;&nbsp; <b>N</b>=North <b>E</b>=East <b>S</b>=South <b>W</b>=West <b>NW</b>=Northwest <b>C</b>=Central <b>CT</b>=Call-Taker <b>R1</b>=Relief 1 <b>R2</b>=Relief 2 <b>DC1</b>=Dispatch 1 <b>DC2</b>=Dispatch 2</div>';
 
-  const w = window.open("", "_blank");
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${monthLabel} ${shiftLabel} Roster</title>
-<style>
+  const css = `
 @media print { @page { margin: 0.25in 0.3in; size: 14in 8.5in; } }
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family: Arial, sans-serif; padding: 8px; }
@@ -9125,30 +9289,22 @@ td.off.wkend { background: #e8ecf1; }
 .blk-off { color: #cbd5e1; font-size: ${isSixBlock ? "6px" : "8px"}; }
 tr:nth-child(even) td.assign { background: #f9fafb; }
 tr:nth-child(even) td.assign.wkend { background: #f1f4f8; }
-/* Channel colors */
-.ch-n { color: #b45309; }
-.ch-e { color: #047857; }
-.ch-s { color: #1d4ed8; }
-.ch-w { color: #dc2626; }
-.ch-nw { color: #7c3aed; }
-.ch-c { color: #0369a1; }
+.ch-n { color: #b45309; } .ch-e { color: #047857; } .ch-s { color: #1d4ed8; }
+.ch-w { color: #dc2626; } .ch-nw { color: #7c3aed; } .ch-c { color: #0369a1; }
 .ch-ct { color: #111; background: #e5e7eb; padding: 0 2px; border-radius: 2px; }
-.ch-r1 { color: #a16207; }
-.ch-r2 { color: #4338ca; }
-.ch-dc1 { color: #be185d; }
-.ch-dc2 { color: #15803d; }
-.ch-sd { color: #6d28d9; }
-.ch-7th { color: #0e7490; }
+.ch-r1 { color: #a16207; } .ch-r2 { color: #4338ca; } .ch-dc1 { color: #be185d; }
+.ch-dc2 { color: #15803d; } .ch-sd { color: #6d28d9; } .ch-7th { color: #0e7490; }
 .legend { font-size: 9px; color: #444; margin-top: 6px; line-height: 1.6; text-align: center; }
-@media print { .no-print { display: none; } }
-</style></head><body>
-<h1>${monthLabel} \u2014 ${shiftLabel} Rotation Roster</h1>
-<div class="subtitle">Each cell shows ${SELBLOCKS.length} blocks top-to-bottom (${blockShort.join(' / ')}) \u2022 Generated ${new Date().toLocaleDateString()}</div>
-${tbl}
-${legend}
-<script>window.onload = function(){ window.print(); };<\/script>
-</body></html>`);
-  w.document.close();
+@media print { .no-print { display: none; } }`;
+
+  return {
+    shiftLabel,
+    table: tbl,
+    legend,
+    css,
+    blockCount: SELBLOCKS.length,
+    blockShortStr: blockShort.join(' / ')
+  };
 }
 
 function renderInfoStats() {
@@ -9322,7 +9478,7 @@ function boot() {
       document.getElementById("printRosterMenu").style.display = "none";
       const mode = opt.getAttribute("data-mode");
       if (mode === "ALL") {
-        ["DAY","NIGHT","SPLIT","SD"].forEach(m => printMonthRoster(m));
+        printAllRosters();
       } else {
         printMonthRoster(mode);
       }
@@ -9870,8 +10026,8 @@ function boot() {
     showToast("CSV file exported!");
   });
 
-  // PUSH TO SHIFTOPS — write current day's rotation assignments to ShiftOPS daily_edits Firestore
-  document.getElementById("btnPushShiftOps").addEventListener("click", async () => {
+  // PUSH TO SHIFTOPS — reusable function, accepts "DAY" or "NIGHT"
+  async function pushToShiftOps(shiftTarget) {
     const plan = loadPlan();
     if (!plan || !plan.days) { showToast("No plan to push. Randomize first."); return; }
 
@@ -9882,6 +10038,25 @@ function boot() {
 
     const DAY_BLK = ["0600-1000","1000-1400","1400-1800"];
     const NIGHT_BLK = ["1800-2200","2200-0200","0200-0600"];
+    const targetBlocks = shiftTarget === "DAY" ? DAY_BLK : NIGHT_BLK;
+    const shiftLabel = shiftTarget === "DAY" ? "Day shift" : "Night shift";
+
+    // Pre-count assignments for confirmation dialog
+    let count = 0;
+    for (const bk of targetBlocks) {
+      const e = dayBlocks[bk]; if (!e) continue;
+      if (e.assignments) count += Object.values(e.assignments).filter(Boolean).length;
+      if (e.ct) count += e.ct.filter(Boolean).length;
+      if (e.sd) count += e.sd.filter(Boolean).length;
+    }
+
+    const formattedDate = new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday:"long", month:"long", day:"numeric", year:"numeric" });
+    if (!confirm(
+      "Push " + shiftLabel + " to ShiftOps?\n\n" +
+      "Date: " + formattedDate + "\n" +
+      shiftLabel + " assignments: " + count + "\n\n" +
+      "This will merge into existing ShiftOps data for this date."
+    )) return;
 
     // Build name-casing map: UPPER -> original Firestore casing
     const nameCaseMap = new Map();
@@ -9899,6 +10074,18 @@ function boot() {
       return nameCaseMap.get(upper) || upper;
     }
 
+    // Load real seat names from Firestore so pushed values match exactly
+    const seatCaseMap = new Map();
+    try {
+      const seatSnap = await db.collection('Dispatcher_Seat_Assignments').get();
+      seatSnap.docs.forEach(doc => {
+        const val = String(Object.values(doc.data())[0] || "").trim();
+        if (val) seatCaseMap.set(val.toUpperCase(), val);
+      });
+    } catch (e) {
+      console.warn("Could not load seat assignments from Firestore:", e);
+    }
+
     function channelToRole(ch) {
       const u = String(ch).toUpperCase();
       if (u === "CT") return "CALLTAKER";
@@ -9906,91 +10093,154 @@ function boot() {
     }
     function channelToSeat(ch) {
       const map = {
-        "North":"North","South":"South","East":"East","West":"West",
-        "Central":"Central","Northwest":"Northwest",
-        "DC1":"DC1","DC2":"DC2","Relief 1":"Relief 1","Relief 2":"Relief 2"
+        "NORTH":"NORTH","SOUTH":"SOUTH","EAST":"EAST","WEST":"WEST",
+        "CENTRAL":"CENTRAL","NORTHWEST":"NW",
+        "DC1":"DC1","DC2":"DC2","RELIEF 1":"R31","RELIEF 2":"R32",
+        "7TH":"C 7TH"
       };
-      return map[ch] || ch || "";
+      const mapped = map[String(ch||"").toUpperCase()] || String(ch||"").toUpperCase();
+      return seatCaseMap.get(mapped.toUpperCase()) || mapped;
     }
 
-    let docCount = 0;
     let assignCount = 0;
-    const btn = document.getElementById("btnPushShiftOps");
-    const origText = btn.textContent;
-    btn.textContent = "Pushing...";
-    btn.disabled = true;
+
+    // Disable all push buttons during push
+    const allBtns = [document.getElementById("btnPushShiftOps"), document.getElementById("btnSendDayShift"), document.getElementById("btnSendNightShift")];
+    const origTexts = allBtns.map(b => b.textContent);
+    allBtns.forEach(b => { b.textContent = "Pushing..."; b.disabled = true; });
+
+    // Convert block key "HHMM-HHMM" to start/end minutes (with night shift +1440 for post-midnight)
+    function blockToMinutes(bk, isNight) {
+      const [startStr, endStr] = bk.split("-");
+      let ws = parseInt(startStr.slice(0,2),10)*60 + parseInt(startStr.slice(2),10);
+      let we = parseInt(endStr.slice(0,2),10)*60 + parseInt(endStr.slice(2),10);
+      if (we <= ws) we += 1440;
+      if (isNight && ws < 1080) { ws += 1440; we += 1440; }
+      return { ws, we };
+    }
 
     try {
-      for (const [shiftName, shiftBlocks] of [["DAY", DAY_BLK], ["NIGHT", NIGHT_BLK]]) {
-        const edits = {};
-        let hasAny = false;
+      const edits = {};
+      const otEntries = [];
+      let hasAny = false;
 
-        for (const bk of shiftBlocks) {
-          const entry = dayBlocks[bk];
-          if (!entry) continue;
+      for (const bk of targetBlocks) {
+        const entry = dayBlocks[bk];
+        if (!entry) continue;
+        const otSet = new Set((entry.ot || []).map(n => String(n).toUpperCase()));
 
-          if (entry.assignments) {
-            for (const [ch, nm] of Object.entries(entry.assignments)) {
-              if (!nm) continue;
-              const emp = toShiftOpsName(nm);
-              if (!edits[emp]) edits[emp] = {};
-              edits[emp][bk] = {
-                Present: "YES", Hours: "", Role: channelToRole(ch),
-                Assignment: channelToSeat(ch), AbsenceReason: "",
-                PartialReason: "", WorkedStart: "", WorkedEnd: "", OthType: ""
-              };
-              hasAny = true; assignCount++;
+        if (entry.assignments) {
+          for (const [ch, nm] of Object.entries(entry.assignments)) {
+            if (!nm) continue;
+            const emp = toShiftOpsName(nm);
+            const role = channelToRole(ch);
+            if (!edits[emp]) edits[emp] = {};
+            edits[emp][bk] = {
+              Present: "YES", Hours: "", Role: role,
+              Assignment: channelToSeat(ch), AbsenceReason: "",
+              PartialReason: "", WorkedStart: "", WorkedEnd: "", OthType: ""
+            };
+            hasAny = true; assignCount++;
+            if (otSet.has(String(nm).toUpperCase())) {
+              const { ws, we } = blockToMinutes(bk, shiftTarget === "NIGHT");
+              otEntries.push({ emp, role, ws, we, isOT: true, blockId: bk });
             }
           }
+        }
 
-          if (entry.ct && entry.ct.length) {
-            for (const nm of entry.ct) {
-              if (!nm) continue;
-              const emp = toShiftOpsName(nm);
-              if (!edits[emp]) edits[emp] = {};
+        if (entry.ct && entry.ct.length) {
+          for (const nm of entry.ct) {
+            if (!nm) continue;
+            const emp = toShiftOpsName(nm);
+            if (!edits[emp]) edits[emp] = {};
+            edits[emp][bk] = {
+              Present: "YES", Hours: "", Role: "CALLTAKER",
+              Assignment: "", AbsenceReason: "",
+              PartialReason: "", WorkedStart: "", WorkedEnd: "", OthType: ""
+            };
+            hasAny = true; assignCount++;
+            if (otSet.has(String(nm).toUpperCase())) {
+              const { ws, we } = blockToMinutes(bk, shiftTarget === "NIGHT");
+              otEntries.push({ emp, role: "CALLTAKER", ws, we, isOT: true, blockId: bk });
+            }
+          }
+        }
+
+        if (entry.sd && entry.sd.length) {
+          for (const nm of entry.sd) {
+            if (!nm) continue;
+            const emp = toShiftOpsName(nm);
+            if (!edits[emp]) edits[emp] = {};
+            edits[emp][bk] = {
+              Present: "YES", Hours: "", Role: "OTH",
+              Assignment: "", AbsenceReason: "",
+              PartialReason: "", WorkedStart: "", WorkedEnd: "", OthType: "SD"
+            };
+            hasAny = true; assignCount++;
+            if (otSet.has(String(nm).toUpperCase())) {
+              const { ws, we } = blockToMinutes(bk, shiftTarget === "NIGHT");
+              otEntries.push({ emp, role: "OTH", ws, we, isOT: true, blockId: bk });
+            }
+          }
+        }
+
+        // Push absent people as Present:"NO"
+        if (entry.absent && entry.absent.length) {
+          for (const nm of entry.absent) {
+            if (!nm) continue;
+            const emp = toShiftOpsName(nm);
+            if (!edits[emp]) edits[emp] = {};
+            if (!edits[emp][bk]) {
               edits[emp][bk] = {
-                Present: "YES", Hours: "", Role: "CALLTAKER",
+                Present: "NO", Hours: "0", Role: "",
                 Assignment: "", AbsenceReason: "",
                 PartialReason: "", WorkedStart: "", WorkedEnd: "", OthType: ""
               };
-              hasAny = true; assignCount++;
+              hasAny = true;
             }
           }
-
-          if (entry.sd && entry.sd.length) {
-            for (const nm of entry.sd) {
-              if (!nm) continue;
-              const emp = toShiftOpsName(nm);
-              if (!edits[emp]) edits[emp] = {};
-              edits[emp][bk] = {
-                Present: "YES", Hours: "", Role: "DISPATCHER",
-                Assignment: "SD", AbsenceReason: "",
-                PartialReason: "", WorkedStart: "", WorkedEnd: "", OthType: ""
-              };
-              hasAny = true; assignCount++;
-            }
-          }
-        }
-
-        if (hasAny) {
-          const docId = iso + "_" + shiftName;
-          await db.collection('daily_edits').doc(docId).set({
-            date: iso, shift: shiftName, edits: edits, ot: [],
-            savedAt: new Date().toISOString(), source: "RotationOps"
-          }, { merge: true });
-          docCount++;
         }
       }
 
-      showToast("Pushed " + iso + " to ShiftOps! " + assignCount + " assignments (" + docCount + " shifts).");
+      if (hasAny) {
+        const docId = iso + "_" + shiftTarget;
+        const docRef = db.collection('daily_edits').doc(docId);
+
+        // Merge OT: read existing entries, keep non-duplicates, add/update from RotationOps
+        let mergedOT = otEntries;
+        try {
+          const existing = await docRef.get();
+          if (existing.exists && Array.isArray(existing.data().ot)) {
+            const existingOT = existing.data().ot;
+            // Build set of new OT keys (emp+blockId) for dedup
+            const newKeys = new Set(otEntries.map(o => o.emp.toUpperCase() + "|" + o.blockId));
+            // Keep existing entries that don't collide, then append new ones
+            const kept = existingOT.filter(o => !newKeys.has(String(o.emp).toUpperCase() + "|" + (o.blockId || "")));
+            mergedOT = [...kept, ...otEntries];
+          }
+        } catch (e) {
+          console.warn("Could not read existing OT entries:", e);
+        }
+
+        await docRef.set({
+          date: iso, shift: shiftTarget, edits: edits, ot: mergedOT,
+          savedAt: new Date().toISOString(), source: "RotationOps"
+        }, { merge: true });
+      }
+
+      showToast("Pushed " + shiftLabel + " (" + iso + ") to ShiftOps! " + assignCount + " assignments.");
     } catch (err) {
       console.error("Push to ShiftOps failed:", err);
       showToast("ERROR: " + (err.message || err));
     } finally {
-      btn.textContent = origText;
-      btn.disabled = false;
+      allBtns.forEach((b, i) => { b.textContent = origTexts[i]; b.disabled = false; });
     }
-  });
+  }
+
+  // Wire buttons
+  document.getElementById("btnPushShiftOps").addEventListener("click", () => pushToShiftOps("DAY"));
+  document.getElementById("btnSendDayShift").addEventListener("click", () => pushToShiftOps("DAY"));
+  document.getElementById("btnSendNightShift").addEventListener("click", () => pushToShiftOps("NIGHT"));
 
   // Event delegation for btnAddVac and btnAddTrainee
   document.addEventListener("click", (e)=>{
@@ -10311,14 +10561,17 @@ function boot() {
     renderDay(dk); renderWeek(dk); renderMonth(y, m);
     showToast(`SWAPPED ${personA} ↔ ${personB}`);
 
-    // Sync both to ShiftOps
-    const seatMap = {"North":"North","South":"South","East":"East","West":"West","Central":"Central","Northwest":"Northwest","DC1":"DC1","DC2":"DC2","Relief 1":"Relief 1","Relief 2":"Relief 2"};
+    // Sync both to ShiftOps — reuse channelToSeat for consistent mapping
+    const _seatMap = {"NORTH":"NORTH","SOUTH":"SOUTH","EAST":"EAST","WEST":"WEST","CENTRAL":"CENTRAL","NORTHWEST":"NW","DC1":"DC1","DC2":"DC2","RELIEF 1":"R31","RELIEF 2":"R32","7TH":"C 7TH"};
+    function _swapSeat(ch) { return _seatMap[String(ch||"").toUpperCase()] || String(ch||"").toUpperCase(); }
     // personA is now in swapType/swapChannel position
-    const roleA = (swapType === "ct") ? "CALLTAKER" : "DISPATCHER";
-    const seatA = (swapType === "channel") ? (seatMap[swapChannel] || swapChannel) : "";
+    const roleA = (swapType === "ct") ? "CALLTAKER" : ((swapType === "sd") ? "OTH" : "DISPATCHER");
+    const seatA = (swapType === "channel") ? _swapSeat(swapChannel) : "";
+    const othA = (swapType === "sd") ? "SD" : "";
     // personB is now in type/channel position
-    const roleB = (type === "ct") ? "CALLTAKER" : "DISPATCHER";
-    const seatB = (type === "channel") ? (seatMap[channel] || channel) : "";
+    const roleB = (type === "ct") ? "CALLTAKER" : ((type === "sd") ? "OTH" : "DISPATCHER");
+    const seatB = (type === "channel") ? _swapSeat(channel) : "";
+    const othB = (type === "sd") ? "SD" : "";
     syncSwapToShiftOps(dayKey, blockKey, personA, roleA, seatA, personB, roleB, seatB);
   });
 
@@ -12055,6 +12308,7 @@ function boot() {
     const y = Number(document.getElementById("yearSel").value);
     setSyncStatus("LOADING...", "pending");
     const loaded = await loadRotationFromFirebase(y, m);
+    await loadCrossMonthData(y, m);
     if (loaded) {
       setSyncStatus("SYNCED", "good");
       const plan = loadPlan();
@@ -12063,6 +12317,7 @@ function boot() {
         document.getElementById("dayPick").value = dk;
         renderDay(dk); renderWeek(dk); renderMonth(y, m);
         if (loadJSON(STORAGE.ui, {}).tab === "mroster") renderMonthRostersIfActive();
+        if (loadJSON(STORAGE.ui, {}).tab === "exceptions") renderExceptions();
       }
     } else {
       setSyncStatus("LOCAL", null);
@@ -12323,6 +12578,7 @@ function boot() {
 
     // Try to load rotation plan from Firebase
     const firebaseLoaded = await loadRotationFromFirebase(year, month);
+    await loadCrossMonthData(year, month);
 
     if (firebaseLoaded) {
       setSyncStatus("SYNCED", "good");
