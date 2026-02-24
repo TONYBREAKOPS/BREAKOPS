@@ -775,6 +775,9 @@
             <div style="font-weight:700; color:var(--text); margin-bottom:2px;">VACATION HANDLING</div>
             <div style="margin-bottom:8px;">Vacation employees are excluded from the pool for their vacation days. Fairness % is calculated only against days they actually work. They don't affect the overall fairness score. Trainees are also excluded since they can only rotate through 4 channels.</div>
 
+            <div style="font-weight:700; color:var(--text); margin-bottom:2px;">CLICK A NAME</div>
+            <div style="margin-bottom:8px;">Click any assigned name to swap, move, or mark absent. Click a NEEDED badge to assign from CT, SD, or overtime.</div>
+
             <div style="font-weight:700; color:var(--text); margin-bottom:2px;">EXPORT</div>
             <div style="margin-bottom:8px;">Export Open Shifts generates a Teams-compatible XLSX for unfilled slots. Export Totals/Excel/CSV export assignment data. Push to ShiftOps syncs the rotation into ShiftOps.</div>
 
@@ -911,30 +914,49 @@
 
 <!-- Swap tip bubble -->
 <div id="swapTip" style="display:none; position:fixed; bottom:70px; left:50%; transform:translateX(-50%); background:rgba(31,111,235,.92); color:#fff; padding:12px 20px; border-radius:12px; font-size:13px; font-weight:600; z-index:999; box-shadow:0 8px 30px rgba(0,0,0,.4); cursor:pointer; text-align:center; max-width:400px; animation:tipSlideUp .4s ease-out;">
-  Click any name to swap assignments
+  Click any name to swap, move, or mark absent
   <div style="font-size:10px; font-weight:400; margin-top:4px; opacity:.8;">tap to dismiss</div>
 </div>
 
-<!-- Swap Assignment Modal -->
+<!-- Action Menu Modal (two-phase) -->
 <div id="callOffModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
   <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:20px; min-width:320px; max-width:420px;">
-    <h3 style="margin:0 0 15px;" id="callOffModalTitle">SWAP ASSIGNMENT</h3>
+    <h3 style="margin:0 0 15px;" id="callOffModalTitle">ACTION</h3>
     <p id="callOffModalInfo" style="margin:0 0 15px; font-size:14px;"></p>
-    <div style="margin-bottom:15px;">
-      <label style="font-size:12px; font-weight:700; display:block; margin-bottom:6px;">SWAP WITH:</label>
-      <select id="swapSelect" style="width:100%; padding:8px; font-size:13px; border-radius:6px; border:1px solid var(--line); background:var(--panel2); color:var(--text);"></select>
+
+    <!-- Phase 1: Action picker -->
+    <div id="actionPhase" style="display:flex; flex-direction:column; gap:8px;">
+      <button class="btn" id="btnActionSwap" style="width:100%;">SWAP</button>
+      <button class="btn" id="btnActionMove" style="background:#8b5cf6; width:100%;">MOVE</button>
+      <button class="btn danger" id="btnMarkAbsent" style="width:100%;">MARK ABSENT</button>
+      <button class="btn danger" id="btnRemoveOT" style="display:none; background:#dc2626; width:100%;">REMOVE OT</button>
+      <button class="btn secondary" id="btnModalCancel" style="width:100%;">CANCEL</button>
     </div>
-    <div id="moveToSection" style="display:none; margin-bottom:15px;">
-      <label style="font-size:12px; font-weight:700; display:block; margin-bottom:6px;">MOVE TO:</label>
-      <select id="moveToSelect" style="width:100%; padding:8px; font-size:13px; border-radius:6px; border:1px solid var(--line); background:var(--panel2); color:var(--text);"></select>
+
+    <!-- Phase 2a: Swap sub-panel -->
+    <div id="swapPhase" style="display:none;">
+      <div style="margin-bottom:15px;">
+        <label style="font-size:12px; font-weight:700; display:block; margin-bottom:6px;">SWAP WITH:</label>
+        <select id="swapSelect" style="width:100%; padding:8px; font-size:13px; border-radius:6px; border:1px solid var(--line); background:var(--panel2); color:var(--text);"></select>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn" id="btnConfirmSwap">CONFIRM</button>
+        <button class="btn secondary" id="btnBackFromSwap">BACK</button>
+      </div>
     </div>
-    <div style="display:flex; gap:10px; flex-wrap:wrap;">
-      <button class="btn" id="btnModalSwap">SWAP</button>
-      <button class="btn danger" id="btnMarkAbsent">MARK ABSENT</button>
-      <button class="btn" id="btnMoveTo" style="background:#8b5cf6; display:none;">MOVE</button>
-      <button class="btn danger" id="btnRemoveOT" style="display:none; background:#dc2626;">REMOVE OT</button>
-      <button class="btn secondary" id="btnModalCancel">CANCEL</button>
+
+    <!-- Phase 2b: Move sub-panel -->
+    <div id="movePhase" style="display:none;">
+      <div style="margin-bottom:15px;">
+        <label style="font-size:12px; font-weight:700; display:block; margin-bottom:6px;">MOVE TO:</label>
+        <select id="moveToSelect" style="width:100%; padding:8px; font-size:13px; border-radius:6px; border:1px solid var(--line); background:var(--panel2); color:var(--text);"></select>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn" id="btnConfirmMove" style="background:#8b5cf6;">CONFIRM</button>
+        <button class="btn secondary" id="btnBackFromMove">BACK</button>
+      </div>
     </div>
+
     <div id="callOffModalResult" style="margin-top:15px; font-size:13px;"></div>
   </div>
 </div>
@@ -945,7 +967,7 @@
     <h3 style="margin:0 0 15px;" id="assignSlotModalTitle">ASSIGN TO SLOT</h3>
     <p id="assignSlotModalInfo" style="margin:0 0 15px; font-size:14px;"></p>
     <div style="margin-bottom:15px;">
-      <label style="font-size:12px; font-weight:700; display:block; margin-bottom:6px;">ASSIGN FROM CT:</label>
+      <label style="font-size:12px; font-weight:700; display:block; margin-bottom:6px;">ASSIGN FROM:</label>
       <select id="assignSlotSelect" style="width:100%; padding:8px; font-size:13px; border-radius:6px; border:1px solid var(--line); background:var(--panel2); color:var(--text);"></select>
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -10336,7 +10358,7 @@ function boot() {
   function showCallOffModal(dayKey, blockKey, channel, name, type) {
     currentCallOffData = { dayKey, blockKey, channel, name, type };
     const blockLabel = BLOCKS.find(b => b.key === blockKey)?.label || blockKey;
-    document.getElementById("callOffModalTitle").textContent = `SWAP: ${name}`;
+    document.getElementById("callOffModalTitle").textContent = name.toUpperCase();
     document.getElementById("callOffModalInfo").innerHTML = `
       <strong>DATE:</strong> ${dayKey}<br>
       <strong>BLOCK:</strong> ${blockLabel}<br>
@@ -10351,46 +10373,13 @@ function boot() {
     removeOTBtn.style.display = isOTChannel ? "inline-block" : "none";
     document.getElementById("btnMarkAbsent").style.display = isOTChannel ? "none" : "inline-block";
 
-    // Show MOVE section only for SD assignments
-    const moveSection = document.getElementById("moveToSection");
-    const moveBtn = document.getElementById("btnMoveTo");
-    if (type === "sd") {
-      moveSection.style.display = "block";
-      moveBtn.style.display = "inline-block";
-      const moveSel = document.getElementById("moveToSelect");
-      moveSel.innerHTML = "";
-      // CT option
-      const ctOpt = document.createElement("option");
-      ctOpt.value = "ct";
-      ctOpt.textContent = "CT (CALLTAKING)";
-      moveSel.appendChild(ctOpt);
-      // Empty channel slots
-      const plan2 = loadPlan();
-      const bd = plan2.days[dayKey]?.[blockKey];
-      if (bd) {
-        for (const ch of CHANNELS) {
-          const assigned = bd.assignments?.[ch];
-          if (!assigned || String(assigned).trim() === "") {
-            const opt = document.createElement("option");
-            opt.value = `channel|${ch}`;
-            opt.textContent = ch.toUpperCase();
-            moveSel.appendChild(opt);
-          }
-        }
-      }
-    } else {
-      moveSection.style.display = "none";
-      moveBtn.style.display = "none";
-    }
-
-    // Populate swap dropdown with all assignments in this block
+    // --- Pre-populate SWAP dropdown ---
     const plan = loadPlan();
     const blockData = plan.days[dayKey]?.[blockKey];
     const swapSelect = document.getElementById("swapSelect");
     swapSelect.innerHTML = "";
 
     if (blockData) {
-      // Add channel assignments
       for (const [ch, nm] of Object.entries(blockData.assignments || {})) {
         if (nm && nm.toUpperCase() !== name.toUpperCase()) {
           const opt = document.createElement("option");
@@ -10399,7 +10388,6 @@ function boot() {
           swapSelect.appendChild(opt);
         }
       }
-      // Add CT assignments
       for (const nm of (blockData.ct || [])) {
         if (nm && nm.toUpperCase() !== name.toUpperCase()) {
           const opt = document.createElement("option");
@@ -10408,7 +10396,6 @@ function boot() {
           swapSelect.appendChild(opt);
         }
       }
-      // Add SD assignments
       for (const nm of (blockData.sd || [])) {
         if (nm && nm.toUpperCase() !== name.toUpperCase()) {
           const opt = document.createElement("option");
@@ -10418,7 +10405,6 @@ function boot() {
         }
       }
     }
-
     if (swapSelect.options.length === 0) {
       const opt = document.createElement("option");
       opt.value = "";
@@ -10426,8 +10412,80 @@ function boot() {
       swapSelect.appendChild(opt);
     }
 
+    // --- Pre-populate MOVE dropdown (all types, not just SD) ---
+    // NEEDED (empty) channels listed first, then CT at the bottom
+    const moveSel = document.getElementById("moveToSelect");
+    moveSel.innerHTML = "";
+    if (blockData) {
+      // Empty channel slots first (these are the "NEEDED" positions)
+      for (const ch of CHANNELS) {
+        if (type === "channel" && ch.toUpperCase() === channel.toUpperCase()) continue;
+        const assigned = blockData.assignments?.[ch];
+        if (!assigned || String(assigned).trim() === "") {
+          const opt = document.createElement("option");
+          opt.value = `channel|${ch}`;
+          opt.textContent = `★ ${ch.toUpperCase()} — NEEDED`;
+          moveSel.appendChild(opt);
+        }
+      }
+      // 7th channel (Fri/Sat nights only)
+      const _moveDate = parseYMD(dayKey);
+      const _moveDow = _moveDate ? _moveDate.getDay() : -1;
+      const _is7thActive = (_moveDow === 5 || _moveDow === 6) && SEVENTH_BLOCKS.has(blockKey);
+      if (_is7thActive) {
+        const assigned7 = blockData.assignments?.[SEVENTH_CHANNEL];
+        const skip7 = type === "channel" && channel.toUpperCase() === SEVENTH_CHANNEL.toUpperCase();
+        if (!skip7 && (!assigned7 || String(assigned7).trim() === "")) {
+          const opt = document.createElement("option");
+          opt.value = `channel|${SEVENTH_CHANNEL}`;
+          opt.textContent = `★ 7TH — NEEDED`;
+          moveSel.appendChild(opt);
+        }
+      }
+      // CT option (available from SD and channel moves)
+      if (type === "sd" || type === "channel") {
+        const ctOpt = document.createElement("option");
+        ctOpt.value = "ct";
+        ctOpt.textContent = "CT (CALLTAKING)";
+        moveSel.appendChild(ctOpt);
+      }
+      // SD option (only for SD-eligible people not already in SD)
+      if (type !== "sd" && SD_ELIGIBLE.has(name.toUpperCase())) {
+        const sdOpt = document.createElement("option");
+        sdOpt.value = "sd";
+        sdOpt.textContent = "SD (SPECIAL DETAIL)";
+        moveSel.appendChild(sdOpt);
+      }
+    }
+    if (moveSel.options.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "-- NO AVAILABLE DESTINATIONS --";
+      moveSel.appendChild(opt);
+    }
+
+    // Show Phase 1, hide Phase 2 panels
+    showActionPhase();
+
     document.getElementById("callOffModalResult").innerHTML = "";
     document.getElementById("callOffModal").style.display = "flex";
+  }
+
+  // --- Phase switching helpers ---
+  function showActionPhase() {
+    document.getElementById("actionPhase").style.display = "flex";
+    document.getElementById("swapPhase").style.display = "none";
+    document.getElementById("movePhase").style.display = "none";
+  }
+  function showSwapPhase() {
+    document.getElementById("actionPhase").style.display = "none";
+    document.getElementById("swapPhase").style.display = "block";
+    document.getElementById("movePhase").style.display = "none";
+  }
+  function showMovePhase() {
+    document.getElementById("actionPhase").style.display = "none";
+    document.getElementById("swapPhase").style.display = "none";
+    document.getElementById("movePhase").style.display = "block";
   }
 
   function hideCallOffModal() {
@@ -10453,7 +10511,19 @@ function boot() {
 
   // Modal buttons
   document.getElementById("btnModalCancel").addEventListener("click", hideCallOffModal);
+  document.getElementById("callOffModal").addEventListener("click", (e) => {
+    if (e.target.id === "callOffModal") hideCallOffModal();
+  });
 
+  // Phase 1 action buttons → open sub-panels
+  document.getElementById("btnActionSwap").addEventListener("click", showSwapPhase);
+  document.getElementById("btnActionMove").addEventListener("click", showMovePhase);
+
+  // BACK buttons → return to Phase 1
+  document.getElementById("btnBackFromSwap").addEventListener("click", showActionPhase);
+  document.getElementById("btnBackFromMove").addEventListener("click", showActionPhase);
+
+  // ========== REMOVE OT (immediate) ==========
   document.getElementById("btnRemoveOT").addEventListener("click", () => {
     if (!currentCallOffData) return;
     const { dayKey, blockKey, channel, name } = currentCallOffData;
@@ -10462,16 +10532,13 @@ function boot() {
     if (!bd) return hideCallOffModal();
     const nameUp = name.toUpperCase();
 
-    // Remove from channel assignment
     if (bd.assignments && String(bd.assignments[channel] || "").toUpperCase() === nameUp) {
       bd.assignments[channel] = "";
     }
-    // Remove from CT if they were placed there
     if (bd.ct) {
       const idx = bd.ct.findIndex(n => String(n).toUpperCase() === nameUp);
       if (idx !== -1) bd.ct.splice(idx, 1);
     }
-    // Remove from OT array
     if (bd.ot) {
       const idx = bd.ot.findIndex(n => String(n).toUpperCase() === nameUp);
       if (idx !== -1) bd.ot.splice(idx, 1);
@@ -10486,11 +10553,9 @@ function boot() {
     renderDay(dk); renderWeek(dk); renderMonth(y, m);
     showToast(`Removed ${name.toUpperCase()} (OT) from ${channel}`);
   });
-  document.getElementById("callOffModal").addEventListener("click", (e) => {
-    if (e.target.id === "callOffModal") hideCallOffModal(); // Click outside to close
-  });
 
-  document.getElementById("btnModalSwap").addEventListener("click", () => {
+  // ========== CONFIRM SWAP ==========
+  document.getElementById("btnConfirmSwap").addEventListener("click", () => {
     if (!currentCallOffData) return;
     const { dayKey, blockKey, channel, name, type } = currentCallOffData;
 
@@ -10504,11 +10569,10 @@ function boot() {
     const blockData = plan.days[dayKey]?.[blockKey];
     if (!blockData) return hideCallOffModal();
 
-    // Get current person's name and swap target's name
     const personA = name.toUpperCase();
     const personB = swapName.toUpperCase();
 
-    // Trainee restriction: block swaps that put a trainee on a restricted channel or CT
+    // Trainee restriction
     const _swapBlockedA = (swapType === "channel" && traineeBlocked(personA, dayKey, blockKey, swapChannel.toUpperCase()))
                        || (swapType === "ct" && isTrainee(personA, dayKey, blockKey));
     const _swapBlockedB = (type === "channel" && traineeBlocked(personB, dayKey, blockKey, channel.toUpperCase()))
@@ -10518,8 +10582,7 @@ function boot() {
       return;
     }
 
-    // Perform the swap based on types
-    // Remove personA from their current position
+    // Place personB in personA's old slot
     if (type === "channel") {
       blockData.assignments[channel] = personB;
     } else if (type === "ct") {
@@ -10530,7 +10593,7 @@ function boot() {
       if (idx !== -1) blockData.sd[idx] = personB;
     }
 
-    // Put personA in personB's position
+    // Place personA in personB's old slot
     if (swapType === "channel") {
       blockData.assignments[swapChannel] = personA;
     } else if (swapType === "ct") {
@@ -10543,39 +10606,28 @@ function boot() {
 
     savePlan(plan);
 
-    // Record swap in history
     const blockLabel = BLOCKS.find(b => b.key === blockKey)?.label || blockKey;
-    addSwapHistory({
-      name1: personA,
-      name2: personB,
-      date: dayKey,
-      block: blockLabel
-    });
+    addSwapHistory({ name1: personA, name2: personB, date: dayKey, block: blockLabel });
 
     hideCallOffModal();
 
-    // Refresh views
     const dk = document.getElementById("dayPick").value;
     const m = Number(document.getElementById("monthSel").value);
     const y = Number(document.getElementById("yearSel").value);
     renderDay(dk); renderWeek(dk); renderMonth(y, m);
     showToast(`SWAPPED ${personA} ↔ ${personB}`);
 
-    // Sync both to ShiftOps — reuse channelToSeat for consistent mapping
+    // ShiftOps sync
     const _seatMap = {"NORTH":"NORTH","SOUTH":"SOUTH","EAST":"EAST","WEST":"WEST","CENTRAL":"CENTRAL","NORTHWEST":"NW","DC1":"DC1","DC2":"DC2","RELIEF 1":"R31","RELIEF 2":"R32","7TH":"C 7TH"};
     function _swapSeat(ch) { return _seatMap[String(ch||"").toUpperCase()] || String(ch||"").toUpperCase(); }
-    // personA is now in swapType/swapChannel position
     const roleA = (swapType === "ct") ? "CALLTAKER" : ((swapType === "sd") ? "OTH" : "DISPATCHER");
     const seatA = (swapType === "channel") ? _swapSeat(swapChannel) : "";
-    const othA = (swapType === "sd") ? "SD" : "";
-    // personB is now in type/channel position
     const roleB = (type === "ct") ? "CALLTAKER" : ((type === "sd") ? "OTH" : "DISPATCHER");
     const seatB = (type === "channel") ? _swapSeat(channel) : "";
-    const othB = (type === "sd") ? "SD" : "";
     syncSwapToShiftOps(dayKey, blockKey, personA, roleA, seatA, personB, roleB, seatB);
   });
 
-  // ========== MARK ABSENT (entire shift for the day + push to ShiftOps) ==========
+  // ========== MARK ABSENT (immediate, entire shift + ShiftOps sync) ==========
   document.getElementById("btnMarkAbsent").addEventListener("click", async () => {
     if (!currentCallOffData) return;
     const { dayKey, name } = currentCallOffData;
@@ -10585,7 +10637,6 @@ function boot() {
 
     const personName = name.toUpperCase();
 
-    // Find which blocks this person is scheduled for on this day
     const base = normalizeBase();
     const rec = base.find(r => String(r.Employee||"").trim().toUpperCase() === personName);
     const dateObj = parseYMD(dayKey);
@@ -10593,39 +10644,30 @@ function boot() {
     const schedVal = rec ? String(rec[dn] || "").trim().toUpperCase() : "";
     const workedBlocks = rec ? parseShiftToBlocks(schedVal) : new Set();
 
-    // Remove person from ALL their blocks for the day and mark absent
     let removedCount = 0;
     for (const b of BLOCKS) {
       if (!workedBlocks.has(b.key)) continue;
       const bd = plan.days[dayKey]?.[b.key];
       if (!bd) continue;
 
-      // Remove from channel assignments
       if (bd.assignments) {
         for (const [ch, nm] of Object.entries(bd.assignments)) {
-          if (String(nm).toUpperCase() === personName) {
-            bd.assignments[ch] = "";
-            removedCount++;
-          }
+          if (String(nm).toUpperCase() === personName) { bd.assignments[ch] = ""; removedCount++; }
         }
       }
-      // Remove from CT
       if (bd.ct) {
         const idx = bd.ct.findIndex(n => String(n).toUpperCase() === personName);
         if (idx !== -1) { bd.ct.splice(idx, 1); removedCount++; }
       }
-      // Remove from SD
       if (bd.sd) {
         const idx = bd.sd.findIndex(n => String(n).toUpperCase() === personName);
         if (idx !== -1) { bd.sd.splice(idx, 1); removedCount++; }
       }
-      // Remove from OT
       if (bd.ot) {
         const idx = bd.ot.findIndex(n => String(n).toUpperCase() === personName);
         if (idx !== -1) { bd.ot.splice(idx, 1); removedCount++; }
       }
 
-      // Track as absent in each block
       if (!bd.absent) bd.absent = [];
       if (!bd.absent.some(n => String(n).toUpperCase() === personName)) {
         bd.absent.push(personName);
@@ -10635,13 +10677,12 @@ function boot() {
     savePlan(plan);
     hideCallOffModal();
 
-    // Refresh views
     const dk = document.getElementById("dayPick").value;
     const m = Number(document.getElementById("monthSel").value);
     const y = Number(document.getElementById("yearSel").value);
     renderDay(dk); renderWeek(dk); renderMonth(y, m);
 
-    // Push absence to ShiftOps (ShiftOPS) Firestore
+    // Push absence to ShiftOps Firestore
     try {
       const nameCaseMap = new Map();
       const empSnap = await db.collection('employees').get();
@@ -10651,7 +10692,6 @@ function boot() {
       });
       const shiftOpsName = nameCaseMap.get(personName) || personName;
 
-      // Determine which shifts are affected (DAY, NIGHT, or both)
       const DAY_SET = new Set(["0600-1000","1000-1400","1400-1800"]);
       const NIGHT_SET = new Set(["1800-2200","2200-0200","0200-0600"]);
       const affectedShifts = new Set();
@@ -10668,19 +10708,11 @@ function boot() {
         for (const bk of shiftBlocks) {
           if (!workedBlocks.has(bk)) continue;
           editsUpdate[shiftOpsName + "." + bk] = {
-            Present: "NO",
-            Hours: "0",
-            Role: "",
-            Assignment: "",
-            AbsenceReason: "",
-            PartialReason: "",
-            WorkedStart: "",
-            WorkedEnd: "",
-            OthType: ""
+            Present: "NO", Hours: "0", Role: "", Assignment: "",
+            AbsenceReason: "", PartialReason: "", WorkedStart: "", WorkedEnd: "", OthType: ""
           };
         }
 
-        // Use dot-notation update so we only change this person's blocks
         const flatUpdate = {};
         for (const [dotPath, val] of Object.entries(editsUpdate)) {
           flatUpdate["edits." + dotPath] = val;
@@ -10692,7 +10724,6 @@ function boot() {
         if (existing.exists) {
           await docRef.update(flatUpdate);
         } else {
-          // Doc doesn't exist yet — build full edits object
           const edits = {};
           edits[shiftOpsName] = {};
           for (const bk of shiftBlocks) {
@@ -10709,11 +10740,10 @@ function boot() {
     }
   });
 
-  // ========== MOVE SD TO CT / CHANNEL ==========
-  document.getElementById("btnMoveTo").addEventListener("click", () => {
+  // ========== CONFIRM MOVE (all types: SD, CT, channel) ==========
+  document.getElementById("btnConfirmMove").addEventListener("click", () => {
     if (!currentCallOffData) return;
-    const { dayKey, blockKey, name, type } = currentCallOffData;
-    if (type !== "sd") return;
+    const { dayKey, blockKey, channel, name, type } = currentCallOffData;
 
     const moveSel = document.getElementById("moveToSelect");
     const moveValue = moveSel.value;
@@ -10724,12 +10754,9 @@ function boot() {
     if (!blockData) return hideCallOffModal();
 
     const personName = name.toUpperCase();
+    const sourceLabel = type === "sd" ? "SD" : (type === "ct" ? "CT" : channel.toUpperCase());
 
-    // Remove from SD
-    const idx = blockData.sd.findIndex(n => String(n).toUpperCase() === personName);
-    if (idx !== -1) blockData.sd.splice(idx, 1);
-
-    // Trainee restriction: block SD move to disallowed destinations
+    // Trainee restriction check
     if (moveValue === "ct" && isTrainee(personName, dayKey, blockKey)) {
       showToast("TRAINEE CANNOT BE MOVED TO CT.");
       return;
@@ -10742,15 +10769,32 @@ function boot() {
       }
     }
 
+    // Remove from current position
+    if (type === "sd") {
+      const idx = (blockData.sd || []).findIndex(n => String(n).toUpperCase() === personName);
+      if (idx !== -1) blockData.sd.splice(idx, 1);
+    } else if (type === "ct") {
+      const idx = (blockData.ct || []).findIndex(n => String(n).toUpperCase() === personName);
+      if (idx !== -1) blockData.ct.splice(idx, 1);
+    } else if (type === "channel") {
+      if (blockData.assignments && String(blockData.assignments[channel] || "").toUpperCase() === personName) {
+        blockData.assignments[channel] = "";
+      }
+    }
+
+    // Place in destination (one assignment per person — deduplicate)
     let dest;
-    if (moveValue === "ct") {
-      // Add to CT
+    if (moveValue === "sd") {
+      if (!blockData.sd) blockData.sd = [];
+      if (!blockData.sd.some(n => String(n).toUpperCase() === personName)) blockData.sd.push(personName);
+      dest = "SD";
+    } else if (moveValue === "ct") {
       if (!blockData.ct) blockData.ct = [];
-      blockData.ct.push(personName);
+      if (!blockData.ct.some(n => String(n).toUpperCase() === personName)) blockData.ct.push(personName);
       dest = "CT";
     } else if (moveValue.startsWith("channel|")) {
-      // Add to channel
       const ch = moveValue.split("|")[1];
+      if (!blockData.assignments) blockData.assignments = {};
       blockData.assignments[ch] = personName;
       dest = ch.toUpperCase();
     }
@@ -10762,7 +10806,13 @@ function boot() {
     const m = Number(document.getElementById("monthSel").value);
     const y = Number(document.getElementById("yearSel").value);
     renderDay(dk); renderWeek(dk); renderMonth(y, m);
-    showToast(`${personName} MOVED FROM SD → ${dest}`);
+    showToast(`${personName} MOVED FROM ${sourceLabel} → ${dest}`);
+
+    // ShiftOps sync for the move destination
+    const _seatMap = {"NORTH":"NORTH","SOUTH":"SOUTH","EAST":"EAST","WEST":"WEST","CENTRAL":"CENTRAL","NORTHWEST":"NW","DC1":"DC1","DC2":"DC2","RELIEF 1":"R31","RELIEF 2":"R32","7TH":"C 7TH"};
+    const role = (moveValue === "sd") ? "OTH" : (moveValue === "ct") ? "CALLTAKER" : "DISPATCHER";
+    const seat = moveValue.startsWith("channel|") ? (_seatMap[moveValue.split("|")[1].toUpperCase()] || moveValue.split("|")[1].toUpperCase()) : "";
+    syncToShiftOps(dayKey, blockKey, personName, role, seat);
   });
 
   // ========== ASSIGN TO EMPTY SLOT MODAL ==========
@@ -10781,7 +10831,7 @@ function boot() {
       <strong>DATE:</strong> ${dayKey}<br>
       <strong>BLOCK:</strong> ${blockLabel}<br>
       <strong>CHANNEL:</strong> ${channel}<br>
-      <span style="font-size:12px; opacity:.7;">Select someone from CT or overtime to fill this slot.</span>
+      <span style="font-size:12px; opacity:.7;">Select someone from CT, SD, or overtime to fill this slot.</span>
     `;
 
     const sel = document.getElementById("assignSlotSelect");
@@ -10792,8 +10842,19 @@ function boot() {
     for (const nm of ctList) {
       const opt = document.createElement("option");
       opt.value = nm;
-      opt.textContent = nm.toUpperCase();
+      opt.textContent = nm.toUpperCase() + "  (CT)";
       sel.appendChild(opt);
+    }
+
+    // SD people
+    const sdList = (blockData.sd || []).filter(n => n && String(n).trim() !== "");
+    if (sdList.length > 0) {
+      for (const nm of sdList) {
+        const opt = document.createElement("option");
+        opt.value = "SD|" + nm;
+        opt.textContent = nm.toUpperCase() + "  (SD)";
+        sel.appendChild(opt);
+      }
     }
 
     // OT candidates: all dispatchers NOT already assigned/CT/SD in this block AND not scheduled for this block
@@ -10889,9 +10950,10 @@ function boot() {
     const rawValue = sel.value;
     if (!rawValue) { showToast("SELECT SOMEONE TO ASSIGN."); return; }
 
-    // Check if OT selection
+    // Check if OT or SD selection
     const isOT = rawValue.startsWith("OT|");
-    const selectedName = isOT ? rawValue.substring(3) : rawValue;
+    const isSD = rawValue.startsWith("SD|");
+    const selectedName = (isOT || isSD) ? rawValue.substring(3) : rawValue;
 
     const plan = loadPlan();
     const blockData = plan.days[dayKey]?.[blockKey];
@@ -10919,6 +10981,11 @@ function boot() {
     if (blockData.ct) {
       const idx = blockData.ct.findIndex(n => String(n).toUpperCase() === selectedName.toUpperCase());
       if (idx !== -1) blockData.ct.splice(idx, 1);
+    }
+    // Remove person from SD if they were there
+    if (blockData.sd) {
+      const idx = blockData.sd.findIndex(n => String(n).toUpperCase() === selectedName.toUpperCase());
+      if (idx !== -1) blockData.sd.splice(idx, 1);
     }
 
     savePlan(plan);
