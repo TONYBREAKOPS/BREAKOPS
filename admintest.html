@@ -431,7 +431,10 @@ textarea.copyBox,
         <div class="sub">Modern Solutions > Old Problems</div>
       </div>
     </div>
-    <button id="btnBugReport" type="button" title="Report a Bug" style="background:transparent;border:1px solid var(--muted,#888);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted,#888);display:inline-flex;align-items:center;gap:5px;transition:border-color .15s,color .15s;font-family:inherit;" onmouseenter="this.style.borderColor='#ef4444';this.style.color='#ef4444'" onmouseleave="this.style.borderColor='var(--muted,#888)';this.style.color='var(--muted,#888)'">&#x1fab2; REPORT BUG</button>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button id="pushSeatsBtn" type="button" title="Push CT &amp; PIC seats to ShiftOps" style="background:transparent;border:1px solid var(--muted,#888);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted,#888);display:inline-flex;align-items:center;gap:5px;transition:border-color .15s,color .15s;font-family:inherit;" onmouseenter="this.style.borderColor='#818cf8';this.style.color='#818cf8'" onmouseleave="this.style.borderColor='var(--muted,#888)';this.style.color='var(--muted,#888)'">&#9650; PUSH SEATS</button>
+      <button id="btnBugReport" type="button" title="Report a Bug" style="background:transparent;border:1px solid var(--muted,#888);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted,#888);display:inline-flex;align-items:center;gap:5px;transition:border-color .15s,color .15s;font-family:inherit;" onmouseenter="this.style.borderColor='#ef4444';this.style.color='#ef4444'" onmouseleave="this.style.borderColor='var(--muted,#888)';this.style.color='var(--muted,#888)'">&#x1fab2; REPORT BUG</button>
+    </div>
   </div>
 </header>
 
@@ -3161,20 +3164,6 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         <option value="420000">7 MIN</option>
         <option value="600000">10 MIN</option>
       </select>
-      <button id="pushSeatsBtn" style="
-        padding:14px 28px;
-        border-radius:14px;
-        background:linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-        color:#fff;
-        border:2px solid #818cf8;
-        font-weight:900;
-        cursor:pointer;
-        font-size:15px;
-        letter-spacing:1px;
-        text-transform:uppercase;
-        box-shadow:0 0 16px rgba(99,102,241,.3), 0 4px 12px rgba(0,0,0,.3);
-        transition: all 0.2s ease;
-      ">&#9650; PUSH SEATS TO SHIFTOPS</button>
     </div>
 
     <div id="slotCapsManager" style="margin:12px 0 6px; padding:12px; border:1px solid var(--border); border-radius:14px; background:rgba(255,255,255,0.03);">
@@ -3545,22 +3534,6 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
     });
   }
 
-  // Wire up Push Seats to ShiftOps button
-  const pushSeatsBtn = document.getElementById("pushSeatsBtn");
-  if(pushSeatsBtn){
-    pushSeatsBtn.addEventListener("mouseenter", ()=>{
-      pushSeatsBtn.style.boxShadow = "0 0 35px rgba(99,102,241,.6), 0 0 60px rgba(99,102,241,.25), 0 4px 15px rgba(0,0,0,.3)";
-      pushSeatsBtn.style.transform = "scale(1.04)";
-    });
-    pushSeatsBtn.addEventListener("mouseleave", ()=>{
-      pushSeatsBtn.style.boxShadow = "0 0 16px rgba(99,102,241,.3), 0 4px 12px rgba(0,0,0,.3)";
-      pushSeatsBtn.style.transform = "scale(1)";
-    });
-    pushSeatsBtn.addEventListener("click", async ()=>{
-      await pushSeatsToShiftOps();
-    });
-  }
-
   // Wire up timer duration dropdown
   {
     const durSel = card.querySelector("#timerDuration");
@@ -3919,6 +3892,10 @@ document.addEventListener("click", async (evt)=>{
     toast("Copy failed.");
   }
 });
+
+// Push Seats button handler (header)
+const _btnPushSeats = document.getElementById('pushSeatsBtn');
+if(_btnPushSeats) _btnPushSeats.addEventListener('click', ()=>{ pushSeatsToShiftOps(); });
 
 // Bug report modal handlers
 const _btnBug = document.getElementById('btnBugReport');
