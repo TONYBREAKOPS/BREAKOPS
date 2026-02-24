@@ -330,6 +330,14 @@ td.hrsCol.hrs-all .hrsSel{border-color:rgba(120,255,180,0.40); box-shadow:0 0 0 
   font-size:12px;
   border-radius:10px;
 }
+/* ShiftOps login modal */
+.soLoginOverlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.soLoginBox{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;width:320px;max-width:90vw;}
+.soLoginBox h3{margin:0 0 14px;font-size:18px;font-weight:900;color:#818cf8;}
+.soLoginBox input{width:100%;background:#0c1320;border:1px solid var(--border);color:var(--text);padding:10px;border-radius:10px;font-size:14px;box-sizing:border-box;margin-bottom:10px;}
+.soLoginBox .soLoginBtns{display:flex;gap:8px;margin-top:4px;}
+.soLoginBox .soLoginBtns button{flex:1;padding:10px;border-radius:10px;font-weight:900;font-size:14px;cursor:pointer;}
+.soLoginErr{color:#f87171;font-size:12px;margin-top:6px;min-height:18px;}
 </style>
 
 
@@ -423,7 +431,10 @@ textarea.copyBox,
         <div class="sub">Modern Solutions > Old Problems</div>
       </div>
     </div>
-    <button id="btnBugReport" type="button" title="Report a Bug" style="background:transparent;border:1px solid var(--muted,#888);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted,#888);display:inline-flex;align-items:center;gap:5px;transition:border-color .15s,color .15s;font-family:inherit;" onmouseenter="this.style.borderColor='#ef4444';this.style.color='#ef4444'" onmouseleave="this.style.borderColor='var(--muted,#888)';this.style.color='var(--muted,#888)'">&#x1fab2; REPORT BUG</button>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button id="pushSeatsBtn" type="button" title="Push CT &amp; PIC seats to ShiftOps" style="background:transparent;border:1px solid var(--muted,#888);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted,#888);display:inline-flex;align-items:center;gap:5px;transition:border-color .15s,color .15s;font-family:inherit;" onmouseenter="this.style.borderColor='#818cf8';this.style.color='#818cf8'" onmouseleave="this.style.borderColor='var(--muted,#888)';this.style.color='var(--muted,#888)'">&#9650; PUSH SEATS</button>
+      <button id="btnBugReport" type="button" title="Report a Bug" style="background:transparent;border:1px solid var(--muted,#888);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted,#888);display:inline-flex;align-items:center;gap:5px;transition:border-color .15s,color .15s;font-family:inherit;" onmouseenter="this.style.borderColor='#ef4444';this.style.color='#ef4444'" onmouseleave="this.style.borderColor='var(--muted,#888)';this.style.color='var(--muted,#888)'">&#x1fab2; REPORT BUG</button>
+    </div>
   </div>
 </header>
 
@@ -550,14 +561,18 @@ textarea.copyBox,
     getFirestore,
     doc,
     getDoc,
+    getDocs,
     setDoc,
+    updateDoc,
     onSnapshot,
     runTransaction,
     collection,
     addDoc
   } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
   import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app-check.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
 
+  // BreakOPS Firebase (no auth required)
   const firebaseConfig = {
     apiKey: "AIzaSyCnabvDHyrEYPjtGikTSC6eIQL2VEPWnn4",
     authDomain: "legitimous-2f2d2.firebaseapp.com",
@@ -573,6 +588,21 @@ textarea.copyBox,
     isTokenAutoRefreshEnabled: true
   });
   const _db = getFirestore(_fbApp);
+
+  // ShiftOPS Firebase (auth required — used only for Push Seats)
+  const _soApp = initializeApp({
+    apiKey: "AIzaSyA6KELmSyotefK0zhahQZ0-mbYur8_nTsg",
+    authDomain: "commandops-93846.firebaseapp.com",
+    databaseURL: "https://commandops-93846-default-rtdb.firebaseio.com",
+    projectId: "commandops-93846",
+    storageBucket: "commandops-93846.firebasestorage.app",
+    messagingSenderId: "262613721964",
+    appId: "1:262613721964:web:478a694d357234e3be4949"
+  }, "shiftops");
+  const _soAuth = getAuth(_soApp);
+  const _soDb = getFirestore(_soApp);
+  let _soLoggedIn = false;
+  onAuthStateChanged(_soAuth, (user) => { _soLoggedIn = !!user; });
 
   // Shared landing view (mode/day/block) so everyone lands where you last locked
   const _APPSTATE_DOC = doc(_db, "appState", "current");
@@ -1093,6 +1123,141 @@ async function saveAssignmentsForScope(assignments){
       _validateUniqueAssignments(assigns);
       tx.set(ref, { ...cur, breaks: breaks, assignments: assigns }, { merge: true });
     });
+  }
+
+  // ========== PUSH SEATS TO SHIFTOPS ==========
+  const _PIC_SEAT_MAP = { TELETYPES: "TEL", REPORTS: "RPT", RADIO: "RAD", EXTRA: "EXT" };
+  const _DAY_BLOCKS = new Set(["0600-1000","1000-1400","1400-1800"]);
+
+  // Prompt for ShiftOps credentials (returns true if logged in, false if cancelled)
+  function _soLoginPrompt(){
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "soLoginOverlay";
+      overlay.innerHTML = `
+        <div class="soLoginBox">
+          <h3>ShiftOps Sign In</h3>
+          <p style="font-size:12px;color:var(--muted);margin:0 0 12px;">Sign in to push seats to ShiftOps.</p>
+          <input type="email" id="soEmail" placeholder="Email" autocomplete="email">
+          <input type="password" id="soPass" placeholder="Password" autocomplete="current-password">
+          <div class="soLoginBtns">
+            <button id="soLoginCancel" class="secondary">Cancel</button>
+            <button id="soLoginSubmit" style="background:#6366f1;color:#fff;border:none;">Sign In</button>
+          </div>
+          <div class="soLoginErr" id="soLoginErr"></div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      const emailEl = overlay.querySelector("#soEmail");
+      const passEl = overlay.querySelector("#soPass");
+      const errEl = overlay.querySelector("#soLoginErr");
+      const submitBtn = overlay.querySelector("#soLoginSubmit");
+      emailEl.focus();
+
+      function cleanup(){ overlay.remove(); }
+
+      overlay.querySelector("#soLoginCancel").addEventListener("click", ()=>{ cleanup(); resolve(false); });
+      overlay.addEventListener("click", (e)=>{ if(e.target === overlay){ cleanup(); resolve(false); } });
+
+      async function doLogin(){
+        const email = emailEl.value.trim();
+        const pass = passEl.value;
+        if(!email || !pass){ errEl.textContent = "Enter email and password."; return; }
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Signing in...";
+        errEl.textContent = "";
+        try {
+          await signInWithEmailAndPassword(_soAuth, email, pass);
+          cleanup();
+          resolve(true);
+        } catch(e){
+          errEl.textContent = e.message || "Sign in failed.";
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Sign In";
+        }
+      }
+
+      submitBtn.addEventListener("click", doLogin);
+      passEl.addEventListener("keydown", (e)=>{ if(e.key === "Enter") doLogin(); });
+      emailEl.addEventListener("keydown", (e)=>{ if(e.key === "Enter") passEl.focus(); });
+    });
+  }
+
+  async function pushSeatsToShiftOps(){
+    // Ensure signed in to ShiftOps Firebase
+    if(!_soLoggedIn){
+      const ok = await _soLoginPrompt();
+      if(!ok){ toast("Push cancelled."); return; }
+    }
+
+    const dateStr = getDateStr();
+    const blockKey = document.getElementById("blockSel").value;
+    if(!dateStr || !blockKey){ toast("Select a date and block first."); return; }
+
+    const assigns = loadAssignmentsForScope();
+    const ctAssigns = assigns.CALLTAKER || {};
+    const picAssigns = assigns.PIC || {};
+
+    // Collect entries to push: {name, seat}
+    const entries = [];
+    for(const [key, seat] of Object.entries(ctAssigns)){
+      if(!seat) continue;
+      const name = key.split("||")[0];
+      const num = seat.replace(/^CT/i, "");
+      if(!num) continue;
+      entries.push({ name, seat: num });
+    }
+    for(const [key, seat] of Object.entries(picAssigns)){
+      if(!seat) continue;
+      const name = key.split("||")[0];
+      const abbr = _PIC_SEAT_MAP[seat.toUpperCase()];
+      if(!abbr) continue;
+      entries.push({ name, seat: abbr });
+    }
+
+    if(entries.length === 0){ toast("No CT or PIC seat assignments to push."); return; }
+
+    try {
+      // Build name case map from employees collection (ShiftOps DB)
+      const nameCaseMap = new Map();
+      const empSnap = await getDocs(collection(_soDb, "employees"));
+      empSnap.docs.forEach(d => {
+        const raw = (d.data().Employee || d.id).toString().trim();
+        nameCaseMap.set(raw.toUpperCase(), raw);
+      });
+
+      const shiftName = _DAY_BLOCKS.has(blockKey) ? "DAY" : "NIGHT";
+      const docId = dateStr + "_" + shiftName;
+      const docRef = doc(_soDb, "daily_edits", docId);
+
+      // Build dot-notation update — only touches Assignment field
+      const update = {};
+      for(const e of entries){
+        const soName = nameCaseMap.get(e.name.toUpperCase()) || e.name;
+        update["edits." + soName + "." + blockKey + ".Assignment"] = e.seat;
+      }
+      update["savedAt"] = new Date().toISOString();
+
+      const existing = await getDoc(docRef);
+      if(existing.exists()){
+        await updateDoc(docRef, update);
+      } else {
+        // Doc doesn't exist — build full structure
+        const edits = {};
+        for(const e of entries){
+          const soName = nameCaseMap.get(e.name.toUpperCase()) || e.name;
+          if(!edits[soName]) edits[soName] = {};
+          if(!edits[soName][blockKey]) edits[soName][blockKey] = {};
+          edits[soName][blockKey].Assignment = e.seat;
+        }
+        await setDoc(docRef, { date: dateStr, shift: shiftName, edits, ot: [], savedAt: new Date().toISOString() });
+      }
+
+      toast("Pushed " + entries.length + " seat(s) to ShiftOps (" + shiftName + " / " + blockKey + ")");
+    } catch(err){
+      console.error("Push seats to ShiftOps failed:", err);
+      toast("Failed to push seats: " + (err.message || "Firestore error"));
+    }
   }
 
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
@@ -3727,6 +3892,10 @@ document.addEventListener("click", async (evt)=>{
     toast("Copy failed.");
   }
 });
+
+// Push Seats button handler (header)
+const _btnPushSeats = document.getElementById('pushSeatsBtn');
+if(_btnPushSeats) _btnPushSeats.addEventListener('click', ()=>{ pushSeatsToShiftOps(); });
 
 // Bug report modal handlers
 const _btnBug = document.getElementById('btnBugReport');
