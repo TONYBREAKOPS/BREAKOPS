@@ -42,7 +42,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .btn-fix{background:#22c55e;color:#fff;}
 .btn-reopen{background:#f59e0b;color:#fff;}
 .btn-delete{background:#ef4444;color:#fff;}
+.btn-archive{background:#6366f1;color:#fff;}
+.btn-unarchive{background:#6366f1;color:#fff;}
 .timestamp{font-size:10px;color:#475569;margin-left:auto;}
+.archive-section{margin-top:30px;border:1px solid #1e293b;border-radius:12px;background:#111827;overflow:hidden;}
+.archive-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;user-select:none;}
+.archive-header:hover{background:rgba(255,255,255,.03);}
+.archive-header h2{font-size:14px;font-weight:700;color:#64748b;display:flex;align-items:center;gap:8px;}
+.archive-header .count{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(99,102,241,.15);color:#818cf8;}
+.archive-body{padding:0 12px 12px;display:flex;flex-direction:column;gap:8px;}
+.archive-body .bug-card{opacity:.6;}
+.archive-body .bug-card:hover{opacity:.8;}
 .empty{text-align:center;color:#475569;padding:60px 20px;font-size:14px;}
 .login-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:#0b1120;z-index:9999;display:flex;align-items:center;justify-content:center;}
 .login-box{background:#111827;border:1px solid #1e293b;border-radius:12px;padding:30px;min-width:320px;text-align:center;}
@@ -83,6 +93,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div class="empty">Loading...</div>
 </div>
 
+<div class="archive-section" id="archiveSection" style="display:none">
+  <div class="archive-header" onclick="toggleArchive()">
+    <h2><span id="archiveArrow">&#9654;</span> Archived <span class="count" id="archiveCount">0</span></h2>
+  </div>
+  <div class="archive-body" id="archiveList" style="display:none"></div>
+</div>
+
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyA6KELmSyotefK0zhahQZ0-mbYur8_nTsg",
@@ -118,7 +135,9 @@ auth.onAuthStateChanged((user) => {
 
 // State
 let allBugs = [];
+let archivedBugs = [];
 let currentFilter = 'all';
+let archiveOpen = false;
 
 // Filters
 document.querySelectorAll('.filters button').forEach(btn => {
@@ -133,8 +152,11 @@ document.querySelectorAll('.filters button').forEach(btn => {
 // Load bugs with real-time listener
 function loadBugs() {
   db.collection('bugReports').orderBy('timestamp', 'desc').onSnapshot(snap => {
-    allBugs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    allBugs = all.filter(b => !b.archived);
+    archivedBugs = all.filter(b => b.archived);
     renderBugs();
+    renderArchive();
   });
 }
 
@@ -172,6 +194,7 @@ function renderBugs() {
         ${b.status === 'open'
           ? '<button class="btn-fix" onclick="markFixed(\'' + b.id + '\')">MARK FIXED</button>'
           : '<button class="btn-reopen" onclick="markOpen(\'' + b.id + '\')">REOPEN</button>'}
+        <button class="btn-archive" onclick="archiveBug(\'' + b.id + '\')">ARCHIVE</button>
         <button class="btn-delete" onclick="deleteBug(\'' + b.id + '\')">DELETE</button>
         <span class="timestamp">${dateStr}</span>
       </div>
@@ -195,7 +218,73 @@ async function markOpen(id) {
 
 async function deleteBug(id) {
   if (!confirm('Delete this bug report permanently?')) return;
-  await db.collection('bugReports').doc(id).delete();
+  try {
+    await db.collection('bugReports').doc(id).delete();
+    allBugs = allBugs.filter(b => b.id !== id);
+    renderBugs();
+  } catch (e) {
+    console.error('Delete failed:', e);
+    alert('Delete failed: ' + (e.message || e));
+  }
+}
+
+async function archiveBug(id) {
+  try {
+    await db.collection('bugReports').doc(id).update({ archived: true });
+  } catch (e) {
+    console.error('Archive failed:', e);
+    alert('Archive failed: ' + (e.message || e));
+  }
+}
+
+async function unarchiveBug(id) {
+  try {
+    await db.collection('bugReports').doc(id).update({ archived: false });
+  } catch (e) {
+    console.error('Unarchive failed:', e);
+    alert('Unarchive failed: ' + (e.message || e));
+  }
+}
+
+function toggleArchive() {
+  archiveOpen = !archiveOpen;
+  document.getElementById('archiveList').style.display = archiveOpen ? '' : 'none';
+  document.getElementById('archiveArrow').innerHTML = archiveOpen ? '&#9660;' : '&#9654;';
+}
+
+function renderArchive() {
+  const section = document.getElementById('archiveSection');
+  const list = document.getElementById('archiveList');
+  const countEl = document.getElementById('archiveCount');
+
+  if (archivedBugs.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = '';
+  countEl.textContent = archivedBugs.length;
+
+  list.innerHTML = archivedBugs.map(b => {
+    const date = b.timestamp ? new Date(b.timestamp) : null;
+    const dateStr = date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    const statusClass = b.status === 'fixed' ? 'fixed' : 'open';
+    return `<div class="bug-card status-${statusClass}">
+      <div class="bug-top">
+        <div class="bug-meta">
+          <span class="name">${esc(b.name)}</span>
+          <span class="app">${esc(b.app || 'Unknown')}</span>
+        </div>
+        <span class="bug-status ${statusClass}">${statusClass.toUpperCase()}</span>
+      </div>
+      <div class="bug-details">${esc(b.details)}</div>
+      <div class="bug-actions">
+        <button class="btn-unarchive" onclick="unarchiveBug('${b.id}')">UNARCHIVE</button>
+        <button class="btn-delete" onclick="deleteBug('${b.id}')">DELETE</button>
+        <span class="timestamp">${dateStr}</span>
+      </div>
+    </div>`;
+  }).join('');
 }
 </script>
 </body>
