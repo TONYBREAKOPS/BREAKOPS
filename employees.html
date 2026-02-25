@@ -226,6 +226,66 @@ td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
 #addForm input:focus, #addForm select:focus { outline: none; border-color: var(--accent); }
 #addForm label { font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
 .field-group { display: flex; flex-direction: column; gap: 2px; }
+
+/* Tab bar */
+.tab-bar {
+  display: flex; gap: 0; border-bottom: 2px solid var(--border);
+  background: var(--card); padding: 0 20px;
+}
+.tab-bar button {
+  padding: 10px 24px; border: none; border-bottom: 2px solid transparent;
+  background: transparent; color: var(--muted); font-size: 13px; font-weight: 700;
+  cursor: pointer; margin-bottom: -2px; border-radius: 0;
+  transition: color .15s, border-color .15s;
+}
+.tab-bar button:hover { color: var(--text); }
+.tab-bar button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Reasons section */
+#sectionReasons .reasons-header {
+  padding: 14px 20px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(11,15,20,.98), rgba(11,15,20,.75));
+  flex-wrap: wrap;
+}
+#sectionReasons .reasons-header h2 { font-size: 18px; font-weight: 800; }
+#sectionReasons .count-pill {
+  background: var(--accent); color: #000; font-size: 11px; font-weight: 800;
+  padding: 2px 10px; border-radius: 99px; margin-left: 8px;
+}
+#addReasonForm {
+  display: none; padding: 12px 20px;
+  background: rgba(63,231,182,.04); border-bottom: 1px solid rgba(63,231,182,.15);
+}
+#addReasonForm .form-row { display: flex; gap: 8px; align-items: center; }
+#addReasonForm input {
+  padding: 6px 10px; background: var(--card); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; font-size: 12px; width: 220px;
+}
+#addReasonForm input:focus { outline: none; border-color: var(--accent); }
+#reasonsTable { width: 100%; border-collapse: collapse; margin: 0; }
+#reasonsTable th {
+  padding: 8px 12px; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+  border-bottom: 2px solid var(--border); text-align: left; background: #0d1117;
+}
+#reasonsTable td {
+  padding: 4px 8px; border-bottom: 1px solid rgba(35,48,67,.5); vertical-align: middle;
+}
+#reasonsTable tr:hover td { background: rgba(74,163,255,.04); }
+#reasonsTable tr.dirty td { background: rgba(255,190,50,.06) !important; }
+#reasonsTable tr.new-row td { background: rgba(63,231,182,.06) !important; }
+#reasonsTable input {
+  width: 100%; max-width: 300px; padding: 4px 8px; background: transparent;
+  color: var(--text); border: 1px solid transparent; border-radius: 4px;
+  font: inherit; font-size: 12px; font-weight: 700; text-transform: uppercase;
+}
+#reasonsTable input:focus { outline: none; background: var(--card); border-color: var(--accent); }
+#reasonsTable input:hover { border-color: var(--border); }
+
+/* Migration progress */
+.migrate-progress { padding: 8px 20px; font-size: 12px; color: var(--warn); display: none; }
 </style>
 </head>
 <body>
@@ -274,6 +334,13 @@ td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
 
 <!-- Main App -->
 <div id="app">
+
+<div class="tab-bar">
+  <button class="active" onclick="switchTab('employees')">Employees</button>
+  <button onclick="switchTab('reasons')">Absence Reasons</button>
+</div>
+
+<div id="sectionEmployees">
 <header>
   <div>
     <h1>Employee Database Editor</h1>
@@ -344,6 +411,37 @@ td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
 <tbody id="tbody"></tbody>
 </table>
 </div>
+</div><!-- /sectionEmployees -->
+
+<div id="sectionReasons" style="display:none">
+  <div class="reasons-header">
+    <div>
+      <h2>Absence Reasons<span class="count-pill" id="reasonCount">0</span></h2>
+      <div class="sub" style="color:var(--muted);font-size:11px;margin-top:2px">Manage absence reason codes used across ShiftOps</div>
+    </div>
+    <div class="toolbar">
+      <button class="primary" onclick="toggleAddReason()">+ Add Reason</button>
+      <button class="ok" onclick="saveAllReasons()">Save All</button>
+      <button onclick="loadReasons()">Reload</button>
+      <button onclick="migrateOldRecords()">Migrate Old Records</button>
+    </div>
+  </div>
+  <div id="addReasonForm">
+    <div class="form-row">
+      <input type="text" id="addReasonInput" placeholder="NEW REASON NAME" />
+      <button class="primary" onclick="addReason()">Add</button>
+      <button onclick="document.getElementById('addReasonForm').style.display='none'">Cancel</button>
+    </div>
+  </div>
+  <div class="migrate-progress" id="migrateProgress"></div>
+  <div class="table-wrap" style="padding:0 10px">
+    <table id="reasonsTable">
+      <thead><tr><th style="width:60%">Reason</th><th>Actions</th></tr></thead>
+      <tbody id="reasonsTbody"></tbody>
+    </table>
+  </div>
+</div><!-- /sectionReasons -->
+
 </div>
 
 <div id="toast"></div>
@@ -749,6 +847,227 @@ document.getElementById("btnReload").addEventListener("click", () => {
   if(dirty && !confirm(dirty + " unsaved change(s) will be lost. Reload?")) return;
   loadEmployees();
 });
+
+// ===== Tab switching =====
+let _activeTab = 'employees';
+let _reasonsLoaded = false;
+
+function switchTab(tab){
+  _activeTab = tab;
+  document.getElementById('sectionEmployees').style.display = tab === 'employees' ? '' : 'none';
+  document.getElementById('sectionReasons').style.display = tab === 'reasons' ? '' : 'none';
+  document.querySelectorAll('.tab-bar button').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.toLowerCase().includes(tab === 'employees' ? 'employee' : 'reason'));
+  });
+  if(tab === 'reasons' && !_reasonsLoaded){
+    _reasonsLoaded = true;
+    loadReasons();
+  }
+}
+
+// ===== Absence Reasons CRUD =====
+let reasons = []; // {docId, data:{reason}, dirty, isNew, fieldName}
+
+async function loadReasons(){
+  try {
+    const snap = await db.collection("Absent_Reason").get();
+    reasons = snap.docs.map(doc => {
+      const d = doc.data();
+      // The doc might store reason under various field names; find the first string value
+      let reason = "";
+      let fieldName = "reason";
+      for(const [k, v] of Object.entries(d)){
+        if(typeof v === "string" && v.trim()){
+          reason = v.trim();
+          fieldName = k;
+          break;
+        }
+      }
+      return { docId: doc.id, data: { reason }, dirty: false, isNew: false, fieldName };
+    });
+    reasons.sort((a,b) => a.data.reason.localeCompare(b.data.reason));
+    toast("Loaded " + reasons.length + " absence reasons.");
+    renderReasons();
+  } catch(e){
+    console.error(e);
+    toast("Failed to load reasons: " + e.message);
+  }
+}
+
+function renderReasons(){
+  document.getElementById("reasonCount").textContent = reasons.length;
+  const tbody = document.getElementById("reasonsTbody");
+  tbody.innerHTML = reasons.map((r, idx) => {
+    const cls = r.isNew ? "new-row" : (r.dirty ? "dirty" : "");
+    return `<tr class="${cls}">
+      <td><input value="${esc(r.data.reason)}" onchange="onReasonChange(${idx}, this.value)" oninput="onReasonChange(${idx}, this.value)"/></td>
+      <td class="row-actions">
+        <button class="ok" onclick="saveOneReason(${idx})">Save</button>
+        <button class="danger" onclick="deleteOneReason(${idx})">Del</button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+function onReasonChange(idx, val){
+  reasons[idx].data.reason = val.toUpperCase();
+  reasons[idx].dirty = true;
+  renderReasons();
+}
+
+function toggleAddReason(){
+  const f = document.getElementById("addReasonForm");
+  f.style.display = f.style.display === "none" ? "block" : "none";
+  if(f.style.display === "block") document.getElementById("addReasonInput").focus();
+}
+
+function addReason(){
+  const val = document.getElementById("addReasonInput").value.trim().toUpperCase();
+  if(!val){ toast("Reason name is required."); return; }
+  if(reasons.some(r => r.data.reason === val)){ toast("Reason already exists."); return; }
+  reasons.push({ docId: null, data: { reason: val }, dirty: true, isNew: true, fieldName: "reason" });
+  document.getElementById("addReasonInput").value = "";
+  document.getElementById("addReasonForm").style.display = "none";
+  toast("Added " + val + " (unsaved).");
+  renderReasons();
+}
+
+async function saveOneReason(idx){
+  const r = reasons[idx];
+  if(!r) return;
+  const val = r.data.reason.trim().toUpperCase();
+  if(!val){ toast("Reason cannot be empty."); return; }
+
+  try {
+    if(r.docId){
+      // Preserve original field name for existing docs
+      await db.collection("Absent_Reason").doc(r.docId).set({ [r.fieldName]: val });
+    } else {
+      const ref = await db.collection("Absent_Reason").add({ reason: val });
+      r.docId = ref.id;
+      r.fieldName = "reason";
+    }
+    r.dirty = false;
+    r.isNew = false;
+    r.data.reason = val;
+    toast("Saved " + val);
+    renderReasons();
+  } catch(err){
+    console.error(err);
+    toast("Save failed: " + err.message);
+  }
+}
+
+async function deleteOneReason(idx){
+  const r = reasons[idx];
+  if(!r) return;
+  if(!confirm("Delete reason \"" + r.data.reason + "\"?\n\nThis cannot be undone.")) return;
+
+  try {
+    if(r.docId){
+      await db.collection("Absent_Reason").doc(r.docId).delete();
+    }
+    reasons.splice(idx, 1);
+    toast("Deleted " + r.data.reason);
+    renderReasons();
+  } catch(err){
+    console.error(err);
+    toast("Delete failed: " + err.message);
+  }
+}
+
+async function saveAllReasons(){
+  const dirtyList = reasons.filter(r => r.dirty);
+  if(!dirtyList.length){ toast("Nothing to save."); return; }
+  if(!confirm("Save " + dirtyList.length + " reason(s) to Firestore?")) return;
+
+  let saved = 0, errors = 0;
+  for(const r of dirtyList){
+    const val = r.data.reason.trim().toUpperCase();
+    if(!val){ errors++; continue; }
+    try {
+      if(r.docId){
+        await db.collection("Absent_Reason").doc(r.docId).set({ [r.fieldName]: val });
+      } else {
+        const ref = await db.collection("Absent_Reason").add({ reason: val });
+        r.docId = ref.id;
+        r.fieldName = "reason";
+      }
+      r.dirty = false;
+      r.isNew = false;
+      r.data.reason = val;
+      saved++;
+    } catch(err){
+      console.error(err);
+      errors++;
+    }
+  }
+  toast("Saved " + saved + (errors ? ", " + errors + " errors" : ""));
+  renderReasons();
+}
+
+// ===== Migration: SICK→REASON 1, FMLA→REASON 2 in daily_edits =====
+async function migrateOldRecords(){
+  if(!confirm("This will scan ALL daily_edits documents and replace:\n\n  SICK → REASON 1\n  FMLA → REASON 2\n\nin AbsenceReason and PartialReason fields.\n\nContinue?")) return;
+
+  const prog = document.getElementById("migrateProgress");
+  prog.style.display = "block";
+  prog.textContent = "Scanning daily_edits...";
+
+  try {
+    const snap = await db.collection("daily_edits").get();
+    prog.textContent = "Found " + snap.size + " docs. Processing...";
+
+    let docsModified = 0, recordsChanged = 0;
+
+    for(const doc of snap.docs){
+      const data = doc.data();
+      const edits = data.edits;
+      if(!edits || typeof edits !== "object") continue;
+
+      let docDirty = false;
+
+      for(const emp of Object.keys(edits)){
+        const empEdits = edits[emp];
+        if(!empEdits || typeof empEdits !== "object") continue;
+
+        for(const blockId of Object.keys(empEdits)){
+          const entry = empEdits[blockId];
+          if(!entry || typeof entry !== "object") continue;
+
+          if(entry.AbsenceReason === "SICK"){
+            entry.AbsenceReason = "REASON 1";
+            docDirty = true; recordsChanged++;
+          } else if(entry.AbsenceReason === "FMLA"){
+            entry.AbsenceReason = "REASON 2";
+            docDirty = true; recordsChanged++;
+          }
+
+          if(entry.PartialReason === "SICK"){
+            entry.PartialReason = "REASON 1";
+            docDirty = true; recordsChanged++;
+          } else if(entry.PartialReason === "FMLA"){
+            entry.PartialReason = "REASON 2";
+            docDirty = true; recordsChanged++;
+          }
+        }
+      }
+
+      if(docDirty){
+        await db.collection("daily_edits").doc(doc.id).update({ edits });
+        docsModified++;
+        prog.textContent = "Updated " + docsModified + " docs so far...";
+      }
+    }
+
+    prog.style.display = "none";
+    toast("Migrated " + recordsChanged + " records across " + docsModified + " docs.");
+  } catch(err){
+    console.error(err);
+    prog.style.display = "none";
+    toast("Migration failed: " + err.message);
+  }
+}
 </script>
 </body>
 </html>

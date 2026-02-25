@@ -3426,9 +3426,10 @@ function isSwapped(emp, iso){
 
 function ctxKey(iso, shift, blockId){ return iso+"|"+shift+"|"+blockId; }
 function editsMapFor(key){ if(!EDITS_BY_CTX.has(key)) EDITS_BY_CTX.set(key,new Map()); return EDITS_BY_CTX.get(key); }
+const _defaultEdit = ()=>({Present:"YES",Hours:"",Role:"",Assignment:"",AbsenceReason:"",PartialReason:"",WorkedStart:"",WorkedEnd:"",OthType:""});
 function ensureEdit(key, emp){
   const m=editsMapFor(key);
-  if(!m.has(emp)) m.set(emp,{Present:"YES",Hours:"",Role:"",Assignment:"",AbsenceReason:"",PartialReason:"",WorkedStart:"",WorkedEnd:"",OthType:""});
+  if(!m.has(emp)) m.set(emp,_defaultEdit());
   return m.get(emp);
 }
 function getEditVal(key, emp, field){
@@ -3651,8 +3652,8 @@ async function loadEditsFromFirebase(iso, shift){
           for(const [blockId, edit] of Object.entries(blocks)){
             const ctx = ctxKey(iso, shift, blockId);
             const m = editsMapFor(ctx);
-            edit._userEdited = true; // loaded from saved data, don't override with vacation auto-mark
-            m.set(emp, edit);
+            const merged = {..._defaultEdit(), ...edit, _userEdited: true};
+            m.set(emp, merged);
           }
         }
       }
@@ -3759,14 +3760,14 @@ function startRealtimeSync(iso, shift) {
       }
     }
 
-    // Restore edits from snapshot
+    // Restore edits from snapshot (merge with defaults to guard against sparse records)
     if (data.edits) {
       for (const [emp, blocks] of Object.entries(data.edits)) {
         for (const [blockId, edit] of Object.entries(blocks)) {
           const ctx = ctxKey(iso, shift, blockId);
           const m = editsMapFor(ctx);
-          edit._userEdited = true;
-          m.set(emp, edit);
+          const merged = {..._defaultEdit(), ...edit, _userEdited: true};
+          m.set(emp, merged);
         }
       }
     }
@@ -4742,15 +4743,16 @@ function renderRoleTable(iso, shift, block, role, rows){
 
     const rowBg = r.isOT ? " style='background:rgba(180,180,200,0.12)'" : "";
 
+    const _reasonColor = (v) => v==="REASON 1"?"color:#ef4444":v==="REASON 2"?"color:#a855f7":"";
     const thirdCol = isAbsent
       ? (r.isTardy
         ? `<span class="absTardyLabel" style="display:block;font-weight:700;color:#ef4444;text-align:center">TARDY</span>`
         : r.isPartial
-        ? `<select class="absReasonSel" onchange="setPartialReason('${esc(key)}','${esc(r.emp)}', this.value)">
+        ? `<select class="absReasonSel" style="${_reasonColor(absReason)}" onchange="setPartialReason('${esc(key)}','${esc(r.emp)}', this.value)">
              <option value=""${absReason===""?" selected":""}>—</option>
              ${ABSENT_REASONS.map(x=>`<option value="${esc(x)}"${absReason===x?" selected":""}>${esc(x)}</option>`).join("")}
            </select>`
-        : `<select class="absReasonSel" onchange="setAbsenceReason('${esc(key)}','${esc(r.emp)}', this.value)">
+        : `<select class="absReasonSel" style="${_reasonColor(absReason)}" onchange="setAbsenceReason('${esc(key)}','${esc(r.emp)}', this.value)">
              <option value=""${absReason===""?" selected":""}>—</option>
              ${ABSENT_REASONS.map(x=>`<option value="${esc(x)}"${absReason===x?" selected":""}>${esc(x)}</option>`).join("")}
            </select>`)
@@ -6644,7 +6646,9 @@ function saveXlsx(){
             const cmtText = (rowComments[cmtKey] || "").trim();
             setCell(ws, row, cs, String(r.emp).toUpperCase() + nameSuffix, rowStyle);
             setCell(ws, row, cs+1, isAbsent ? "" : (roleAbbr[roleNorm]||roleNorm), rowStyle);
-            setCell(ws, row, cs+2, isAbsent ? (r.isTardy ? "TARDY" : r.isPartial ? (ed.PartialReason||"") : absReason) : (isOth ? othType : seat), rowStyle);
+            const _rsnVal = isAbsent ? (r.isTardy ? "TARDY" : r.isPartial ? (ed.PartialReason||"") : absReason) : (isOth ? othType : seat);
+            const _rsnStyle = _rsnVal==="REASON 1" ? Object.assign({},rowStyle,{font:Object.assign({},rowStyle.font,{color:{rgb:"EF4444"},bold:true})}) : _rsnVal==="REASON 2" ? Object.assign({},rowStyle,{font:Object.assign({},rowStyle.font,{color:{rgb:"A855F7"},bold:true})}) : rowStyle;
+            setCell(ws, row, cs+2, _rsnVal, _rsnStyle);
             setCell(ws, row, cs+3, wStart && wEnd ? `${wStart}-${wEnd}` : "", rowStyle);
             setCell(ws, row, cs+4, hrs, rowStyle);
             setCell(ws, row, cs+5, present==="TARDY"?"T":(present==="PARTIAL"?"P":(present==="TRAINER"?"TNR":(present==="TRAINEE"?"TNE":(present==="YES"?"Y":"N")))), rowStyle);
@@ -6967,7 +6971,7 @@ function printDaily(){
       /* Data rows */
       let mx=0; for(const b of blocks) mx=Math.max(mx,(allRowsByRole[b.id][role]||[]).length);
       for(let i=0;i<mx;i++){
-        const fills=[], texts=[];
+        const fills=[], texts=[], cellColors=[];
         for(const b of blocks){
           const list=allRowsByRole[b.id][role]||[];
           fills.push([bg,bg,bg,bg,bg,bg]);
@@ -6990,9 +6994,11 @@ function printDaily(){
             const seatVal=isAbsent?(r.isTardy?"TARDY":r.isPartial?(ed.PartialReason||""):absReason):(isOth?othType:(ed.Assignment||r.assignment||""));
             const wkd=wStart&&wEnd?wStart+"-"+wEnd:"";
             texts.push([String(r.emp).toUpperCase()+nameSuffix, isAbsent?"":(roleAbbr[roleNorm]||roleNorm), seatVal, wkd, hrs, prStr]);
-          } else { texts.push(["","","","","",""]); }
+            const _rsnC = seatVal==="REASON 1"?[239,68,68]:seatVal==="REASON 2"?[168,85,247]:null;
+            cellColors.push(_rsnC?[[0,0,0],[0,0,0],_rsnC,[0,0,0],[0,0,0],[0,0,0]]:null);
+          } else { texts.push(["","","","","",""]); cellColors.push(null); }
         }
-        drawRow(fills, texts, {color:[0,0,0]});
+        drawRow(fills, texts, {color:[0,0,0], cellColors:cellColors});
       }
     }
 
