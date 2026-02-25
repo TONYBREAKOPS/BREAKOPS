@@ -152,9 +152,9 @@ document.querySelectorAll('.filters button').forEach(btn => {
 // Load bugs with real-time listener
 function loadBugs() {
   db.collection('bugReports').orderBy('timestamp', 'desc').onSnapshot(snap => {
-    const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    allBugs = all.filter(b => !b.archived);
-    archivedBugs = all.filter(b => b.archived);
+    const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(b => b.status !== 'deleted');
+    allBugs = all.filter(b => b.status !== 'archived');
+    archivedBugs = all.filter(b => b.status === 'archived');
     renderBugs();
     renderArchive();
   });
@@ -219,9 +219,7 @@ async function markOpen(id) {
 async function deleteBug(id) {
   if (!confirm('Delete this bug report permanently?')) return;
   try {
-    await db.collection('bugReports').doc(id).delete();
-    allBugs = allBugs.filter(b => b.id !== id);
-    renderBugs();
+    await db.collection('bugReports').doc(id).update({ status: 'deleted' });
   } catch (e) {
     console.error('Delete failed:', e);
     alert('Delete failed: ' + (e.message || e));
@@ -230,7 +228,7 @@ async function deleteBug(id) {
 
 async function archiveBug(id) {
   try {
-    await db.collection('bugReports').doc(id).update({ archived: true });
+    await db.collection('bugReports').doc(id).update({ status: 'archived' });
   } catch (e) {
     console.error('Archive failed:', e);
     alert('Archive failed: ' + (e.message || e));
@@ -239,7 +237,7 @@ async function archiveBug(id) {
 
 async function unarchiveBug(id) {
   try {
-    await db.collection('bugReports').doc(id).update({ archived: false });
+    await db.collection('bugReports').doc(id).update({ status: 'open' });
   } catch (e) {
     console.error('Unarchive failed:', e);
     alert('Unarchive failed: ' + (e.message || e));
