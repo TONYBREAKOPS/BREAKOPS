@@ -330,6 +330,7 @@ main{max-width:900px;margin:0 auto;padding:20px 18px}
           <button onclick="dismissAllAbsences()" style="padding:5px 12px;font-size:10px;font-weight:800;border-radius:6px;border:1px solid rgba(255,107,107,.3);background:rgba(255,107,107,.08);color:var(--bad);cursor:pointer;letter-spacing:.04em;white-space:nowrap">DISMISS ALL</button>
         </div>
       </div>
+      <div id="recentCallOffsArea" style="padding:10px 14px;border-bottom:1px solid var(--border);display:none"></div>
       <div class="card-body" id="absListArea">
         <div class="empty-msg">Loading...</div>
       </div>
@@ -425,6 +426,7 @@ let _absences = [];
 let _allAbsences = [];
 let _absLoading = false;
 let _dismissedAbs = new Set();
+let _recentCallOffs = [];
 const ABS_TRACK_REASONS = new Set(['REASON 1','FAMILY','PERSONAL','REASON 2']);
 
 function setListType(type){
@@ -440,6 +442,9 @@ function setListType(type){
   }
   if(type === 'abs' && _allMode && _allAbsences.length === 0 && !_absLoading){
     loadAllAbsences();
+  }
+  if(type === 'abs' && !_recentCallOffs.length){
+    loadRecentCallOffs();
   }
 }
 
@@ -1160,6 +1165,7 @@ function extractAbsencesFromDoc(data, arr){
   if(!dateStr) return;
   const edits = data.edits;
   if(!edits || typeof edits !== 'object') return;
+  const comments = data.comments && typeof data.comments === 'object' ? data.comments : {};
 
   // Track seen employee+date+shift combos to dedupe across blocks
   const seen = new Set();
@@ -1196,15 +1202,77 @@ function extractAbsencesFromDoc(data, arr){
       if(seen.has(dedupeKey)) continue;
       seen.add(dedupeKey);
 
+      // Look up ShiftOps comment for this absence
+      const commentBase = dateStr + '|' + shift + '|' + blockKey + '|' + empKey;
+      const comment = comments[commentBase]
+        || (type === 'TARDY' && comments[commentBase + '|TARDY'])
+        || (type === 'PARTIAL' && comments[commentBase + '|PARTIAL'])
+        || '';
+
       arr.push({
         employee,
         date: dateStr,
         shift: shift || 'N/A',
         reason: reason || (type === 'TARDY' ? 'TARDY' : 'UNKNOWN'),
-        type
+        type,
+        comment
       });
     }
   }
+}
+
+// Load & render recent call-offs (last 7 days)
+async function loadRecentCallOffs(){
+  const area = document.getElementById('recentCallOffsArea');
+  try {
+    const now = new Date();
+    const past = new Date(now);
+    past.setDate(past.getDate() - 7);
+    const startDate = past.getFullYear() + '-' + String(past.getMonth()+1).padStart(2,'0') + '-' + String(past.getDate()).padStart(2,'0');
+    const endDate = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+
+    const snap = await db.collection('daily_edits')
+      .where('date','>=', startDate)
+      .where('date','<=', endDate)
+      .get();
+
+    _recentCallOffs = [];
+    snap.docs.forEach(doc => extractAbsencesFromDoc(doc.data(), _recentCallOffs));
+    // Keep only ABSENT type (not tardy/partial)
+    _recentCallOffs = _recentCallOffs.filter(a => a.type === 'ABSENT' && !_dismissedAbs.has(a.employee + '_' + a.date + '_' + a.shift));
+    renderRecentCallOffs();
+  } catch(e){
+    console.error('loadRecentCallOffs:', e);
+    area.style.display = 'none';
+  }
+}
+
+function renderRecentCallOffs(){
+  const area = document.getElementById('recentCallOffsArea');
+  const list = _recentCallOffs;
+  if(!list.length){ area.style.display = 'none'; return; }
+
+  area.style.display = '';
+  // Group by employee
+  const groups = {};
+  list.forEach(a => {
+    if(!groups[a.employee]) groups[a.employee] = [];
+    groups[a.employee].push(a);
+  });
+  const names = Object.keys(groups).sort();
+
+  let html = '<div style="font-size:11px;font-weight:800;color:var(--bad);letter-spacing:.04em;margin-bottom:6px">CALL-OFFS — LAST 7 DAYS (' + list.length + ')</div>';
+  html += '<div style="display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px">';
+  names.forEach(name => {
+    const entries = groups[name].sort((a,b) => b.date.localeCompare(a.date));
+    const dates = entries.map(a => {
+      const d = new Date(a.date + 'T00:00:00');
+      return (d.getMonth()+1) + '/' + d.getDate();
+    }).join(', ');
+    html += '<span style="white-space:nowrap"><strong>' + esc(name) + '</strong> <span style="color:var(--muted)">(' + dates + ')</span></span>';
+  });
+  html += '</div>';
+  area.innerHTML = html;
 }
 
 // Load absences for a specific month
@@ -1329,7 +1397,7 @@ function renderAbsList(){
     html += '<span class="abs-group-count">' + entries.length + ' total</span>';
     html += '</div>';
     html += '<div class="abs-group-body">';
-    html += '<table class="vac-table"><thead><tr><th>DATE</th><th>SHIFT</th><th>REASON</th><th>TYPE</th><th></th></tr></thead><tbody>';
+    html += '<table class="vac-table"><thead><tr><th>DATE</th><th>SHIFT</th><th>REASON</th><th>TYPE</th><th>COMMENT</th><th></th></tr></thead><tbody>';
     entries.forEach(a => {
       const typeCls = a.type === 'TARDY' ? 'tardy' : a.type === 'PARTIAL' ? 'partial' : 'absent';
       html += '<tr>';
@@ -1337,6 +1405,7 @@ function renderAbsList(){
       html += '<td>' + esc(a.shift) + '</td>';
       html += '<td>' + esc(a.reason) + '</td>';
       html += '<td><span class="abs-type-tag ' + typeCls + '">' + esc(a.type) + '</span></td>';
+      html += '<td>' + esc(a.comment || '') + '</td>';
       html += '<td><button class="del-btn" onclick="dismissAbsence(\'' + esc(a.employee) + '\',\'' + esc(a.date) + '\',\'' + esc(a.shift) + '\')" title="Dismiss">&times;</button></td>';
       html += '</tr>';
     });

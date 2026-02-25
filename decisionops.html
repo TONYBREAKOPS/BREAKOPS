@@ -2101,10 +2101,15 @@ async function handleRestartMeeting(){
 async function handleEndMeeting(){
   if(!confirm('End this meeting? It will be moved to past meetings.')) return;
   try {
-    await db.collection('decisionMeetings').doc(_meetingId).update({ status: 'ENDED' });
+    // Stop the snapshot listener BEFORE updating status so it doesn't
+    // fire and call renderMeeting(), which would overwrite the landing page.
+    const endingId = _meetingId;
+    const endingDoc = _meetingDoc;
+    stopMeetingListener();
+    await db.collection('decisionMeetings').doc(endingId).update({ status: 'ENDED' });
 
     // Feature 7: Carry forward unresolved topics
-    const topics = _meetingDoc.topics || [];
+    const topics = endingDoc.topics || [];
     const unresolved = topics.filter(t => t.phase !== 'DECIDED');
     if(unresolved.length > 0){
       const doCarry = confirm(unresolved.length + ' topic(s) are unresolved. Create a follow-up meeting with these topics?');
@@ -2136,13 +2141,13 @@ async function handleEndMeeting(){
           speakerTimeLimit: 60
         }));
         const ref = await db.collection('decisionMeetings').add({
-          title: (_meetingDoc.title || 'Meeting') + ' (Follow-up)',
+          title: (endingDoc.title || 'Meeting') + ' (Follow-up)',
           createdBy: email,
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
           facilitator: email,
           status: 'SETUP',
           startedAt: null,
-          participants: _meetingDoc.participants || [],
+          participants: endingDoc.participants || [],
           topics: carryTopics,
           activeTopicIndex: -1
         });
