@@ -19,14 +19,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .stat-open{background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);}
 .stat-fixed{background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3);}
 .stat-total{background:rgba(99,102,241,.15);color:#818cf8;border:1px solid rgba(99,102,241,.3);}
+.tabs{display:flex;gap:0;margin-bottom:16px;border:1px solid #1e293b;border-radius:8px;overflow:hidden;width:fit-content;}
+.tab-btn{padding:8px 20px;font-size:12px;font-weight:700;border:none;background:#111827;color:#64748b;cursor:pointer;transition:all .15s;border-right:1px solid #1e293b;}
+.tab-btn:last-child{border-right:none;}
+.tab-btn:hover{color:#94a3b8;background:#1a2332;}
+.tab-btn.active{background:#4aa3ff;color:#fff;}
 .filters{display:flex;gap:10px;margin-bottom:16px;align-items:center;}
 .filters button{padding:6px 14px;font-size:12px;font-weight:700;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#94a3b8;cursor:pointer;transition:all .15s;}
 .filters button:hover{border-color:#4aa3ff;color:#4aa3ff;}
 .filters button.active{background:#4aa3ff;color:#fff;border-color:#4aa3ff;}
 .bug-list{display:flex;flex-direction:column;gap:10px;}
-.bug-card{background:#111827;border:1px solid #1e293b;border-radius:10px;padding:16px;transition:border-color .15s;}
+.bug-card{background:#111827;border:1px solid #1e293b;border-radius:10px;padding:16px;transition:all .2s;}
 .bug-card:hover{border-color:#334155;}
 .bug-card.status-fixed{opacity:0.55;}
+.bug-card.is-archived{opacity:0.5;border-style:dashed;}
+.bug-card.is-archived:hover{opacity:0.75;}
 .bug-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
 .bug-meta{display:flex;align-items:center;gap:10px;font-size:11px;color:#64748b;}
 .bug-meta .name{color:#e2e8f0;font-weight:700;font-size:13px;}
@@ -35,25 +42,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .bug-status{font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;text-transform:uppercase;letter-spacing:.5px;}
 .bug-status.open{background:rgba(239,68,68,.15);color:#ef4444;}
 .bug-status.fixed{background:rgba(34,197,94,.15);color:#22c55e;}
+.bug-status.archived{background:rgba(99,102,241,.15);color:#818cf8;}
 .bug-details{font-size:13px;line-height:1.6;color:#cbd5e1;white-space:pre-wrap;word-break:break-word;margin-bottom:12px;}
-.bug-actions{display:flex;gap:8px;align-items:center;}
+.bug-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .bug-actions button{padding:5px 12px;font-size:11px;font-weight:700;border-radius:6px;border:none;cursor:pointer;transition:opacity .15s;}
 .bug-actions button:hover{opacity:.85;}
 .btn-fix{background:#22c55e;color:#fff;}
 .btn-reopen{background:#f59e0b;color:#fff;}
 .btn-delete{background:#ef4444;color:#fff;}
 .btn-archive{background:#6366f1;color:#fff;}
-.btn-unarchive{background:#6366f1;color:#fff;}
+.btn-restore{background:#4aa3ff;color:#fff;}
 .timestamp{font-size:10px;color:#475569;margin-left:auto;}
-.archive-section{margin-top:30px;border:1px solid #1e293b;border-radius:12px;background:#111827;overflow:hidden;}
-.archive-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;user-select:none;}
-.archive-header:hover{background:rgba(255,255,255,.03);}
-.archive-header h2{font-size:14px;font-weight:700;color:#64748b;display:flex;align-items:center;gap:8px;}
-.archive-header .count{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(99,102,241,.15);color:#818cf8;}
-.archive-body{padding:0 12px 12px;display:flex;flex-direction:column;gap:8px;}
-.archive-body .bug-card{opacity:.6;}
-.archive-body .bug-card:hover{opacity:.8;}
 .empty{text-align:center;color:#475569;padding:60px 20px;font-size:14px;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 24px;border-radius:8px;font-size:13px;font-weight:700;color:#fff;z-index:9999;animation:toastIn .3s ease;}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(10px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
 .login-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:#0b1120;z-index:9999;display:flex;align-items:center;justify-content:center;}
 .login-box{background:#111827;border:1px solid #1e293b;border-radius:12px;padding:30px;min-width:320px;text-align:center;}
 .login-box h2{margin-bottom:16px;font-size:18px;}
@@ -83,21 +85,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
 </div>
 
-<div class="filters">
-  <button class="active" data-filter="all">ALL</button>
-  <button data-filter="open">OPEN</button>
-  <button data-filter="fixed">FIXED</button>
+<div class="tabs">
+  <button class="tab-btn active" data-view="active">ACTIVE</button>
+  <button class="tab-btn" data-view="archived">ARCHIVED <span id="archiveBadge" style="font-size:10px;opacity:.7"></span></button>
 </div>
 
-<div class="bug-list" id="bugList">
-  <div class="empty">Loading...</div>
-</div>
-
-<div class="archive-section" id="archiveSection" style="display:none">
-  <div class="archive-header" onclick="toggleArchive()">
-    <h2><span id="archiveArrow">&#9654;</span> Archived <span class="count" id="archiveCount">0</span></h2>
+<div id="viewActive">
+  <div class="filters">
+    <button class="active" data-filter="all">ALL</button>
+    <button data-filter="open">OPEN</button>
+    <button data-filter="fixed">FIXED</button>
   </div>
-  <div class="archive-body" id="archiveList" style="display:none"></div>
+  <div class="bug-list" id="bugList">
+    <div class="empty">Loading...</div>
+  </div>
+</div>
+
+<div id="viewArchived" style="display:none">
+  <div class="bug-list" id="archiveList">
+    <div class="empty">No archived bugs.</div>
+  </div>
 </div>
 
 <script>
@@ -114,175 +121,199 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-// Auth
+// ===== AUTH =====
 document.getElementById('btnLogin').addEventListener('click', async () => {
   const email = document.getElementById('loginEmail').value.trim();
   const pass = document.getElementById('loginPass').value;
-  try {
-    await auth.signInWithEmailAndPassword(email, pass);
-  } catch (e) {
-    document.getElementById('loginErr').textContent = e.message;
-  }
+  try { await auth.signInWithEmailAndPassword(email, pass); }
+  catch (e) { document.getElementById('loginErr').textContent = e.message; }
 });
 document.getElementById('loginPass').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') document.getElementById('btnLogin').click();
 });
-
 auth.onAuthStateChanged((user) => {
   document.getElementById('loginOverlay').style.display = user ? 'none' : 'flex';
   if (user) loadBugs();
 });
 
-// State
+// ===== STATE =====
 let allBugs = [];
-let archivedBugs = [];
 let currentFilter = 'all';
-let archiveOpen = false;
+let currentView = 'active';
 
-// Filters
+// ===== HELPERS =====
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function toast(msg, bg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.style.background = bg;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2200);
+}
+
+function getBugById(id) { return allBugs.find(b => b.id === id); }
+
+// ===== TABS =====
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentView = btn.dataset.view;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('viewActive').style.display = currentView === 'active' ? '' : 'none';
+    document.getElementById('viewArchived').style.display = currentView === 'archived' ? '' : 'none';
+  });
+});
+
+// ===== FILTERS =====
 document.querySelectorAll('.filters button').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.filters button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    currentFilter = btn.getAttribute('data-filter');
+    currentFilter = btn.dataset.filter;
     renderBugs();
   });
 });
 
-// Load bugs with real-time listener
+// ===== EVENT DELEGATION FOR ACTIONS =====
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const id = btn.dataset.id;
+  if (!id) return;
+
+  btn.disabled = true;
+  btn.style.opacity = '0.4';
+
+  try {
+    if (action === 'fix') {
+      await db.collection('bugReports').doc(id).update({ status: 'fixed', fixedAt: new Date().toISOString() });
+      toast('Marked as fixed', '#22c55e');
+
+    } else if (action === 'reopen') {
+      await db.collection('bugReports').doc(id).update({ status: 'open', fixedAt: null });
+      toast('Reopened', '#f59e0b');
+
+    } else if (action === 'archive') {
+      // Copy to archive collection, then delete from main
+      const bug = getBugById(id);
+      if (bug) {
+        const { id: _id, ...data } = bug;
+        await db.collection('bugReportsArchive').doc(id).set(data);
+        await db.collection('bugReports').doc(id).delete();
+        toast('Archived', '#6366f1');
+      }
+
+    } else if (action === 'restore') {
+      // Copy back to main, delete from archive
+      const snap = await db.collection('bugReportsArchive').doc(id).get();
+      if (snap.exists) {
+        await db.collection('bugReports').doc(id).set(snap.data());
+        await db.collection('bugReportsArchive').doc(id).delete();
+        toast('Restored', '#4aa3ff');
+      }
+
+    } else if (action === 'delete') {
+      if (!confirm('Delete this bug permanently?')) { btn.disabled = false; btn.style.opacity = ''; return; }
+      // Try deleting from both collections
+      try { await db.collection('bugReports').doc(id).delete(); } catch(e) {}
+      try { await db.collection('bugReportsArchive').doc(id).delete(); } catch(e) {}
+      toast('Deleted', '#ef4444');
+    }
+  } catch (err) {
+    console.error(action + ' failed:', err);
+    alert(action.toUpperCase() + ' failed: ' + (err.message || err));
+  }
+
+  btn.disabled = false;
+  btn.style.opacity = '';
+});
+
+// ===== LOAD =====
 function loadBugs() {
+  // Listen to active bugs
   db.collection('bugReports').orderBy('timestamp', 'desc').onSnapshot(snap => {
-    const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(b => b.status !== 'deleted');
-    allBugs = all.filter(b => b.status !== 'archived');
-    archivedBugs = all.filter(b => b.status === 'archived');
+    allBugs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     renderBugs();
+  });
+  // Listen to archive
+  db.collection('bugReportsArchive').orderBy('timestamp', 'desc').onSnapshot(snap => {
+    window._archivedBugs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     renderArchive();
   });
 }
 
+// ===== RENDER ACTIVE =====
 function renderBugs() {
   const list = document.getElementById('bugList');
   const filtered = currentFilter === 'all' ? allBugs : allBugs.filter(b => b.status === currentFilter);
 
-  // Stats
   const openCount = allBugs.filter(b => b.status === 'open').length;
   const fixedCount = allBugs.filter(b => b.status === 'fixed').length;
   document.getElementById('statOpen').textContent = openCount + ' OPEN';
   document.getElementById('statFixed').textContent = fixedCount + ' FIXED';
   document.getElementById('statTotal').textContent = allBugs.length + ' TOTAL';
 
+  const archCount = (window._archivedBugs || []).length;
+  document.getElementById('archiveBadge').textContent = archCount > 0 ? '(' + archCount + ')' : '';
+
   if (filtered.length === 0) {
     list.innerHTML = '<div class="empty">No bug reports' + (currentFilter !== 'all' ? ' with status "' + currentFilter + '"' : '') + '.</div>';
     return;
   }
-
-  list.innerHTML = filtered.map(b => {
-    const date = b.timestamp ? new Date(b.timestamp) : null;
-    const dateStr = date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
-    const statusClass = b.status === 'fixed' ? 'fixed' : 'open';
-    return `<div class="bug-card status-${statusClass}" data-id="${b.id}">
-      <div class="bug-top">
-        <div class="bug-meta">
-          <span class="name">${esc(b.name)}</span>
-          <span class="app">${esc(b.app || 'Unknown')}</span>
-          <span class="email">${esc(b.reportedBy || '')}</span>
-        </div>
-        <span class="bug-status ${statusClass}">${statusClass.toUpperCase()}</span>
-      </div>
-      <div class="bug-details">${esc(b.details)}</div>
-      <div class="bug-actions">
-        ${b.status === 'open'
-          ? '<button class="btn-fix" onclick="markFixed(\'' + b.id + '\')">MARK FIXED</button>'
-          : '<button class="btn-reopen" onclick="markOpen(\'' + b.id + '\')">REOPEN</button>'}
-        <button class="btn-archive" onclick="archiveBug(\'' + b.id + '\')">ARCHIVE</button>
-        <button class="btn-delete" onclick="deleteBug(\'' + b.id + '\')">DELETE</button>
-        <span class="timestamp">${dateStr}</span>
-      </div>
-    </div>`;
-  }).join('');
+  list.innerHTML = filtered.map(b => renderCard(b, false)).join('');
 }
 
-function esc(s) {
-  const d = document.createElement('div');
-  d.textContent = s || '';
-  return d.innerHTML;
-}
-
-async function markFixed(id) {
-  await db.collection('bugReports').doc(id).update({ status: 'fixed', fixedAt: new Date().toISOString() });
-}
-
-async function markOpen(id) {
-  await db.collection('bugReports').doc(id).update({ status: 'open', fixedAt: null });
-}
-
-async function deleteBug(id) {
-  if (!confirm('Delete this bug report permanently?')) return;
-  try {
-    await db.collection('bugReports').doc(id).update({ status: 'deleted' });
-  } catch (e) {
-    console.error('Delete failed:', e);
-    alert('Delete failed: ' + (e.message || e));
-  }
-}
-
-async function archiveBug(id) {
-  try {
-    await db.collection('bugReports').doc(id).update({ status: 'archived' });
-  } catch (e) {
-    console.error('Archive failed:', e);
-    alert('Archive failed: ' + (e.message || e));
-  }
-}
-
-async function unarchiveBug(id) {
-  try {
-    await db.collection('bugReports').doc(id).update({ status: 'open' });
-  } catch (e) {
-    console.error('Unarchive failed:', e);
-    alert('Unarchive failed: ' + (e.message || e));
-  }
-}
-
-function toggleArchive() {
-  archiveOpen = !archiveOpen;
-  document.getElementById('archiveList').style.display = archiveOpen ? '' : 'none';
-  document.getElementById('archiveArrow').innerHTML = archiveOpen ? '&#9660;' : '&#9654;';
-}
-
+// ===== RENDER ARCHIVE =====
 function renderArchive() {
-  const section = document.getElementById('archiveSection');
   const list = document.getElementById('archiveList');
-  const countEl = document.getElementById('archiveCount');
+  const archived = window._archivedBugs || [];
 
-  if (archivedBugs.length === 0) {
-    section.style.display = 'none';
+  const archCount = archived.length;
+  document.getElementById('archiveBadge').textContent = archCount > 0 ? '(' + archCount + ')' : '';
+
+  if (archived.length === 0) {
+    list.innerHTML = '<div class="empty">No archived bugs.</div>';
     return;
   }
+  list.innerHTML = archived.map(b => renderCard(b, true)).join('');
+}
 
-  section.style.display = '';
-  countEl.textContent = archivedBugs.length;
+// ===== CARD TEMPLATE =====
+function renderCard(b, isArchived) {
+  const date = b.timestamp ? new Date(b.timestamp) : null;
+  const dateStr = date ? date.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) + ' at ' + date.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' }) : '';
+  const statusClass = b.status === 'fixed' ? 'fixed' : 'open';
+  const cardClass = isArchived ? 'bug-card is-archived' : 'bug-card status-' + statusClass;
 
-  list.innerHTML = archivedBugs.map(b => {
-    const date = b.timestamp ? new Date(b.timestamp) : null;
-    const dateStr = date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-    const statusClass = b.status === 'fixed' ? 'fixed' : 'open';
-    return `<div class="bug-card status-${statusClass}">
-      <div class="bug-top">
-        <div class="bug-meta">
-          <span class="name">${esc(b.name)}</span>
-          <span class="app">${esc(b.app || 'Unknown')}</span>
-        </div>
-        <span class="bug-status ${statusClass}">${statusClass.toUpperCase()}</span>
-      </div>
-      <div class="bug-details">${esc(b.details)}</div>
-      <div class="bug-actions">
-        <button class="btn-unarchive" onclick="unarchiveBug('${b.id}')">UNARCHIVE</button>
-        <button class="btn-delete" onclick="deleteBug('${b.id}')">DELETE</button>
-        <span class="timestamp">${dateStr}</span>
-      </div>
-    </div>`;
-  }).join('');
+  let actions = '';
+  if (isArchived) {
+    actions += '<button class="btn-restore" data-action="restore" data-id="' + esc(b.id) + '">RESTORE</button>';
+    actions += '<button class="btn-delete" data-action="delete" data-id="' + esc(b.id) + '">DELETE</button>';
+  } else {
+    if (b.status === 'open') {
+      actions += '<button class="btn-fix" data-action="fix" data-id="' + esc(b.id) + '">MARK FIXED</button>';
+    } else {
+      actions += '<button class="btn-reopen" data-action="reopen" data-id="' + esc(b.id) + '">REOPEN</button>';
+    }
+    actions += '<button class="btn-archive" data-action="archive" data-id="' + esc(b.id) + '">ARCHIVE</button>';
+    actions += '<button class="btn-delete" data-action="delete" data-id="' + esc(b.id) + '">DELETE</button>';
+  }
+
+  return '<div class="' + cardClass + '">' +
+    '<div class="bug-top">' +
+      '<div class="bug-meta">' +
+        '<span class="name">' + esc(b.name) + '</span>' +
+        '<span class="app">' + esc(b.app || 'Unknown') + '</span>' +
+        '<span class="email">' + esc(b.reportedBy || '') + '</span>' +
+      '</div>' +
+      '<span class="bug-status ' + (isArchived ? 'archived' : statusClass) + '">' + (isArchived ? 'ARCHIVED' : statusClass.toUpperCase()) + '</span>' +
+    '</div>' +
+    '<div class="bug-details">' + esc(b.details) + '</div>' +
+    '<div class="bug-actions">' + actions + '<span class="timestamp">' + esc(dateStr) + '</span></div>' +
+  '</div>';
 }
 </script>
 </body>
