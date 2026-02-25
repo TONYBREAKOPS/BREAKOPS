@@ -683,15 +683,21 @@ async function loadPastMeetings(){
   try {
     const snap = await db.collection('decisionMeetings')
       .where('status','==','ENDED')
-      .orderBy('createdAt','desc')
-      .limit(20)
       .get();
     if(snap.empty){
       el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px">No past meetings.</div>';
       return;
     }
+    // Sort client-side by createdAt descending
+    const docs = snap.docs.slice().sort((a,b) => {
+      const aT = a.data().createdAt;
+      const bT = b.data().createdAt;
+      if(!aT) return 1;
+      if(!bT) return -1;
+      return bT.toMillis() - aT.toMillis();
+    });
     let html = '';
-    snap.docs.forEach(doc => {
+    docs.forEach(doc => {
       const d = doc.data();
       const topicCount = (d.topics||[]).length;
       const dateStr = d.createdAt && d.createdAt.toDate ? fmtDate(d.createdAt.toDate()) : '';
@@ -703,6 +709,7 @@ async function loadPastMeetings(){
     });
     el.innerHTML = html;
   } catch(err){
+    console.error('loadPastMeetings:', err);
     el.innerHTML = '<div style="color:var(--bad);font-size:12px">Failed to load.</div>';
   }
 }
