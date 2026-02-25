@@ -394,6 +394,14 @@ main{padding:14px 18px 20px}
   <div class="loading">Loading...</div>
 </main>
 
+<div id="speakerBanner" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:rgba(255,40,40,.85);color:#fff;font-size:64px;font-weight:900;text-transform:uppercase;letter-spacing:4px;justify-content:center;align-items:center;flex-direction:column;text-align:center;pointer-events:none;animation:bannerPulse .5s ease-in-out infinite alternate">
+  <div style="font-size:80px;line-height:1">10 SECONDS</div>
+  <div style="font-size:48px;margin-top:10px;opacity:.9">WRAP UP</div>
+</div>
+<style>
+@keyframes bannerPulse{from{opacity:.85}to{opacity:1}}
+</style>
+
 <script>
 // ===== GLOBALS =====
 let _meetingDoc = null;
@@ -404,11 +412,13 @@ let _userHash = null;
 let _isFacilitator = false;
 let _view = 'LANDING';
 let _employees = [];
+let _leads = [];
 let _initDone = false;
 let _narrowSelection = [];  // temp state: which options facilitator has selected during NARROW
 let _editingTopicId = null;  // which topic is being edited inline
 let _editingMeetingTitle = false;
 let _speakerInterval = null;
+let _bannerShown = false;
 let _expandedQueueNotes = {};  // { topicId: true/false } track which queue notes are expanded
 
 // ===== HELPERS =====
@@ -599,15 +609,52 @@ async function loadEmployees(){
         name: String(r.Employee || doc.id).toUpperCase(),
         role: normalizeRole(r.POSITION ?? r.Position ?? "")
       };
-    }).filter(r => r.name && (r.role === 'SUPERVISOR' || r.role === 'DISPATCHER'));
+    }).filter(r => r.name && (r.role === 'SUPERVISOR' || r.role === 'DISPATCHER' || r.role === 'PIC'));
     _employees.sort((a,b) => a.name.localeCompare(b.name));
     pill.textContent = 'DB: ' + _employees.length + ' staff';
     pill.classList.add('good');
+    await loadLeads();
   } catch(err){
     console.error('Employee load error:', err);
     pill.textContent = 'DB: error';
     pill.classList.add('bad');
   }
+}
+
+async function loadLeads(){
+  try {
+    const doc = await db.collection('appSettings').doc('decisionLeads').get();
+    _leads = doc.exists && doc.data().leads ? doc.data().leads : [];
+  } catch(e){ console.warn('loadLeads:', e); _leads = []; }
+}
+
+async function saveLeads(list){
+  try {
+    await db.collection('appSettings').doc('decisionLeads').set({ leads: list });
+    _leads = list;
+  } catch(e){ console.error(e); alert('Failed to save leads: ' + (e.message||e)); }
+}
+
+async function handleSaveAsLeads(){
+  if(!_meetingDoc) return;
+  const participants = _meetingDoc.participants || [];
+  if(participants.length === 0){ alert('No participants to save.'); return; }
+  if(!confirm('Save current ' + participants.length + ' participants as leads?')) return;
+  await saveLeads(participants.map(p => ({ name: p.name, role: p.role })));
+  alert('Saved ' + participants.length + ' leads.');
+  renderMeeting();
+}
+
+async function handleLoadLeads(){
+  if(!_meetingId || !_meetingDoc) return;
+  if(_leads.length === 0){ alert('No leads saved. Add participants and use "Save as Leads" first.'); return; }
+  const existing = (_meetingDoc.participants||[]).map(p => p.name);
+  const toAdd = _leads.filter(l => !existing.includes(l.name));
+  if(toAdd.length === 0){ alert('All leads are already participants.'); return; }
+  try {
+    const updated = [...(_meetingDoc.participants||[]), ...toAdd];
+    await db.collection('decisionMeetings').doc(_meetingId).update({ participants: updated });
+  } catch(e){ console.error(e); alert('Failed: ' + (e.message||e)); }
 }
 
 // ===== LANDING SCREEN =====
@@ -1073,7 +1120,7 @@ function renderParticipantsCard(){
       html += '<span class="participant-chip" style="' + (isFac ? 'border-color:rgba(74,163,255,.5);background:rgba(74,163,255,.1)' : '') + '">';
       if(isFac) html += '<span style="font-size:10px;color:var(--accent)" title="Facilitator">&#9733;</span> ';
       html += esc(p.name);
-      const roleTag = p.role === 'SUPERVISOR' ? 'SUP' : p.role === 'GUEST' ? 'GUEST' : 'DP';
+      const roleTag = p.role === 'SUPERVISOR' ? 'SUP' : p.role === 'PIC' ? 'PIC' : p.role === 'GUEST' ? 'GUEST' : 'DP';
       html += '<span style="font-size:9px;color:var(--muted);margin-left:2px">' + esc(roleTag) + '</span>';
       if(_isFacilitator){
         html += ' <span class="chip-remove" onclick="handleRemoveParticipant(\'' + esc(p.name) + '\')">&times;</span>';
@@ -1089,6 +1136,10 @@ function renderParticipantsCard(){
     html += '<input type="text" id="participantSearch" placeholder="Search employee..." oninput="handleParticipantSearch(this.value)" autocomplete="off" style="width:100%;padding:8px 10px;font-size:12px"/>';
     html += '<div class="search-results" id="participantResults"></div>';
     html += '</div>';
+    html += '<div style="display:flex;gap:6px;margin-top:8px">';
+    html += '<button onclick="handleLoadLeads()" style="flex:1;padding:6px 10px;font-size:11px;font-weight:700;border-radius:8px;border:1px solid rgba(63,231,182,.3);color:var(--ok);background:rgba(63,231,182,.08);cursor:pointer">Load Leads' + (_leads.length ? ' (' + _leads.length + ')' : '') + '</button>';
+    html += '<button onclick="handleAddGroup(\'SUPERVISOR\')" style="flex:1;padding:6px 10px;font-size:11px;font-weight:700;border-radius:8px;border:1px solid rgba(74,163,255,.3);color:var(--accent);background:rgba(74,163,255,.08);cursor:pointer">Load Sups</button>';
+    html += '</div>';
   }
 
   html += '</div></div>';
@@ -1103,13 +1154,37 @@ function handleParticipantSearch(query){
 
   const existing = (_meetingDoc.participants||[]).map(p => p.name);
 
-  // Group keywords: "SUPERVISORS" or "SUP" adds all supervisors, "DISPATCHERS" or "DP" adds all dispatchers
+  // Group keywords: "SUPERVISORS" or "SUP" adds all supervisors, "DISPATCHERS" or "DP" adds all dispatchers, "LEADS" loads saved leads
+  const isLeadsKeyword = ['LEADS','LEAD'].includes(q);
+  if(isLeadsKeyword){
+    if(_leads.length === 0){
+      results.innerHTML = '<div class="search-result-item" style="color:var(--muted)">No leads saved yet. Use "Save as Leads" first.</div>';
+    } else {
+      const leadsToAdd = _leads.filter(l => !existing.includes(l.name));
+      let html = '';
+      if(leadsToAdd.length > 0){
+        html += '<div class="search-result-item" onclick="handleLoadLeads()" style="color:var(--ok);font-weight:700;border-bottom:2px solid var(--border)">';
+        html += 'Add all Leads (' + leadsToAdd.length + ')</div>';
+        leadsToAdd.forEach(l => {
+          html += '<div class="search-result-item" onclick="handleAddParticipant(\'' + esc(l.name) + '\',\'' + esc(l.role) + '\')">';
+          html += esc(l.name) + ' <span style="color:var(--muted);font-size:10px">' + esc(l.role === 'SUPERVISOR' ? 'SUP' : l.role === 'PIC' ? 'PIC' : l.role === 'GUEST' ? 'GUEST' : 'DP') + '</span></div>';
+        });
+      } else {
+        html = '<div class="search-result-item" style="color:var(--muted)">All leads already added</div>';
+      }
+      results.innerHTML = html;
+    }
+    results.classList.add('show');
+    return;
+  }
+
   const isSupKeyword = ['SUPERVISORS','SUPERVISOR','SUPS','SUP'].includes(q);
   const isDpKeyword = ['DISPATCHERS','DISPATCHER','DPS','DP'].includes(q);
+  const isPicKeyword = ['PICS','PIC'].includes(q);
 
-  if(isSupKeyword || isDpKeyword){
-    const targetRole = isSupKeyword ? 'SUPERVISOR' : 'DISPATCHER';
-    const roleLabel = isSupKeyword ? 'Supervisors' : 'Dispatchers';
+  if(isSupKeyword || isDpKeyword || isPicKeyword){
+    const targetRole = isSupKeyword ? 'SUPERVISOR' : isPicKeyword ? 'PIC' : 'DISPATCHER';
+    const roleLabel = isSupKeyword ? 'Supervisors' : isPicKeyword ? 'PICs' : 'Dispatchers';
     const groupMatches = _employees.filter(e => e.role === targetRole && !existing.includes(e.name));
     let html = '';
     if(groupMatches.length > 0){
@@ -1117,7 +1192,7 @@ function handleParticipantSearch(query){
       html += 'Add all ' + roleLabel + ' (' + groupMatches.length + ')</div>';
       groupMatches.forEach(e => {
         html += '<div class="search-result-item" onclick="handleAddParticipant(\'' + esc(e.name) + '\',\'' + esc(e.role) + '\')">';
-        html += esc(e.name) + ' <span style="color:var(--muted);font-size:10px">' + esc(e.role === 'SUPERVISOR' ? 'SUP' : 'DP') + '</span></div>';
+        html += esc(e.name) + ' <span style="color:var(--muted);font-size:10px">' + esc(e.role === 'SUPERVISOR' ? 'SUP' : e.role === 'PIC' ? 'PIC' : 'DP') + '</span></div>';
       });
     } else {
       html = '<div class="search-result-item" style="color:var(--muted)">All ' + roleLabel.toLowerCase() + ' already added</div>';
@@ -1135,7 +1210,7 @@ function handleParticipantSearch(query){
   } else {
     html += matches.map(e =>
       '<div class="search-result-item" onclick="handleAddParticipant(\'' + esc(e.name) + '\',\'' + esc(e.role) + '\')">' +
-      esc(e.name) + ' <span style="color:var(--muted);font-size:10px">' + esc(e.role === 'SUPERVISOR' ? 'SUP' : 'DP') + '</span></div>'
+      esc(e.name) + ' <span style="color:var(--muted);font-size:10px">' + esc(e.role === 'SUPERVISOR' ? 'SUP' : e.role === 'PIC' ? 'PIC' : 'DP') + '</span></div>'
     ).join('');
   }
   // Always show "add as guest" option if the typed name isn't already a participant
@@ -1351,20 +1426,20 @@ function renderActiveTopic(topic, idx){
   const phaseLabels = { DISCUSS:'DISCUSSING', NARROW:'NARROWING', VOTE:'VOTING', DECIDED:'DECIDED', TABLED:'TABLED' };
   const phaseLabel = phaseLabels[topic.phase] || topic.phase;
   let html = '<div class="card">';
-  html += '<div class="card-header" style="padding:14px 16px">';
-  html += '<span class="phase-badge phase-' + esc(topic.phase) + '" style="margin-right:10px;font-size:11px;padding:4px 12px">' + esc(phaseLabel) + '</span>';
-  html += '<span style="font-size:16px;font-weight:900">' + esc(topic.title) + '</span>';
-  if(topic.submittedBy) html += '<span style="font-size:10px;color:var(--muted);margin-left:8px">Submitted by ' + esc(topic.submittedBy) + '</span>';
+  html += '<div class="card-header" style="padding:14px 16px;flex-direction:column;align-items:center;text-align:center">';
+  html += '<span class="phase-badge phase-' + esc(topic.phase) + '" style="font-size:11px;padding:4px 12px;margin-bottom:6px">' + esc(phaseLabel) + '</span>';
+  html += '<span style="font-size:20px;font-weight:900">' + esc(topic.title) + '</span>';
+  if(topic.submittedBy) html += '<span style="font-size:10px;color:var(--muted);margin-top:2px">Submitted by ' + esc(topic.submittedBy) + '</span>';
   html += '</div>';
   html += '<div class="card-body">';
 
   if(topic.description){
-    html += '<div style="color:var(--muted);font-size:12px;margin-bottom:14px">' + esc(topic.description) + '</div>';
+    html += '<div style="font-size:16px;font-weight:700;color:#ffe066;padding:14px 18px;margin-bottom:14px;border-radius:10px;border:2px solid rgba(255,224,102,.3);background:rgba(255,224,102,.08);text-align:center;line-height:1.5">' + esc(topic.description) + '</div>';
   }
 
   // Notes section (collapsible, visible during active phases)
   if(topic.phase !== 'DECIDED'){
-    html += '<details style="margin-bottom:14px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.02)"' + ((topic.notes||'').trim() ? ' open' : '') + '>';
+    html += '<details open style="margin-bottom:14px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.02)">';
     html += '<summary style="padding:8px 12px;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;letter-spacing:.06em">NOTES</summary>';
     html += '<div style="padding:0 12px 10px">';
     html += '<textarea id="topicNotes_' + esc(topic.id) + '" onblur="handleSaveNotes(\'' + esc(topic.id) + '\',' + idx + ')" placeholder="Shared meeting notes for this topic..." style="width:100%;min-height:80px;resize:vertical;padding:8px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-family:inherit">' + esc(topic.notes||'') + '</textarea>';
@@ -1423,6 +1498,7 @@ function renderDiscuss(topic, idx){
       html += '<div id="speakerBar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border-radius:10px;border:1px solid rgba(74,163,255,.25);background:rgba(74,163,255,.06)">';
       html += '<span style="font-size:13px;font-weight:800;color:var(--accent)">&#9654; ' + esc(activeSpeaker) + '</span>';
       html += '<span id="speakerCountdown" class="timer-display" style="font-size:16px;padding:4px 12px">--:--</span>';
+      html += '<button onclick="handleExtendSpeaker10(\'' + esc(topic.id) + '\',' + idx + ')" style="padding:6px 14px;font-size:13px;border-radius:10px;font-weight:800;border:1px solid rgba(74,163,255,.3);color:var(--accent);background:rgba(74,163,255,.08)">+10s</button>';
       html += '<button onclick="handleExtendSpeaker(\'' + esc(topic.id) + '\',' + idx + ')" style="padding:6px 14px;font-size:13px;border-radius:10px;font-weight:800;border:1px solid rgba(74,163,255,.3);color:var(--accent);background:rgba(74,163,255,.08)">+1m</button>';
       html += '<button onclick="handleStopSpeaker(\'' + esc(topic.id) + '\',' + idx + ')" style="padding:6px 12px;font-size:12px;border-radius:10px;font-weight:700;border:1px solid rgba(255,107,107,.3);color:var(--bad);background:rgba(255,107,107,.08)">Stop</button>';
       html += '<span id="speakerWrapUp" style="display:none;font-size:12px;color:var(--bad);font-weight:800;background:rgba(255,107,107,.12);padding:4px 10px;border-radius:6px">Time\'s up &mdash; please wrap up!</span>';
@@ -1712,7 +1788,7 @@ function renderDecided(topic, idx){
       const timeStr = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
       const bg = spoke ? 'rgba(63,231,182,.15)' : 'rgba(255,255,255,.04)';
       const color = spoke ? 'var(--ok)' : 'var(--muted)';
-      const label = spoke ? esc(p.name) + ' — ' + timeStr : esc(p.name) + ' — did not speak';
+      const label = esc(p.name) + ' — ' + (spoke ? timeStr : '0s');
       html += '<span style="display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;background:' + bg + ';color:' + color + ';border:1px solid ' + (spoke ? 'rgba(63,231,182,.3)' : 'var(--border)') + '">' + label + '</span>';
     });
     html += '</div></div>';
@@ -2339,6 +2415,9 @@ async function handleReopenTopic(topicId){
 // ===== SPEAKER TRACKING =====
 function clearSpeakerInterval(){
   if(_speakerInterval){ clearInterval(_speakerInterval); _speakerInterval = null; }
+  const bannerEl = document.getElementById('speakerBanner');
+  if(bannerEl) bannerEl.style.display = 'none';
+  _bannerShown = false;
 }
 
 function updateSpeakerTimer(topic){
@@ -2352,16 +2431,29 @@ function updateSpeakerTimer(topic){
 
   const startMs = topic.speakerStartedAt.toDate ? topic.speakerStartedAt.toDate().getTime() : (topic.speakerStartedAt.seconds * 1000);
   const limitSec = topic.speakerTimeLimit || 60;
+  _bannerShown = false;
+  const bannerEl = document.getElementById('speakerBanner');
 
   function tick(){
     const elapsed = Math.floor((Date.now() - startMs) / 1000);
     const remaining = Math.max(0, limitSec - elapsed);
     el.textContent = fmtMinSec(remaining);
     el.classList.remove('urgent','expired');
+
+    // Fullscreen banner at exactly 10 seconds remaining
+    if(remaining <= 10 && remaining > 0 && !_bannerShown){
+      _bannerShown = true;
+      if(bannerEl){
+        bannerEl.style.display = 'flex';
+        setTimeout(() => { bannerEl.style.display = 'none'; }, 3000);
+      }
+    }
+
     if(remaining <= 0){
       el.classList.add('expired');
       if(wrapEl) wrapEl.style.display = 'inline';
       if(barEl){ barEl.style.borderColor = 'rgba(255,107,107,.4)'; barEl.style.background = 'rgba(255,107,107,.08)'; }
+      if(bannerEl) bannerEl.style.display = 'none';
     } else if(remaining <= 15){
       el.classList.add('urgent');
       if(wrapEl) wrapEl.style.display = 'none';
@@ -2426,6 +2518,16 @@ async function handleExtendSpeaker(topicId, topicIdx){
   const topics = [...(_meetingDoc.topics||[])];
   if(!topics[topicIdx]) return;
   topics[topicIdx] = { ...topics[topicIdx], speakerTimeLimit: (topics[topicIdx].speakerTimeLimit || 60) + 60 };
+  try {
+    await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
+  } catch(err){ console.error(err); alert('Failed: ' + err.message); }
+}
+
+async function handleExtendSpeaker10(topicId, topicIdx){
+  if(!_meetingId || !_meetingDoc) return;
+  const topics = [...(_meetingDoc.topics||[])];
+  if(!topics[topicIdx]) return;
+  topics[topicIdx] = { ...topics[topicIdx], speakerTimeLimit: (topics[topicIdx].speakerTimeLimit || 60) + 10 };
   try {
     await db.collection('decisionMeetings').doc(_meetingId).update({ topics });
   } catch(err){ console.error(err); alert('Failed: ' + err.message); }
@@ -2549,7 +2651,7 @@ async function handleCopySummary(){
         allParts.forEach(p => {
           const sec = sLog[p.name] || 0;
           if(sec > 0){ const m=Math.floor(sec/60),s=sec%60; text += '     ' + p.name + ': ' + (m>0?m+'m '+s+'s':s+'s') + '\n'; }
-          else { text += '     ' + p.name + ': did not speak\n'; }
+          else { text += '     ' + p.name + ': 0s\n'; }
         });
       }
       if(actionItems.length > 0){
@@ -2657,7 +2759,7 @@ function printSummary(){
       topicsHtml += allParts.map(p => {
         const sec = sLog[p.name] || 0;
         if(sec > 0){ const m=Math.floor(sec/60),s=sec%60; return esc(p.name)+': '+(m>0?m+'m '+s+'s':s+'s'); }
-        return esc(p.name)+': did not speak';
+        return esc(p.name)+': 0s';
       }).join(' &bull; ');
       topicsHtml += '</div>';
     }
