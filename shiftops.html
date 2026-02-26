@@ -7189,7 +7189,7 @@ async function printWeekly(format){
               const map=row.isOT?otEmps:regulars;
               if(!map.has(row.emp))map.set(row.emp,{role,isOT:!!row.isOT,blocks:{}});
               const rec=map.get(row.emp);
-              if(!rec.role||rec.role==="OTH")rec.role=role;
+              if(!rec.role||rec.role==="OTH"||(rec.role==="DISPATCHER"&&role!=="DISPATCHER"&&role!=="OTH"))rec.role=role;
               const hrs=typeof row.hours==="number"?row.hours:Number(row.hours)||0;
               const ctx=ctxKey(iso,shift,block.id);
               const ed=ensureEdit(ctx,row.emp);
@@ -7637,7 +7637,7 @@ async function printWeeklyC(){
               const map=row.isOT?otEmps:regulars;
               if(!map.has(row.emp))map.set(row.emp,{role,isOT:!!row.isOT,blocks:{}});
               const rec=map.get(row.emp);
-              if(!rec.role||rec.role==="OTH")rec.role=role;
+              if(!rec.role||rec.role==="OTH"||(rec.role==="DISPATCHER"&&role!=="DISPATCHER"&&role!=="OTH"))rec.role=role;
               const hrs=typeof row.hours==="number"?row.hours:Number(row.hours)||0;
               const ctx=ctxKey(iso,shift,block.id);
               const ed=ensureEdit(ctx,row.emp);
@@ -7963,7 +7963,7 @@ async function printWeeklyD(){
               const map=row.isOT?otEmps:regulars;
               if(!map.has(row.emp))map.set(row.emp,{role,isOT:!!row.isOT,blocks:{}});
               const rec=map.get(row.emp);
-              if(!rec.role||rec.role==="OTH")rec.role=role;
+              if(!rec.role||rec.role==="OTH"||(rec.role==="DISPATCHER"&&role!=="DISPATCHER"&&role!=="OTH"))rec.role=role;
               const hrs=typeof row.hours==="number"?row.hours:Number(row.hours)||0;
               const ctx=ctxKey(iso,shift,block.id);
               const ed=ensureEdit(ctx,row.emp);
@@ -8400,7 +8400,7 @@ async function printWeeklyE(){
               const map=row.isOT?otEmps:regulars;
               if(!map.has(row.emp))map.set(row.emp,{role,isOT:!!row.isOT,blocks:{}});
               const rec=map.get(row.emp);
-              if(!rec.role||rec.role==="OTH")rec.role=role;
+              if(!rec.role||rec.role==="OTH"||(rec.role==="DISPATCHER"&&role!=="DISPATCHER"&&role!=="OTH"))rec.role=role;
               const hrs=typeof row.hours==="number"?row.hours:Number(row.hours)||0;
               const ctx=ctxKey(iso,shift,block.id);
               const ed=ensureEdit(ctx,row.emp);
