@@ -3951,8 +3951,9 @@ function updateSwapPreview(){
   for(const cb of checks){
     const iso = cb.value;
     const dayName = cb.dataset.dayname;
-    const shA = String(recA[dayName]||"").trim() || "OFF";
-    const shB = String(recB[dayName]||"").trim() || "OFF";
+    const dayKey = dayName.toUpperCase();
+    const shA = String(recA[dayKey]||"").trim() || "OFF";
+    const shB = String(recB[dayKey]||"").trim() || "OFF";
     let status = "";
     if(shA === shB) status = '<span style="color:var(--warn)">Same shift</span>';
     else {
@@ -3985,8 +3986,9 @@ async function confirmSwap(){
   for(const cb of checks){
     const iso = cb.value;
     const dayName = cb.dataset.dayname;
-    const shA = String(recA[dayName]||"").trim();
-    const shB = String(recB[dayName]||"").trim();
+    const dayKey = dayName.toUpperCase();
+    const shA = String(recA[dayKey]||"").trim();
+    const shB = String(recB[dayKey]||"").trim();
     if(shA === shB){
       errors.push(dayName.slice(0,3)+": Both have same shift ("+shA+")");
       continue;
@@ -7436,6 +7438,15 @@ async function printWeekly(format){
       if(nm.length>maxNm)nm=nm.slice(0,maxNm-1)+"\u2026";
       doc.text(nm,margin+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
 
+      // DP badge if dispatcher is in a non-DP group
+      const _baseRec=BASE_EMP.find(b=>b.Employee===e.emp);
+      if(_baseRec&&normalizeRole(_baseRec.POSITION)==="DISPATCHER"&&roleAb!=="DP"){
+        const bw=fs*2.2,bh=fs*1.1,bx=margin+nameW-bw-1,by=y+1;
+        doc.setFillColor(74,35,90);doc.roundedRect(bx,by,bw,bh,1,1,'F');
+        doc.setFontSize(fs*0.7);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+        doc.text("DP",bx+bw/2,by+bh*0.75,{align:"center"});
+      }
+
       // Watermark name: last name or short name for cells
       const wmName=fullNm.split(",")[0].split(" ")[0].slice(0,8);
 
@@ -7802,6 +7813,14 @@ async function printWeeklyC(){
       if(nm.length>maxNm)nm=nm.slice(0,maxNm-1)+"\u2026";
       doc.text(nm,margin+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
 
+      const _baseRec=BASE_EMP.find(b=>b.Employee===e.emp);
+      if(_baseRec&&normalizeRole(_baseRec.POSITION)==="DISPATCHER"&&roleAb!=="DP"){
+        const bw=fs*2.2,bh=fs*1.1,bx=margin+nameW-bw-1,by=y+1;
+        doc.setFillColor(74,35,90);doc.roundedRect(bx,by,bw,bh,1,1,'F');
+        doc.setFontSize(fs*0.7);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+        doc.text("DP",bx+bw/2,by+bh*0.75,{align:"center"});
+      }
+
       const wmName=fullNm.split(",")[0].split(" ")[0].slice(0,8);
       doc.setDrawColor(140,140,140);doc.line(margin+nameW,y,margin+nameW,y+rowH);
 
@@ -8158,6 +8177,13 @@ async function printWeeklyD(){
       const maxNm=Math.floor(nameW/(fs*0.52));
       if(nm.length>maxNm)nm=nm.slice(0,maxNm-1)+"\u2026";
       doc.text(nm,mg+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
+      const _baseRec=BASE_EMP.find(b=>b.Employee===e.emp);
+      if(_baseRec&&normalizeRole(_baseRec.POSITION)==="DISPATCHER"&&roleAb!=="DP"){
+        const bw=fs*2.2,bh=fs*1.1,bx=mg+nameW-bw-1,by=y+1;
+        doc.setFillColor(74,35,90);doc.roundedRect(bx,by,bw,bh,1,1,'F');
+        doc.setFontSize(fs*0.7);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+        doc.text("DP",bx+bw/2,by+bh*0.75,{align:"center"});
+      }
       const wmName=fullNm.split(",")[0].split(" ")[0].slice(0,8);
       doc.setDrawColor(140,140,140);doc.line(mg+nameW,y,mg+nameW,y+rowH);
       for(let di=0;di<7;di++){
@@ -8577,6 +8603,13 @@ async function printWeeklyE(){
       const maxNm=Math.floor(nameW/(fs*0.52));
       if(nm.length>maxNm)nm=nm.slice(0,maxNm-1)+"\u2026";
       doc.text(nm,mg+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
+      const _baseRec=BASE_EMP.find(b=>b.Employee===e.emp);
+      if(_baseRec&&normalizeRole(_baseRec.POSITION)==="DISPATCHER"&&roleAb!=="DP"){
+        const bw=fs*2.2,bh=fs*1.1,bx=mg+nameW-bw-1,by=y+1;
+        doc.setFillColor(74,35,90);doc.roundedRect(bx,by,bw,bh,1,1,'F');
+        doc.setFontSize(fs*0.7);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+        doc.text("DP",bx+bw/2,by+bh*0.75,{align:"center"});
+      }
       const wmName=fullNm.split(",")[0].split(" ")[0].slice(0,8);
       doc.setDrawColor(140,140,140);doc.line(mg+nameW,y,mg+nameW,y+rowH);
       for(let di=0;di<7;di++){
