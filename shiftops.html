@@ -301,6 +301,8 @@ body.light .absentPill{background:var(--card);border-color:var(--border);color:#
 body.light .absentPill .absentCount{color:#b91c1c;}
 body.light .absentPill.zero .absentCount{color:#222;}
 body.light .absentPill.otPill .absentCount{color:#b45309;}
+.absentPill.regPill .absentCount{color:#22d3ee;}
+body.light .absentPill.regPill .absentCount{color:#0e7490;}
 
 main{padding:14px 18px 0}
 .grid{
@@ -5923,12 +5925,13 @@ function renderAll(){
       for(const b of blocksShown){
         const cnt = (rowsByBlock[b.id].ABSENT||[]).length;
         const cls = cnt === 0 ? "absentPill zero" : "absentPill";
-        let otCnt = 0;
-        for(const role of ["CALLTAKER","DISPATCHER","PIC","SUPERVISOR","ABSENT","OTH"]){
-          for(const r of (rowsByBlock[b.id][role]||[])) if(r.isOT) otCnt++;
+        let otCnt = 0, regCnt = 0;
+        for(const role of ["CALLTAKER","DISPATCHER","PIC","SUPERVISOR","OTH"]){
+          for(const r of (rowsByBlock[b.id][role]||[])){ if(r.isOT) otCnt++; else regCnt++; }
         }
         const otCls = otCnt === 0 ? "absentPill zero" : "absentPill otPill";
-        abHtml += `<div class="absentCell"><span class="${cls}"><span class="absentCount">${cnt} ABSENT</span></span><span class="${otCls}"><span class="absentCount">${otCnt} OT</span></span></div>`;
+        const regCls = regCnt === 0 ? "absentPill zero" : "absentPill regPill";
+        abHtml += `<div class="absentCell"><span class="${regCls}"><span class="absentCount">${regCnt} REG</span></span><span class="${cls}"><span class="absentCount">${cnt} ABSENT</span></span><span class="${otCls}"><span class="absentCount">${otCnt} OT</span></span></div>`;
       }
       absentBar.innerHTML = abHtml;
     }
@@ -5989,12 +5992,13 @@ function renderCard(ctxKeyStr){
         const rr = computeRowsForBlock(iso, shift, blk);
         const cnt = (rr.ABSENT||[]).length;
         const cls = cnt === 0 ? "absentPill zero" : "absentPill";
-        let otCnt = 0;
-        for(const role of ["CALLTAKER","DISPATCHER","PIC","SUPERVISOR","ABSENT","OTH"]){
-          for(const r of (rr[role]||[])) if(r.isOT) otCnt++;
+        let otCnt = 0, regCnt = 0;
+        for(const role of ["CALLTAKER","DISPATCHER","PIC","SUPERVISOR","OTH"]){
+          for(const r of (rr[role]||[])){ if(r.isOT) otCnt++; else regCnt++; }
         }
         const otCls = otCnt === 0 ? "absentPill zero" : "absentPill otPill";
-        abHtml += `<div class="absentCell"><span class="${cls}"><span class="absentCount">${cnt} ABSENT</span></span><span class="${otCls}"><span class="absentCount">${otCnt} OT</span></span></div>`;
+        const regCls = regCnt === 0 ? "absentPill zero" : "absentPill regPill";
+        abHtml += `<div class="absentCell"><span class="${regCls}"><span class="absentCount">${regCnt} REG</span></span><span class="${cls}"><span class="absentCount">${cnt} ABSENT</span></span><span class="${otCls}"><span class="absentCount">${otCnt} OT</span></span></div>`;
       }
       absentBar.innerHTML = abHtml;
     }
