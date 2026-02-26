@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DashboardOps — Analytics Dashboard</title>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:#0b0f16;
+  --card:#141b27;
+  --panel:#111826;
+  --panel2:#0f1622;
+  --muted:#a8b3c7;
+  --text:#e6edf7;
+  --accent:#4aa3ff;
+  --border:#2a3446;
+  --ok:#3fe7b6;
+  --bad:#ff6b6b;
+  --warn:#ffe066;
+  --purple:#a78bfa;
+}
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+/* ── Login Overlay ── */
+.login-overlay { position:fixed; inset:0; background:var(--bg); z-index:9999; display:flex; align-items:center; justify-content:center; }
+.login-overlay.hidden { display:none; }
+.login-box { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:40px; width:340px; text-align:center; }
+.login-box h2 { margin-bottom:4px; font-size:22px; }
+.login-box .sub { color:var(--muted); font-size:13px; margin-bottom:20px; }
+.login-box input { display:block; width:100%; padding:10px 12px; margin-bottom:12px; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:6px; font-size:14px; outline:none; }
+.login-box input:focus { border-color:var(--accent); }
+.login-box button { width:100%; padding:10px; background:var(--accent); color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; }
+.login-box button:hover { opacity:.9; }
+.login-box .err { color:var(--bad); font-size:12px; margin-top:8px; min-height:16px; }
+
+/* ── Header ── */
+.header { position:sticky; top:0; z-index:100; background:var(--panel); border-bottom:1px solid var(--border); padding:12px 24px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.header-title { font-size:20px; font-weight:700; white-space:nowrap; }
+.header-title span { color:var(--accent); }
+.header-sub { color:var(--muted); font-size:12px; margin-top:2px; }
+.header-spacer { flex:1; }
+.header label { color:var(--muted); font-size:12px; margin-right:4px; }
+.header input[type="date"] { background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px; outline:none; }
+.header input[type="date"]:focus { border-color:var(--accent); }
+.btn-load { background:var(--accent); color:#fff; border:none; border-radius:6px; padding:8px 18px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; }
+.btn-load:hover { opacity:.9; }
+.btn-load:disabled { opacity:.5; cursor:not-allowed; }
+.user-info { display:flex; align-items:center; gap:10px; font-size:12px; color:var(--muted); }
+.btn-signout { background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:6px; padding:4px 10px; font-size:12px; cursor:pointer; }
+.btn-signout:hover { color:var(--bad); border-color:var(--bad); }
+
+/* ── Loading Overlay ── */
+.loading-overlay { position:fixed; inset:0; background:rgba(11,15,22,.85); z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.loading-overlay.hidden { display:none; }
+.spinner { width:48px; height:48px; border:4px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.loading-overlay .msg { margin-top:16px; color:var(--muted); font-size:14px; }
+
+/* ── Main ── */
+.main { max-width:1400px; margin:0 auto; padding:24px; }
+
+/* ── Sections ── */
+.section { margin-bottom:36px; }
+.section-title { font-size:18px; font-weight:700; margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+
+/* ── Stat Cards ── */
+.stat-row { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:18px; }
+.stat-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:16px 20px; min-width:140px; flex:1; }
+.stat-card .label { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin-bottom:4px; }
+.stat-card .value { font-size:26px; font-weight:700; }
+.stat-card.ok .value { color:var(--ok); }
+.stat-card.bad .value { color:var(--bad); }
+.stat-card.warn .value { color:var(--warn); }
+.stat-card.accent .value { color:var(--accent); }
+.stat-card.purple .value { color:var(--purple); }
+
+/* ── Chart Grid ── */
+.chart-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(400px, 1fr)); gap:16px; margin-bottom:18px; }
+.chart-box { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:16px; }
+.chart-box h4 { font-size:13px; color:var(--muted); margin-bottom:10px; }
+.chart-box canvas { width:100% !important; }
+
+/* ── Tables ── */
+.table-wrap { overflow-x:auto; margin-bottom:12px; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+thead th { background:var(--panel); color:var(--muted); text-transform:uppercase; font-size:11px; letter-spacing:.5px; padding:10px 12px; text-align:left; border-bottom:1px solid var(--border); cursor:pointer; user-select:none; white-space:nowrap; }
+thead th:hover { color:var(--accent); }
+thead th .sort-arrow { font-size:10px; margin-left:4px; }
+tbody td { padding:8px 12px; border-bottom:1px solid var(--border); }
+tbody tr:hover { background:rgba(74,163,255,.05); }
+
+/* ── Responsive ── */
+@media(max-width:800px){
+  .header { flex-direction:column; align-items:flex-start; }
+  .chart-grid { grid-template-columns:1fr; }
+  .stat-row { flex-direction:column; }
+  .stat-card { min-width:auto; }
+}
+</style>
+</head>
+<body>
+
+<!-- Login Overlay -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h2>DashboardOps</h2>
+    <div class="sub">Firebase Authentication</div>
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <button id="loginBtn">Login</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="msg" id="loadingMsg">Loading data…</div>
+</div>
+
+<!-- Header -->
+<div class="header" id="appHeader" style="display:none">
+  <div>
+    <div class="header-title"><span>Dashboard</span>Ops</div>
+    <div class="header-sub">Analytics Dashboard</div>
+  </div>
+  <div class="header-spacer"></div>
+  <label for="dateStart">From</label>
+  <input type="date" id="dateStart">
+  <label for="dateEnd">To</label>
+  <input type="date" id="dateEnd">
+  <button class="btn-load" id="btnLoad">LOAD DATA</button>
+  <div class="user-info">
+    <span id="userEmail"></span>
+    <button class="btn-signout" id="btnSignOut">Sign Out</button>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="main" id="appMain" style="display:none">
+
+  <!-- 1. Overview -->
+  <div class="section" id="secOverview">
+    <div class="section-title">Overview</div>
+    <div class="stat-row" id="overviewStats"></div>
+  </div>
+
+  <!-- 2. OT Analysis -->
+  <div class="section" id="secOT">
+    <div class="section-title">OT Analysis</div>
+    <div class="stat-row" id="otStats"></div>
+    <div class="chart-grid" id="otCharts"></div>
+    <div class="table-wrap" id="otTable"></div>
+  </div>
+
+  <!-- 3. Absence Tracking -->
+  <div class="section" id="secAbsence">
+    <div class="section-title">Absence Tracking</div>
+    <div class="stat-row" id="absenceStats"></div>
+    <div class="chart-grid" id="absenceCharts"></div>
+  </div>
+
+  <!-- 4. Mandate Analysis -->
+  <div class="section" id="secMandate">
+    <div class="section-title">Mandate Analysis</div>
+    <div class="stat-row" id="mandateStats"></div>
+    <div class="chart-grid" id="mandateCharts"></div>
+  </div>
+
+  <!-- 5. Break Analysis -->
+  <div class="section" id="secBreak">
+    <div class="section-title">Break Analysis</div>
+    <div class="stat-row" id="breakStats"></div>
+    <div class="chart-grid" id="breakCharts"></div>
+  </div>
+
+  <!-- 6. Staffing Overview -->
+  <div class="section" id="secStaffing">
+    <div class="section-title">Staffing Overview</div>
+    <div class="stat-row" id="staffingStats"></div>
+    <div class="table-wrap" id="staffingTable"></div>
+  </div>
+
+  <!-- 7. Bug Tracker -->
+  <div class="section" id="secBug">
+    <div class="section-title">Bug Tracker</div>
+    <div class="stat-row" id="bugStats"></div>
+    <div class="chart-grid" id="bugCharts"></div>
+    <div class="table-wrap" id="bugTable"></div>
+  </div>
+
+</div>
+
+<script>
+// ── Firebase Init ──
+const firebaseConfig = {
+  apiKey: "AIzaSyCnabvDHyrEYPjtGikTSC6eIQL2VEPWnn4",
+  authDomain: "legitimous-2f2d2.firebaseapp.com",
+  projectId: "legitimous-2f2d2",
+  storageBucket: "legitimous-2f2d2.firebasestorage.app",
+  messagingSenderId: "1097431114529",
+  appId: "1:1097431114529:web:2adfdae7838b4840f0d460"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// ── Chart Registry ──
+const _charts = {};
+function destroyChart(id) { if (_charts[id]) { _charts[id].destroy(); delete _charts[id]; } }
+
+// ── Auth ──
+document.getElementById('loginBtn').addEventListener('click', () => {
+  const em = document.getElementById('email').value.trim();
+  const pw = document.getElementById('password').value;
+  const err = document.getElementById('loginErr');
+  err.textContent = '';
+  if (!em || !pw) { err.textContent = 'Enter email and password'; return; }
+  auth.signInWithEmailAndPassword(em, pw).catch(e => { err.textContent = e.message; });
+});
+document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
+document.getElementById('btnSignOut').addEventListener('click', () => auth.signOut());
+
+auth.onAuthStateChanged(user => {
+  document.getElementById('loginOverlay').classList.toggle('hidden', !!user);
+  document.getElementById('appHeader').style.display = user ? '' : 'none';
+  document.getElementById('appMain').style.display = user ? '' : 'none';
+  if (user) {
+    document.getElementById('userEmail').textContent = user.email;
+    initDateRange();
+  }
+});
+
+// ── Date Range ──
+function initDateRange() {
+  const today = new Date();
+  const first = new Date(today.getFullYear(), today.getMonth(), 1);
+  document.getElementById('dateStart').value = fmtDate(first);
+  document.getElementById('dateEnd').value = fmtDate(today);
+}
+function fmtDate(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+// ── Load Button ──
+document.getElementById('btnLoad').addEventListener('click', loadAll);
+
+// ── Helpers ──
+function showLoading(msg) { document.getElementById('loadingMsg').textContent = msg || 'Loading data…'; document.getElementById('loadingOverlay').classList.remove('hidden'); }
+function hideLoading() { document.getElementById('loadingOverlay').classList.add('hidden'); }
+
+function dateRange(start, end) {
+  const dates = [];
+  const d = new Date(start + 'T00:00:00');
+  const e = new Date(end + 'T00:00:00');
+  while (d <= e) { dates.push(fmtDate(d)); d.setDate(d.getDate() + 1); }
+  return dates;
+}
+
+async function batchFetch(refs, batchSize) {
+  batchSize = batchSize || 50;
+  const results = [];
+  for (let i = 0; i < refs.length; i += batchSize) {
+    const batch = refs.slice(i, i + batchSize);
+    const res = await Promise.all(batch.map(r => r.get().catch(() => null)));
+    results.push(...res);
+  }
+  return results;
+}
+
+// ── Main Load ──
+async function loadAll() {
+  const start = document.getElementById('dateStart').value;
+  const end = document.getElementById('dateEnd').value;
+  if (!start || !end) return;
+
+  const btn = document.getElementById('btnLoad');
+  btn.disabled = true;
+  showLoading('Fetching data…');
+
+  try {
+    const dates = dateRange(start, end);
+
+    // Build doc refs for daily_edits
+    const editRefs = [];
+    dates.forEach(d => {
+      editRefs.push(db.collection('daily_edits').doc(d + '_DAY'));
+      editRefs.push(db.collection('daily_edits').doc(d + '_NIGHT'));
+    });
+
+    // Build doc refs for breakScopes
+    const dayBlocks = ['0600-1000','1000-1400','1400-1800'];
+    const nightBlocks = ['1800-2200','2200-0200','0200-0600'];
+    const breakRefs = [];
+    dates.forEach(d => {
+      dayBlocks.forEach(b => breakRefs.push(db.collection('breakScopes').doc('days|' + d + '|' + b)));
+      nightBlocks.forEach(b => breakRefs.push(db.collection('breakScopes').doc('nights|' + d + '|' + b)));
+    });
+
+    showLoading('Fetching employees, mandates, bugs…');
+
+    // Parallel fetches
+    const [empSnap, mandateSnap, bugSnap] = await Promise.all([
+      db.collection('employees').get(),
+      db.collection('mandates').where('date', '>=', start).where('date', '<=', end).get(),
+      db.collection('bugReports').get()
+    ]);
+
+    showLoading('Fetching daily edits (' + editRefs.length + ' docs)…');
+    const editDocs = await batchFetch(editRefs, 50);
+
+    showLoading('Fetching break scopes (' + breakRefs.length + ' docs)…');
+    const breakDocs = await batchFetch(breakRefs, 50);
+
+    // Parse data
+    const employees = [];
+    empSnap.forEach(d => employees.push({ id: d.id, ...d.data() }));
+
+    const mandates = [];
+    mandateSnap.forEach(d => mandates.push({ id: d.id, ...d.data() }));
+
+    const bugs = [];
+    bugSnap.forEach(d => bugs.push({ id: d.id, ...d.data() }));
+
+    // Parse daily edits
+    const otEntries = [];   // { emp, date, shift, ws, we, hours }
+    const absences = [];    // { emp, date, shift, block }
+    const absenceKeys = new Set();
+
+    editDocs.forEach((snap, idx) => {
+      if (!snap || !snap.exists) return;
+      const data = snap.data();
+      const docId = snap.id; // YYYY-MM-DD_DAY or _NIGHT
+      const parts = docId.split('_');
+      const date = parts[0];
+      const shift = parts[1];
+
+      // OT entries
+      if (data.ot && Array.isArray(data.ot)) {
+        data.ot.forEach(entry => {
+          const emp = entry.emp || entry.employee || entry.Employee || 'Unknown';
+          const ws = typeof entry.ws === 'number' ? entry.ws : 0;
+          const we = typeof entry.we === 'number' ? entry.we : 0;
+          let adjustedWe = we;
+          if (adjustedWe <= ws) adjustedWe += 1440;
+          const hours = (adjustedWe - ws) / 60;
+          if (hours > 0) otEntries.push({ emp, date, shift, ws, we, hours });
+        });
+      }
+
+      // Absences from edits
+      if (data.edits && typeof data.edits === 'object') {
+        Object.keys(data.edits).forEach(emp => {
+          const blocks = data.edits[emp];
+          if (blocks && typeof blocks === 'object') {
+            Object.keys(blocks).forEach(block => {
+              const cell = blocks[block];
+              if (cell && cell.Present === 'NO') {
+                const key = emp + '|' + date + '|' + shift;
+                if (!absenceKeys.has(key)) {
+                  absenceKeys.add(key);
+                  absences.push({ emp, date, shift, block });
+                }
+              }
+            });
+          }
+        });
+      }
+    });
+
+    // Parse break scopes
+    const breakAssignments = [];
+    const breakSkips = [];
+
+    breakDocs.forEach(snap => {
+      if (!snap || !snap.exists) return;
+      const data = snap.data();
+      const docId = snap.id; // days|YYYY-MM-DD|0600-1000
+      const parts = docId.split('|');
+      const mode = parts[0];
+      const date = parts[1];
+      const block = parts[2];
+
+      // Count assignments
+      if (data.assignments && typeof data.assignments === 'object') {
+        Object.keys(data.assignments).forEach(pos => {
+          const arr = data.assignments[pos];
+          if (Array.isArray(arr)) {
+            arr.forEach(a => breakAssignments.push({ pos, date, mode, block }));
+          }
+        });
+      }
+
+      // Count skips
+      if (data.skippedTurns && typeof data.skippedTurns === 'object') {
+        Object.keys(data.skippedTurns).forEach(pos => {
+          const arr = data.skippedTurns[pos];
+          if (Array.isArray(arr)) {
+            arr.forEach(() => breakSkips.push({ pos, date, mode, block }));
+          } else if (typeof arr === 'number') {
+            for (let i = 0; i < arr; i++) breakSkips.push({ pos, date, mode, block });
+          }
+        });
+      }
+    });
+
+    showLoading('Rendering dashboard…');
+
+    // Render all sections
+    renderOverview(employees, otEntries, mandates, bugs, absences, dates);
+    renderOT(otEntries, dates);
+    renderAbsences(absences, dates);
+    renderMandates(mandates, dates);
+    renderBreaks(breakAssignments, breakSkips);
+    renderStaffing(employees);
+    renderBugs(bugs);
+
+    hideLoading();
+  } catch (err) {
+    console.error('Load error:', err);
+    hideLoading();
+    alert('Error loading data: ' + err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Stat Card Builder ──
+function statCard(label, value, cls) {
+  return '<div class="stat-card ' + (cls||'') + '"><div class="label">' + label + '</div><div class="value">' + value + '</div></div>';
+}
+
+// ── 1. Overview ──
+function renderOverview(employees, ot, mandates, bugs, absences, dates) {
+  const today = fmtDate(new Date());
+  const scheduledToday = employees.filter(e => e.schedule && e.schedule[new Date().getDay()]).length;
+  const totalOT = ot.reduce((s, o) => s + o.hours, 0);
+  const openBugs = bugs.filter(b => b.status !== 'fixed' && b.status !== 'closed').length;
+  document.getElementById('overviewStats').innerHTML =
+    statCard('Total Employees', employees.length, 'accent') +
+    statCard('Scheduled Today', scheduledToday, 'ok') +
+    statCard('Total OT Hours', totalOT.toFixed(1), 'warn') +
+    statCard('Total Mandates', mandates.length, 'purple') +
+    statCard('Open Bugs', openBugs, openBugs > 0 ? 'bad' : 'ok') +
+    statCard('Total Absences', absences.length, 'bad');
+}
+
+// ── 2. OT Analysis ──
+function renderOT(ot, dates) {
+  // Stats
+  const totalHrs = ot.reduce((s, o) => s + o.hours, 0);
+  const avgPerDay = dates.length ? (totalHrs / dates.length) : 0;
+  document.getElementById('otStats').innerHTML =
+    statCard('Total OT Hours', totalHrs.toFixed(1), 'warn') +
+    statCard('Avg OT / Day', avgPerDay.toFixed(1), 'accent');
+
+  // Per-employee totals
+  const empMap = {};
+  ot.forEach(o => { empMap[o.emp] = (empMap[o.emp] || 0) + o.hours; });
+  const empArr = Object.entries(empMap).sort((a,b) => b[1] - a[1]);
+  const top15 = empArr.slice(0, 15);
+
+  // Per-day totals
+  const dayMap = {};
+  ot.forEach(o => { dayMap[o.date] = (dayMap[o.date] || 0) + o.hours; });
+  const dayArr = dates.map(d => ({ date: d, hours: dayMap[d] || 0 }));
+
+  // Charts
+  document.getElementById('otCharts').innerHTML =
+    '<div class="chart-box"><h4>Top 15 Employees by OT Hours</h4><canvas id="otBarChart"></canvas></div>' +
+    '<div class="chart-box"><h4>OT Hours per Day</h4><canvas id="otLineChart"></canvas></div>';
+
+  destroyChart('otBarChart');
+  _charts['otBarChart'] = new Chart(document.getElementById('otBarChart'), {
+    type: 'bar',
+    data: { labels: top15.map(e => e[0]), datasets: [{ label: 'OT Hours', data: top15.map(e => +e[1].toFixed(1)), backgroundColor: '#4aa3ff', borderRadius: 4 }] },
+    options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#a8b3c7' }, grid: { color: '#2a3446' } }, y: { ticks: { color: '#e6edf7', font: { size: 11 } }, grid: { display: false } } } }
+  });
+
+  destroyChart('otLineChart');
+  _charts['otLineChart'] = new Chart(document.getElementById('otLineChart'), {
+    type: 'line',
+    data: { labels: dayArr.map(d => d.date.slice(5)), datasets: [{ label: 'OT Hours', data: dayArr.map(d => +d.hours.toFixed(1)), borderColor: '#ffe066', backgroundColor: 'rgba(255,224,102,.1)', fill: true, tension: .3, pointRadius: 2 }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#a8b3c7', maxRotation: 45 }, grid: { color: '#2a3446' } }, y: { ticks: { color: '#a8b3c7' }, grid: { color: '#2a3446' } } } }
+  });
+
+  // Table
+  renderSortableTable('otTable', ['Employee', 'OT Hours'], empArr.map(e => [e[0], +e[1].toFixed(1)]), [null, 'num']);
+}
+
+// ── 3. Absence Tracking ──
+function renderAbsences(absences, dates) {
+  // Per-employee counts
+  const empMap = {};
+  absences.forEach(a => { empMap[a.emp] = (empMap[a.emp] || 0) + 1; });
+  const empArr = Object.entries(empMap).sort((a,b) => b[1] - a[1]);
+
+  // Per-day counts
+  const dayMap = {};
+  absences.forEach(a => { dayMap[a.date] = (dayMap[a.date] || 0) + 1; });
+  const dayArr = dates.map(d => ({ date: d, count: dayMap[d] || 0 }));
+  const worstDay = dayArr.reduce((best, d) => d.count > best.count ? d : best, { date: '-', count: 0 });
+
+  // Stats
+  document.getElementById('absenceStats').innerHTML =
+    statCard('Total Absences', absences.length, 'bad') +
+    statCard('Most Absent', empArr.length ? empArr[0][0] + ' (' + empArr[0][1] + ')' : '-', 'warn') +
+    statCard('Worst Day', worstDay.date.slice(5) + ' (' + worstDay.count + ')', 'bad');
+
+  // Charts
+  const top10 = empArr.slice(0, 10);
+  document.getElementById('absenceCharts').innerHTML =
+    '<div class="chart-box"><h4>Absences per Day</h4><canvas id="absBarChart"></canvas></div>' +
+    '<div class="chart-box"><h4>Top 10 Most Absent Employees</h4><canvas id="absDoughnut"></canvas></div>';
+
+  const absColors = ['#ff6b6b','#ffe066','#4aa3ff','#3fe7b6','#a78bfa','#ff9f43','#54a0ff','#5f27cd','#01a3a4','#f368e0'];
+
+  destroyChart('absBarChart');
+  _charts['absBarChart'] = new Chart(document.getElementById('absBarChart'), {
+    type: 'bar',
+    data: { labels: dayArr.map(d => d.date.slice(5)), datasets: [{ label: 'Absences', data: dayArr.map(d => d.count), backgroundColor: '#ff6b6b', borderRadius: 4 }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#a8b3c7', maxRotation: 45 }, grid: { color: '#2a3446' } }, y: { ticks: { color: '#a8b3c7' }, grid: { color: '#2a3446' } } } }
+  });
+
+  destroyChart('absDoughnut');
+  _charts['absDoughnut'] = new Chart(document.getElementById('absDoughnut'), {
+    type: 'doughnut',
+    data: { labels: top10.map(e => e[0]), datasets: [{ data: top10.map(e => e[1]), backgroundColor: absColors.slice(0, top10.length) }] },
+    options: { responsive: true, plugins: { legend: { position: 'right', labels: { color: '#e6edf7', font: { size: 11 } } } } }
+  });
+}
+
+// ── 4. Mandate Analysis ──
+function renderMandates(mandates, dates) {
+  const mandated = mandates.filter(m => m.action === 'mandate' || m.action === 'mandated');
+  const refused = mandates.filter(m => m.action === 'refuse' || m.action === 'refused');
+  const acceptRate = mandates.length ? (((mandates.length - refused.length) / mandates.length) * 100) : 0;
+
+  // Most-mandated employee
+  const empMap = {};
+  mandated.forEach(m => { const emp = m.employee || m.emp || 'Unknown'; empMap[emp] = (empMap[emp] || 0) + 1; });
+  const empArr = Object.entries(empMap).sort((a,b) => b[1] - a[1]);
+
+  // Per-day trend
+  const dayMap = {};
+  mandates.forEach(m => { dayMap[m.date] = (dayMap[m.date] || 0) + 1; });
+  const dayArr = dates.map(d => ({ date: d, count: dayMap[d] || 0 }));
+
+  document.getElementById('mandateStats').innerHTML =
+    statCard('Mandated', mandated.length, 'warn') +
+    statCard('Refused', refused.length, 'bad') +
+    statCard('Acceptance Rate', acceptRate.toFixed(0) + '%', acceptRate >= 70 ? 'ok' : 'bad') +
+    statCard('Most Mandated', empArr.length ? empArr[0][0] + ' (' + empArr[0][1] + ')' : '-', 'purple');
+
+  document.getElementById('mandateCharts').innerHTML =
+    '<div class="chart-box"><h4>Top 15 Mandated Employees</h4><canvas id="mandBarChart"></canvas></div>' +
+    '<div class="chart-box"><h4>Mandated vs Refused</h4><canvas id="mandDoughnut"></canvas></div>' +
+    '<div class="chart-box"><h4>Mandates per Day</h4><canvas id="mandLineChart"></canvas></div>';
+
+  const top15 = empArr.slice(0, 15);
+
+  destroyChart('mandBarChart');
+  _charts['mandBarChart'] = new Chart(document.getElementById('mandBarChart'), {
+    type: 'bar',
+    data: { labels: top15.map(e => e[0]), datasets: [{ label: 'Mandates', data: top15.map(e => e[1]), backgroundColor: '#a78bfa', borderRadius: 4 }] },
+    options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#a8b3c7' }, grid: { color: '#2a3446' } }, y: { ticks: { color: '#e6edf7', font: { size: 11 } }, grid: { display: false } } } }
+  });
+
+  destroyChart('mandDoughnut');
+  _charts['mandDoughnut'] = new Chart(document.getElementById('mandDoughnut'), {
+    type: 'doughnut',
+    data: { labels: ['Mandated', 'Refused'], datasets: [{ data: [mandated.length, refused.length], backgroundColor: ['#3fe7b6', '#ff6b6b'] }] },
+    options: { responsive: true, plugins: { legend: { position: 'right', labels: { color: '#e6edf7' } } } }
+  });
+
+  destroyChart('mandLineChart');
+  _charts['mandLineChart'] = new Chart(document.getElementById('mandLineChart'), {
+    type: 'line',
+    data: { labels: dayArr.map(d => d.date.slice(5)), datasets: [{ label: 'Mandates', data: dayArr.map(d => d.count), borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,.1)', fill: true, tension: .3, pointRadius: 2 }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#a8b3c7', maxRotation: 45 }, grid: { color: '#2a3446' } }, y: { ticks: { color: '#a8b3c7' }, grid: { color: '#2a3446' } } } }
+  });
+}
+
+// ── 5. Break Analysis ──
+function renderBreaks(assignments, skips) {
+  // Per-position skip counts
+  const posMap = {};
+  skips.forEach(s => { posMap[s.pos] = (posMap[s.pos] || 0) + 1; });
+  const posArr = Object.entries(posMap).sort((a,b) => b[1] - a[1]);
+  const mostSkipped = posArr.length ? posArr[0][0] + ' (' + posArr[0][1] + ')' : '-';
+
+  document.getElementById('breakStats').innerHTML =
+    statCard('Total Assigned', assignments.length, 'ok') +
+    statCard('Total Skips', skips.length, 'bad') +
+    statCard('Most Skipped Position', mostSkipped, 'warn');
+
+  document.getElementById('breakCharts').innerHTML =
+    '<div class="chart-box"><h4>Skips by Position</h4><canvas id="breakBarChart"></canvas></div>';
+
+  destroyChart('breakBarChart');
+  _charts['breakBarChart'] = new Chart(document.getElementById('breakBarChart'), {
+    type: 'bar',
+    data: { labels: posArr.map(p => p[0]), datasets: [{ label: 'Skips', data: posArr.map(p => p[1]), backgroundColor: '#ffe066', borderRadius: 4 }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#a8b3c7', maxRotation: 45 }, grid: { color: '#2a3446' } }, y: { ticks: { color: '#a8b3c7' }, grid: { color: '#2a3446' } } } }
+  });
+}
+
+// ── 6. Staffing Overview ──
+function renderStaffing(employees) {
+  const posMap = {};
+  employees.forEach(e => {
+    const pos = e.position || e.role || 'Unknown';
+    posMap[pos] = (posMap[pos] || 0) + 1;
+  });
+  const posArr = Object.entries(posMap).sort((a,b) => b[1] - a[1]);
+  const total = employees.length;
+
+  // Known position categories
+  const ct = posMap['CT'] || 0;
+  const dp = posMap['DP'] || 0;
+  const pic = posMap['PIC'] || 0;
+
+  document.getElementById('staffingStats').innerHTML =
+    statCard('Total Employees', total, 'accent') +
+    statCard('CT', ct, 'ok') +
+    statCard('DP', dp, 'purple') +
+    statCard('PIC', pic, 'warn');
+
+  const rows = posArr.map(p => [p[0], p[1], total ? (p[1] / total * 100).toFixed(1) + '%' : '0%']);
+  renderSortableTable('staffingTable', ['Position', 'Count', '% of Total'], rows, [null, 'num', 'pct']);
+}
+
+// ── 7. Bug Tracker ──
+function renderBugs(bugs) {
+  const open = bugs.filter(b => b.status !== 'fixed' && b.status !== 'closed');
+  const fixed = bugs.filter(b => b.status === 'fixed' || b.status === 'closed');
+
+  // By app
+  const appMap = {};
+  bugs.forEach(b => { const app = b.app || 'Unknown'; appMap[app] = (appMap[app] || 0) + 1; });
+  const appArr = Object.entries(appMap).sort((a,b) => b[1] - a[1]);
+
+  document.getElementById('bugStats').innerHTML =
+    statCard('Open Bugs', open.length, open.length > 0 ? 'bad' : 'ok') +
+    statCard('Fixed / Closed', fixed.length, 'ok') +
+    statCard('Total Bugs', bugs.length, 'accent');
+
+  const bugColors = ['#4aa3ff','#3fe7b6','#ff6b6b','#ffe066','#a78bfa','#ff9f43','#54a0ff','#5f27cd','#01a3a4'];
+
+  document.getElementById('bugCharts').innerHTML =
+    '<div class="chart-box"><h4>Bugs by App</h4><canvas id="bugAppChart"></canvas></div>';
+
+  destroyChart('bugAppChart');
+  _charts['bugAppChart'] = new Chart(document.getElementById('bugAppChart'), {
+    type: 'bar',
+    data: { labels: appArr.map(a => a[0]), datasets: [{ label: 'Bugs', data: appArr.map(a => a[1]), backgroundColor: bugColors.slice(0, appArr.length), borderRadius: 4 }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#a8b3c7' }, grid: { color: '#2a3446' } }, y: { ticks: { color: '#a8b3c7' }, grid: { color: '#2a3446' } } } }
+  });
+
+  // Open bugs table
+  const rows = open.map(b => {
+    const ts = b.timestamp ? (b.timestamp.toDate ? b.timestamp.toDate().toLocaleDateString() : new Date(b.timestamp).toLocaleDateString()) : '-';
+    return [b.app || '-', b.details || b.description || b.title || '-', b.status || 'open', ts];
+  });
+  renderSortableTable('bugTable', ['App', 'Details', 'Status', 'Date'], rows, [null, null, null, null]);
+}
+
+// ── Sortable Table ──
+function renderSortableTable(containerId, headers, rows, types) {
+  const container = document.getElementById(containerId);
+  if (!rows.length) { container.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:8px;">No data</p>'; return; }
+
+  let sortCol = -1, sortDir = 1;
+  function render() {
+    const sorted = [...rows];
+    if (sortCol >= 0) {
+      sorted.sort((a, b) => {
+        let va = a[sortCol], vb = b[sortCol];
+        const t = types && types[sortCol];
+        if (t === 'num') { va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; }
+        else if (t === 'pct') { va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; }
+        else { va = String(va).toLowerCase(); vb = String(vb).toLowerCase(); }
+        if (va < vb) return -1 * sortDir;
+        if (va > vb) return 1 * sortDir;
+        return 0;
+      });
+    }
+    let html = '<table><thead><tr>';
+    headers.forEach((h, i) => {
+      const arrow = sortCol === i ? (sortDir === 1 ? ' ▲' : ' ▼') : '';
+      html += '<th data-col="' + i + '">' + h + '<span class="sort-arrow">' + arrow + '</span></th>';
+    });
+    html += '</tr></thead><tbody>';
+    sorted.forEach(row => {
+      html += '<tr>';
+      row.forEach(cell => { html += '<td>' + (cell != null ? cell : '-') + '</td>'; });
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+
+    // Attach click handlers
+    container.querySelectorAll('th').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = parseInt(th.getAttribute('data-col'));
+        if (sortCol === col) sortDir *= -1;
+        else { sortCol = col; sortDir = 1; }
+        render();
+      });
+    });
+  }
+  render();
+}
+</script>
+</body>
+</html>

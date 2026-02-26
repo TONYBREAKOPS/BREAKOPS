@@ -408,6 +408,16 @@ function toISODate(d){ return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(
 function parseISO(s){ const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); }
 function addDaysISO(iso,days){ const d=parseISO(iso); d.setDate(d.getDate()+(days||0)); return toISODate(d); }
 
+// Returns {start, end} ISO dates for the previous completed Sat–Fri calendar week
+function getLastCalWeek(iso){
+  const d = parseISO(iso);
+  const dayBack = (d.getDay() + 1) % 7; // days since current week's Saturday
+  const curSat = new Date(d); curSat.setDate(d.getDate() - dayBack);
+  const prevSat = new Date(curSat); prevSat.setDate(curSat.getDate() - 7);
+  const prevFri = new Date(prevSat); prevFri.setDate(prevSat.getDate() + 6);
+  return { start: toISODate(prevSat), end: toISODate(prevFri) };
+}
+
 function dayNameFromISO(iso){
   const d=parseISO(iso);
   return ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"][d.getDay()];
@@ -622,10 +632,10 @@ async function importTeamsOT(file){
   const iso = document.getElementById('selDate').value;
   if(!iso){ alert("Pick a date first."); return; }
 
-  const selDate = parseISO(iso);
-  // 7-day window ending on selected date
-  const windowStart = new Date(selDate.getTime() - 7*86400000);
-  const windowEnd = new Date(selDate.getTime() + 86400000 - 1); // end of selected date
+  // Calendar week window (previous Sat–Fri)
+  const week = getLastCalWeek(iso);
+  const windowStart = parseISO(week.start);
+  const windowEnd = new Date(parseISO(week.end).getTime() + 86400000 - 1); // end of Friday
 
   let text=null, wb=null;
   if(file.name.toLowerCase().endsWith(".csv")) text = await file.text();
@@ -649,7 +659,7 @@ async function importTeamsOT(file){
     if(!end && (cols.endDate||cols.endTime)) end = parseMeansDateTime(r[cols.endDate], r[cols.endTime]);
     if(!(start instanceof Date) || isNaN(start) || !(end instanceof Date) || isNaN(end) || end<=start){ invalid++; continue; }
 
-    // Skip entries outside the 7-day window
+    // Skip entries outside the calendar week window
     if(end <= windowStart || start > windowEnd) continue;
 
     // Clamp to window
@@ -809,16 +819,18 @@ async function loadDailyEdits(iso, shift){
   return null;
 }
 
-// ===== LOAD OT HISTORY (last 7 days) =====
+// ===== LOAD OT HISTORY (last calendar week, Sat–Fri) =====
 async function loadOTHistory(iso){
   const otHours = {}; // empName -> total OT hours
 
-  // Build list of doc IDs for last 7 days, both shifts
+  // Build list of doc IDs for last calendar week (Sat–Fri), both shifts
+  const week = getLastCalWeek(iso);
   const docIds = [];
-  for(let i = 1; i <= 7; i++){
-    const d = addDaysISO(iso, -i);
+  let d = week.start;
+  while(d <= week.end){
     docIds.push(d + '_DAY');
     docIds.push(d + '_NIGHT');
+    d = addDaysISO(d, 1);
   }
 
   // Fetch all in parallel
@@ -1482,12 +1494,12 @@ document.addEventListener('DOMContentLoaded', () => {
       <p style="margin:0 0 12px;font-weight:700;color:var(--accent);font-size:13px">ELIGIBILITY</p>
       <p style="margin:0 0 14px">Only employees whose shift ends at the block start time are shown. Absent employees, those with existing OT in that block, or anyone who would exceed 16 hours are excluded.</p>
       <p style="margin:0 0 12px;font-weight:700;color:var(--accent);font-size:13px">STEPS</p>
-      <p style="margin:0 0 4px">1. Import OT first. Upload a Teams export (.xlsx/.csv) to load each employee's OT from the last 7 days. Resets on page reload.</p>
+      <p style="margin:0 0 4px">1. Import OT first. Upload a Teams export (.xlsx/.csv) to load each employee's OT from the last calendar week (Sat–Fri). Resets on page reload.</p>
       <p style="margin:0 0 4px">2. Pick a date, shift, and the 4-hour block you are mandating for, then click Generate.</p>
       <p style="margin:0 0 4px">3. Click Mandate if the employee accepts, or Refuse if they decline. All actions are logged.</p>
       <p style="margin:0 0 14px">4. Refused employees get a Print Refusal button — prints a formal refusal form for them to sign.</p>
       <p style="margin:0 0 12px;font-weight:700;color:var(--accent);font-size:13px">RANKING ORDER</p>
-      <p style="margin:0 0 4px">1. Shortest work day &nbsp;2. Least OT (7 days) &nbsp;3. Highest seniority</p>
+      <p style="margin:0 0 4px">1. Shortest work day &nbsp;2. Least OT (Sat–Fri) &nbsp;3. Highest seniority</p>
       <p style="margin:0 0 14px;color:var(--muted)">OT hours can be manually adjusted. The list re-ranks automatically.</p>
       <p style="margin:0 0 12px;font-weight:700;color:var(--accent);font-size:13px">CROSS-QUALIFICATION</p>
       <p style="margin:0 0 4px">CT positions: check CT, then DP, then PIC.</p>
