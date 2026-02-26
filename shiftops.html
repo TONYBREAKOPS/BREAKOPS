@@ -3159,6 +3159,11 @@ body.light .customSelBtn.typing-mode {
           <button id="btnSaveXlsx" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Save XLSX</button>
           <button id="btnTimesheet" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Timesheet</button>
           <button id="btnPrintDaily" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Print Daily</button>
+          <button id="btnPrintWeekly" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Print Weekly A</button>
+          <button id="btnPrintWeeklyB" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Print Weekly B</button>
+          <button id="btnPrintWeeklyC" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Print Weekly C</button>
+          <button id="btnPrintWeeklyD" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Print Weekly D</button>
+          <button id="btnPrintWeeklyE" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Print Weekly E</button>
           <button id="btnShiftSwap" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#a3d4ff;cursor:pointer;border-bottom:1px solid #334155;">Shift Swap</button>
           <button id="btnBreakOPS" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:700;text-align:left;background:none;border:none;color:#f59e0b;cursor:pointer;">Push to BreakOPS</button>
         </div>
@@ -7083,6 +7088,1625 @@ function printDaily(){
   }
 }
 document.getElementById("btnPrintDaily").addEventListener("click", printDaily);
+
+// Abbreviate seat/channel names for compact PDF cells
+function abbrAssignment(s){
+  if(!s)return"";
+  return String(s)
+    .replace(/\bNORTH\b/gi,"N").replace(/\bSOUTH\b/gi,"S")
+    .replace(/\bEAST\b/gi,"E").replace(/\bWEST\b/gi,"W")
+    .replace(/\bCENTRAL\b/gi,"C").replace(/\bCENTER\b/gi,"CTR")
+    .replace(/\bDISPATCH\b/gi,"DSP").replace(/\bDISPATCHER\b/gi,"DSP")
+    .replace(/\bCALLTAKER\b/gi,"CT").replace(/\bSUPERVISOR\b/gi,"SUP")
+    .replace(/\bTRAINING\b/gi,"TRN").replace(/\bTRAINER\b/gi,"TRN")
+    .replace(/\bRADIO\b/gi,"RAD").replace(/\bPHONE\b/gi,"PH")
+    .replace(/\bFLOOR\b/gi,"FL").replace(/\bROOM\b/gi,"RM")
+    .replace(/\bNORTHEAST\b/gi,"NE").replace(/\bNORTHWEST\b/gi,"NW")
+    .replace(/\bSOUTHEAST\b/gi,"SE").replace(/\bSOUTHWEST\b/gi,"SW")
+    .trim();
+}
+
+// Block-column tint colors: [R,G,B,alpha] — subtle tints per block index
+// Block 0: faint blue, Block 1: no tint (white), Block 2: faint warm
+const BLOCK_TINTS=[[220,232,248],[255,255,255],[250,243,224]];
+
+// ===== Print Weekly (Legal Landscape – Block-Level, Front=DAY / Back=NIGHT) =====
+async function printWeekly(format){
+  if(!format||typeof format!=="string") format="A";
+  try{
+    if(!window.jspdf){
+      setErr("Loading PDF library\u2026 click Print Weekly again in a few seconds.");
+      const s=document.createElement("script");
+      s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js";
+      s.onerror=()=>{
+        const s2=document.createElement("script");
+        s2.src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js";
+        document.head.appendChild(s2);
+      };
+      document.head.appendChild(s);
+      return;
+    }
+    const {jsPDF}=window.jspdf;
+    const weekDates=_swapWeekDates();
+    if(!weekDates.length){ setErr("No week dates \u2014 pick a date first."); return; }
+
+    // Save original state
+    const origShift=document.getElementById("shiftSel").value||"DAY";
+    const origISO=document.getElementById("workDate").value;
+    const origVac=JSON.parse(JSON.stringify(_vacations));
+    const origTrain=JSON.parse(JSON.stringify(_trainingList));
+
+    // Load vacation/training per month
+    const monthKeys=new Set();
+    for(const wd of weekDates){ const d=parseISO(wd.iso); monthKeys.add(d.getFullYear()+"-"+d.getMonth()); }
+    const vacByMonth={},trainByMonth={};
+    await Promise.all([...monthKeys].map(mk=>{
+      const [yr,mo]=mk.split("-").map(Number);
+      const isoM=yr+"-"+String(mo+1).padStart(2,"0")+"-01";
+      return getVacDocRef(isoM).get().then(doc=>{
+        if(doc.exists){
+          vacByMonth[mk]=Array.isArray(doc.data().vacations)?doc.data().vacations:[];
+          trainByMonth[mk]=Array.isArray(doc.data().training)?doc.data().training:[];
+        }else{vacByMonth[mk]=[];trainByMonth[mk]=[];}
+      }).catch(()=>{vacByMonth[mk]=[];trainByMonth[mk]=[];});
+    }));
+
+    // Load edits for BOTH shifts + swaps for all 7 dates
+    await Promise.all(weekDates.flatMap(wd=>[
+      loadEditsFromFirebase(wd.iso,"DAY"),
+      loadEditsFromFirebase(wd.iso,"NIGHT"),
+      loadShiftSwaps(wd.iso)
+    ]));
+
+    const roleAbbr={CALLTAKER:"CT",DISPATCHER:"DP",PIC:"PIC",SUPERVISOR:"SUP"};
+    const roleOrder=["CALLTAKER","DISPATCHER","PIC","SUPERVISOR"];
+    const BLANK_ROWS=3;
+
+    // --- Collect per-block data for one shift ---
+    function collectShiftData(shift,blockDefs){
+      document.getElementById("shiftSel").value=shift;
+      const regulars=new Map(), otEmps=new Map();
+
+      for(const wd of weekDates){
+        const iso=wd.iso;
+        const d=parseISO(iso);
+        const mk=d.getFullYear()+"-"+d.getMonth();
+        _vacations=vacByMonth[mk]||[];
+        _trainingList=trainByMonth[mk]||[];
+
+        for(const block of blockDefs){
+          const rows=computeRowsForBlock(iso,shift,block);
+          const bKey=iso+"|"+block.id;
+
+          for(const role of roleOrder){
+            for(const row of(rows[role]||[])){
+              const map=row.isOT?otEmps:regulars;
+              if(!map.has(row.emp))map.set(row.emp,{role,isOT:!!row.isOT,blocks:{}});
+              const rec=map.get(row.emp);
+              if(!rec.role||rec.role==="OTH")rec.role=role;
+              const hrs=typeof row.hours==="number"?row.hours:Number(row.hours)||0;
+              const ctx=ctxKey(iso,shift,block.id);
+              const ed=ensureEdit(ctx,row.emp);
+              rec.blocks[bKey]={
+                assignment:ed.Assignment||row.assignment||"",
+                hours:hrs,status:"WORK",
+                statusDetail:row.present==="TARDY"?"T":row.present==="PARTIAL"?"P":""
+              };
+            }
+          }
+          for(const row of(rows.OTH||[])){
+            const map=row.isOT?otEmps:regulars;
+            if(!map.has(row.emp))map.set(row.emp,{role:"OTH",isOT:!!row.isOT,blocks:{}});
+            const rec=map.get(row.emp);
+            const hrs=typeof row.hours==="number"?row.hours:Number(row.hours)||0;
+            rec.blocks[bKey]={assignment:row.assignment||"",hours:hrs,status:"WORK",statusDetail:""};
+          }
+          for(const row of(rows.ABSENT||[])){
+            if(row.isPartial||row.isTardy)continue;
+            const map=row.isOT?otEmps:regulars;
+            if(!map.has(row.emp))map.set(row.emp,{role:row.role||"CALLTAKER",isOT:!!row.isOT,blocks:{}});
+            const rec=map.get(row.emp);
+            if(!rec.blocks[bKey]||rec.blocks[bKey].status!=="WORK"){
+              const ctx=ctxKey(iso,shift,block.id);
+              const ed=ensureEdit(ctx,row.emp);
+              rec.blocks[bKey]={assignment:"",hours:0,status:"ABS",statusDetail:ed.AbsenceReason||""};
+            }
+          }
+        }
+      }
+
+      // Mark missing days as OFF — fill ALL 3 blocks so entire day blacks out
+      for(const [emp,rec] of regulars){
+        for(const wd of weekDates){
+          let has=false;
+          for(const b of blockDefs){if(rec.blocks[wd.iso+"|"+b.id]){has=true;break;}}
+          if(!has){
+            for(const b of blockDefs) rec.blocks[wd.iso+"|"+b.id]={assignment:"",hours:0,status:"OFF",statusDetail:""};
+          }
+        }
+      }
+
+      // Add BASE_EMP not yet in either map (OFF all week — all blocks)
+      for(const e of BASE_EMP){
+        const role=normalizeRole(e.POSITION);
+        if(!roleOrder.includes(role))continue;
+        if(!regulars.has(e.Employee)&&!otEmps.has(e.Employee)){
+          const rec={role,isOT:false,blocks:{}};
+          for(const wd of weekDates){
+            for(const b of blockDefs) rec.blocks[wd.iso+"|"+b.id]={assignment:"",hours:0,status:"OFF",statusDetail:""};
+          }
+          regulars.set(e.Employee,rec);
+        }
+      }
+
+      // Group by role, separate regulars vs OT
+      const grouped={};
+      for(const r of roleOrder)grouped[r]={regulars:[],ot:[]};
+      grouped["OTH"]={regulars:[],ot:[]};
+      for(const [emp,rec] of regulars){
+        const r=roleOrder.includes(rec.role)?rec.role:"OTH";
+        grouped[r].regulars.push({emp,...rec});
+      }
+      for(const [emp,rec] of otEmps){
+        const r=roleOrder.includes(rec.role)?rec.role:"OTH";
+        grouped[r].ot.push({emp,...rec});
+      }
+      for(const r of Object.keys(grouped)){
+        // Filter out employees OFF the entire week (not scheduled for this shift)
+        grouped[r].regulars=grouped[r].regulars.filter(e=>Object.values(e.blocks).some(b=>b.status!=="OFF"));
+        grouped[r].regulars.sort((a,b)=>a.emp.localeCompare(b.emp));
+        grouped[r].ot.sort((a,b)=>a.emp.localeCompare(b.emp));
+      }
+      const activeGroups=[...roleOrder,"OTH"].filter(r=>grouped[r].regulars.length>0||grouped[r].ot.length>0);
+      return{grouped,activeGroups};
+    }
+
+    const dayData=collectShiftData("DAY",BLOCKS_DAY);
+    const nightData=collectShiftData("NIGHT",BLOCKS_NIGHT);
+
+    // --- PDF setup (legal landscape, no role column) ---
+    const doc=new jsPDF({orientation:"landscape",unit:"pt",format:"legal"});
+    const pw=1008,ph=612,margin=6;
+    const usableW=pw-margin*2,usableH=ph-margin*2;
+    const nameW=42;
+    const blockColW=(usableW-nameW)/21;
+    const dayGroupW=blockColW*3;
+    const roleRGB={CALLTAKER:[26,82,118],DISPATCHER:[74,35,90],PIC:[14,102,85],SUPERVISOR:[125,102,8],OTH:[107,114,128]};
+    const roleBgRGB={CALLTAKER:[232,240,254],DISPATCHER:[243,229,245],PIC:[224,242,241],SUPERVISOR:[255,248,225],OTH:[243,244,246]};
+
+    // --- Draw one shift page ---
+    function drawPage(shiftLabel,blockDefs,shiftData,roles,opts){
+      if(!opts) opts={};
+      const mode=opts.mode||"all";
+      const{grouped}=shiftData;
+      const abbrMap={...roleAbbr,OTH:"OTH"};
+      const fullName={CALLTAKER:"CALLTAKERS",DISPATCHER:"DISPATCHERS",PIC:"PIC",SUPERVISOR:"SUPERVISORS",OTH:"OTHER"};
+      const titleRowH=10,dayNameRowH=9,blockTimeRowH=8,roleHeaderH=8,otDividerH=6;
+      const headerH=titleRowH+dayNameRowH+blockTimeRowH;
+
+      // Filter roles for OT mode: skip roles with zero OT employees
+      const effectiveRoles=mode==="ot"?roles.filter(r=>grouped[r].ot.length>0):roles;
+
+      let dataRows=0;
+      let otDividers=0;
+      for(const r of effectiveRoles){
+        if(mode==="regulars") dataRows+=grouped[r].regulars.length;
+        else if(mode==="ot") dataRows+=grouped[r].ot.length;
+        else dataRows+=grouped[r].regulars.length+grouped[r].ot.length;
+        if(mode!=="regulars"&&grouped[r].ot.length>0)otDividers++;
+      }
+      const fixedH=headerH+effectiveRoles.length*roleHeaderH+otDividers*otDividerH;
+      const availH=usableH-fixedH;
+      // Dynamically reduce blank rows if space is tight
+      let blankPerGroup=mode==="regulars"?0:3;
+      let rowH=availH/Math.max(1,dataRows+effectiveRoles.length*blankPerGroup);
+      if(blankPerGroup>0&&rowH<7){blankPerGroup=2;rowH=availH/Math.max(1,dataRows+effectiveRoles.length*blankPerGroup);}
+      if(blankPerGroup>0&&rowH<6){blankPerGroup=1;rowH=availH/Math.max(1,dataRows+effectiveRoles.length*blankPerGroup);}
+      if(rowH<5){blankPerGroup=0;rowH=availH/Math.max(1,dataRows);}
+      if(mode!=="regulars") rowH=Math.min(20,rowH);
+      const fs=Math.min(6,rowH*0.65);
+      const fsT=fs*0.7;
+
+      let y=margin;
+
+      // Title bar
+      doc.setFillColor(30,58,95);
+      doc.rect(margin,y,usableW,titleRowH,'F');
+      doc.setFontSize(9);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.text(shiftLabel+"  "+weekDates[0].label+" \u2013 "+weekDates[6].label,margin+usableW/2,y+titleRowH*0.72,{align:"center"});
+      y+=titleRowH;
+
+      // Day-name header row (no RL column)
+      doc.setFillColor(45,74,111);
+      doc.rect(margin,y,usableW,dayNameRowH,'F');
+      doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.text("EMPLOYEE",margin+2,y+dayNameRowH*0.72);
+      doc.setDrawColor(80,80,80);
+      doc.line(margin+nameW,y,margin+nameW,y+dayNameRowH);
+      for(let di=0;di<7;di++){
+        const dx=margin+nameW+di*dayGroupW;
+        doc.setDrawColor(60,60,60);doc.line(dx,y,dx,y+dayNameRowH);
+        doc.text(weekDates[di].label,dx+dayGroupW/2,y+dayNameRowH*0.72,{align:"center"});
+      }
+      y+=dayNameRowH;
+
+      // Block-time header row
+      doc.setFillColor(60,90,130);
+      doc.rect(margin,y,usableW,blockTimeRowH,'F');
+      doc.setFontSize(fsT);doc.setFont("helvetica","normal");doc.setTextColor(220,220,220);
+      doc.setDrawColor(80,80,80);
+      doc.line(margin+nameW,y,margin+nameW,y+blockTimeRowH);
+      for(let di=0;di<7;di++){
+        for(let bi=0;bi<3;bi++){
+          const ci=di*3+bi;
+          const dx=margin+nameW+ci*blockColW;
+          doc.setDrawColor(80,80,80);doc.line(dx,y,dx,y+blockTimeRowH);
+          const bl=blockDefs[bi];
+          const short=bl.start.replace(":","").slice(0,2)+"-"+bl.end.replace(":","").slice(0,2);
+          doc.text(short,dx+blockColW/2,y+blockTimeRowH*0.72,{align:"center"});
+        }
+      }
+      y+=blockTimeRowH;
+
+      // Role sections
+      for(const role of effectiveRoles){
+        const regs=grouped[role].regulars,ots=grouped[role].ot;
+        const rc=roleRGB[role]||[100,100,100];
+        const bg=roleBgRGB[role]||[255,255,255];
+
+        // Role header bar
+        const headerCount=mode==="ot"?ots.length:regs.length;
+        doc.setFillColor(rc[0],rc[1],rc[2]);
+        doc.rect(margin,y,usableW,roleHeaderH,'F');
+        doc.setDrawColor(100,100,100);doc.rect(margin,y,usableW,roleHeaderH,'S');
+        doc.setFontSize(fs+0.5);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+        doc.text((fullName[role]||role)+(mode==="ot"?" OT":"")+": "+headerCount,margin+3,y+roleHeaderH*0.78);
+        y+=roleHeaderH;
+
+        // Regular employee rows
+        if(mode!=="ot"){
+          for(let ei=0;ei<regs.length;ei++){
+            const altBg=ei%2===0?[255,255,255]:bg;
+            y=drawEmpRow(regs[ei],altBg,blockDefs,y,rowH,fs,fsT,abbrMap[role]||role);
+          }
+        }
+
+        // OT divider + OT rows (only if OT employees exist)
+        if(mode!=="regulars"&&ots.length>0){
+          const lc=[Math.min(255,rc[0]+140),Math.min(255,rc[1]+140),Math.min(255,rc[2]+140)];
+          doc.setFillColor(lc[0],lc[1],lc[2]);
+          doc.rect(margin,y,usableW,otDividerH,'F');
+          doc.setDrawColor(rc[0],rc[1],rc[2]);
+          doc.line(margin+nameW,y+otDividerH/2,margin+usableW,y+otDividerH/2);
+          doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(rc[0],rc[1],rc[2]);
+          doc.text((abbrMap[role]||role)+" OT",margin+3,y+otDividerH*0.75);
+          y+=otDividerH;
+          for(let ei=0;ei<ots.length;ei++){
+            const altBg=ei%2===0?[255,255,255]:[255,245,220];
+            y=drawEmpRow(ots[ei],altBg,blockDefs,y,rowH,fs,fsT,abbrMap[role]||role);
+          }
+        }
+
+        // Blank write-in rows
+        for(let bi=0;bi<blankPerGroup;bi++){
+          const blankLabel="BLANK"+(bi+1);
+          doc.setFillColor(255,255,255);
+          doc.rect(margin,y,usableW,rowH,'F');
+          // Block tints on blank rows
+          for(let ci=0;ci<21;ci++){
+            const bti=ci%3;
+            if(bti!==1){const bt=BLOCK_TINTS[bti];doc.setFillColor(bt[0],bt[1],bt[2]);doc.rect(margin+nameW+ci*blockColW,y,blockColW,rowH,'F');}
+          }
+          // Watermark in all 21 cells
+          for(let ci=0;ci<21;ci++){
+            const dx=margin+nameW+ci*blockColW;
+            doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);
+            doc.text(blankLabel,dx+1,y+fsT*0.8+0.5);
+          }
+          doc.setDrawColor(200,200,200);
+          doc.rect(margin,y,usableW,rowH,'S');
+          doc.setDrawColor(200,200,200);
+          doc.line(margin+nameW,y,margin+nameW,y+rowH);
+          for(let ci=0;ci<21;ci++){
+            const dx=margin+nameW+ci*blockColW;
+            doc.line(dx,y,dx,y+rowH);
+            doc.setDrawColor(220,220,220);
+            doc.line(dx+2,y+rowH-1.5,dx+blockColW-2,y+rowH-1.5);
+          }
+          y+=rowH;
+        }
+      }
+
+      if(y<ph-margin){doc.setFillColor(255,255,255);doc.rect(margin,y,usableW,ph-margin-y,'F');}
+    }
+
+    // --- Helper: draw one employee row ---
+    function drawEmpRow(e,bgColor,blockDefs,y,rowH,fs,fsT,roleAb){
+      // Row background
+      doc.setFillColor(bgColor[0],bgColor[1],bgColor[2]);
+      doc.rect(margin,y,usableW,rowH,'F');
+      doc.setDrawColor(180,180,180);
+      doc.rect(margin,y,usableW,rowH,'S');
+
+      // Employee name in name column
+      const fullNm=String(e.emp).toUpperCase();
+      doc.setFontSize(fs);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
+      let nm=fullNm;
+      const maxNm=Math.floor(nameW/(fs*0.52));
+      if(nm.length>maxNm)nm=nm.slice(0,maxNm-1)+"\u2026";
+      doc.text(nm,margin+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
+
+      // Watermark name: last name or short name for cells
+      const wmName=fullNm.split(",")[0].split(" ")[0].slice(0,8);
+
+      // Name column right border
+      doc.setDrawColor(140,140,140);
+      doc.line(margin+nameW,y,margin+nameW,y+rowH);
+
+      // 21 block cells
+      for(let di=0;di<7;di++){
+        const iso=weekDates[di].iso;
+        for(let bi=0;bi<3;bi++){
+          const ci=di*3+bi;
+          const dx=margin+nameW+ci*blockColW;
+          const bKey=iso+"|"+blockDefs[bi].id;
+          const cell=e.blocks[bKey];
+
+          // Block tint
+          const bt=BLOCK_TINTS[bi];
+          if(bi!==1){doc.setFillColor(bt[0],bt[1],bt[2]);doc.rect(dx,y,blockColW,rowH,'F');}
+
+          // OT watermark on all cells
+          if(e.isOT){doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);doc.text(wmName,dx+1,y+fsT*0.8+0.5);}
+
+          if(!cell){doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');continue;}
+
+          if(cell.status==="OFF"){
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(150,150,150);
+            doc.text("DO",dx+blockColW/2,y+rowH-0.5,{align:"center"});
+          }else if(cell.status==="ABS"){
+            doc.setFillColor(190,30,30);
+            doc.rect(dx,y,blockColW,rowH,'F');
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+            doc.text("A",dx+blockColW/2,y+rowH*0.72,{align:"center"});
+          }else{
+            // Watermark — faint name left-aligned top (regulars only, OT already drawn above)
+            if(!e.isOT){doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);doc.text(wmName,dx+1,y+fsT*0.8+0.5);}
+            // WORK — role+hours left-aligned bottom
+            const hrs=Math.round(cell.hours*10)/10;
+            const hStr=hrs%1===0?String(Math.round(hrs)):String(hrs);
+            const leftText=roleAb+hStr;
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
+            doc.text(leftText,dx+1,y+rowH-1);
+            if(cell.assignment){
+              doc.setFontSize(fsT);doc.setFont("helvetica","normal");doc.setTextColor(60,60,60);
+              doc.text(abbrAssignment(cell.assignment),dx+blockColW-1,y+rowH*0.72,{align:"right"});
+            }
+          }
+          // Cell border
+          doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');
+        }
+      }
+      return y+rowH;
+    }
+
+    // --- Split roles across front/back for each shift ---
+    function splitRoles(shiftData){
+      const{grouped,activeGroups}=shiftData;
+      if(activeGroups.length<=1) return [activeGroups,[]];
+      // Compute weight per role: data rows + blank rows + fixed overhead as row-equivalents
+      // roleHeaderH=8, otDividerH=6, estimate ~10pt per row for conversion
+      const weights=activeGroups.map(r=>{
+        const rows=grouped[r].regulars.length+grouped[r].ot.length+3;
+        const fixedEq=0.8+(grouped[r].ot.length>0?0.6:0); // header + optional OT divider
+        return rows+fixedEq;
+      });
+      // Try every split point, pick the most balanced
+      let bestSplit=1,bestDiff=Infinity;
+      for(let s=1;s<activeGroups.length;s++){
+        const frontW=weights.slice(0,s).reduce((a,w)=>a+w,0);
+        const backW=weights.slice(s).reduce((a,w)=>a+w,0);
+        const diff=Math.abs(frontW-backW);
+        if(diff<bestDiff){bestDiff=diff;bestSplit=s;}
+      }
+      return [activeGroups.slice(0,bestSplit),activeGroups.slice(bestSplit)];
+    }
+
+    // 4 pages: DAY front, DAY back, NIGHT front, NIGHT back
+    if(format==="B"){
+      drawPage("DAYS (front)",BLOCKS_DAY,dayData,dayData.activeGroups,{mode:"regulars"});
+      doc.addPage("legal","landscape");
+      drawPage("DAYS (back)",BLOCKS_DAY,dayData,dayData.activeGroups,{mode:"ot"});
+      doc.addPage("legal","landscape");
+      drawPage("NIGHTS (front)",BLOCKS_NIGHT,nightData,nightData.activeGroups,{mode:"regulars"});
+      doc.addPage("legal","landscape");
+      drawPage("NIGHTS (back)",BLOCKS_NIGHT,nightData,nightData.activeGroups,{mode:"ot"});
+    } else {
+      const daySplit=splitRoles(dayData);
+      const nightSplit=splitRoles(nightData);
+      drawPage("DAYS (front)",BLOCKS_DAY,dayData,daySplit[0]);
+      doc.addPage("legal","landscape");
+      drawPage("DAYS (back)",BLOCKS_DAY,dayData,daySplit[1]);
+      doc.addPage("legal","landscape");
+      drawPage("NIGHTS (front)",BLOCKS_NIGHT,nightData,nightSplit[0]);
+      doc.addPage("legal","landscape");
+      drawPage("NIGHTS (back)",BLOCKS_NIGHT,nightData,nightSplit[1]);
+    }
+
+    // --- Open / print ---
+    const pdfBlob=doc.output('blob');
+    const pdfUrl=URL.createObjectURL(pdfBlob);
+    const win=window.open(pdfUrl,'_blank');
+    if(win){win.onload=()=>{win.focus();win.print();};}
+    else{doc.save("ShiftOps_Weekly_"+weekDates[0].iso+".pdf");}
+
+    // --- Restore original state ---
+    document.getElementById("shiftSel").value=origShift;
+    _vacations=origVac;
+    _trainingList=origTrain;
+    await loadEditsFromFirebase(origISO,origShift);
+    await loadShiftSwaps(origISO);
+    clearErr();
+  }catch(err){
+    console.error("printWeekly error:",err);
+    setErr("Print Weekly failed: "+(err&&err.message?err.message:err));
+  }
+}
+document.getElementById("btnPrintWeekly").addEventListener("click", function(){ printWeekly("A"); });
+document.getElementById("btnPrintWeeklyB").addEventListener("click", function(){ printWeekly("B"); });
+
+// ===== Print Weekly C: Legal Portrait, Day front / Night back =====
+async function printWeeklyC(){
+  try{
+    if(!window.jspdf){
+      setErr("Loading PDF library\u2026 click Print Weekly C again in a few seconds.");
+      const s=document.createElement("script");
+      s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js";
+      s.onerror=()=>{
+        const s2=document.createElement("script");
+        s2.src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js";
+        document.head.appendChild(s2);
+      };
+      document.head.appendChild(s);
+      return;
+    }
+    const {jsPDF}=window.jspdf;
+    const weekDates=_swapWeekDates();
+    if(!weekDates.length){ setErr("No week dates \u2014 pick a date first."); return; }
+
+    const origShift=document.getElementById("shiftSel").value||"DAY";
+    const origISO=document.getElementById("workDate").value;
+    const origVac=JSON.parse(JSON.stringify(_vacations));
+    const origTrain=JSON.parse(JSON.stringify(_trainingList));
+
+    // Load vacation/training per month
+    const monthKeys=new Set();
+    for(const wd of weekDates){ const d=parseISO(wd.iso); monthKeys.add(d.getFullYear()+"-"+d.getMonth()); }
+    const vacByMonth={},trainByMonth={};
+    await Promise.all([...monthKeys].map(mk=>{
+      const [yr,mo]=mk.split("-").map(Number);
+      const isoM=yr+"-"+String(mo+1).padStart(2,"0")+"-01";
+      return getVacDocRef(isoM).get().then(doc=>{
+        if(doc.exists){
+          vacByMonth[mk]=Array.isArray(doc.data().vacations)?doc.data().vacations:[];
+          trainByMonth[mk]=Array.isArray(doc.data().training)?doc.data().training:[];
+        }else{vacByMonth[mk]=[];trainByMonth[mk]=[];}
+      }).catch(()=>{vacByMonth[mk]=[];trainByMonth[mk]=[];});
+    }));
+
+    await Promise.all(weekDates.flatMap(wd=>[
+      loadEditsFromFirebase(wd.iso,"DAY"),
+      loadEditsFromFirebase(wd.iso,"NIGHT"),
+      loadShiftSwaps(wd.iso)
+    ]));
+
+    const roleOrder=["CALLTAKER","DISPATCHER","PIC","SUPERVISOR"];
+    const roleAbbr2={CALLTAKER:"CT",DISPATCHER:"DP",PIC:"PIC",SUPERVISOR:"SUP",OTH:"OTH"};
+    const roleRGB={CALLTAKER:[26,82,118],DISPATCHER:[74,35,90],PIC:[14,102,85],SUPERVISOR:[125,102,8],OTH:[107,114,128]};
+    const roleBgRGB={CALLTAKER:[232,240,254],DISPATCHER:[243,229,245],PIC:[224,242,241],SUPERVISOR:[255,248,225],OTH:[243,244,246]};
+    const fullName={CALLTAKER:"CALLTAKERS",DISPATCHER:"DISPATCHERS",PIC:"PIC",SUPERVISOR:"SUPERVISORS",OTH:"OTHER"};
+
+    // Collect shift data (reuse logic from printWeekly)
+    function collectData(shift,blockDefs){
+      document.getElementById("shiftSel").value=shift;
+      const regulars=new Map(), otEmps=new Map();
+      for(const wd of weekDates){
+        const iso=wd.iso, d=parseISO(iso), mk=d.getFullYear()+"-"+d.getMonth();
+        _vacations=vacByMonth[mk]||[];
+        _trainingList=trainByMonth[mk]||[];
+        for(const block of blockDefs){
+          const rows=computeRowsForBlock(iso,shift,block);
+          const bKey=iso+"|"+block.id;
+          for(const role of roleOrder){
+            for(const row of(rows[role]||[])){
+              const map=row.isOT?otEmps:regulars;
+              if(!map.has(row.emp))map.set(row.emp,{role,isOT:!!row.isOT,blocks:{}});
+              const rec=map.get(row.emp);
+              if(!rec.role||rec.role==="OTH")rec.role=role;
+              const hrs=typeof row.hours==="number"?row.hours:Number(row.hours)||0;
+              const ctx=ctxKey(iso,shift,block.id);
+              const ed=ensureEdit(ctx,row.emp);
+              rec.blocks[bKey]={assignment:ed.Assignment||row.assignment||"",hours:hrs,status:"WORK",
+                statusDetail:row.present==="TARDY"?"T":row.present==="PARTIAL"?"P":""};
+            }
+          }
+          for(const row of(rows.OTH||[])){
+            const map=row.isOT?otEmps:regulars;
+            if(!map.has(row.emp))map.set(row.emp,{role:"OTH",isOT:!!row.isOT,blocks:{}});
+            const rec=map.get(row.emp);
+            const hrs=typeof row.hours==="number"?row.hours:Number(row.hours)||0;
+            rec.blocks[bKey]={assignment:row.assignment||"",hours:hrs,status:"WORK",statusDetail:""};
+          }
+          for(const row of(rows.ABSENT||[])){
+            if(row.isPartial||row.isTardy)continue;
+            const map=row.isOT?otEmps:regulars;
+            if(!map.has(row.emp))map.set(row.emp,{role:row.role||"CALLTAKER",isOT:!!row.isOT,blocks:{}});
+            const rec=map.get(row.emp);
+            if(!rec.blocks[bKey]||rec.blocks[bKey].status!=="WORK"){
+              const ctx=ctxKey(iso,shift,block.id);
+              const ed=ensureEdit(ctx,row.emp);
+              rec.blocks[bKey]={assignment:"",hours:0,status:"ABS",statusDetail:ed.AbsenceReason||""};
+            }
+          }
+        }
+      }
+      for(const [emp,rec] of regulars){
+        for(const wd of weekDates){
+          let has=false;
+          for(const b of blockDefs){if(rec.blocks[wd.iso+"|"+b.id]){has=true;break;}}
+          if(!has){ for(const b of blockDefs) rec.blocks[wd.iso+"|"+b.id]={assignment:"",hours:0,status:"OFF",statusDetail:""}; }
+        }
+      }
+      for(const e of BASE_EMP){
+        const role=normalizeRole(e.POSITION);
+        if(!roleOrder.includes(role))continue;
+        if(!regulars.has(e.Employee)&&!otEmps.has(e.Employee)){
+          const rec={role,isOT:false,blocks:{}};
+          for(const wd of weekDates){ for(const b of blockDefs) rec.blocks[wd.iso+"|"+b.id]={assignment:"",hours:0,status:"OFF",statusDetail:""}; }
+          regulars.set(e.Employee,rec);
+        }
+      }
+      const grouped={};
+      for(const r of roleOrder)grouped[r]={regulars:[],ot:[]};
+      grouped["OTH"]={regulars:[],ot:[]};
+      for(const [emp,rec] of regulars){
+        const r=roleOrder.includes(rec.role)?rec.role:"OTH";
+        grouped[r].regulars.push({emp,...rec});
+      }
+      for(const [emp,rec] of otEmps){
+        const r=roleOrder.includes(rec.role)?rec.role:"OTH";
+        grouped[r].ot.push({emp,...rec});
+      }
+      for(const r of Object.keys(grouped)){
+        grouped[r].regulars=grouped[r].regulars.filter(e=>Object.values(e.blocks).some(b=>b.status!=="OFF"));
+        grouped[r].regulars.sort((a,b)=>a.emp.localeCompare(b.emp));
+        grouped[r].ot.sort((a,b)=>a.emp.localeCompare(b.emp));
+      }
+      const activeGroups=[...roleOrder,"OTH"].filter(r=>grouped[r].regulars.length>0||grouped[r].ot.length>0);
+      return{grouped,activeGroups};
+    }
+
+    const dayData=collectData("DAY",BLOCKS_DAY);
+    const nightData=collectData("NIGHT",BLOCKS_NIGHT);
+
+    // Legal portrait: 612 x 1008
+    const doc=new jsPDF({orientation:"portrait",unit:"pt",format:"legal"});
+    const pw=612,ph=1008,margin=6;
+    const usableW=pw-margin*2,usableH=ph-margin*2;
+    const nameW=52;
+    const blockColW=(usableW-nameW)/21;
+    const dayGroupW=blockColW*3;
+
+    function drawShiftPage(shiftLabel,blockDefs,shiftData){
+      const{grouped,activeGroups}=shiftData;
+      const titleH=12,dayNameH=10,blockTimeH=9,roleHeaderH=9,otDividerH=7;
+      const headerH=titleH+dayNameH+blockTimeH;
+
+      // Count rows
+      let dataRows=0,otDividers=0;
+      for(const r of activeGroups){
+        dataRows+=grouped[r].regulars.length+grouped[r].ot.length;
+        if(grouped[r].ot.length>0)otDividers++;
+      }
+      const fixedH=headerH+activeGroups.length*roleHeaderH+otDividers*otDividerH;
+      let rowH=(usableH-fixedH)/Math.max(1,dataRows);
+      const fs=Math.min(7,rowH*0.6);
+      const fsT=fs*0.75;
+
+      let y=margin;
+
+      // Title
+      doc.setFillColor(30,58,95);
+      doc.rect(margin,y,usableW,titleH,'F');
+      doc.setFontSize(10);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.text(shiftLabel+"  "+weekDates[0].label+" \u2013 "+weekDates[6].label,margin+usableW/2,y+titleH*0.75,{align:"center"});
+      y+=titleH;
+
+      // Day names
+      doc.setFillColor(45,74,111);
+      doc.rect(margin,y,usableW,dayNameH,'F');
+      doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.text("EMPLOYEE",margin+2,y+dayNameH*0.72);
+      doc.setDrawColor(80,80,80);doc.line(margin+nameW,y,margin+nameW,y+dayNameH);
+      for(let di=0;di<7;di++){
+        const dx=margin+nameW+di*dayGroupW;
+        doc.setDrawColor(60,60,60);doc.line(dx,y,dx,y+dayNameH);
+        doc.text(weekDates[di].label,dx+dayGroupW/2,y+dayNameH*0.72,{align:"center"});
+      }
+      y+=dayNameH;
+
+      // Block times
+      doc.setFillColor(60,90,130);
+      doc.rect(margin,y,usableW,blockTimeH,'F');
+      doc.setFontSize(fsT);doc.setFont("helvetica","normal");doc.setTextColor(220,220,220);
+      doc.setDrawColor(80,80,80);doc.line(margin+nameW,y,margin+nameW,y+blockTimeH);
+      for(let di=0;di<7;di++){
+        for(let bi=0;bi<3;bi++){
+          const ci=di*3+bi;
+          const dx=margin+nameW+ci*blockColW;
+          doc.setDrawColor(80,80,80);doc.line(dx,y,dx,y+blockTimeH);
+          const bl=blockDefs[bi];
+          const short=bl.start.replace(":","").slice(0,2)+"-"+bl.end.replace(":","").slice(0,2);
+          doc.text(short,dx+blockColW/2,y+blockTimeH*0.72,{align:"center"});
+        }
+      }
+      y+=blockTimeH;
+
+      // Role sections
+      for(const role of activeGroups){
+        const regs=grouped[role].regulars,ots=grouped[role].ot;
+        const rc=roleRGB[role]||[100,100,100];
+        const bg=roleBgRGB[role]||[255,255,255];
+
+        // Role header
+        doc.setFillColor(rc[0],rc[1],rc[2]);
+        doc.rect(margin,y,usableW,roleHeaderH,'F');
+        doc.setDrawColor(100,100,100);doc.rect(margin,y,usableW,roleHeaderH,'S');
+        doc.setFontSize(fs+0.5);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+        doc.text((fullName[role]||role)+": "+regs.length,margin+3,y+roleHeaderH*0.78);
+        y+=roleHeaderH;
+
+        // Regular rows
+        for(let ei=0;ei<regs.length;ei++){
+          const altBg=ei%2===0?[255,255,255]:bg;
+          y=drawRow(regs[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role);
+        }
+
+        // OT
+        if(ots.length>0){
+          const lc=[Math.min(255,rc[0]+140),Math.min(255,rc[1]+140),Math.min(255,rc[2]+140)];
+          doc.setFillColor(lc[0],lc[1],lc[2]);
+          doc.rect(margin,y,usableW,otDividerH,'F');
+          doc.setDrawColor(rc[0],rc[1],rc[2]);
+          doc.line(margin+nameW,y+otDividerH/2,margin+usableW,y+otDividerH/2);
+          doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(rc[0],rc[1],rc[2]);
+          doc.text((roleAbbr2[role]||role)+" OT",margin+3,y+otDividerH*0.75);
+          y+=otDividerH;
+          for(let ei=0;ei<ots.length;ei++){
+            const altBg=ei%2===0?[255,255,255]:[255,245,220];
+            y=drawRow(ots[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role);
+          }
+        }
+      }
+    }
+
+    function drawRow(e,bgColor,blockDefs,y,rowH,fs,fsT,roleAb){
+      doc.setFillColor(bgColor[0],bgColor[1],bgColor[2]);
+      doc.rect(margin,y,usableW,rowH,'F');
+      doc.setDrawColor(180,180,180);doc.rect(margin,y,usableW,rowH,'S');
+
+      const fullNm=String(e.emp).toUpperCase();
+      doc.setFontSize(fs);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
+      let nm=fullNm;
+      const maxNm=Math.floor(nameW/(fs*0.52));
+      if(nm.length>maxNm)nm=nm.slice(0,maxNm-1)+"\u2026";
+      doc.text(nm,margin+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
+
+      const wmName=fullNm.split(",")[0].split(" ")[0].slice(0,8);
+      doc.setDrawColor(140,140,140);doc.line(margin+nameW,y,margin+nameW,y+rowH);
+
+      for(let di=0;di<7;di++){
+        const iso=weekDates[di].iso;
+        for(let bi=0;bi<3;bi++){
+          const ci=di*3+bi;
+          const dx=margin+nameW+ci*blockColW;
+          const bKey=iso+"|"+blockDefs[bi].id;
+          const cell=e.blocks[bKey];
+
+          // Block tint
+          const bt=BLOCK_TINTS[bi];
+          if(bi!==1){doc.setFillColor(bt[0],bt[1],bt[2]);doc.rect(dx,y,blockColW,rowH,'F');}
+
+          if(e.isOT){doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);doc.text(wmName,dx+1,y+fsT*0.8+0.5);}
+
+          if(!cell){doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');continue;}
+
+          if(cell.status==="OFF"){
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(150,150,150);
+            doc.text("DO",dx+blockColW/2,y+rowH-1,{align:"center"});
+          }else if(cell.status==="ABS"){
+            doc.setFillColor(190,30,30);doc.rect(dx,y,blockColW,rowH,'F');
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+            doc.text("A",dx+blockColW/2,y+rowH*0.72,{align:"center"});
+          }else{
+            if(!e.isOT){doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);doc.text(wmName,dx+1,y+fsT*0.8+0.5);}
+            const hrs=Math.round(cell.hours*10)/10;
+            const hStr=hrs%1===0?String(Math.round(hrs)):String(hrs);
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
+            doc.text(roleAb+hStr,dx+1,y+rowH-1);
+            if(cell.assignment){
+              doc.setFontSize(fsT);doc.setFont("helvetica","normal");doc.setTextColor(60,60,60);
+              doc.text(abbrAssignment(cell.assignment),dx+blockColW-1,y+rowH-1,{align:"right"});
+            }
+          }
+          doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');
+        }
+      }
+      return y+rowH;
+    }
+
+    // Page 1: Day shift
+    drawShiftPage("DAY SHIFT",BLOCKS_DAY,dayData);
+    // Page 2: Night shift
+    doc.addPage("legal","portrait");
+    drawShiftPage("NIGHT SHIFT",BLOCKS_NIGHT,nightData);
+
+    const pdfBlob=doc.output('blob');
+    const pdfUrl=URL.createObjectURL(pdfBlob);
+    const win=window.open(pdfUrl,'_blank');
+    if(win){win.onload=()=>{win.focus();win.print();};}
+    else{doc.save("ShiftOps_Weekly_C_"+weekDates[0].iso+".pdf");}
+
+    // Restore
+    document.getElementById("shiftSel").value=origShift;
+    _vacations=origVac;
+    _trainingList=origTrain;
+    await loadEditsFromFirebase(origISO,origShift);
+    await loadShiftSwaps(origISO);
+    clearErr();
+  }catch(err){
+    console.error("printWeeklyC error:",err);
+    setErr("Print Weekly C failed: "+(err&&err.message?err.message:err));
+  }
+}
+document.getElementById("btnPrintWeeklyC").addEventListener("click", printWeeklyC);
+
+// ===== Print Weekly D: Legal Portrait, 8 pages (4 sheets double-sided) =====
+// Sheet 1 front/back: Days Regulars (roles split)
+// Sheet 2 front/back: Days OT (roles split + blank slots)
+// Sheet 3 front/back: Nights Regulars (roles split)
+// Sheet 4 front/back: Nights OT (roles split + blank slots)
+async function printWeeklyD(){
+  try{
+    if(!window.jspdf){
+      setErr("Loading PDF library\u2026 click Print Weekly D again in a few seconds.");
+      const s=document.createElement("script");
+      s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js";
+      s.onerror=()=>{
+        const s2=document.createElement("script");
+        s2.src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js";
+        document.head.appendChild(s2);
+      };
+      document.head.appendChild(s);
+      return;
+    }
+    const {jsPDF}=window.jspdf;
+    const weekDates=_swapWeekDates();
+    if(!weekDates.length){ setErr("No week dates \u2014 pick a date first."); return; }
+
+    const origShift=document.getElementById("shiftSel").value||"DAY";
+    const origISO=document.getElementById("workDate").value;
+    const origVac=JSON.parse(JSON.stringify(_vacations));
+    const origTrain=JSON.parse(JSON.stringify(_trainingList));
+
+    const monthKeys=new Set();
+    for(const wd of weekDates){ const d=parseISO(wd.iso); monthKeys.add(d.getFullYear()+"-"+d.getMonth()); }
+    const vacByMonth={},trainByMonth={};
+    await Promise.all([...monthKeys].map(mk=>{
+      const [yr,mo]=mk.split("-").map(Number);
+      const isoM=yr+"-"+String(mo+1).padStart(2,"0")+"-01";
+      return getVacDocRef(isoM).get().then(doc=>{
+        if(doc.exists){
+          vacByMonth[mk]=Array.isArray(doc.data().vacations)?doc.data().vacations:[];
+          trainByMonth[mk]=Array.isArray(doc.data().training)?doc.data().training:[];
+        }else{vacByMonth[mk]=[];trainByMonth[mk]=[];}
+      }).catch(()=>{vacByMonth[mk]=[];trainByMonth[mk]=[];});
+    }));
+
+    await Promise.all(weekDates.flatMap(wd=>[
+      loadEditsFromFirebase(wd.iso,"DAY"),
+      loadEditsFromFirebase(wd.iso,"NIGHT"),
+      loadShiftSwaps(wd.iso)
+    ]));
+
+    const roleOrder=["CALLTAKER","DISPATCHER","PIC","SUPERVISOR"];
+    const roleAbbr2={CALLTAKER:"CT",DISPATCHER:"DP",PIC:"PIC",SUPERVISOR:"SUP",OTH:"OTH"};
+    const roleRGB={CALLTAKER:[26,82,118],DISPATCHER:[74,35,90],PIC:[14,102,85],SUPERVISOR:[125,102,8],OTH:[107,114,128]};
+    const roleBgRGB={CALLTAKER:[232,240,254],DISPATCHER:[243,229,245],PIC:[224,242,241],SUPERVISOR:[255,248,225],OTH:[243,244,246]};
+    const fullName={CALLTAKER:"CALLTAKERS",DISPATCHER:"DISPATCHERS",PIC:"PIC",SUPERVISOR:"SUPERVISORS",OTH:"OTHER"};
+
+    function collectData(shift,blockDefs){
+      document.getElementById("shiftSel").value=shift;
+      const regulars=new Map(), otEmps=new Map();
+      for(const wd of weekDates){
+        const iso=wd.iso, d=parseISO(iso), mk=d.getFullYear()+"-"+d.getMonth();
+        _vacations=vacByMonth[mk]||[];
+        _trainingList=trainByMonth[mk]||[];
+        for(const block of blockDefs){
+          const rows=computeRowsForBlock(iso,shift,block);
+          const bKey=iso+"|"+block.id;
+          for(const role of roleOrder){
+            for(const row of(rows[role]||[])){
+              const map=row.isOT?otEmps:regulars;
+              if(!map.has(row.emp))map.set(row.emp,{role,isOT:!!row.isOT,blocks:{}});
+              const rec=map.get(row.emp);
+              if(!rec.role||rec.role==="OTH")rec.role=role;
+              const hrs=typeof row.hours==="number"?row.hours:Number(row.hours)||0;
+              const ctx=ctxKey(iso,shift,block.id);
+              const ed=ensureEdit(ctx,row.emp);
+              rec.blocks[bKey]={assignment:ed.Assignment||row.assignment||"",hours:hrs,status:"WORK",
+                statusDetail:row.present==="TARDY"?"T":row.present==="PARTIAL"?"P":""};
+            }
+          }
+          for(const row of(rows.OTH||[])){
+            const map=row.isOT?otEmps:regulars;
+            if(!map.has(row.emp))map.set(row.emp,{role:"OTH",isOT:!!row.isOT,blocks:{}});
+            const rec=map.get(row.emp);
+            const hrs=typeof row.hours==="number"?row.hours:Number(row.hours)||0;
+            rec.blocks[bKey]={assignment:row.assignment||"",hours:hrs,status:"WORK",statusDetail:""};
+          }
+          for(const row of(rows.ABSENT||[])){
+            if(row.isPartial||row.isTardy)continue;
+            const map=row.isOT?otEmps:regulars;
+            if(!map.has(row.emp))map.set(row.emp,{role:row.role||"CALLTAKER",isOT:!!row.isOT,blocks:{}});
+            const rec=map.get(row.emp);
+            if(!rec.blocks[bKey]||rec.blocks[bKey].status!=="WORK"){
+              const ctx=ctxKey(iso,shift,block.id);
+              const ed=ensureEdit(ctx,row.emp);
+              rec.blocks[bKey]={assignment:"",hours:0,status:"ABS",statusDetail:ed.AbsenceReason||""};
+            }
+          }
+        }
+      }
+      for(const [emp,rec] of regulars){
+        for(const wd of weekDates){
+          let has=false;
+          for(const b of blockDefs){if(rec.blocks[wd.iso+"|"+b.id]){has=true;break;}}
+          if(!has){ for(const b of blockDefs) rec.blocks[wd.iso+"|"+b.id]={assignment:"",hours:0,status:"OFF",statusDetail:""}; }
+        }
+      }
+      for(const e of BASE_EMP){
+        const role=normalizeRole(e.POSITION);
+        if(!roleOrder.includes(role))continue;
+        if(!regulars.has(e.Employee)&&!otEmps.has(e.Employee)){
+          const rec={role,isOT:false,blocks:{}};
+          for(const wd of weekDates){ for(const b of blockDefs) rec.blocks[wd.iso+"|"+b.id]={assignment:"",hours:0,status:"OFF",statusDetail:""}; }
+          regulars.set(e.Employee,rec);
+        }
+      }
+      const grouped={};
+      for(const r of roleOrder)grouped[r]={regulars:[],ot:[]};
+      grouped["OTH"]={regulars:[],ot:[]};
+      for(const [emp,rec] of regulars){
+        const r=roleOrder.includes(rec.role)?rec.role:"OTH";
+        grouped[r].regulars.push({emp,...rec});
+      }
+      for(const [emp,rec] of otEmps){
+        const r=roleOrder.includes(rec.role)?rec.role:"OTH";
+        grouped[r].ot.push({emp,...rec});
+      }
+      for(const r of Object.keys(grouped)){
+        grouped[r].regulars=grouped[r].regulars.filter(e=>Object.values(e.blocks).some(b=>b.status!=="OFF"));
+        grouped[r].regulars.sort((a,b)=>a.emp.localeCompare(b.emp));
+        grouped[r].ot.sort((a,b)=>a.emp.localeCompare(b.emp));
+      }
+      const activeGroups=[...roleOrder,"OTH"].filter(r=>grouped[r].regulars.length>0||grouped[r].ot.length>0);
+      return{grouped,activeGroups};
+    }
+
+    const dayData=collectData("DAY",BLOCKS_DAY);
+    const nightData=collectData("NIGHT",BLOCKS_NIGHT);
+
+    // Legal portrait: 612 x 1008
+    const doc=new jsPDF({orientation:"portrait",unit:"pt",format:"legal"});
+    const pw=612,ph=1008,mg=6;
+    const usableW=pw-mg*2,usableH=ph-mg*2;
+    const nameW=52;
+    const blockColW=(usableW-nameW)/21;
+    const dayGroupW=blockColW*3;
+
+    // Split roles into two balanced groups for front/back
+    function splitRolesD(shiftData){
+      const{grouped,activeGroups}=shiftData;
+      if(activeGroups.length<=1) return [activeGroups,[]];
+      const weights=activeGroups.map(r=>{
+        const rows=grouped[r].regulars.length;
+        return rows+0.8;
+      });
+      let bestSplit=1,bestDiff=Infinity;
+      for(let s=1;s<activeGroups.length;s++){
+        const f=weights.slice(0,s).reduce((a,w)=>a+w,0);
+        const b=weights.slice(s).reduce((a,w)=>a+w,0);
+        const diff=Math.abs(f-b);
+        if(diff<bestDiff){bestDiff=diff;bestSplit=s;}
+      }
+      return [activeGroups.slice(0,bestSplit),activeGroups.slice(bestSplit)];
+    }
+
+    function splitRolesOT(shiftData){
+      const{grouped,activeGroups}=shiftData;
+      const otRoles=activeGroups.filter(r=>grouped[r].ot.length>0);
+      if(otRoles.length<=1) return [otRoles,[]];
+      const weights=otRoles.map(r=>grouped[r].ot.length+0.8);
+      let bestSplit=1,bestDiff=Infinity;
+      for(let s=1;s<otRoles.length;s++){
+        const f=weights.slice(0,s).reduce((a,w)=>a+w,0);
+        const b=weights.slice(s).reduce((a,w)=>a+w,0);
+        if(Math.abs(f-b)<bestDiff){bestDiff=Math.abs(f-b);bestSplit=s;}
+      }
+      return [otRoles.slice(0,bestSplit),otRoles.slice(bestSplit)];
+    }
+
+    // --- Draw header rows, returns y after header ---
+    function drawHeader(shiftLabel,blockDefs,y){
+      const titleH=12,dayNameH=10,blockTimeH=9;
+      doc.setFillColor(30,58,95);
+      doc.rect(mg,y,usableW,titleH,'F');
+      doc.setFontSize(10);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.text(shiftLabel+"  "+weekDates[0].label+" \u2013 "+weekDates[6].label,mg+usableW/2,y+titleH*0.75,{align:"center"});
+      y+=titleH;
+      doc.setFillColor(45,74,111);
+      doc.rect(mg,y,usableW,dayNameH,'F');
+      doc.setFontSize(5);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.text("EMPLOYEE",mg+2,y+dayNameH*0.72);
+      doc.setDrawColor(80,80,80);doc.line(mg+nameW,y,mg+nameW,y+dayNameH);
+      for(let di=0;di<7;di++){
+        const dx=mg+nameW+di*dayGroupW;
+        doc.setDrawColor(60,60,60);doc.line(dx,y,dx,y+dayNameH);
+        doc.text(weekDates[di].label,dx+dayGroupW/2,y+dayNameH*0.72,{align:"center"});
+      }
+      y+=dayNameH;
+      doc.setFillColor(60,90,130);
+      doc.rect(mg,y,usableW,blockTimeH,'F');
+      doc.setFontSize(5);doc.setFont("helvetica","normal");doc.setTextColor(220,220,220);
+      doc.setDrawColor(80,80,80);doc.line(mg+nameW,y,mg+nameW,y+blockTimeH);
+      for(let di=0;di<7;di++){
+        for(let bi=0;bi<3;bi++){
+          const dx=mg+nameW+(di*3+bi)*blockColW;
+          doc.setDrawColor(80,80,80);doc.line(dx,y,dx,y+blockTimeH);
+          const bl=blockDefs[bi];
+          doc.text(bl.start.replace(":","").slice(0,2)+"-"+bl.end.replace(":","").slice(0,2),dx+blockColW/2,y+blockTimeH*0.72,{align:"center"});
+        }
+      }
+      y+=blockTimeH;
+      return y;
+    }
+
+    // --- Draw role section (regulars only) ---
+    function drawRegSection(role,grouped,blockDefs,y,rowH,fs,fsT){
+      const regs=grouped[role].regulars;
+      const rc=roleRGB[role]||[100,100,100];
+      const bg=roleBgRGB[role]||[255,255,255];
+      const roleHeaderH=9;
+      doc.setFillColor(rc[0],rc[1],rc[2]);
+      doc.rect(mg,y,usableW,roleHeaderH,'F');
+      doc.setDrawColor(100,100,100);doc.rect(mg,y,usableW,roleHeaderH,'S');
+      doc.setFontSize(fs+0.5);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.text((fullName[role]||role)+": "+regs.length,mg+3,y+roleHeaderH*0.78);
+      y+=roleHeaderH;
+      for(let ei=0;ei<regs.length;ei++){
+        const altBg=ei%2===0?[255,255,255]:bg;
+        y=drawRowD(regs[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role);
+      }
+      return y;
+    }
+
+    // --- Draw OT section (OT employees + blank slots) ---
+    function drawOTSection(role,grouped,blockDefs,y,rowH,fs,fsT,blankCount){
+      const ots=grouped[role].ot;
+      const rc=roleRGB[role]||[100,100,100];
+      const roleHeaderH=9;
+      doc.setFillColor(rc[0],rc[1],rc[2]);
+      doc.rect(mg,y,usableW,roleHeaderH,'F');
+      doc.setDrawColor(100,100,100);doc.rect(mg,y,usableW,roleHeaderH,'S');
+      doc.setFontSize(fs+0.5);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.text((fullName[role]||role)+" OT: "+ots.length,mg+3,y+roleHeaderH*0.78);
+      y+=roleHeaderH;
+      for(let ei=0;ei<ots.length;ei++){
+        const altBg=ei%2===0?[255,255,255]:[255,245,220];
+        y=drawRowD(ots[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role);
+      }
+      // Blank write-in rows
+      for(let bi=0;bi<blankCount;bi++){
+        const blankLabel="BLANK"+(bi+1);
+        doc.setFillColor(255,255,255);
+        doc.rect(mg,y,usableW,rowH,'F');
+        // Block tints on blank rows
+        for(let ci=0;ci<21;ci++){
+          const bti=ci%3;
+          if(bti!==1){const bt=BLOCK_TINTS[bti];doc.setFillColor(bt[0],bt[1],bt[2]);doc.rect(mg+nameW+ci*blockColW,y,blockColW,rowH,'F');}
+        }
+        // Watermark in all 21 cells
+        for(let ci=0;ci<21;ci++){
+          const dx=mg+nameW+ci*blockColW;
+          doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);
+          doc.text(blankLabel,dx+1,y+fsT*0.8+0.5);
+        }
+        doc.setDrawColor(200,200,200);
+        doc.rect(mg,y,usableW,rowH,'S');
+        doc.setDrawColor(200,200,200);
+        doc.line(mg+nameW,y,mg+nameW,y+rowH);
+        for(let ci=0;ci<21;ci++){
+          const dx=mg+nameW+ci*blockColW;
+          doc.line(dx,y,dx,y+rowH);
+          doc.setDrawColor(220,220,220);
+          doc.line(dx+2,y+rowH-1.5,dx+blockColW-2,y+rowH-1.5);
+        }
+        y+=rowH;
+      }
+      return y;
+    }
+
+    // --- Draw one employee row ---
+    function drawRowD(e,bgColor,blockDefs,y,rowH,fs,fsT,roleAb){
+      doc.setFillColor(bgColor[0],bgColor[1],bgColor[2]);
+      doc.rect(mg,y,usableW,rowH,'F');
+      doc.setDrawColor(180,180,180);doc.rect(mg,y,usableW,rowH,'S');
+      const fullNm=String(e.emp).toUpperCase();
+      doc.setFontSize(fs);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
+      let nm=fullNm;
+      const maxNm=Math.floor(nameW/(fs*0.52));
+      if(nm.length>maxNm)nm=nm.slice(0,maxNm-1)+"\u2026";
+      doc.text(nm,mg+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
+      const wmName=fullNm.split(",")[0].split(" ")[0].slice(0,8);
+      doc.setDrawColor(140,140,140);doc.line(mg+nameW,y,mg+nameW,y+rowH);
+      for(let di=0;di<7;di++){
+        const iso=weekDates[di].iso;
+        for(let bi=0;bi<3;bi++){
+          const ci=di*3+bi;
+          const dx=mg+nameW+ci*blockColW;
+          const bKey=iso+"|"+blockDefs[bi].id;
+          const cell=e.blocks[bKey];
+          // Block tint
+          const bt=BLOCK_TINTS[bi];
+          if(bi!==1){doc.setFillColor(bt[0],bt[1],bt[2]);doc.rect(dx,y,blockColW,rowH,'F');}
+          doc.setDrawColor(bi===0?100:200,bi===0?100:200,bi===0?100:200);
+          doc.line(dx,y,dx,y+rowH);
+
+          if(e.isOT){doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);doc.text(wmName,dx+1,y+fsT*0.8+0.5);}
+
+          if(!cell){doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');continue;}
+
+          if(cell.status==="OFF"){
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(150,150,150);
+            doc.text("DO",dx+blockColW/2,y+rowH-1,{align:"center"});
+          }else if(cell.status==="ABS"){
+            doc.setFillColor(190,30,30);doc.rect(dx,y,blockColW,rowH,'F');
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+            doc.text("A",dx+blockColW/2,y+rowH*0.72,{align:"center"});
+          }else{
+            if(!e.isOT){doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);doc.text(wmName,dx+1,y+fsT*0.8+0.5);}
+            const hrs=Math.round(cell.hours*10)/10;
+            const hStr=hrs%1===0?String(Math.round(hrs)):String(hrs);
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
+            doc.text(roleAb+hStr,dx+1,y+rowH-1);
+            if(cell.assignment){
+              doc.setFontSize(fsT);doc.setFont("helvetica","normal");doc.setTextColor(60,60,60);
+              doc.text(abbrAssignment(cell.assignment),dx+blockColW-1,y+rowH-1,{align:"right"});
+            }
+          }
+          doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');
+        }
+      }
+      return y+rowH;
+    }
+
+    // --- Compute row height for a set of roles ---
+    function computeRowH(roles,grouped,countFn,headerH,extraPerRole){
+      let total=0;
+      for(const r of roles) total+=countFn(r,grouped);
+      const fixedH=headerH+roles.length*(9+extraPerRole);
+      const avail=usableH-fixedH;
+      return avail/Math.max(1,total);
+    }
+
+    // --- Regulars page ---
+    function drawRegularsPage(shiftLabel,blockDefs,shiftData,roles){
+      const{grouped}=shiftData;
+      let regCount=0;
+      for(const r of roles) regCount+=grouped[r].regulars.length;
+      const headerH=12+10+9;
+      const rowH=computeRowH(roles,grouped,function(r,g){return g[r].regulars.length;},headerH,0);
+      const fs=Math.min(7,rowH*0.6);
+      const fsT=fs*0.75;
+      let y=drawHeader(shiftLabel+" \u2014 REGULARS",blockDefs,mg);
+      for(const role of roles){
+        y=drawRegSection(role,grouped,blockDefs,y,rowH,fs,fsT);
+      }
+    }
+
+    // --- OT page ---
+    function drawOTPage(shiftLabel,blockDefs,shiftData,roles){
+      const{grouped}=shiftData;
+      // Count OT employees
+      let otCount=0;
+      for(const r of roles) otCount+=grouped[r].ot.length;
+      // Calculate blank slots to fill remaining space
+      const headerH=12+10+9;
+      const roleHeaderTotal=roles.length*9;
+      // First pass: compute row height with just OT employees
+      const fixedH=headerH+roleHeaderTotal;
+      const availH=usableH-fixedH;
+      // Target: fill the page — compute how many blank rows fit
+      let rowH=Math.min(22,availH/Math.max(1,otCount+roles.length*3));
+      let fs=Math.min(7,rowH*0.6);
+      let fsT=fs*0.75;
+      const totalSlots=Math.floor(availH/rowH);
+      const blanksTotal=Math.max(0,totalSlots-otCount-roles.length); // subtract role headers
+      const blanksPerRole=Math.max(1,Math.floor(blanksTotal/Math.max(1,roles.length)));
+      // Recompute with blanks
+      const finalRows=otCount+roles.length*blanksPerRole;
+      rowH=Math.min(22,(availH-roleHeaderTotal)/Math.max(1,finalRows));
+      fs=Math.min(7,rowH*0.6);
+      fsT=fs*0.75;
+
+      let y=drawHeader(shiftLabel+" \u2014 OT",blockDefs,mg);
+      for(const role of roles){
+        y=drawOTSection(role,grouped,blockDefs,y,rowH,fs,fsT,blanksPerRole);
+      }
+    }
+
+    // Split roles for front/back
+    const dayRegSplit=splitRolesD(dayData);
+    const dayOTSplit=splitRolesOT(dayData);
+    const nightRegSplit=splitRolesD(nightData);
+    const nightOTSplit=splitRolesOT(nightData);
+
+    // Page 1: Days Regulars front
+    drawRegularsPage("DAYS",BLOCKS_DAY,dayData,dayRegSplit[0]);
+    // Page 2: Days Regulars back
+    doc.addPage("legal","portrait");
+    drawRegularsPage("DAYS",BLOCKS_DAY,dayData,dayRegSplit[1]);
+    // Page 3: Days OT front
+    doc.addPage("legal","portrait");
+    drawOTPage("DAYS",BLOCKS_DAY,dayData,dayOTSplit[0].length?dayOTSplit[0]:dayData.activeGroups);
+    // Page 4: Days OT back
+    doc.addPage("legal","portrait");
+    drawOTPage("DAYS",BLOCKS_DAY,dayData,dayOTSplit[1].length?dayOTSplit[1]:dayData.activeGroups.slice(-1));
+    // Page 5: Nights Regulars front
+    doc.addPage("legal","portrait");
+    drawRegularsPage("NIGHTS",BLOCKS_NIGHT,nightData,nightRegSplit[0]);
+    // Page 6: Nights Regulars back
+    doc.addPage("legal","portrait");
+    drawRegularsPage("NIGHTS",BLOCKS_NIGHT,nightData,nightRegSplit[1]);
+    // Page 7: Nights OT front
+    doc.addPage("legal","portrait");
+    drawOTPage("NIGHTS",BLOCKS_NIGHT,nightData,nightOTSplit[0].length?nightOTSplit[0]:nightData.activeGroups);
+    // Page 8: Nights OT back
+    doc.addPage("legal","portrait");
+    drawOTPage("NIGHTS",BLOCKS_NIGHT,nightData,nightOTSplit[1].length?nightOTSplit[1]:nightData.activeGroups.slice(-1));
+
+    const pdfBlob=doc.output('blob');
+    const pdfUrl=URL.createObjectURL(pdfBlob);
+    const win=window.open(pdfUrl,'_blank');
+    if(win){win.onload=()=>{win.focus();win.print();};}
+    else{doc.save("ShiftOps_Weekly_D_"+weekDates[0].iso+".pdf");}
+
+    document.getElementById("shiftSel").value=origShift;
+    _vacations=origVac;
+    _trainingList=origTrain;
+    await loadEditsFromFirebase(origISO,origShift);
+    await loadShiftSwaps(origISO);
+    clearErr();
+  }catch(err){
+    console.error("printWeeklyD error:",err);
+    setErr("Print Weekly D failed: "+(err&&err.message?err.message:err));
+  }
+}
+document.getElementById("btnPrintWeeklyD").addEventListener("click", printWeeklyD);
+
+// ===== Print Weekly E: Same as D but Legal Landscape =====
+async function printWeeklyE(){
+  try{
+    if(!window.jspdf){
+      setErr("Loading PDF library\u2026 click Print Weekly E again in a few seconds.");
+      const s=document.createElement("script");
+      s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js";
+      s.onerror=()=>{
+        const s2=document.createElement("script");
+        s2.src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js";
+        document.head.appendChild(s2);
+      };
+      document.head.appendChild(s);
+      return;
+    }
+    const {jsPDF}=window.jspdf;
+    const weekDates=_swapWeekDates();
+    if(!weekDates.length){ setErr("No week dates \u2014 pick a date first."); return; }
+
+    const origShift=document.getElementById("shiftSel").value||"DAY";
+    const origISO=document.getElementById("workDate").value;
+    const origVac=JSON.parse(JSON.stringify(_vacations));
+    const origTrain=JSON.parse(JSON.stringify(_trainingList));
+
+    const monthKeys=new Set();
+    for(const wd of weekDates){ const d=parseISO(wd.iso); monthKeys.add(d.getFullYear()+"-"+d.getMonth()); }
+    const vacByMonth={},trainByMonth={};
+    await Promise.all([...monthKeys].map(mk=>{
+      const [yr,mo]=mk.split("-").map(Number);
+      const isoM=yr+"-"+String(mo+1).padStart(2,"0")+"-01";
+      return getVacDocRef(isoM).get().then(doc=>{
+        if(doc.exists){
+          vacByMonth[mk]=Array.isArray(doc.data().vacations)?doc.data().vacations:[];
+          trainByMonth[mk]=Array.isArray(doc.data().training)?doc.data().training:[];
+        }else{vacByMonth[mk]=[];trainByMonth[mk]=[];}
+      }).catch(()=>{vacByMonth[mk]=[];trainByMonth[mk]=[];});
+    }));
+
+    await Promise.all(weekDates.flatMap(wd=>[
+      loadEditsFromFirebase(wd.iso,"DAY"),
+      loadEditsFromFirebase(wd.iso,"NIGHT"),
+      loadShiftSwaps(wd.iso)
+    ]));
+
+    const roleOrder=["CALLTAKER","DISPATCHER","PIC","SUPERVISOR"];
+    const roleAbbr2={CALLTAKER:"CT",DISPATCHER:"DP",PIC:"PIC",SUPERVISOR:"SUP",OTH:"OTH"};
+    const roleRGB={CALLTAKER:[26,82,118],DISPATCHER:[74,35,90],PIC:[14,102,85],SUPERVISOR:[125,102,8],OTH:[107,114,128]};
+    const roleBgRGB={CALLTAKER:[232,240,254],DISPATCHER:[243,229,245],PIC:[224,242,241],SUPERVISOR:[255,248,225],OTH:[243,244,246]};
+    const fullName={CALLTAKER:"CALLTAKERS",DISPATCHER:"DISPATCHERS",PIC:"PIC",SUPERVISOR:"SUPERVISORS",OTH:"OTHER"};
+
+    function collectData(shift,blockDefs){
+      document.getElementById("shiftSel").value=shift;
+      const regulars=new Map(), otEmps=new Map();
+      for(const wd of weekDates){
+        const iso=wd.iso, d=parseISO(iso), mk=d.getFullYear()+"-"+d.getMonth();
+        _vacations=vacByMonth[mk]||[];
+        _trainingList=trainByMonth[mk]||[];
+        for(const block of blockDefs){
+          const rows=computeRowsForBlock(iso,shift,block);
+          const bKey=iso+"|"+block.id;
+          for(const role of roleOrder){
+            for(const row of(rows[role]||[])){
+              const map=row.isOT?otEmps:regulars;
+              if(!map.has(row.emp))map.set(row.emp,{role,isOT:!!row.isOT,blocks:{}});
+              const rec=map.get(row.emp);
+              if(!rec.role||rec.role==="OTH")rec.role=role;
+              const hrs=typeof row.hours==="number"?row.hours:Number(row.hours)||0;
+              const ctx=ctxKey(iso,shift,block.id);
+              const ed=ensureEdit(ctx,row.emp);
+              rec.blocks[bKey]={assignment:ed.Assignment||row.assignment||"",hours:hrs,status:"WORK",
+                statusDetail:row.present==="TARDY"?"T":row.present==="PARTIAL"?"P":""};
+            }
+          }
+          for(const row of(rows.OTH||[])){
+            const map=row.isOT?otEmps:regulars;
+            if(!map.has(row.emp))map.set(row.emp,{role:"OTH",isOT:!!row.isOT,blocks:{}});
+            const rec=map.get(row.emp);
+            const hrs=typeof row.hours==="number"?row.hours:Number(row.hours)||0;
+            rec.blocks[bKey]={assignment:row.assignment||"",hours:hrs,status:"WORK",statusDetail:""};
+          }
+          for(const row of(rows.ABSENT||[])){
+            if(row.isPartial||row.isTardy)continue;
+            const map=row.isOT?otEmps:regulars;
+            if(!map.has(row.emp))map.set(row.emp,{role:row.role||"CALLTAKER",isOT:!!row.isOT,blocks:{}});
+            const rec=map.get(row.emp);
+            if(!rec.blocks[bKey]||rec.blocks[bKey].status!=="WORK"){
+              const ctx=ctxKey(iso,shift,block.id);
+              const ed=ensureEdit(ctx,row.emp);
+              rec.blocks[bKey]={assignment:"",hours:0,status:"ABS",statusDetail:ed.AbsenceReason||""};
+            }
+          }
+        }
+      }
+      for(const [emp,rec] of regulars){
+        for(const wd of weekDates){
+          let has=false;
+          for(const b of blockDefs){if(rec.blocks[wd.iso+"|"+b.id]){has=true;break;}}
+          if(!has){ for(const b of blockDefs) rec.blocks[wd.iso+"|"+b.id]={assignment:"",hours:0,status:"OFF",statusDetail:""}; }
+        }
+      }
+      for(const e of BASE_EMP){
+        const role=normalizeRole(e.POSITION);
+        if(!roleOrder.includes(role))continue;
+        if(!regulars.has(e.Employee)&&!otEmps.has(e.Employee)){
+          const rec={role,isOT:false,blocks:{}};
+          for(const wd of weekDates){ for(const b of blockDefs) rec.blocks[wd.iso+"|"+b.id]={assignment:"",hours:0,status:"OFF",statusDetail:""}; }
+          regulars.set(e.Employee,rec);
+        }
+      }
+      const grouped={};
+      for(const r of roleOrder)grouped[r]={regulars:[],ot:[]};
+      grouped["OTH"]={regulars:[],ot:[]};
+      for(const [emp,rec] of regulars){
+        const r=roleOrder.includes(rec.role)?rec.role:"OTH";
+        grouped[r].regulars.push({emp,...rec});
+      }
+      for(const [emp,rec] of otEmps){
+        const r=roleOrder.includes(rec.role)?rec.role:"OTH";
+        grouped[r].ot.push({emp,...rec});
+      }
+      for(const r of Object.keys(grouped)){
+        grouped[r].regulars=grouped[r].regulars.filter(e=>Object.values(e.blocks).some(b=>b.status!=="OFF"));
+        grouped[r].regulars.sort((a,b)=>a.emp.localeCompare(b.emp));
+        grouped[r].ot.sort((a,b)=>a.emp.localeCompare(b.emp));
+      }
+      const activeGroups=[...roleOrder,"OTH"].filter(r=>grouped[r].regulars.length>0||grouped[r].ot.length>0);
+      return{grouped,activeGroups};
+    }
+
+    const dayData=collectData("DAY",BLOCKS_DAY);
+    const nightData=collectData("NIGHT",BLOCKS_NIGHT);
+
+    // Legal landscape: 1008 x 612
+    const doc=new jsPDF({orientation:"landscape",unit:"pt",format:"legal"});
+    const pw=1008,ph=612,mg=6;
+    const usableW=pw-mg*2,usableH=ph-mg*2;
+    const nameW=52;
+    const blockColW=(usableW-nameW)/21;
+    const dayGroupW=blockColW*3;
+
+    function splitRolesE(shiftData){
+      const{grouped,activeGroups}=shiftData;
+      if(activeGroups.length<=1) return [activeGroups,[]];
+      const weights=activeGroups.map(r=>grouped[r].regulars.length+0.8);
+      let bestSplit=1,bestDiff=Infinity;
+      for(let s=1;s<activeGroups.length;s++){
+        const f=weights.slice(0,s).reduce((a,w)=>a+w,0);
+        const b=weights.slice(s).reduce((a,w)=>a+w,0);
+        if(Math.abs(f-b)<bestDiff){bestDiff=Math.abs(f-b);bestSplit=s;}
+      }
+      return [activeGroups.slice(0,bestSplit),activeGroups.slice(bestSplit)];
+    }
+
+    function splitRolesOTE(shiftData){
+      const{grouped,activeGroups}=shiftData;
+      const otRoles=activeGroups.filter(r=>grouped[r].ot.length>0);
+      if(otRoles.length<=1) return [otRoles,[]];
+      const weights=otRoles.map(r=>grouped[r].ot.length+0.8);
+      let bestSplit=1,bestDiff=Infinity;
+      for(let s=1;s<otRoles.length;s++){
+        const f=weights.slice(0,s).reduce((a,w)=>a+w,0);
+        const b=weights.slice(s).reduce((a,w)=>a+w,0);
+        if(Math.abs(f-b)<bestDiff){bestDiff=Math.abs(f-b);bestSplit=s;}
+      }
+      return [otRoles.slice(0,bestSplit),otRoles.slice(bestSplit)];
+    }
+
+    function drawHeader(shiftLabel,blockDefs,y){
+      const titleH=12,dayNameH=10,blockTimeH=9;
+      doc.setFillColor(30,58,95);
+      doc.rect(mg,y,usableW,titleH,'F');
+      doc.setFontSize(10);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.text(shiftLabel+"  "+weekDates[0].label+" \u2013 "+weekDates[6].label,mg+usableW/2,y+titleH*0.75,{align:"center"});
+      y+=titleH;
+      doc.setFillColor(45,74,111);
+      doc.rect(mg,y,usableW,dayNameH,'F');
+      doc.setFontSize(5);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.text("EMPLOYEE",mg+2,y+dayNameH*0.72);
+      doc.setDrawColor(80,80,80);doc.line(mg+nameW,y,mg+nameW,y+dayNameH);
+      for(let di=0;di<7;di++){
+        const dx=mg+nameW+di*dayGroupW;
+        doc.setDrawColor(60,60,60);doc.line(dx,y,dx,y+dayNameH);
+        doc.text(weekDates[di].label,dx+dayGroupW/2,y+dayNameH*0.72,{align:"center"});
+      }
+      y+=dayNameH;
+      doc.setFillColor(60,90,130);
+      doc.rect(mg,y,usableW,blockTimeH,'F');
+      doc.setFontSize(5);doc.setFont("helvetica","normal");doc.setTextColor(220,220,220);
+      doc.setDrawColor(80,80,80);doc.line(mg+nameW,y,mg+nameW,y+blockTimeH);
+      for(let di=0;di<7;di++){
+        for(let bi=0;bi<3;bi++){
+          const dx=mg+nameW+(di*3+bi)*blockColW;
+          doc.setDrawColor(80,80,80);doc.line(dx,y,dx,y+blockTimeH);
+          const bl=blockDefs[bi];
+          doc.text(bl.start.replace(":","").slice(0,2)+"-"+bl.end.replace(":","").slice(0,2),dx+blockColW/2,y+blockTimeH*0.72,{align:"center"});
+        }
+      }
+      y+=blockTimeH;
+      return y;
+    }
+
+    function drawRegSection(role,grouped,blockDefs,y,rowH,fs,fsT){
+      const regs=grouped[role].regulars;
+      const rc=roleRGB[role]||[100,100,100];
+      const bg=roleBgRGB[role]||[255,255,255];
+      const roleHeaderH=9;
+      doc.setFillColor(rc[0],rc[1],rc[2]);
+      doc.rect(mg,y,usableW,roleHeaderH,'F');
+      doc.setDrawColor(100,100,100);doc.rect(mg,y,usableW,roleHeaderH,'S');
+      doc.setFontSize(fs+0.5);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.text((fullName[role]||role)+": "+regs.length,mg+3,y+roleHeaderH*0.78);
+      y+=roleHeaderH;
+      for(let ei=0;ei<regs.length;ei++){
+        const altBg=ei%2===0?[255,255,255]:bg;
+        y=drawRowE(regs[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role);
+      }
+      return y;
+    }
+
+    function drawOTSection(role,grouped,blockDefs,y,rowH,fs,fsT,blankCount){
+      const ots=grouped[role].ot;
+      const rc=roleRGB[role]||[100,100,100];
+      const roleHeaderH=9;
+      doc.setFillColor(rc[0],rc[1],rc[2]);
+      doc.rect(mg,y,usableW,roleHeaderH,'F');
+      doc.setDrawColor(100,100,100);doc.rect(mg,y,usableW,roleHeaderH,'S');
+      doc.setFontSize(fs+0.5);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.text((fullName[role]||role)+" OT: "+ots.length,mg+3,y+roleHeaderH*0.78);
+      y+=roleHeaderH;
+      for(let ei=0;ei<ots.length;ei++){
+        const altBg=ei%2===0?[255,255,255]:[255,245,220];
+        y=drawRowE(ots[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role);
+      }
+      // Blank write-in rows
+      for(let bi=0;bi<blankCount;bi++){
+        const blankLabel="BLANK"+(bi+1);
+        doc.setFillColor(255,255,255);
+        doc.rect(mg,y,usableW,rowH,'F');
+        for(let ci=0;ci<21;ci++){
+          const bti=ci%3;
+          if(bti!==1){const bt=BLOCK_TINTS[bti];doc.setFillColor(bt[0],bt[1],bt[2]);doc.rect(mg+nameW+ci*blockColW,y,blockColW,rowH,'F');}
+        }
+        for(let ci=0;ci<21;ci++){
+          const dx=mg+nameW+ci*blockColW;
+          doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);
+          doc.text(blankLabel,dx+1,y+fsT*0.8+0.5);
+        }
+        doc.setDrawColor(200,200,200);
+        doc.rect(mg,y,usableW,rowH,'S');
+        doc.setDrawColor(200,200,200);
+        doc.line(mg+nameW,y,mg+nameW,y+rowH);
+        for(let ci=0;ci<21;ci++){
+          const dx=mg+nameW+ci*blockColW;
+          doc.line(dx,y,dx,y+rowH);
+          doc.setDrawColor(220,220,220);
+          doc.line(dx+2,y+rowH-1.5,dx+blockColW-2,y+rowH-1.5);
+        }
+        y+=rowH;
+      }
+      return y;
+    }
+
+    function drawRowE(e,bgColor,blockDefs,y,rowH,fs,fsT,roleAb){
+      doc.setFillColor(bgColor[0],bgColor[1],bgColor[2]);
+      doc.rect(mg,y,usableW,rowH,'F');
+      doc.setDrawColor(180,180,180);doc.rect(mg,y,usableW,rowH,'S');
+      const fullNm=String(e.emp).toUpperCase();
+      doc.setFontSize(fs);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
+      let nm=fullNm;
+      const maxNm=Math.floor(nameW/(fs*0.52));
+      if(nm.length>maxNm)nm=nm.slice(0,maxNm-1)+"\u2026";
+      doc.text(nm,mg+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
+      const wmName=fullNm.split(",")[0].split(" ")[0].slice(0,8);
+      doc.setDrawColor(140,140,140);doc.line(mg+nameW,y,mg+nameW,y+rowH);
+      for(let di=0;di<7;di++){
+        const iso=weekDates[di].iso;
+        for(let bi=0;bi<3;bi++){
+          const ci=di*3+bi;
+          const dx=mg+nameW+ci*blockColW;
+          const bKey=iso+"|"+blockDefs[bi].id;
+          const cell=e.blocks[bKey];
+          const bt=BLOCK_TINTS[bi];
+          if(bi!==1){doc.setFillColor(bt[0],bt[1],bt[2]);doc.rect(dx,y,blockColW,rowH,'F');}
+          if(e.isOT){doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);doc.text(wmName,dx+1,y+fsT*0.8+0.5);}
+
+          if(!cell){doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');continue;}
+
+          if(cell.status==="OFF"){
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(150,150,150);
+            doc.text("DO",dx+blockColW/2,y+rowH-1,{align:"center"});
+          }else if(cell.status==="ABS"){
+            doc.setFillColor(190,30,30);doc.rect(dx,y,blockColW,rowH,'F');
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+            doc.text("A",dx+blockColW/2,y+rowH*0.72,{align:"center"});
+          }else{
+            if(!e.isOT){doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);doc.text(wmName,dx+1,y+fsT*0.8+0.5);}
+            const hrs=Math.round(cell.hours*10)/10;
+            const hStr=hrs%1===0?String(Math.round(hrs)):String(hrs);
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
+            doc.text(roleAb+hStr,dx+1,y+rowH-1);
+            if(cell.assignment){
+              doc.setFontSize(fsT);doc.setFont("helvetica","normal");doc.setTextColor(60,60,60);
+              doc.text(abbrAssignment(cell.assignment),dx+blockColW-1,y+rowH-1,{align:"right"});
+            }
+          }
+          doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');
+        }
+      }
+      return y+rowH;
+    }
+
+    function computeRowH(roles,grouped,countFn,headerH,extraPerRole){
+      let total=0;
+      for(const r of roles) total+=countFn(r,grouped);
+      const fixedH=headerH+roles.length*(9+extraPerRole);
+      const avail=usableH-fixedH;
+      return avail/Math.max(1,total);
+    }
+
+    function drawRegularsPage(shiftLabel,blockDefs,shiftData,roles){
+      const{grouped}=shiftData;
+      const headerH=12+10+9;
+      const rowH=computeRowH(roles,grouped,function(r,g){return g[r].regulars.length;},headerH,0);
+      const fs=Math.min(7,rowH*0.6);
+      const fsT=fs*0.75;
+      let y=drawHeader(shiftLabel+" \u2014 REGULARS",blockDefs,mg);
+      for(const role of roles){
+        y=drawRegSection(role,grouped,blockDefs,y,rowH,fs,fsT);
+      }
+    }
+
+    function drawOTPage(shiftLabel,blockDefs,shiftData,roles){
+      const{grouped}=shiftData;
+      let otCount=0;
+      for(const r of roles) otCount+=grouped[r].ot.length;
+      const headerH=12+10+9;
+      const roleHeaderTotal=roles.length*9;
+      const fixedH=headerH+roleHeaderTotal;
+      const availH=usableH-fixedH;
+      let rowH=Math.min(22,availH/Math.max(1,otCount+roles.length*3));
+      let fs=Math.min(7,rowH*0.6);
+      let fsT=fs*0.75;
+      const totalSlots=Math.floor(availH/rowH);
+      const blanksTotal=Math.max(0,totalSlots-otCount-roles.length);
+      const blanksPerRole=Math.max(1,Math.floor(blanksTotal/Math.max(1,roles.length)));
+      const finalRows=otCount+roles.length*blanksPerRole;
+      rowH=Math.min(22,(availH-roleHeaderTotal)/Math.max(1,finalRows));
+      fs=Math.min(7,rowH*0.6);
+      fsT=fs*0.75;
+      let y=drawHeader(shiftLabel+" \u2014 OT",blockDefs,mg);
+      for(const role of roles){
+        y=drawOTSection(role,grouped,blockDefs,y,rowH,fs,fsT,blanksPerRole);
+      }
+    }
+
+    const dayRegSplit=splitRolesE(dayData);
+    const dayOTSplit=splitRolesOTE(dayData);
+    const nightRegSplit=splitRolesE(nightData);
+    const nightOTSplit=splitRolesOTE(nightData);
+
+    // Page 1: Days Regulars front
+    drawRegularsPage("DAYS",BLOCKS_DAY,dayData,dayRegSplit[0]);
+    // Page 2: Days Regulars back
+    doc.addPage("legal","landscape");
+    drawRegularsPage("DAYS",BLOCKS_DAY,dayData,dayRegSplit[1]);
+    // Page 3: Days OT front
+    doc.addPage("legal","landscape");
+    drawOTPage("DAYS",BLOCKS_DAY,dayData,dayOTSplit[0].length?dayOTSplit[0]:dayData.activeGroups);
+    // Page 4: Days OT back
+    doc.addPage("legal","landscape");
+    drawOTPage("DAYS",BLOCKS_DAY,dayData,dayOTSplit[1].length?dayOTSplit[1]:dayData.activeGroups.slice(-1));
+    // Page 5: Nights Regulars front
+    doc.addPage("legal","landscape");
+    drawRegularsPage("NIGHTS",BLOCKS_NIGHT,nightData,nightRegSplit[0]);
+    // Page 6: Nights Regulars back
+    doc.addPage("legal","landscape");
+    drawRegularsPage("NIGHTS",BLOCKS_NIGHT,nightData,nightRegSplit[1]);
+    // Page 7: Nights OT front
+    doc.addPage("legal","landscape");
+    drawOTPage("NIGHTS",BLOCKS_NIGHT,nightData,nightOTSplit[0].length?nightOTSplit[0]:nightData.activeGroups);
+    // Page 8: Nights OT back
+    doc.addPage("legal","landscape");
+    drawOTPage("NIGHTS",BLOCKS_NIGHT,nightData,nightOTSplit[1].length?nightOTSplit[1]:nightData.activeGroups.slice(-1));
+
+    const pdfBlob=doc.output('blob');
+    const pdfUrl=URL.createObjectURL(pdfBlob);
+    const win=window.open(pdfUrl,'_blank');
+    if(win){win.onload=()=>{win.focus();win.print();};}
+    else{doc.save("ShiftOps_Weekly_E_"+weekDates[0].iso+".pdf");}
+
+    document.getElementById("shiftSel").value=origShift;
+    _vacations=origVac;
+    _trainingList=origTrain;
+    await loadEditsFromFirebase(origISO,origShift);
+    await loadShiftSwaps(origISO);
+    clearErr();
+  }catch(err){
+    console.error("printWeeklyE error:",err);
+    setErr("Print Weekly E failed: "+(err&&err.message?err.message:err));
+  }
+}
+document.getElementById("btnPrintWeeklyE").addEventListener("click", printWeeklyE);
 
 // Shift Swap button + modal backdrop close
 document.getElementById("btnShiftSwap").addEventListener("click", openSwapModal);
