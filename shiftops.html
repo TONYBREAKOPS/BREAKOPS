@@ -1208,16 +1208,14 @@ select.seatSelect{
 
 /* Absence reason selector (shown only in ABSENT section) */
 .absReasonSel, select.absReasonSel{
-  width:120px !important;
-  min-width:120px !important;
-  max-width:120px !important;
+  width:auto !important;
+  min-width:80px !important;
+  max-width:none !important;
   padding:2px 6px !important;
   font-size:11px !important;
   font-weight:800 !important;
   text-transform: uppercase !important;
-  white-space:nowrap !important;
-  overflow:hidden !important;
-  text-overflow:ellipsis !important;
+  overflow:visible !important;
 }
 
 /* OTH type selector (SD/TRN/B/ADM) */
@@ -1272,7 +1270,8 @@ select.seatSelect,
 .customSel--role .customSelBtn{min-width:36px; max-width:52px;}
 .customSel--seat .customSelBtn{min-width:36px; max-width:90px;}
 .customSel--present .customSelBtn{min-width:18px; max-width:28px; font-size:11px !important; font-weight:900 !important; padding:1px 3px !important; line-height:1 !important;}
-.customSel--absreason .customSelBtn{min-width:50px; max-width:120px;}
+.customSel--absreason .customSelBtn{min-width:50px; max-width:140px;}
+.rosterTbl--absent .customSel--absreason .customSelBtn .lbl{ overflow:visible; text-overflow:clip; }
 
 .customSelBtn .lbl{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .customSelBtn .car{ opacity:.75; font-size:11px; }
@@ -3166,6 +3165,7 @@ body.light .customSelBtn.typing-mode {
           <button id="btnPrintWeeklyC" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Print Weekly C</button>
           <button id="btnPrintWeeklyD" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Print Weekly D</button>
           <button id="btnPrintWeeklyE" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Print Weekly E</button>
+          <button id="btnSaveAllWeeklys" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:700;text-align:left;background:#1e3a5f;border:none;color:#fbbf24;cursor:pointer;border-bottom:1px solid #334155;">Save All Weeklys (A-E)</button>
           <button id="btnShiftSwap" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#a3d4ff;cursor:pointer;border-bottom:1px solid #334155;">Shift Swap</button>
           <button id="btnBreakOPS" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:700;text-align:left;background:none;border:none;color:#f59e0b;cursor:pointer;">Push to BreakOPS</button>
         </div>
@@ -5282,8 +5282,6 @@ function adeqGet(role, day, hk){
   return undefined;
 }
 
-
-
 function buildAdeqRowsForRole(iso, shift, block, role){
   const segs=hourSegments(block);
   const rows=computeRowsForBlock(iso, shift, block);
@@ -5880,9 +5878,9 @@ function renderAll(){
       {title:"Calltakers", role:"CALLTAKER", render:(b)=>renderRoleTable(iso, shift, b, "CALLTAKER", rowsByBlock[b.id].CALLTAKER), getTitle:(b)=>`CALLTAKERS: ${(rowsByBlock[b.id].CALLTAKER||[]).length}`},
       {title:"Dispatchers", role:"DISPATCHER", render:(b)=>renderRoleTable(iso, shift, b, "DISPATCHER", rowsByBlock[b.id].DISPATCHER), getTitle:(b)=>`DISPATCHERS: ${(rowsByBlock[b.id].DISPATCHER||[]).length}`},
       {title:"PIC", role:"PIC", render:(b)=>renderRoleTable(iso, shift, b, "PIC", rowsByBlock[b.id].PIC), getTitle:(b)=>`PIC: ${(rowsByBlock[b.id].PIC||[]).length}`},
+      {title:"OTHER", role:"OTH", render:(b)=>renderOthTable(iso, shift, b, rowsByBlock[b.id].OTH), getTitle:(b)=>`OTHER: ${(rowsByBlock[b.id].OTH||[]).length}`},
       {title:"SUP", role:"SUPERVISOR", render:(b)=>renderRoleTable(iso, shift, b, "SUPERVISOR", rowsByBlock[b.id].SUPERVISOR), getTitle:(b)=>`SUPERVISORS: ${(rowsByBlock[b.id].SUPERVISOR||[]).length}`},
       {title:"OUT", role:"ABSENT", render:(b)=>renderRoleTable(iso, shift, b, "ABSENT", rowsByBlock[b.id].ABSENT), getTitle:(b)=>`ABSENT: ${(rowsByBlock[b.id].ABSENT||[]).length}`},
-      {title:"OTHER", role:"OTH", render:(b)=>renderOthTable(iso, shift, b, rowsByBlock[b.id].OTH), getTitle:(b)=>`OTHER: ${(rowsByBlock[b.id].OTH||[]).length}`},
       {title:"OT / Extra", role:"ot", render:(b)=>`<div class="section">${renderAddOtBar(b)}</div>`, getTitle:(b)=>"OT / EXTRA"},
     ];
 
@@ -6045,13 +6043,14 @@ function _applyBubbleLayout(){
   applyRule(P+' td.cmtCol .cmt-btn',          54, -85);
   // Absent table
   const A = '.rosterTbl--absent';
-  applyRule(A+' td.seatCol .customSelBtn',    96, -195);
-  applyRule(A+' td.seatCol .absTardyLabel',   96, -195);
-  applyRule(A+' td.workedCol .rowPill',       70, -305);
-  applyRule(A+' td.hrsCol .hrsIn',            38, -150);
-  applyRule(A+' td.hrsCol .absHrsLabel',      38, -150);
-  applyRule(A+' td.presCol .customSelBtn, '+A+' td.presCol .presentSel', 62, -130);
-  applyRule(A+' td.cmtCol .cmt-btn',          14, -130);
+  applyRule(A+' td.seatCol .absTardyLabel',   96, -225);
+  // Absence reason custom-select buttons: wider so VACATION etc aren't truncated
+  applyRule(A+' td.seatCol .customSel--absreason .customSelBtn', 130, -225);
+  applyRule(A+' td.workedCol .rowPill',       70, -270);
+  applyRule(A+' td.hrsCol .hrsIn',            38, -115);
+  applyRule(A+' td.hrsCol .absHrsLabel',      38, -115);
+  applyRule(A+' td.presCol .customSelBtn, '+A+' td.presCol .presentSel', 62, -95);
+  applyRule(A+' td.cmtCol .cmt-btn',          14, -45);
   // nameCol: keep CSS defaults (overflow:hidden truncates names with ellipsis)
   // Allow overflow on all ctrl cells so shifted bubbles aren't clipped
   document.querySelectorAll('.rosterTbl td.roleCol, .rosterTbl td.seatCol, .rosterTbl td.workedCol, .rosterTbl td.hrsCol, .rosterTbl td.presCol, .rosterTbl td.cmtCol').forEach(el => {
@@ -7116,6 +7115,8 @@ function abbrAssignment(s){
 // Block 0: faint blue, Block 1: no tint (white), Block 2: faint warm
 const BLOCK_TINTS=[[220,232,248],[255,255,255],[250,243,224]];
 
+let _forceSave=false;
+
 // ===== Print Weekly (Legal Landscape – Block-Level, Front=DAY / Back=NIGHT) =====
 async function printWeekly(format){
   if(!format||typeof format!=="string") format="A";
@@ -7245,6 +7246,19 @@ async function printWeekly(format){
         }
       }
 
+      // Force regulars to their default POSITION and blank assignments for manual backup
+      const _baseRoleMap={};
+      for(const e of BASE_EMP) _baseRoleMap[e.Employee]=normalizeRole(e.POSITION);
+      for(const [emp,rec] of regulars){
+        const defRole=_baseRoleMap[emp];
+        if(defRole&&roleOrder.includes(defRole)) rec.role=defRole;
+        for(const bk of Object.keys(rec.blocks)) rec.blocks[bk].assignment="";
+      }
+      for(const [emp,rec] of otEmps){
+        const defRole=_baseRoleMap[emp];
+        if(defRole&&roleOrder.includes(defRole)) rec.role=defRole;
+      }
+
       // Group by role, separate regulars vs OT
       const grouped={};
       for(const r of roleOrder)grouped[r]={regulars:[],ot:[]};
@@ -7279,6 +7293,8 @@ async function printWeekly(format){
     const dayGroupW=blockColW*3;
     const roleRGB={CALLTAKER:[26,82,118],DISPATCHER:[74,35,90],PIC:[14,102,85],SUPERVISOR:[125,102,8],OTH:[107,114,128]};
     const roleBgRGB={CALLTAKER:[232,240,254],DISPATCHER:[243,229,245],PIC:[224,242,241],SUPERVISOR:[255,248,225],OTH:[243,244,246]};
+    let _rowIdx=0;
+    function _rl(i){if(i<26)return String.fromCharCode(65+i);return String.fromCharCode(65+Math.floor(i/26)-1)+String.fromCharCode(65+(i%26));}
 
     // --- Draw one shift page ---
     function drawPage(shiftLabel,blockDefs,shiftData,roles,opts){
@@ -7304,16 +7320,18 @@ async function printWeekly(format){
       const fixedH=headerH+effectiveRoles.length*roleHeaderH+otDividers*otDividerH;
       const availH=usableH-fixedH;
       // Dynamically reduce blank rows if space is tight
-      let blankPerGroup=mode==="regulars"?0:3;
+      let blankPerGroup=mode==="regulars"?0:5;
       let rowH=availH/Math.max(1,dataRows+effectiveRoles.length*blankPerGroup);
       if(blankPerGroup>0&&rowH<7){blankPerGroup=2;rowH=availH/Math.max(1,dataRows+effectiveRoles.length*blankPerGroup);}
       if(blankPerGroup>0&&rowH<6){blankPerGroup=1;rowH=availH/Math.max(1,dataRows+effectiveRoles.length*blankPerGroup);}
       if(rowH<5){blankPerGroup=0;rowH=availH/Math.max(1,dataRows);}
       if(mode!=="regulars") rowH=Math.min(20,rowH);
+      rowH=Math.max(15,rowH);
       const fs=Math.min(6,rowH*0.65);
       const fsT=fs*0.7;
 
       let y=margin;
+      _rowIdx=0;
 
       // Title bar
       doc.setFillColor(30,58,95);
@@ -7334,6 +7352,9 @@ async function printWeekly(format){
         doc.setDrawColor(60,60,60);doc.line(dx,y,dx,y+dayNameRowH);
         doc.text(weekDates[di].label,dx+dayGroupW/2,y+dayNameRowH*0.72,{align:"center"});
       }
+      doc.setLineWidth(1.2);doc.setDrawColor(40,40,40);
+      for(let di=0;di<=7;di++){doc.line(margin+nameW+di*dayGroupW,y,margin+nameW+di*dayGroupW,y+dayNameRowH);}
+      doc.setLineWidth(0.2);
       y+=dayNameRowH;
 
       // Block-time header row
@@ -7352,6 +7373,9 @@ async function printWeekly(format){
           doc.text(short,dx+blockColW/2,y+blockTimeRowH*0.72,{align:"center"});
         }
       }
+      doc.setLineWidth(1.2);doc.setDrawColor(40,40,40);
+      for(let di=0;di<=7;di++){doc.line(margin+nameW+di*dayGroupW,y,margin+nameW+di*dayGroupW,y+blockTimeRowH);}
+      doc.setLineWidth(0.2);
       y+=blockTimeRowH;
 
       // Role sections
@@ -7395,19 +7419,22 @@ async function printWeekly(format){
 
         // Blank write-in rows
         for(let bi=0;bi<blankPerGroup;bi++){
-          const blankLabel="BLANK"+(bi+1);
+          const bLetter=_rl(_rowIdx++);
           doc.setFillColor(255,255,255);
           doc.rect(margin,y,usableW,rowH,'F');
+          // Row letter in name column
+          doc.setFontSize(fs);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);
+          doc.text(bLetter+")",margin+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
           // Block tints on blank rows
           for(let ci=0;ci<21;ci++){
             const bti=ci%3;
             if(bti!==1){const bt=BLOCK_TINTS[bti];doc.setFillColor(bt[0],bt[1],bt[2]);doc.rect(margin+nameW+ci*blockColW,y,blockColW,rowH,'F');}
           }
-          // Watermark in all 21 cells
+          // Row letter in bottom-left of each cell
           for(let ci=0;ci<21;ci++){
             const dx=margin+nameW+ci*blockColW;
-            doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);
-            doc.text(blankLabel,dx+1,y+fsT*0.8+0.5);
+            doc.setFontSize(fsT*0.9);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);
+            doc.text(bLetter,dx+1,y+rowH-2.5);
           }
           doc.setDrawColor(200,200,200);
           doc.rect(margin,y,usableW,rowH,'S');
@@ -7419,6 +7446,9 @@ async function printWeekly(format){
             doc.setDrawColor(220,220,220);
             doc.line(dx+2,y+rowH-1.5,dx+blockColW-2,y+rowH-1.5);
           }
+          doc.setLineWidth(1);doc.setDrawColor(80,80,80);
+          for(let di=0;di<=7;di++){const dx=margin+nameW+di*dayGroupW;doc.line(dx,y,dx,y+rowH);}
+          doc.setLineWidth(0.2);
           y+=rowH;
         }
       }
@@ -7428,19 +7458,21 @@ async function printWeekly(format){
 
     // --- Helper: draw one employee row ---
     function drawEmpRow(e,bgColor,blockDefs,y,rowH,fs,fsT,roleAb){
+      const rowLetter=_rl(_rowIdx++);
       // Row background
       doc.setFillColor(bgColor[0],bgColor[1],bgColor[2]);
       doc.rect(margin,y,usableW,rowH,'F');
       doc.setDrawColor(180,180,180);
       doc.rect(margin,y,usableW,rowH,'S');
 
-      // Employee name in name column
+      // Employee name with row letter
       const fullNm=String(e.emp).toUpperCase();
       doc.setFontSize(fs);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
+      const prefix=rowLetter+") ";
       let nm=fullNm;
-      const maxNm=Math.floor(nameW/(fs*0.52));
+      const maxNm=Math.floor(nameW/(fs*0.52))-prefix.length;
       if(nm.length>maxNm)nm=nm.slice(0,maxNm-1)+"\u2026";
-      doc.text(nm,margin+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
+      doc.text(prefix+nm,margin+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
 
       // DP badge if dispatcher is in a non-DP group
       const _baseRec=BASE_EMP.find(b=>b.Employee===e.emp);
@@ -7450,9 +7482,6 @@ async function printWeekly(format){
         doc.setFontSize(fs*0.7);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
         doc.text("DP",bx+bw/2,by+bh*0.75,{align:"center"});
       }
-
-      // Watermark name: last name or short name for cells
-      const wmName=fullNm.split(",")[0].split(" ")[0].slice(0,8);
 
       // Name column right border
       doc.setDrawColor(140,140,140);
@@ -7471,37 +7500,44 @@ async function printWeekly(format){
           const bt=BLOCK_TINTS[bi];
           if(bi!==1){doc.setFillColor(bt[0],bt[1],bt[2]);doc.rect(dx,y,blockColW,rowH,'F');}
 
-          // OT watermark on all cells
-          if(e.isOT){doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);doc.text(wmName,dx+1,y+fsT*0.8+0.5);}
-
-          if(!cell){doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');continue;}
+          if(!cell){
+            doc.setFontSize(fsT*0.9);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);doc.text(rowLetter,dx+1,y+rowH-2.5);
+            doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');continue;
+          }
 
           if(cell.status==="OFF"){
-            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(150,150,150);
-            doc.text("DO",dx+blockColW/2,y+rowH-0.5,{align:"center"});
+            doc.setFillColor(160,160,160);doc.rect(dx,y,blockColW,rowH,'F');
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+            doc.text("OFF",dx+blockColW/2,y+rowH/2+fsT*0.35,{align:"center"});
           }else if(cell.status==="ABS"){
             doc.setFillColor(190,30,30);
             doc.rect(dx,y,blockColW,rowH,'F');
             doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
-            doc.text("A",dx+blockColW/2,y+rowH*0.72,{align:"center"});
+            doc.text("ABSENT",dx+blockColW/2,y+rowH*0.72,{align:"center"});
           }else{
-            // Watermark — faint name left-aligned top (regulars only, OT already drawn above)
-            if(!e.isOT){doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);doc.text(wmName,dx+1,y+fsT*0.8+0.5);}
-            // WORK — role+hours left-aligned bottom
+            // WORK — role+hours top-right
             const hrs=Math.round(cell.hours*10)/10;
             const hStr=hrs%1===0?String(Math.round(hrs)):String(hrs);
             const leftText=roleAb+hStr;
-            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
-            doc.text(leftText,dx+1,y+rowH-1);
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(100,100,100);
+            doc.text(leftText,dx+blockColW-1,y+fsT+0.5,{align:"right"});
             if(cell.assignment){
               doc.setFontSize(fsT);doc.setFont("helvetica","normal");doc.setTextColor(60,60,60);
-              doc.text(abbrAssignment(cell.assignment),dx+blockColW-1,y+rowH*0.72,{align:"right"});
+              doc.text(abbrAssignment(cell.assignment),dx+blockColW-1,y+rowH-1,{align:"right"});
             }
+            // Row letter in bottom-left
+            doc.setFontSize(fsT*0.9);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);doc.text(rowLetter,dx+1,y+rowH-2.5);
           }
           // Cell border
           doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');
         }
       }
+      // Day-group thick dividers for readability
+      doc.setLineWidth(1);doc.setDrawColor(80,80,80);
+      for(let di=0;di<=7;di++){const dx=margin+nameW+di*dayGroupW;doc.line(dx,y,dx,y+rowH);}
+      doc.setLineWidth(0.2);
+      // Write baselines
+      for(let ci=0;ci<21;ci++){const dx=margin+nameW+ci*blockColW;doc.setDrawColor(210,210,210);doc.line(dx+1,y+rowH-2,dx+blockColW-1,y+rowH-2);}
       return y+rowH;
     }
 
@@ -7549,11 +7585,8 @@ async function printWeekly(format){
     }
 
     // --- Open / print ---
-    const pdfBlob=doc.output('blob');
-    const pdfUrl=URL.createObjectURL(pdfBlob);
-    const win=window.open(pdfUrl,'_blank');
-    if(win){win.onload=()=>{win.focus();win.print();};}
-    else{doc.save("ShiftOps_Weekly_"+weekDates[0].iso+".pdf");}
+    if(_forceSave){doc.save("ShiftOps_Weekly_"+format+"_"+weekDates[0].iso+".pdf");}
+    else{const pdfBlob=doc.output('blob');const pdfUrl=URL.createObjectURL(pdfBlob);const win=window.open(pdfUrl,'_blank');if(win){win.onload=()=>{win.focus();win.print();};}else{doc.save("ShiftOps_Weekly_"+format+"_"+weekDates[0].iso+".pdf");}}
 
     // --- Restore original state ---
     document.getElementById("shiftSel").value=origShift;
@@ -7681,6 +7714,18 @@ async function printWeeklyC(){
           regulars.set(e.Employee,rec);
         }
       }
+      // Force regulars to their default POSITION and blank assignments for manual backup
+      const _baseRoleMap={};
+      for(const e of BASE_EMP) _baseRoleMap[e.Employee]=normalizeRole(e.POSITION);
+      for(const [emp,rec] of regulars){
+        const defRole=_baseRoleMap[emp];
+        if(defRole&&roleOrder.includes(defRole)) rec.role=defRole;
+        for(const bk of Object.keys(rec.blocks)) rec.blocks[bk].assignment="";
+      }
+      for(const [emp,rec] of otEmps){
+        const defRole=_baseRoleMap[emp];
+        if(defRole&&roleOrder.includes(defRole)) rec.role=defRole;
+      }
       const grouped={};
       for(const r of roleOrder)grouped[r]={regulars:[],ot:[]};
       grouped["OTH"]={regulars:[],ot:[]};
@@ -7711,6 +7756,8 @@ async function printWeeklyC(){
     const nameW=52;
     const blockColW=(usableW-nameW)/21;
     const dayGroupW=blockColW*3;
+    let _rowIdx=0;
+    function _rl(i){if(i<26)return String.fromCharCode(65+i);return String.fromCharCode(65+Math.floor(i/26)-1)+String.fromCharCode(65+(i%26));}
 
     function drawShiftPage(shiftLabel,blockDefs,shiftData){
       const{grouped,activeGroups}=shiftData;
@@ -7724,11 +7771,16 @@ async function printWeeklyC(){
         if(grouped[r].ot.length>0)otDividers++;
       }
       const fixedH=headerH+activeGroups.length*roleHeaderH+otDividers*otDividerH;
-      let rowH=(usableH-fixedH)/Math.max(1,dataRows);
+      let blankPerRole=5;
+      let rowH=(usableH-fixedH)/Math.max(1,dataRows+activeGroups.length*blankPerRole);
+      if(rowH<6){blankPerRole=1;rowH=(usableH-fixedH)/Math.max(1,dataRows+activeGroups.length*blankPerRole);}
+      if(rowH<5){blankPerRole=0;rowH=(usableH-fixedH)/Math.max(1,dataRows);}
+      rowH=Math.max(15,rowH);
       const fs=Math.min(7,rowH*0.6);
       const fsT=fs*0.75;
 
       let y=margin;
+      _rowIdx=0;
 
       // Title
       doc.setFillColor(30,58,95);
@@ -7748,6 +7800,9 @@ async function printWeeklyC(){
         doc.setDrawColor(60,60,60);doc.line(dx,y,dx,y+dayNameH);
         doc.text(weekDates[di].label,dx+dayGroupW/2,y+dayNameH*0.72,{align:"center"});
       }
+      doc.setLineWidth(1.2);doc.setDrawColor(40,40,40);
+      for(let di=0;di<=7;di++){doc.line(margin+nameW+di*dayGroupW,y,margin+nameW+di*dayGroupW,y+dayNameH);}
+      doc.setLineWidth(0.2);
       y+=dayNameH;
 
       // Block times
@@ -7765,6 +7820,9 @@ async function printWeeklyC(){
           doc.text(short,dx+blockColW/2,y+blockTimeH*0.72,{align:"center"});
         }
       }
+      doc.setLineWidth(1.2);doc.setDrawColor(40,40,40);
+      for(let di=0;di<=7;di++){doc.line(margin+nameW+di*dayGroupW,y,margin+nameW+di*dayGroupW,y+blockTimeH);}
+      doc.setLineWidth(0.2);
       y+=blockTimeH;
 
       // Role sections
@@ -7802,20 +7860,56 @@ async function printWeeklyC(){
             y=drawRow(ots[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role);
           }
         }
+
+        // Blank write-in rows
+        for(let bi=0;bi<blankPerRole;bi++){
+          const bLetter=_rl(_rowIdx++);
+          doc.setFillColor(255,255,255);
+          doc.rect(margin,y,usableW,rowH,'F');
+          // Row letter in name column
+          doc.setFontSize(fs);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);
+          doc.text(bLetter+")",margin+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
+          for(let ci=0;ci<21;ci++){
+            const bti=ci%3;
+            if(bti!==1){const bt=BLOCK_TINTS[bti];doc.setFillColor(bt[0],bt[1],bt[2]);doc.rect(margin+nameW+ci*blockColW,y,blockColW,rowH,'F');}
+          }
+          // Row letter in bottom-left of each cell
+          for(let ci=0;ci<21;ci++){
+            const dx=margin+nameW+ci*blockColW;
+            doc.setFontSize(fsT*0.9);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);
+            doc.text(bLetter,dx+1,y+rowH-2.5);
+          }
+          doc.setDrawColor(200,200,200);
+          doc.rect(margin,y,usableW,rowH,'S');
+          doc.setDrawColor(200,200,200);
+          doc.line(margin+nameW,y,margin+nameW,y+rowH);
+          for(let ci=0;ci<21;ci++){
+            const dx=margin+nameW+ci*blockColW;
+            doc.line(dx,y,dx,y+rowH);
+            doc.setDrawColor(220,220,220);
+            doc.line(dx+2,y+rowH-1.5,dx+blockColW-2,y+rowH-1.5);
+          }
+          doc.setLineWidth(1);doc.setDrawColor(80,80,80);
+          for(let di=0;di<=7;di++){const dx=margin+nameW+di*dayGroupW;doc.line(dx,y,dx,y+rowH);}
+          doc.setLineWidth(0.2);
+          y+=rowH;
+        }
       }
     }
 
     function drawRow(e,bgColor,blockDefs,y,rowH,fs,fsT,roleAb){
+      const rowLetter=_rl(_rowIdx++);
       doc.setFillColor(bgColor[0],bgColor[1],bgColor[2]);
       doc.rect(margin,y,usableW,rowH,'F');
       doc.setDrawColor(180,180,180);doc.rect(margin,y,usableW,rowH,'S');
 
       const fullNm=String(e.emp).toUpperCase();
       doc.setFontSize(fs);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
+      const prefix=rowLetter+") ";
       let nm=fullNm;
-      const maxNm=Math.floor(nameW/(fs*0.52));
+      const maxNm=Math.floor(nameW/(fs*0.52))-prefix.length;
       if(nm.length>maxNm)nm=nm.slice(0,maxNm-1)+"\u2026";
-      doc.text(nm,margin+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
+      doc.text(prefix+nm,margin+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
 
       const _baseRec=BASE_EMP.find(b=>b.Employee===e.emp);
       if(_baseRec&&normalizeRole(_baseRec.POSITION)==="DISPATCHER"&&roleAb!=="DP"){
@@ -7825,7 +7919,6 @@ async function printWeeklyC(){
         doc.text("DP",bx+bw/2,by+bh*0.75,{align:"center"});
       }
 
-      const wmName=fullNm.split(",")[0].split(" ")[0].slice(0,8);
       doc.setDrawColor(140,140,140);doc.line(margin+nameW,y,margin+nameW,y+rowH);
 
       for(let di=0;di<7;di++){
@@ -7840,31 +7933,40 @@ async function printWeeklyC(){
           const bt=BLOCK_TINTS[bi];
           if(bi!==1){doc.setFillColor(bt[0],bt[1],bt[2]);doc.rect(dx,y,blockColW,rowH,'F');}
 
-          if(e.isOT){doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);doc.text(wmName,dx+1,y+fsT*0.8+0.5);}
-
-          if(!cell){doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');continue;}
+          if(!cell){
+            doc.setFontSize(fsT*0.9);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);doc.text(rowLetter,dx+1,y+rowH-2.5);
+            doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');continue;
+          }
 
           if(cell.status==="OFF"){
-            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(150,150,150);
-            doc.text("DO",dx+blockColW/2,y+rowH-1,{align:"center"});
+            doc.setFillColor(160,160,160);doc.rect(dx,y,blockColW,rowH,'F');
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+            doc.text("OFF",dx+blockColW/2,y+rowH/2+fsT*0.35,{align:"center"});
           }else if(cell.status==="ABS"){
             doc.setFillColor(190,30,30);doc.rect(dx,y,blockColW,rowH,'F');
             doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
-            doc.text("A",dx+blockColW/2,y+rowH*0.72,{align:"center"});
+            doc.text("ABSENT",dx+blockColW/2,y+rowH*0.72,{align:"center"});
           }else{
-            if(!e.isOT){doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);doc.text(wmName,dx+1,y+fsT*0.8+0.5);}
             const hrs=Math.round(cell.hours*10)/10;
             const hStr=hrs%1===0?String(Math.round(hrs)):String(hrs);
-            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
-            doc.text(roleAb+hStr,dx+1,y+rowH-1);
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(100,100,100);
+            doc.text(roleAb+hStr,dx+blockColW-1,y+fsT+0.5,{align:"right"});
             if(cell.assignment){
               doc.setFontSize(fsT);doc.setFont("helvetica","normal");doc.setTextColor(60,60,60);
               doc.text(abbrAssignment(cell.assignment),dx+blockColW-1,y+rowH-1,{align:"right"});
             }
+            // Row letter in bottom-left
+            doc.setFontSize(fsT*0.9);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);doc.text(rowLetter,dx+1,y+rowH-2.5);
           }
           doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');
         }
       }
+      // Day-group thick dividers for readability
+      doc.setLineWidth(1);doc.setDrawColor(80,80,80);
+      for(let di=0;di<=7;di++){const dx=margin+nameW+di*dayGroupW;doc.line(dx,y,dx,y+rowH);}
+      doc.setLineWidth(0.2);
+      // Write baselines
+      for(let ci=0;ci<21;ci++){const dx=margin+nameW+ci*blockColW;doc.setDrawColor(210,210,210);doc.line(dx+1,y+rowH-2,dx+blockColW-1,y+rowH-2);}
       return y+rowH;
     }
 
@@ -7874,11 +7976,8 @@ async function printWeeklyC(){
     doc.addPage("legal","portrait");
     drawShiftPage("NIGHT SHIFT",BLOCKS_NIGHT,nightData);
 
-    const pdfBlob=doc.output('blob');
-    const pdfUrl=URL.createObjectURL(pdfBlob);
-    const win=window.open(pdfUrl,'_blank');
-    if(win){win.onload=()=>{win.focus();win.print();};}
-    else{doc.save("ShiftOps_Weekly_C_"+weekDates[0].iso+".pdf");}
+    if(_forceSave){doc.save("ShiftOps_Weekly_C_"+weekDates[0].iso+".pdf");}
+    else{const pdfBlob=doc.output('blob');const pdfUrl=URL.createObjectURL(pdfBlob);const win=window.open(pdfUrl,'_blank');if(win){win.onload=()=>{win.focus();win.print();};}else{doc.save("ShiftOps_Weekly_C_"+weekDates[0].iso+".pdf");}}
 
     // Restore
     document.getElementById("shiftSel").value=origShift;
@@ -8007,6 +8106,18 @@ async function printWeeklyD(){
           regulars.set(e.Employee,rec);
         }
       }
+      // Force regulars to their default POSITION and blank assignments for manual backup
+      const _baseRoleMap={};
+      for(const e of BASE_EMP) _baseRoleMap[e.Employee]=normalizeRole(e.POSITION);
+      for(const [emp,rec] of regulars){
+        const defRole=_baseRoleMap[emp];
+        if(defRole&&roleOrder.includes(defRole)) rec.role=defRole;
+        for(const bk of Object.keys(rec.blocks)) rec.blocks[bk].assignment="";
+      }
+      for(const [emp,rec] of otEmps){
+        const defRole=_baseRoleMap[emp];
+        if(defRole&&roleOrder.includes(defRole)) rec.role=defRole;
+      }
       const grouped={};
       for(const r of roleOrder)grouped[r]={regulars:[],ot:[]};
       grouped["OTH"]={regulars:[],ot:[]};
@@ -8034,9 +8145,11 @@ async function printWeeklyD(){
     const doc=new jsPDF({orientation:"portrait",unit:"pt",format:"legal"});
     const pw=612,ph=1008,mg=6;
     const usableW=pw-mg*2,usableH=ph-mg*2;
-    const nameW=52;
+    const nameW=60;
     const blockColW=(usableW-nameW)/21;
     const dayGroupW=blockColW*3;
+    let _rowIdx=0;
+    function _rl(i){if(i<26)return String.fromCharCode(65+i);return String.fromCharCode(65+Math.floor(i/26)-1)+String.fromCharCode(65+(i%26));}
 
     // Split roles into two balanced groups for front/back
     function splitRolesD(shiftData){
@@ -8072,10 +8185,10 @@ async function printWeeklyD(){
 
     // --- Draw header rows, returns y after header ---
     function drawHeader(shiftLabel,blockDefs,y){
-      const titleH=12,dayNameH=10,blockTimeH=9;
+      const titleH=10,dayNameH=9,blockTimeH=8;
       doc.setFillColor(30,58,95);
       doc.rect(mg,y,usableW,titleH,'F');
-      doc.setFontSize(10);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.setFontSize(8);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
       doc.text(shiftLabel+"  "+weekDates[0].label+" \u2013 "+weekDates[6].label,mg+usableW/2,y+titleH*0.75,{align:"center"});
       y+=titleH;
       doc.setFillColor(45,74,111);
@@ -8088,6 +8201,9 @@ async function printWeeklyD(){
         doc.setDrawColor(60,60,60);doc.line(dx,y,dx,y+dayNameH);
         doc.text(weekDates[di].label,dx+dayGroupW/2,y+dayNameH*0.72,{align:"center"});
       }
+      doc.setLineWidth(1.2);doc.setDrawColor(40,40,40);
+      for(let di=0;di<=7;di++){doc.line(mg+nameW+di*dayGroupW,y,mg+nameW+di*dayGroupW,y+dayNameH);}
+      doc.setLineWidth(0.2);
       y+=dayNameH;
       doc.setFillColor(60,90,130);
       doc.rect(mg,y,usableW,blockTimeH,'F');
@@ -8101,47 +8217,52 @@ async function printWeeklyD(){
           doc.text(bl.start.replace(":","").slice(0,2)+"-"+bl.end.replace(":","").slice(0,2),dx+blockColW/2,y+blockTimeH*0.72,{align:"center"});
         }
       }
+      doc.setLineWidth(1.2);doc.setDrawColor(40,40,40);
+      for(let di=0;di<=7;di++){doc.line(mg+nameW+di*dayGroupW,y,mg+nameW+di*dayGroupW,y+blockTimeH);}
+      doc.setLineWidth(0.2);
       y+=blockTimeH;
       return y;
     }
 
     // --- Draw role section (regulars only) ---
     function drawRegSection(role,grouped,blockDefs,y,rowH,fs,fsT){
+      _rowIdx=0;
       const regs=grouped[role].regulars;
       const rc=roleRGB[role]||[100,100,100];
       const bg=roleBgRGB[role]||[255,255,255];
-      const roleHeaderH=9;
+      const roleHeaderH=7;
       doc.setFillColor(rc[0],rc[1],rc[2]);
       doc.rect(mg,y,usableW,roleHeaderH,'F');
       doc.setDrawColor(100,100,100);doc.rect(mg,y,usableW,roleHeaderH,'S');
-      doc.setFontSize(fs+0.5);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.setFontSize(5.5);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
       doc.text((fullName[role]||role)+": "+regs.length,mg+3,y+roleHeaderH*0.78);
       y+=roleHeaderH;
       for(let ei=0;ei<regs.length;ei++){
         const altBg=ei%2===0?[255,255,255]:bg;
-        y=drawRowD(regs[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role);
+        y=drawRowD(regs[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role,true);
       }
       return y;
     }
 
     // --- Draw OT section (OT employees + blank slots) ---
     function drawOTSection(role,grouped,blockDefs,y,rowH,fs,fsT,blankCount){
+      _rowIdx=0;
       const ots=grouped[role].ot;
       const rc=roleRGB[role]||[100,100,100];
-      const roleHeaderH=9;
+      const roleHeaderH=7;
       doc.setFillColor(rc[0],rc[1],rc[2]);
       doc.rect(mg,y,usableW,roleHeaderH,'F');
       doc.setDrawColor(100,100,100);doc.rect(mg,y,usableW,roleHeaderH,'S');
-      doc.setFontSize(fs+0.5);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.setFontSize(5.5);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
       doc.text((fullName[role]||role)+" OT: "+ots.length,mg+3,y+roleHeaderH*0.78);
       y+=roleHeaderH;
       for(let ei=0;ei<ots.length;ei++){
         const altBg=ei%2===0?[255,255,255]:[255,245,220];
-        y=drawRowD(ots[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role);
+        y=drawRowD(ots[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role,false);
       }
-      // Blank write-in rows
+      // Blank write-in rows (numbered 1,2,3…)
       for(let bi=0;bi<blankCount;bi++){
-        const blankLabel="BLANK"+(bi+1);
+        const bNum=String(bi+1);
         doc.setFillColor(255,255,255);
         doc.rect(mg,y,usableW,rowH,'F');
         // Block tints on blank rows
@@ -8149,11 +8270,11 @@ async function printWeeklyD(){
           const bti=ci%3;
           if(bti!==1){const bt=BLOCK_TINTS[bti];doc.setFillColor(bt[0],bt[1],bt[2]);doc.rect(mg+nameW+ci*blockColW,y,blockColW,rowH,'F');}
         }
-        // Watermark in all 21 cells
+        // Number in bottom-left of each grid cell
         for(let ci=0;ci<21;ci++){
           const dx=mg+nameW+ci*blockColW;
-          doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);
-          doc.text(blankLabel,dx+1,y+fsT*0.8+0.5);
+          doc.setFontSize(fsT*0.9);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);
+          doc.text(bNum,dx+1,y+rowH-2.5);
         }
         doc.setDrawColor(200,200,200);
         doc.rect(mg,y,usableW,rowH,'S');
@@ -8162,16 +8283,21 @@ async function printWeeklyD(){
         for(let ci=0;ci<21;ci++){
           const dx=mg+nameW+ci*blockColW;
           doc.line(dx,y,dx,y+rowH);
-          doc.setDrawColor(220,220,220);
-          doc.line(dx+2,y+rowH-1.5,dx+blockColW-2,y+rowH-1.5);
         }
+        doc.setLineWidth(1);doc.setDrawColor(80,80,80);
+        for(let di=0;di<=7;di++){const dx=mg+nameW+di*dayGroupW;doc.line(dx,y,dx,y+rowH);}
+        doc.setLineWidth(0.2);
+        // Number in bottom-right of name column
+        doc.setFontSize(fsT*0.75);doc.setFont("helvetica","normal");doc.setTextColor(180,180,180);
+        doc.text(bNum,mg+nameW-2,y+rowH-2,{align:"right"});
         y+=rowH;
       }
       return y;
     }
 
     // --- Draw one employee row ---
-    function drawRowD(e,bgColor,blockDefs,y,rowH,fs,fsT,roleAb){
+    function drawRowD(e,bgColor,blockDefs,y,rowH,fs,fsT,roleAb,isReg){
+      const rowLetter=_rl(_rowIdx++);
       doc.setFillColor(bgColor[0],bgColor[1],bgColor[2]);
       doc.rect(mg,y,usableW,rowH,'F');
       doc.setDrawColor(180,180,180);doc.rect(mg,y,usableW,rowH,'S');
@@ -8181,6 +8307,9 @@ async function printWeeklyD(){
       const maxNm=Math.floor(nameW/(fs*0.52));
       if(nm.length>maxNm)nm=nm.slice(0,maxNm-1)+"\u2026";
       doc.text(nm,mg+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
+      // Row letter small in bottom-right of name column
+      doc.setFontSize(fsT*0.75);doc.setFont("helvetica","normal");doc.setTextColor(180,180,180);
+      doc.text(rowLetter,mg+nameW-2,y+rowH-2,{align:"right"});
       const _baseRec=BASE_EMP.find(b=>b.Employee===e.emp);
       if(_baseRec&&normalizeRole(_baseRec.POSITION)==="DISPATCHER"&&roleAb!=="DP"){
         const bw=fs*2.2,bh=fs*1.1,bx=mg+nameW-bw-1,by=y+1;
@@ -8188,8 +8317,9 @@ async function printWeeklyD(){
         doc.setFontSize(fs*0.7);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
         doc.text("DP",bx+bw/2,by+bh*0.75,{align:"center"});
       }
-      const wmName=fullNm.split(",")[0].split(" ")[0].slice(0,8);
       doc.setDrawColor(140,140,140);doc.line(mg+nameW,y,mg+nameW,y+rowH);
+      // Info/write divider line at 35% height
+      const infoH=rowH*0.35;
       for(let di=0;di<7;di++){
         const iso=weekDates[di].iso;
         for(let bi=0;bi<3;bi++){
@@ -8197,37 +8327,51 @@ async function printWeeklyD(){
           const dx=mg+nameW+ci*blockColW;
           const bKey=iso+"|"+blockDefs[bi].id;
           const cell=e.blocks[bKey];
-          // Block tint
+          // Block tint (blend with row stripe for regulars on odd rows)
           const bt=BLOCK_TINTS[bi];
-          if(bi!==1){doc.setFillColor(bt[0],bt[1],bt[2]);doc.rect(dx,y,blockColW,rowH,'F');}
-          doc.setDrawColor(bi===0?100:200,bi===0?100:200,bi===0?100:200);
-          doc.line(dx,y,dx,y+rowH);
+          if(isReg&&bgColor[0]!==255){
+            const mix=bi===1?bgColor:[Math.round(bt[0]*0.85+bgColor[0]*0.15),Math.round(bt[1]*0.85+bgColor[1]*0.15),Math.round(bt[2]*0.85+bgColor[2]*0.15)];
+            doc.setFillColor(mix[0],mix[1],mix[2]);doc.rect(dx,y,blockColW,rowH,'F');
+          }else if(bi!==1){doc.setFillColor(bt[0],bt[1],bt[2]);doc.rect(dx,y,blockColW,rowH,'F');}
 
-          if(e.isOT){doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);doc.text(wmName,dx+1,y+fsT*0.8+0.5);}
-
-          if(!cell){doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');continue;}
+          if(!cell){
+            doc.setFontSize(fsT*0.9);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);doc.text(rowLetter,dx+1,y+rowH-2.5);
+            doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');
+            continue;
+          }
 
           if(cell.status==="OFF"){
-            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(150,150,150);
-            doc.text("DO",dx+blockColW/2,y+rowH-1,{align:"center"});
+            doc.setFillColor(160,160,160);doc.rect(dx,y,blockColW,rowH,'F');
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+            doc.text("OFF",dx+blockColW/2,y+rowH/2+fsT*0.35,{align:"center"});
           }else if(cell.status==="ABS"){
             doc.setFillColor(190,30,30);doc.rect(dx,y,blockColW,rowH,'F');
             doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
-            doc.text("A",dx+blockColW/2,y+rowH*0.72,{align:"center"});
-          }else{
-            if(!e.isOT){doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);doc.text(wmName,dx+1,y+fsT*0.8+0.5);}
+            doc.text("ABSENT",dx+blockColW/2,y+rowH/2+fsT*0.35,{align:"center"});
+          }else if(!isReg){
+            // Role+hours centered at top, bigger, bold, red
+            doc.setFontSize(fsT*1.3);doc.setFont("helvetica","bold");doc.setTextColor(190,30,30);
             const hrs=Math.round(cell.hours*10)/10;
             const hStr=hrs%1===0?String(Math.round(hrs)):String(hrs);
-            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
-            doc.text(roleAb+hStr,dx+1,y+rowH-1);
-            if(cell.assignment){
-              doc.setFontSize(fsT);doc.setFont("helvetica","normal");doc.setTextColor(60,60,60);
-              doc.text(abbrAssignment(cell.assignment),dx+blockColW-1,y+rowH-1,{align:"right"});
-            }
+            doc.text(roleAb+hStr,dx+blockColW/2,y+fsT*1.3+1,{align:"center"});
+            // Row letter small in bottom-left
+            doc.setFontSize(fsT*0.9);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);
+            doc.text(rowLetter,dx+1,y+rowH-2.5);
+          }else{
+            // Regulars WORK: letter only in bottom-left
+            doc.setFontSize(fsT*0.9);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);
+            doc.text(rowLetter,dx+1,y+rowH-2.5);
           }
+          // Cell border
           doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');
+          // (divider line removed)
         }
       }
+      // Day-group thick dividers
+      doc.setLineWidth(1);doc.setDrawColor(80,80,80);
+      for(let di=0;di<=7;di++){const dx=mg+nameW+di*dayGroupW;doc.line(dx,y,dx,y+rowH);}
+      doc.setLineWidth(0.2);
+      // (write baseline removed)
       return y+rowH;
     }
 
@@ -8235,18 +8379,19 @@ async function printWeeklyD(){
     function computeRowH(roles,grouped,countFn,headerH,extraPerRole){
       let total=0;
       for(const r of roles) total+=countFn(r,grouped);
-      const fixedH=headerH+roles.length*(9+extraPerRole);
+      const fixedH=headerH+roles.length*(7+extraPerRole);
       const avail=usableH-fixedH;
       return avail/Math.max(1,total);
     }
 
     // --- Regulars page ---
     function drawRegularsPage(shiftLabel,blockDefs,shiftData,roles){
+      _rowIdx=0;
       const{grouped}=shiftData;
       let regCount=0;
       for(const r of roles) regCount+=grouped[r].regulars.length;
-      const headerH=12+10+9;
-      const rowH=computeRowH(roles,grouped,function(r,g){return g[r].regulars.length;},headerH,0);
+      const headerH=10+9+8;
+      const rowH=Math.max(15,computeRowH(roles,grouped,function(r,g){return g[r].regulars.length;},headerH,0));
       const fs=Math.min(7,rowH*0.6);
       const fsT=fs*0.75;
       let y=drawHeader(shiftLabel+" \u2014 REGULARS",blockDefs,mg);
@@ -8256,33 +8401,48 @@ async function printWeeklyD(){
     }
 
     // --- OT page ---
+    const DP_EXTRA_BLANKS=0;
+    const SUP_MAX_BLANKS=2;
+    const PIC_LESS_BLANKS=3;
     function drawOTPage(shiftLabel,blockDefs,shiftData,roles){
+      _rowIdx=0;
       const{grouped}=shiftData;
       // Count OT employees
       let otCount=0;
       for(const r of roles) otCount+=grouped[r].ot.length;
       // Calculate blank slots to fill remaining space
-      const headerH=12+10+9;
-      const roleHeaderTotal=roles.length*9;
+      const headerH=10+9+8;
+      const roleHeaderTotal=roles.length*7;
       // First pass: compute row height with just OT employees
       const fixedH=headerH+roleHeaderTotal;
       const availH=usableH-fixedH;
       // Target: fill the page — compute how many blank rows fit
-      let rowH=Math.min(22,availH/Math.max(1,otCount+roles.length*3));
+      let rowH=Math.min(28,availH/Math.max(1,otCount+roles.length*3));
       let fs=Math.min(7,rowH*0.6);
       let fsT=fs*0.75;
       const totalSlots=Math.floor(availH/rowH);
-      const blanksTotal=Math.max(0,totalSlots-otCount-roles.length); // subtract role headers
-      const blanksPerRole=Math.max(1,Math.floor(blanksTotal/Math.max(1,roles.length)));
-      // Recompute with blanks
-      const finalRows=otCount+roles.length*blanksPerRole;
-      rowH=Math.min(22,(availH-roleHeaderTotal)/Math.max(1,finalRows));
+      const hasSup=roles.includes("SUPERVISOR");
+      const dpExtra=roles.includes("DISPATCHER")?DP_EXTRA_BLANKS:0;
+      const blanksTotal=Math.max(0,totalSlots-otCount-roles.length-dpExtra);
+      const blanksPerRole=Math.max(5,Math.floor(blanksTotal/Math.max(1,roles.length)));
+      // Supervisor gets capped blanks; reclaim saved rows for row height
+      const hasPic=roles.includes("PIC");
+      const hasCT=roles.includes("CALLTAKER");
+      const supSaved=hasSup?Math.max(0,blanksPerRole-SUP_MAX_BLANKS):0;
+      const picSaved=hasPic?Math.min(PIC_LESS_BLANKS,blanksPerRole):0;
+      const ctSaved=hasCT?Math.floor(blanksPerRole/2):0;
+      const finalRows=otCount+roles.length*blanksPerRole+dpExtra-supSaved-picSaved-ctSaved;
+      rowH=Math.max(15,(availH-roleHeaderTotal)/Math.max(1,finalRows));
       fs=Math.min(7,rowH*0.6);
       fsT=fs*0.75;
 
       let y=drawHeader(shiftLabel+" \u2014 OT",blockDefs,mg);
       for(const role of roles){
-        y=drawOTSection(role,grouped,blockDefs,y,rowH,fs,fsT,blanksPerRole);
+        const extraBlanks=role==="DISPATCHER"?DP_EXTRA_BLANKS:0;
+        const picReduce=role==="PIC"?PIC_LESS_BLANKS:0;
+        const ctReduce=role==="CALLTAKER"?Math.floor(blanksPerRole/2):0;
+        const roleBlanks=role==="SUPERVISOR"?SUP_MAX_BLANKS:Math.max(2,blanksPerRole+extraBlanks-picReduce-ctReduce);
+        y=drawOTSection(role,grouped,blockDefs,y,rowH,fs,fsT,roleBlanks);
       }
     }
 
@@ -8316,11 +8476,8 @@ async function printWeeklyD(){
     doc.addPage("legal","portrait");
     drawOTPage("NIGHTS",BLOCKS_NIGHT,nightData,nightOTSplit[1].length?nightOTSplit[1]:nightData.activeGroups.slice(-1));
 
-    const pdfBlob=doc.output('blob');
-    const pdfUrl=URL.createObjectURL(pdfBlob);
-    const win=window.open(pdfUrl,'_blank');
-    if(win){win.onload=()=>{win.focus();win.print();};}
-    else{doc.save("ShiftOps_Weekly_D_"+weekDates[0].iso+".pdf");}
+    if(_forceSave){doc.save("ShiftOps_Weekly_D_"+weekDates[0].iso+".pdf");}
+    else{const pdfBlob=doc.output('blob');const pdfUrl=URL.createObjectURL(pdfBlob);const win=window.open(pdfUrl,'_blank');if(win){win.onload=()=>{win.focus();win.print();};}else{doc.save("ShiftOps_Weekly_D_"+weekDates[0].iso+".pdf");}}
 
     document.getElementById("shiftSel").value=origShift;
     _vacations=origVac;
@@ -8444,6 +8601,18 @@ async function printWeeklyE(){
           regulars.set(e.Employee,rec);
         }
       }
+      // Force regulars to their default POSITION and blank assignments for manual backup
+      const _baseRoleMap={};
+      for(const e of BASE_EMP) _baseRoleMap[e.Employee]=normalizeRole(e.POSITION);
+      for(const [emp,rec] of regulars){
+        const defRole=_baseRoleMap[emp];
+        if(defRole&&roleOrder.includes(defRole)) rec.role=defRole;
+        for(const bk of Object.keys(rec.blocks)) rec.blocks[bk].assignment="";
+      }
+      for(const [emp,rec] of otEmps){
+        const defRole=_baseRoleMap[emp];
+        if(defRole&&roleOrder.includes(defRole)) rec.role=defRole;
+      }
       const grouped={};
       for(const r of roleOrder)grouped[r]={regulars:[],ot:[]};
       grouped["OTH"]={regulars:[],ot:[]};
@@ -8474,6 +8643,8 @@ async function printWeeklyE(){
     const nameW=52;
     const blockColW=(usableW-nameW)/21;
     const dayGroupW=blockColW*3;
+    let _rowIdx=0;
+    function _rl(i){if(i<26)return String.fromCharCode(65+i);return String.fromCharCode(65+Math.floor(i/26)-1)+String.fromCharCode(65+(i%26));}
 
     function splitRolesE(shiftData){
       const{grouped,activeGroups}=shiftData;
@@ -8519,6 +8690,9 @@ async function printWeeklyE(){
         doc.setDrawColor(60,60,60);doc.line(dx,y,dx,y+dayNameH);
         doc.text(weekDates[di].label,dx+dayGroupW/2,y+dayNameH*0.72,{align:"center"});
       }
+      doc.setLineWidth(1.2);doc.setDrawColor(40,40,40);
+      for(let di=0;di<=7;di++){doc.line(mg+nameW+di*dayGroupW,y,mg+nameW+di*dayGroupW,y+dayNameH);}
+      doc.setLineWidth(0.2);
       y+=dayNameH;
       doc.setFillColor(60,90,130);
       doc.rect(mg,y,usableW,blockTimeH,'F');
@@ -8532,6 +8706,9 @@ async function printWeeklyE(){
           doc.text(bl.start.replace(":","").slice(0,2)+"-"+bl.end.replace(":","").slice(0,2),dx+blockColW/2,y+blockTimeH*0.72,{align:"center"});
         }
       }
+      doc.setLineWidth(1.2);doc.setDrawColor(40,40,40);
+      for(let di=0;di<=7;di++){doc.line(mg+nameW+di*dayGroupW,y,mg+nameW+di*dayGroupW,y+blockTimeH);}
+      doc.setLineWidth(0.2);
       y+=blockTimeH;
       return y;
     }
@@ -8570,17 +8747,21 @@ async function printWeeklyE(){
       }
       // Blank write-in rows
       for(let bi=0;bi<blankCount;bi++){
-        const blankLabel="BLANK"+(bi+1);
+        const bLetter=_rl(_rowIdx++);
         doc.setFillColor(255,255,255);
         doc.rect(mg,y,usableW,rowH,'F');
+        // Row letter in name column
+        doc.setFontSize(fs);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);
+        doc.text(bLetter+")",mg+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
         for(let ci=0;ci<21;ci++){
           const bti=ci%3;
           if(bti!==1){const bt=BLOCK_TINTS[bti];doc.setFillColor(bt[0],bt[1],bt[2]);doc.rect(mg+nameW+ci*blockColW,y,blockColW,rowH,'F');}
         }
+        // Row letter in bottom-left of each cell
         for(let ci=0;ci<21;ci++){
           const dx=mg+nameW+ci*blockColW;
-          doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);
-          doc.text(blankLabel,dx+1,y+fsT*0.8+0.5);
+          doc.setFontSize(fsT*0.9);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);
+          doc.text(bLetter,dx+1,y+rowH-2.5);
         }
         doc.setDrawColor(200,200,200);
         doc.rect(mg,y,usableW,rowH,'S');
@@ -8592,21 +8773,26 @@ async function printWeeklyE(){
           doc.setDrawColor(220,220,220);
           doc.line(dx+2,y+rowH-1.5,dx+blockColW-2,y+rowH-1.5);
         }
+        doc.setLineWidth(1);doc.setDrawColor(80,80,80);
+        for(let di=0;di<=7;di++){const dx=mg+nameW+di*dayGroupW;doc.line(dx,y,dx,y+rowH);}
+        doc.setLineWidth(0.2);
         y+=rowH;
       }
       return y;
     }
 
     function drawRowE(e,bgColor,blockDefs,y,rowH,fs,fsT,roleAb){
+      const rowLetter=_rl(_rowIdx++);
       doc.setFillColor(bgColor[0],bgColor[1],bgColor[2]);
       doc.rect(mg,y,usableW,rowH,'F');
       doc.setDrawColor(180,180,180);doc.rect(mg,y,usableW,rowH,'S');
       const fullNm=String(e.emp).toUpperCase();
       doc.setFontSize(fs);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
+      const prefix=rowLetter+") ";
       let nm=fullNm;
-      const maxNm=Math.floor(nameW/(fs*0.52));
+      const maxNm=Math.floor(nameW/(fs*0.52))-prefix.length;
       if(nm.length>maxNm)nm=nm.slice(0,maxNm-1)+"\u2026";
-      doc.text(nm,mg+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
+      doc.text(prefix+nm,mg+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
       const _baseRec=BASE_EMP.find(b=>b.Employee===e.emp);
       if(_baseRec&&normalizeRole(_baseRec.POSITION)==="DISPATCHER"&&roleAb!=="DP"){
         const bw=fs*2.2,bh=fs*1.1,bx=mg+nameW-bw-1,by=y+1;
@@ -8614,7 +8800,6 @@ async function printWeeklyE(){
         doc.setFontSize(fs*0.7);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
         doc.text("DP",bx+bw/2,by+bh*0.75,{align:"center"});
       }
-      const wmName=fullNm.split(",")[0].split(" ")[0].slice(0,8);
       doc.setDrawColor(140,140,140);doc.line(mg+nameW,y,mg+nameW,y+rowH);
       for(let di=0;di<7;di++){
         const iso=weekDates[di].iso;
@@ -8625,31 +8810,41 @@ async function printWeeklyE(){
           const cell=e.blocks[bKey];
           const bt=BLOCK_TINTS[bi];
           if(bi!==1){doc.setFillColor(bt[0],bt[1],bt[2]);doc.rect(dx,y,blockColW,rowH,'F');}
-          if(e.isOT){doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);doc.text(wmName,dx+1,y+fsT*0.8+0.5);}
 
-          if(!cell){doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');continue;}
+          if(!cell){
+            doc.setFontSize(fsT*0.9);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);doc.text(rowLetter,dx+1,y+rowH-2.5);
+            doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');continue;
+          }
 
           if(cell.status==="OFF"){
-            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(150,150,150);
-            doc.text("DO",dx+blockColW/2,y+rowH-1,{align:"center"});
+            doc.setFillColor(160,160,160);doc.rect(dx,y,blockColW,rowH,'F');
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+            doc.text("OFF",dx+blockColW/2,y+rowH/2+fsT*0.35,{align:"center"});
           }else if(cell.status==="ABS"){
             doc.setFillColor(190,30,30);doc.rect(dx,y,blockColW,rowH,'F');
             doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
-            doc.text("A",dx+blockColW/2,y+rowH*0.72,{align:"center"});
+            doc.text("ABSENT",dx+blockColW/2,y+rowH*0.72,{align:"center"});
           }else{
-            if(!e.isOT){doc.setFontSize(fsT*0.8);doc.setFont("helvetica","bold");doc.setTextColor(185,185,185);doc.text(wmName,dx+1,y+fsT*0.8+0.5);}
             const hrs=Math.round(cell.hours*10)/10;
             const hStr=hrs%1===0?String(Math.round(hrs)):String(hrs);
-            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
-            doc.text(roleAb+hStr,dx+1,y+rowH-1);
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(100,100,100);
+            doc.text(roleAb+hStr,dx+blockColW-1,y+fsT+0.5,{align:"right"});
             if(cell.assignment){
               doc.setFontSize(fsT);doc.setFont("helvetica","normal");doc.setTextColor(60,60,60);
               doc.text(abbrAssignment(cell.assignment),dx+blockColW-1,y+rowH-1,{align:"right"});
             }
+            // Row letter in bottom-left
+            doc.setFontSize(fsT*0.9);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);doc.text(rowLetter,dx+1,y+rowH-2.5);
           }
           doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');
         }
       }
+      // Day-group thick dividers for readability
+      doc.setLineWidth(1);doc.setDrawColor(80,80,80);
+      for(let di=0;di<=7;di++){const dx=mg+nameW+di*dayGroupW;doc.line(dx,y,dx,y+rowH);}
+      doc.setLineWidth(0.2);
+      // Write baselines
+      for(let ci=0;ci<21;ci++){const dx=mg+nameW+ci*blockColW;doc.setDrawColor(210,210,210);doc.line(dx+1,y+rowH-2,dx+blockColW-1,y+rowH-2);}
       return y+rowH;
     }
 
@@ -8662,9 +8857,10 @@ async function printWeeklyE(){
     }
 
     function drawRegularsPage(shiftLabel,blockDefs,shiftData,roles){
+      _rowIdx=0;
       const{grouped}=shiftData;
       const headerH=12+10+9;
-      const rowH=computeRowH(roles,grouped,function(r,g){return g[r].regulars.length;},headerH,0);
+      const rowH=Math.max(15,computeRowH(roles,grouped,function(r,g){return g[r].regulars.length;},headerH,0));
       const fs=Math.min(7,rowH*0.6);
       const fsT=fs*0.75;
       let y=drawHeader(shiftLabel+" \u2014 REGULARS",blockDefs,mg);
@@ -8674,6 +8870,7 @@ async function printWeeklyE(){
     }
 
     function drawOTPage(shiftLabel,blockDefs,shiftData,roles){
+      _rowIdx=0;
       const{grouped}=shiftData;
       let otCount=0;
       for(const r of roles) otCount+=grouped[r].ot.length;
@@ -8686,9 +8883,9 @@ async function printWeeklyE(){
       let fsT=fs*0.75;
       const totalSlots=Math.floor(availH/rowH);
       const blanksTotal=Math.max(0,totalSlots-otCount-roles.length);
-      const blanksPerRole=Math.max(1,Math.floor(blanksTotal/Math.max(1,roles.length)));
+      const blanksPerRole=Math.max(5,Math.floor(blanksTotal/Math.max(1,roles.length)));
       const finalRows=otCount+roles.length*blanksPerRole;
-      rowH=Math.min(22,(availH-roleHeaderTotal)/Math.max(1,finalRows));
+      rowH=Math.max(15,Math.min(22,(availH-roleHeaderTotal)/Math.max(1,finalRows)));
       fs=Math.min(7,rowH*0.6);
       fsT=fs*0.75;
       let y=drawHeader(shiftLabel+" \u2014 OT",blockDefs,mg);
@@ -8726,11 +8923,8 @@ async function printWeeklyE(){
     doc.addPage("legal","landscape");
     drawOTPage("NIGHTS",BLOCKS_NIGHT,nightData,nightOTSplit[1].length?nightOTSplit[1]:nightData.activeGroups.slice(-1));
 
-    const pdfBlob=doc.output('blob');
-    const pdfUrl=URL.createObjectURL(pdfBlob);
-    const win=window.open(pdfUrl,'_blank');
-    if(win){win.onload=()=>{win.focus();win.print();};}
-    else{doc.save("ShiftOps_Weekly_E_"+weekDates[0].iso+".pdf");}
+    if(_forceSave){doc.save("ShiftOps_Weekly_E_"+weekDates[0].iso+".pdf");}
+    else{const pdfBlob=doc.output('blob');const pdfUrl=URL.createObjectURL(pdfBlob);const win=window.open(pdfUrl,'_blank');if(win){win.onload=()=>{win.focus();win.print();};}else{doc.save("ShiftOps_Weekly_E_"+weekDates[0].iso+".pdf");}}
 
     document.getElementById("shiftSel").value=origShift;
     _vacations=origVac;
@@ -8744,6 +8938,26 @@ async function printWeeklyE(){
   }
 }
 document.getElementById("btnPrintWeeklyE").addEventListener("click", printWeeklyE);
+
+async function saveAllWeeklys(){
+  try{
+    _forceSave=true;
+    setErr("Generating all weeklys\u2026");
+    await printWeekly("A");
+    await printWeekly("B");
+    await printWeeklyC();
+    await printWeeklyD();
+    await printWeeklyE();
+    _forceSave=false;
+    setErr("All 5 weeklys saved!");
+    setTimeout(clearErr,3000);
+  }catch(err){
+    _forceSave=false;
+    console.error("saveAllWeeklys error:",err);
+    setErr("Save All failed: "+(err&&err.message?err.message:err));
+  }
+}
+document.getElementById("btnSaveAllWeeklys").addEventListener("click", saveAllWeeklys);
 
 // Shift Swap button + modal backdrop close
 document.getElementById("btnShiftSwap").addEventListener("click", openSwapModal);

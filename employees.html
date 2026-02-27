@@ -286,6 +286,100 @@ td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
 
 /* Migration progress */
 .migrate-progress { padding: 8px 20px; font-size: 12px; color: var(--warn); display: none; }
+
+/* Adequate Staffing section */
+#sectionAdeq .adeq-header {
+  padding: 14px 20px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(11,15,20,.98), rgba(11,15,20,.75));
+  flex-wrap: wrap;
+}
+#sectionAdeq .adeq-header h2 { font-size: 18px; font-weight: 800; }
+.adeqRoleTabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); padding: 0 20px; background: rgba(17,24,38,.6); }
+.adeqRoleTabs button {
+  padding: 8px 20px; border: none; border-bottom: 2px solid transparent;
+  background: transparent; color: var(--muted); font-size: 12px; font-weight: 700;
+  cursor: pointer; margin-bottom: -2px; border-radius: 0; transition: color .15s, border-color .15s;
+}
+.adeqRoleTabs button:hover { color: var(--text); }
+.adeqRoleTabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+#adeqAddRow {
+  display: none; padding: 12px 20px;
+  background: rgba(63,231,182,.04); border-bottom: 1px solid rgba(63,231,182,.15);
+}
+#adeqAddRow .form-row { display: flex; gap: 8px; align-items: center; }
+#adeqAddRow select {
+  padding: 6px 10px; background: var(--card); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; font-size: 12px;
+}
+#adeqAddRow select:focus { outline: none; border-color: var(--accent); }
+#adeqTable { width: 100%; border-collapse: collapse; margin: 0; }
+#adeqTable th {
+  padding: 8px 6px; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+  border-bottom: 2px solid var(--border); text-align: center; background: #0d1117;
+}
+#adeqTable th:first-child { text-align: left; }
+#adeqTable td { padding: 4px 4px; border-bottom: 1px solid rgba(35,48,67,.5); vertical-align: middle; text-align: center; }
+#adeqTable td:first-child { text-align: left; font-weight: 700; font-size: 12px; padding-left: 12px; }
+#adeqTable tr:hover td { background: rgba(74,163,255,.04); }
+#adeqTable tr.dirty td { background: rgba(255,190,50,.06) !important; }
+#adeqTable input[type="number"] {
+  width: 54px; padding: 4px 4px; background: transparent; color: var(--text);
+  border: 1px solid transparent; border-radius: 4px; font: inherit; font-size: 12px;
+  text-align: center; font-weight: 600;
+}
+#adeqTable input[type="number"]:focus { outline: none; background: var(--card); border-color: var(--accent); }
+#adeqTable input[type="number"]:hover { border-color: var(--border); }
+.adeq-status { padding: 8px 20px; font-size: 12px; min-height: 18px; display: none; }
+
+/* Seat Assignments section */
+#sectionSeats .seats-header {
+  padding: 14px 20px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(11,15,20,.98), rgba(11,15,20,.75));
+  flex-wrap: wrap;
+}
+#sectionSeats .seats-header h2 { font-size: 18px; font-weight: 800; }
+.seatsRoleTabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); padding: 0 20px; background: rgba(17,24,38,.6); }
+.seatsRoleTabs button {
+  padding: 8px 20px; border: none; border-bottom: 2px solid transparent;
+  background: transparent; color: var(--muted); font-size: 12px; font-weight: 700;
+  cursor: pointer; margin-bottom: -2px; border-radius: 0; transition: color .15s, border-color .15s;
+}
+.seatsRoleTabs button:hover { color: var(--text); }
+.seatsRoleTabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+#seatAddForm {
+  display: none; padding: 12px 20px;
+  background: rgba(63,231,182,.04); border-bottom: 1px solid rgba(63,231,182,.15);
+}
+#seatAddForm .form-row { display: flex; gap: 8px; align-items: center; }
+#seatAddForm input {
+  padding: 6px 10px; background: var(--card); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; font-size: 12px; width: 220px;
+}
+#seatAddForm input:focus { outline: none; border-color: var(--accent); }
+#seatsTable { width: 100%; border-collapse: collapse; margin: 0; }
+#seatsTable th {
+  padding: 8px 12px; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+  border-bottom: 2px solid var(--border); text-align: left; background: #0d1117;
+}
+#seatsTable td {
+  padding: 4px 8px; border-bottom: 1px solid rgba(35,48,67,.5); vertical-align: middle;
+}
+#seatsTable tr:hover td { background: rgba(74,163,255,.04); }
+#seatsTable tr.dirty td { background: rgba(255,190,50,.06) !important; }
+#seatsTable tr.new-row td { background: rgba(63,231,182,.06) !important; }
+#seatsTable input {
+  width: 100%; max-width: 300px; padding: 4px 8px; background: transparent;
+  color: var(--text); border: 1px solid transparent; border-radius: 4px;
+  font: inherit; font-size: 12px; font-weight: 700;
+}
+#seatsTable input:focus { outline: none; background: var(--card); border-color: var(--accent); }
+#seatsTable input:hover { border-color: var(--border); }
 </style>
 </head>
 <body>
@@ -338,6 +432,8 @@ td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
 <div class="tab-bar">
   <button class="active" onclick="switchTab('employees')">Employees</button>
   <button onclick="switchTab('reasons')">Absence Reasons</button>
+  <button onclick="switchTab('adeq')">Adequate Staffing</button>
+  <button onclick="switchTab('seats')">Seat Assignments</button>
 </div>
 
 <div id="sectionEmployees">
@@ -441,6 +537,74 @@ td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
     </table>
   </div>
 </div><!-- /sectionReasons -->
+
+<div id="sectionAdeq" style="display:none">
+  <div class="adeq-header">
+    <div>
+      <h2>Adequate Staffing Numbers</h2>
+      <div class="sub" style="color:var(--muted);font-size:11px;margin-top:2px">Manage minimum staffing levels per hour &amp; day &mdash; used by ShiftOps staffing boxes</div>
+    </div>
+    <div class="toolbar">
+      <button class="primary" id="btnAddAdeqHour">+ Add Hour</button>
+      <button class="ok" id="btnSaveAdeq">Save All</button>
+      <button id="btnReloadAdeq">Reload</button>
+    </div>
+  </div>
+  <div class="adeqRoleTabs" id="adeqRoleTabs">
+    <button class="active" data-role="CALLTAKER">Calltaker</button>
+    <button data-role="DISPATCHER">Dispatcher</button>
+    <button data-role="PIC">PIC</button>
+  </div>
+  <div id="adeqAddRow">
+    <div class="form-row">
+      <select id="adeqNewHourSel"></select>
+      <button class="primary" onclick="addAdeqHour()">Add</button>
+      <button onclick="document.getElementById('adeqAddRow').style.display='none'">Cancel</button>
+    </div>
+  </div>
+  <div class="adeq-status" id="adeqStatus"></div>
+  <div class="table-wrap" style="padding:0 10px">
+    <table id="adeqTable">
+      <thead><tr>
+        <th>Time</th><th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="adeqTbody"></tbody>
+    </table>
+  </div>
+</div><!-- /sectionAdeq -->
+
+<div id="sectionSeats" style="display:none">
+  <div class="seats-header">
+    <div>
+      <h2>Seat Assignments<span class="count-pill" id="seatCount">0</span></h2>
+      <div class="sub" style="color:var(--muted);font-size:11px;margin-top:2px">Manage seat/position names per role &mdash; used by ShiftOps assignment dropdowns</div>
+    </div>
+    <div class="toolbar">
+      <button class="primary" id="btnAddSeat">+ Add Seat</button>
+      <button class="ok" id="btnSaveSeats">Save All</button>
+      <button id="btnReloadSeats">Reload</button>
+    </div>
+  </div>
+  <div class="seatsRoleTabs" id="seatsRoleTabs">
+    <button class="active" data-role="CALLTAKER">Calltaker</button>
+    <button data-role="DISPATCHER">Dispatcher</button>
+    <button data-role="PIC">PIC</button>
+    <button data-role="SUPERVISOR">Supervisor</button>
+  </div>
+  <div id="seatAddForm">
+    <div class="form-row">
+      <input type="text" id="seatAddInput" placeholder="SEAT NAME" />
+      <button class="primary" onclick="addSeat()">Add</button>
+      <button onclick="document.getElementById('seatAddForm').style.display='none'">Cancel</button>
+    </div>
+  </div>
+  <div class="table-wrap" style="padding:0 10px">
+    <table id="seatsTable">
+      <thead><tr><th style="width:60%">Seat Name</th><th>Actions</th></tr></thead>
+      <tbody id="seatsTbody"></tbody>
+    </table>
+  </div>
+</div><!-- /sectionSeats -->
 
 </div>
 
@@ -851,17 +1015,30 @@ document.getElementById("btnReload").addEventListener("click", () => {
 // ===== Tab switching =====
 let _activeTab = 'employees';
 let _reasonsLoaded = false;
+let _adeqLoaded = false;
+let _seatsLoaded = false;
 
 function switchTab(tab){
   _activeTab = tab;
   document.getElementById('sectionEmployees').style.display = tab === 'employees' ? '' : 'none';
   document.getElementById('sectionReasons').style.display = tab === 'reasons' ? '' : 'none';
-  document.querySelectorAll('.tab-bar button').forEach(btn => {
-    btn.classList.toggle('active', btn.textContent.toLowerCase().includes(tab === 'employees' ? 'employee' : 'reason'));
+  document.getElementById('sectionAdeq').style.display = tab === 'adeq' ? '' : 'none';
+  document.getElementById('sectionSeats').style.display = tab === 'seats' ? '' : 'none';
+  document.querySelectorAll('.tab-bar button').forEach((btn, i) => {
+    const targets = ['employees','reasons','adeq','seats'];
+    btn.classList.toggle('active', targets[i] === tab);
   });
   if(tab === 'reasons' && !_reasonsLoaded){
     _reasonsLoaded = true;
     loadReasons();
+  }
+  if(tab === 'adeq' && !_adeqLoaded){
+    _adeqLoaded = true;
+    loadAdeqData();
+  }
+  if(tab === 'seats' && !_seatsLoaded){
+    _seatsLoaded = true;
+    loadSeats();
   }
 }
 
@@ -1068,6 +1245,370 @@ async function migrateOldRecords(){
     toast("Migration failed: " + err.message);
   }
 }
+
+// ===== Adequate Staffing CRUD =====
+const ADEQ_ROLES = [
+  { key: "CALLTAKER",  collection: "Calltaker_Adequate_Staffing",  timeField: "Calltaker Adequate staffing" },
+  { key: "DISPATCHER", collection: "Dispatcher_Adequate_Staffing", timeField: "Dispatcher Adequate Staffing" },
+  { key: "PIC",        collection: "PIC_Adequate_Staffing",        timeField: "PIC Adequate Staffing" },
+];
+const ADEQ_DAY_COLS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+let adeqData = { CALLTAKER: [], DISPATCHER: [], PIC: [] };
+// Each entry: { docId, time:"06:00", hourKey:"0600", Sun:n, Mon:n, ..., dirty, isNew }
+let _adeqRole = "CALLTAKER";
+
+async function loadAdeqData(){
+  const status = document.getElementById("adeqStatus");
+  status.style.display = "block"; status.style.color = "var(--accent)"; status.textContent = "Loading...";
+  try {
+    for(const r of ADEQ_ROLES){
+      const snap = await db.collection(r.collection).get();
+      adeqData[r.key] = snap.docs.map(doc => {
+        const d = doc.data();
+        const timeVal = d[r.timeField];
+        if(timeVal === "Time" || timeVal === undefined || timeVal === null) return null;
+        const hourKey = String(timeVal).replace(/[^0-9]/g,"").padStart(4,"0");
+        const entry = { docId: doc.id, time: String(timeVal), hourKey, dirty: false, isNew: false };
+        for(const col of ADEQ_DAY_COLS){
+          entry[col] = (d[col] !== undefined && d[col] !== null && d[col] !== "") ? Number(d[col]) : "";
+        }
+        return entry;
+      }).filter(Boolean);
+      adeqData[r.key].sort((a,b) => parseInt(a.hourKey,10) - parseInt(b.hourKey,10));
+    }
+    status.style.display = "none";
+    toast("Loaded adequate staffing data.");
+    renderAdeqTable();
+  } catch(e){
+    console.error(e);
+    status.style.color = "var(--bad)"; status.textContent = "Failed: " + e.message;
+    toast("Failed to load adequate staffing: " + e.message);
+  }
+}
+
+function renderAdeqTable(){
+  const list = (adeqData[_adeqRole] || []).filter(r => !r._deleted);
+  const tbody = document.getElementById("adeqTbody");
+
+  if(!list.length){
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">No hours configured. Click "+ Add Hour" to start.</td></tr>';
+    populateAdeqHourSelect();
+    return;
+  }
+
+  const fullList = adeqData[_adeqRole] || [];
+  tbody.innerHTML = list.map((row) => {
+    const origIdx = fullList.indexOf(row);
+    const cls = row.isNew ? "new-row" : (row.dirty ? "dirty" : "");
+    const disp = row.hourKey.slice(0,2) + ":" + row.hourKey.slice(2);
+    let html = `<tr class="${cls}" data-aidx="${origIdx}"><td>${esc(disp)}</td>`;
+    for(const col of ADEQ_DAY_COLS){
+      html += `<td><input type="number" min="0" value="${row[col] !== "" ? row[col] : ""}" data-col="${col}"/></td>`;
+    }
+    html += `<td class="row-actions"><button class="danger" onclick="deleteAdeqHour(${origIdx})" title="Remove hour">Del</button></td></tr>`;
+    return html;
+  }).join("");
+
+  tbody.querySelectorAll('input[type="number"]').forEach(inp => {
+    inp.addEventListener("change", onAdeqCellChange);
+    inp.addEventListener("input", onAdeqCellChange);
+  });
+  populateAdeqHourSelect();
+}
+
+function onAdeqCellChange(e){
+  const tr = e.target.closest("tr");
+  const idx = parseInt(tr.dataset.aidx);
+  const col = e.target.dataset.col;
+  const val = e.target.value;
+  adeqData[_adeqRole][idx][col] = val === "" ? "" : Number(val);
+  adeqData[_adeqRole][idx].dirty = true;
+  tr.classList.add("dirty");
+}
+
+function populateAdeqHourSelect(){
+  const sel = document.getElementById("adeqNewHourSel");
+  const existing = new Set((adeqData[_adeqRole]||[]).map(r => r.hourKey));
+  sel.innerHTML = '';
+  for(let h = 0; h < 24; h++){
+    const hk = (h * 100).toString().padStart(4,"0");
+    if(!existing.has(hk)){
+      const disp = hk.slice(0,2) + ":" + hk.slice(2);
+      sel.innerHTML += `<option value="${hk}">${disp}</option>`;
+    }
+  }
+  if(!sel.options.length) sel.innerHTML = '<option value="">All hours added</option>';
+}
+
+function addAdeqHour(){
+  const sel = document.getElementById("adeqNewHourSel");
+  const hk = sel.value;
+  if(!hk) return;
+  const disp = hk.slice(0,2) + ":" + hk.slice(2);
+  const entry = { docId: null, time: disp, hourKey: hk, dirty: true, isNew: true };
+  for(const col of ADEQ_DAY_COLS) entry[col] = "";
+  adeqData[_adeqRole].push(entry);
+  adeqData[_adeqRole].sort((a,b) => parseInt(a.hourKey,10) - parseInt(b.hourKey,10));
+  document.getElementById("adeqAddRow").style.display = "none";
+  toast("Added " + disp + " (unsaved).");
+  renderAdeqTable();
+}
+
+function deleteAdeqHour(idx){
+  const row = adeqData[_adeqRole][idx];
+  if(!row) return;
+  const disp = row.hourKey.slice(0,2) + ":" + row.hourKey.slice(2);
+  if(!confirm("Delete hour " + disp + "?\n\nThis will be removed on save.")) return;
+
+  if(row.docId){
+    // Mark for deletion on save
+    row._deleted = true;
+    row.dirty = true;
+  } else {
+    adeqData[_adeqRole].splice(idx, 1);
+  }
+  toast("Removed " + disp);
+  renderAdeqTable();
+}
+
+async function saveAllAdeq(){
+  const role = ADEQ_ROLES.find(r => r.key === _adeqRole);
+  if(!role) return;
+  const list = adeqData[_adeqRole] || [];
+  const dirtyList = list.filter(r => r.dirty);
+  if(!dirtyList.length){ toast("Nothing to save."); return; }
+  if(!confirm("Save " + _adeqRole + " staffing changes to Firestore?")) return;
+
+  const status = document.getElementById("adeqStatus");
+  status.style.display = "block"; status.style.color = "var(--accent)"; status.textContent = "Saving...";
+
+  let saved = 0, errors = 0;
+  try {
+    for(const row of dirtyList){
+      if(row._deleted){
+        if(row.docId){
+          await db.collection(role.collection).doc(row.docId).delete();
+        }
+        saved++;
+        continue;
+      }
+      const docData = {};
+      docData[role.timeField] = row.time;
+      for(const col of ADEQ_DAY_COLS){
+        docData[col] = (row[col] !== "" && row[col] !== undefined) ? Number(row[col]) : "";
+      }
+      try {
+        if(row.docId){
+          await db.collection(role.collection).doc(row.docId).set(docData);
+        } else {
+          const ref = await db.collection(role.collection).add(docData);
+          row.docId = ref.id;
+        }
+        row.dirty = false;
+        row.isNew = false;
+        saved++;
+      } catch(err){
+        console.error(err);
+        errors++;
+      }
+    }
+    // Remove deleted entries from local array
+    adeqData[_adeqRole] = adeqData[_adeqRole].filter(r => !r._deleted);
+    status.style.display = "none";
+    toast("Saved " + saved + (errors ? ", " + errors + " errors" : "") + " for " + _adeqRole);
+    renderAdeqTable();
+  } catch(err){
+    console.error(err);
+    status.style.color = "var(--bad)"; status.textContent = "Save failed: " + err.message;
+  }
+}
+
+// Adequate Staffing event listeners
+document.getElementById("btnAddAdeqHour").addEventListener("click", () => {
+  const f = document.getElementById("adeqAddRow");
+  f.style.display = f.style.display === "none" ? "block" : "none";
+});
+document.getElementById("btnSaveAdeq").addEventListener("click", saveAllAdeq);
+document.getElementById("btnReloadAdeq").addEventListener("click", () => {
+  const dirty = (adeqData[_adeqRole]||[]).some(r => r.dirty);
+  if(dirty && !confirm("Unsaved changes will be lost. Reload?")) return;
+  _adeqLoaded = false;
+  loadAdeqData();
+});
+document.querySelectorAll('#adeqRoleTabs button').forEach(btn => {
+  btn.addEventListener("click", () => {
+    _adeqRole = btn.dataset.role;
+    document.querySelectorAll('#adeqRoleTabs button').forEach(b => b.classList.toggle('active', b === btn));
+    renderAdeqTable();
+  });
+});
+
+// ===== Seat Assignments CRUD =====
+const SEAT_ROLES = [
+  { key: "CALLTAKER",   collection: "Calltaker_Seat_Assignments" },
+  { key: "DISPATCHER",  collection: "Dispatcher_Seat_Assignments" },
+  { key: "PIC",         collection: "PIC_Seat_Assignments" },
+  { key: "SUPERVISOR",  collection: "Supervisor_seat_Assignments" },
+];
+
+let seatsData = { CALLTAKER: [], DISPATCHER: [], PIC: [], SUPERVISOR: [] };
+// Each entry: { docId, name, fieldName, dirty, isNew }
+let _seatsRole = "CALLTAKER";
+
+async function loadSeats(){
+  try {
+    for(const r of SEAT_ROLES){
+      const snap = await db.collection(r.collection).get();
+      seatsData[r.key] = snap.docs.map(doc => {
+        const d = doc.data();
+        const entries = Object.entries(d);
+        const firstEntry = entries.length ? entries[0] : ["seat",""];
+        return {
+          docId: doc.id,
+          name: String(firstEntry[1] || "").trim(),
+          fieldName: firstEntry[0],
+          dirty: false,
+          isNew: false
+        };
+      }).filter(e => e.name);
+      seatsData[r.key].sort((a,b) => a.name.localeCompare(b.name));
+    }
+    toast("Loaded seat assignments.");
+    renderSeats();
+  } catch(e){
+    console.error(e);
+    toast("Failed to load seats: " + e.message);
+  }
+}
+
+function renderSeats(){
+  const list = seatsData[_seatsRole] || [];
+  document.getElementById("seatCount").textContent = list.length;
+  const tbody = document.getElementById("seatsTbody");
+  tbody.innerHTML = list.map((s, idx) => {
+    const cls = s.isNew ? "new-row" : (s.dirty ? "dirty" : "");
+    return `<tr class="${cls}">
+      <td><input value="${esc(s.name)}" onchange="onSeatChange(${idx}, this.value)" oninput="onSeatChange(${idx}, this.value)"/></td>
+      <td class="row-actions">
+        <button class="ok" onclick="saveOneSeat(${idx})">Save</button>
+        <button class="danger" onclick="deleteOneSeat(${idx})">Del</button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+function onSeatChange(idx, val){
+  seatsData[_seatsRole][idx].name = val.trim();
+  seatsData[_seatsRole][idx].dirty = true;
+  renderSeats();
+}
+
+function addSeat(){
+  const val = document.getElementById("seatAddInput").value.trim();
+  if(!val){ toast("Seat name is required."); return; }
+  if(seatsData[_seatsRole].some(s => s.name.toLowerCase() === val.toLowerCase())){ toast("Seat already exists."); return; }
+  seatsData[_seatsRole].push({ docId: null, name: val, fieldName: "seat", dirty: true, isNew: true });
+  seatsData[_seatsRole].sort((a,b) => a.name.localeCompare(b.name));
+  document.getElementById("seatAddInput").value = "";
+  document.getElementById("seatAddForm").style.display = "none";
+  toast("Added " + val + " (unsaved).");
+  renderSeats();
+}
+
+async function saveOneSeat(idx){
+  const s = seatsData[_seatsRole][idx];
+  if(!s) return;
+  const val = s.name.trim();
+  if(!val){ toast("Seat name cannot be empty."); return; }
+  const role = SEAT_ROLES.find(r => r.key === _seatsRole);
+
+  try {
+    if(s.docId){
+      await db.collection(role.collection).doc(s.docId).set({ [s.fieldName]: val });
+    } else {
+      const ref = await db.collection(role.collection).add({ seat: val });
+      s.docId = ref.id;
+      s.fieldName = "seat";
+    }
+    s.dirty = false;
+    s.isNew = false;
+    toast("Saved " + val);
+    renderSeats();
+  } catch(err){
+    console.error(err);
+    toast("Save failed: " + err.message);
+  }
+}
+
+async function deleteOneSeat(idx){
+  const s = seatsData[_seatsRole][idx];
+  if(!s) return;
+  if(!confirm("Delete seat \"" + s.name + "\"?\n\nThis cannot be undone.")) return;
+
+  try {
+    if(s.docId){
+      await db.collection(SEAT_ROLES.find(r => r.key === _seatsRole).collection).doc(s.docId).delete();
+    }
+    seatsData[_seatsRole].splice(idx, 1);
+    toast("Deleted " + s.name);
+    renderSeats();
+  } catch(err){
+    console.error(err);
+    toast("Delete failed: " + err.message);
+  }
+}
+
+async function saveAllSeats(){
+  const dirtyList = seatsData[_seatsRole].filter(s => s.dirty);
+  if(!dirtyList.length){ toast("Nothing to save."); return; }
+  if(!confirm("Save " + dirtyList.length + " seat(s) for " + _seatsRole + " to Firestore?")) return;
+  const role = SEAT_ROLES.find(r => r.key === _seatsRole);
+
+  let saved = 0, errors = 0;
+  for(const s of dirtyList){
+    const val = s.name.trim();
+    if(!val){ errors++; continue; }
+    try {
+      if(s.docId){
+        await db.collection(role.collection).doc(s.docId).set({ [s.fieldName]: val });
+      } else {
+        const ref = await db.collection(role.collection).add({ seat: val });
+        s.docId = ref.id;
+        s.fieldName = "seat";
+      }
+      s.dirty = false;
+      s.isNew = false;
+      saved++;
+    } catch(err){
+      console.error(err);
+      errors++;
+    }
+  }
+  toast("Saved " + saved + (errors ? ", " + errors + " errors" : "") + " for " + _seatsRole);
+  renderSeats();
+}
+
+// Seat Assignments event listeners
+document.getElementById("btnAddSeat").addEventListener("click", () => {
+  const f = document.getElementById("seatAddForm");
+  f.style.display = f.style.display === "none" ? "block" : "none";
+  if(f.style.display === "block") document.getElementById("seatAddInput").focus();
+});
+document.getElementById("btnSaveSeats").addEventListener("click", saveAllSeats);
+document.getElementById("btnReloadSeats").addEventListener("click", () => {
+  const dirty = (seatsData[_seatsRole]||[]).some(s => s.dirty);
+  if(dirty && !confirm("Unsaved changes will be lost. Reload?")) return;
+  _seatsLoaded = false;
+  loadSeats();
+});
+document.querySelectorAll('#seatsRoleTabs button').forEach(btn => {
+  btn.addEventListener("click", () => {
+    _seatsRole = btn.dataset.role;
+    document.querySelectorAll('#seatsRoleTabs button').forEach(b => b.classList.toggle('active', b === btn));
+    renderSeats();
+  });
+});
 </script>
 </body>
 </html>
