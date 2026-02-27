@@ -380,6 +380,73 @@ td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
 }
 #seatsTable input:focus { outline: none; background: var(--card); border-color: var(--accent); }
 #seatsTable input:hover { border-color: var(--border); }
+
+/* Scheduled Changes section */
+#sectionScheduled .sched-header {
+  padding: 14px 20px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(11,15,20,.98), rgba(11,15,20,.75));
+  flex-wrap: wrap;
+}
+#sectionScheduled .sched-header h2 { font-size: 18px; font-weight: 800; }
+.sched-filter-bar {
+  padding: 10px 20px;
+  background: rgba(17,24,38,.6);
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 10px; align-items: center;
+}
+.sched-filter-bar select {
+  padding: 7px 10px; background: var(--card); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; font-size: 12px;
+}
+.badge {
+  display: inline-block; padding: 2px 10px; border-radius: 99px;
+  font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
+}
+.badge-pending { background: rgba(255,224,102,.18); color: var(--warn); }
+.badge-active { background: rgba(63,231,182,.18); color: var(--ok); }
+.badge-expired { background: rgba(154,164,178,.18); color: var(--muted); }
+#schedTable { width: 100%; border-collapse: collapse; margin: 0; }
+#schedTable th {
+  padding: 8px 12px; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+  border-bottom: 2px solid var(--border); text-align: left; background: #0d1117;
+}
+#schedTable td {
+  padding: 6px 10px; border-bottom: 1px solid rgba(35,48,67,.5); vertical-align: middle;
+  font-size: 12px;
+}
+#schedTable tr:hover td { background: rgba(74,163,255,.04); }
+#addSchedForm {
+  display: none; padding: 16px 20px;
+  background: rgba(63,231,182,.04); border-bottom: 1px solid rgba(63,231,182,.15);
+}
+#addSchedForm .form-row {
+  display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap;
+}
+#addSchedForm input, #addSchedForm select, #addSchedForm textarea {
+  padding: 6px 10px; background: var(--card); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; font-size: 12px;
+}
+#addSchedForm input:focus, #addSchedForm select:focus, #addSchedForm textarea:focus {
+  outline: none; border-color: var(--accent);
+}
+#addSchedForm textarea { resize: vertical; font: inherit; font-size: 12px; }
+#addSchedForm label { font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
+.sched-day-grid {
+  display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0;
+}
+.sched-day-grid .field-group input { width: 70px; text-align: center; }
+.trainer-preview {
+  margin: 8px 0; padding: 8px 12px; background: rgba(74,163,255,.06);
+  border: 1px solid rgba(74,163,255,.2); border-radius: 6px; font-size: 11px;
+  color: var(--muted); display: none;
+}
+.trainer-preview b { color: var(--text); }
+#schedEmpty {
+  text-align: center; color: var(--muted); padding: 40px 20px; font-size: 13px;
+}
 </style>
 </head>
 <body>
@@ -434,6 +501,7 @@ td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
   <button onclick="switchTab('reasons')">Absence Reasons</button>
   <button onclick="switchTab('adeq')">Adequate Staffing</button>
   <button onclick="switchTab('seats')">Seat Assignments</button>
+  <button onclick="switchTab('scheduled')">Scheduled Changes</button>
 </div>
 
 <div id="sectionEmployees">
@@ -606,6 +674,92 @@ td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
   </div>
 </div><!-- /sectionSeats -->
 
+<div id="sectionScheduled" style="display:none">
+  <div class="sched-header">
+    <div>
+      <h2>Scheduled Changes<span class="count-pill" id="schedCount">0</span></h2>
+      <div class="sub" style="color:var(--muted);font-size:11px;margin-top:2px">Plan schedule changes and training mirrors ahead of time</div>
+    </div>
+    <div class="toolbar">
+      <button class="primary" id="btnAddSched">+ Add Scheduled Change</button>
+      <button id="btnReloadSched">Reload</button>
+    </div>
+  </div>
+  <div class="sched-filter-bar">
+    <select id="schedFilter" onchange="renderScheduled()">
+      <option value="">All Statuses</option>
+      <option value="pending">Pending</option>
+      <option value="active">Active</option>
+      <option value="expired">Expired</option>
+    </select>
+  </div>
+  <div id="addSchedForm">
+    <div style="margin-bottom:10px">
+      <label>Type</label>
+      <select id="schedType" onchange="onSchedTypeChange()" style="margin-left:6px">
+        <option value="schedule">Schedule Change</option>
+        <option value="mirror">Training Mirror</option>
+      </select>
+    </div>
+    <!-- Schedule Change fields -->
+    <div id="schedFieldsSchedule">
+      <div class="form-row">
+        <div class="field-group"><label>Employee</label>
+          <select id="schedEmployee" onchange="onSchedEmployeeChange()" style="width:160px"><option value="">Select...</option></select>
+        </div>
+        <div class="field-group"><label>Effective Date</label><input type="date" id="schedStart" style="width:140px"/></div>
+        <div class="field-group"><label>End Date (optional)</label><input type="date" id="schedEnd" style="width:140px"/></div>
+        <div class="field-group"><label>New Position (optional)</label>
+          <select id="schedNewPos" style="width:130px">
+            <option value="">Keep Current</option>
+            <option value="CALLTAKER">CALLTAKER</option>
+            <option value="DISPATCHER">DISPATCHER</option>
+            <option value="PIC">PIC</option>
+            <option value="SUPERVISOR">SUPERVISOR</option>
+          </select>
+        </div>
+      </div>
+      <div class="sched-day-grid">
+        <div class="field-group"><label>Mon</label><input type="text" id="schedMon" placeholder="6A-2P"/></div>
+        <div class="field-group"><label>Tue</label><input type="text" id="schedTue" placeholder="6A-2P"/></div>
+        <div class="field-group"><label>Wed</label><input type="text" id="schedWed" placeholder="6A-2P"/></div>
+        <div class="field-group"><label>Thu</label><input type="text" id="schedThu" placeholder="6A-2P"/></div>
+        <div class="field-group"><label>Fri</label><input type="text" id="schedFri" placeholder="6A-2P"/></div>
+        <div class="field-group"><label>Sat</label><input type="text" id="schedSat" placeholder="OFF"/></div>
+        <div class="field-group"><label>Sun</label><input type="text" id="schedSun" placeholder="OFF"/></div>
+      </div>
+    </div>
+    <!-- Mirror fields -->
+    <div id="schedFieldsMirror" style="display:none">
+      <div class="form-row">
+        <div class="field-group"><label>Trainee Name</label><input type="text" id="schedTrainee" placeholder="LAST NAME" style="width:160px"/></div>
+        <div class="field-group"><label>Trainer</label>
+          <select id="schedTrainer" onchange="onSchedTrainerChange()" style="width:160px"><option value="">Select...</option></select>
+        </div>
+        <div class="field-group"><label>Effective Date</label><input type="date" id="schedMirrorStart" style="width:140px"/></div>
+        <div class="field-group"><label>End Date (optional)</label><input type="date" id="schedMirrorEnd" style="width:140px"/></div>
+      </div>
+      <div class="trainer-preview" id="trainerPreview"></div>
+    </div>
+    <div class="form-row" style="margin-top:8px">
+      <div class="field-group" style="flex:1"><label>Description</label><input type="text" id="schedDesc" placeholder="Brief description of change" style="width:100%"/></div>
+    </div>
+    <div class="form-row" style="margin-top:10px">
+      <button class="primary" onclick="addScheduledChange()">Add Change</button>
+      <button onclick="document.getElementById('addSchedForm').style.display='none'">Cancel</button>
+    </div>
+  </div>
+  <div class="table-wrap" style="padding:0 10px">
+    <table id="schedTable">
+      <thead><tr>
+        <th>Status</th><th>Type</th><th>Employee</th><th>Dates</th><th>Description</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="schedTbody"></tbody>
+    </table>
+    <div id="schedEmpty" style="display:none">No scheduled changes yet. Click "+ Add Scheduled Change" to create one.</div>
+  </div>
+</div><!-- /sectionScheduled -->
+
 </div>
 
 <div id="toast"></div>
@@ -739,6 +893,8 @@ async function loadEmployees(){
     });
     toast("Loaded " + employees.length + " employees.");
     renderAll();
+    // Process scheduled changes on every load
+    await processScheduledChanges();
   } catch(e){
     console.error(e);
     toast("Failed to load: " + e.message);
@@ -1017,6 +1173,7 @@ let _activeTab = 'employees';
 let _reasonsLoaded = false;
 let _adeqLoaded = false;
 let _seatsLoaded = false;
+let _scheduledLoaded = false;
 
 function switchTab(tab){
   _activeTab = tab;
@@ -1024,8 +1181,9 @@ function switchTab(tab){
   document.getElementById('sectionReasons').style.display = tab === 'reasons' ? '' : 'none';
   document.getElementById('sectionAdeq').style.display = tab === 'adeq' ? '' : 'none';
   document.getElementById('sectionSeats').style.display = tab === 'seats' ? '' : 'none';
+  document.getElementById('sectionScheduled').style.display = tab === 'scheduled' ? '' : 'none';
   document.querySelectorAll('.tab-bar button').forEach((btn, i) => {
-    const targets = ['employees','reasons','adeq','seats'];
+    const targets = ['employees','reasons','adeq','seats','scheduled'];
     btn.classList.toggle('active', targets[i] === tab);
   });
   if(tab === 'reasons' && !_reasonsLoaded){
@@ -1039,6 +1197,10 @@ function switchTab(tab){
   if(tab === 'seats' && !_seatsLoaded){
     _seatsLoaded = true;
     loadSeats();
+  }
+  if(tab === 'scheduled' && !_scheduledLoaded){
+    _scheduledLoaded = true;
+    loadScheduled();
   }
 }
 
@@ -1608,6 +1770,478 @@ document.querySelectorAll('#seatsRoleTabs button').forEach(btn => {
     document.querySelectorAll('#seatsRoleTabs button').forEach(b => b.classList.toggle('active', b === btn));
     renderSeats();
   });
+});
+
+// ===== Scheduled Changes CRUD =====
+let scheduledChanges = []; // {docId, data:{...}, ...}
+
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+async function loadScheduled(){
+  try {
+    const snap = await db.collection("scheduledChanges").get();
+    scheduledChanges = snap.docs.map(doc => ({ docId: doc.id, data: doc.data() }));
+    // Sort by effectiveDate desc
+    scheduledChanges.sort((a,b) => (b.data.effectiveDate || '').localeCompare(a.data.effectiveDate || ''));
+    renderScheduled();
+  } catch(e){
+    console.error(e);
+    toast("Failed to load scheduled changes: " + e.message);
+  }
+}
+
+function renderScheduled(){
+  const filter = document.getElementById("schedFilter").value;
+  let list = scheduledChanges;
+  if(filter) list = list.filter(c => c.data.status === filter);
+
+  document.getElementById("schedCount").textContent = scheduledChanges.length;
+  const tbody = document.getElementById("schedTbody");
+  const emptyEl = document.getElementById("schedEmpty");
+
+  if(!list.length){
+    tbody.innerHTML = '';
+    emptyEl.style.display = 'block';
+    document.getElementById("schedTable").style.display = 'none';
+    return;
+  }
+  emptyEl.style.display = 'none';
+  document.getElementById("schedTable").style.display = '';
+
+  tbody.innerHTML = list.map((c, idx) => {
+    const d = c.data;
+    const origIdx = scheduledChanges.indexOf(c);
+    const badgeCls = d.status === 'active' ? 'badge-active' : (d.status === 'expired' ? 'badge-expired' : 'badge-pending');
+    const typeLabel = d.type === 'mirror' ? 'Mirror' : 'Schedule';
+    const empLabel = d.type === 'mirror' ? esc(d.employee || d.traineeName || '') + ' &#8594; ' + esc(d.trainerName || '') : esc(d.employee || '');
+    const dateRange = esc(d.effectiveDate || '') + (d.endDate ? ' to ' + esc(d.endDate) : ' (permanent)');
+    return `<tr>
+      <td><span class="badge ${badgeCls}">${esc(d.status || 'pending')}</span></td>
+      <td>${esc(typeLabel)}</td>
+      <td>${empLabel}</td>
+      <td>${dateRange}</td>
+      <td>${esc(d.description || '')}</td>
+      <td class="row-actions"><button class="danger" onclick="deleteScheduledChange(${origIdx})">Del</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function onSchedTypeChange(){
+  const type = document.getElementById("schedType").value;
+  document.getElementById("schedFieldsSchedule").style.display = type === 'schedule' ? '' : 'none';
+  document.getElementById("schedFieldsMirror").style.display = type === 'mirror' ? '' : 'none';
+}
+
+function populateSchedDropdowns(){
+  const empSelect = document.getElementById("schedEmployee");
+  const trainerSelect = document.getElementById("schedTrainer");
+  const sorted = [...employees].sort((a,b) => (a.data.Employee||'').localeCompare(b.data.Employee||''));
+  const opts = sorted.map(e => `<option value="${esc(e.data.Employee)}">${esc(e.data.Employee)}</option>`).join("");
+  empSelect.innerHTML = '<option value="">Select...</option>' + opts;
+  trainerSelect.innerHTML = '<option value="">Select...</option>' + opts;
+}
+
+function onSchedEmployeeChange(){
+  const name = document.getElementById("schedEmployee").value;
+  const emp = employees.find(e => e.data.Employee === name);
+  if(!emp) return;
+  // Pre-fill day inputs with current schedule
+  const d = emp.data;
+  document.getElementById("schedMon").value = d.MONDAY || '';
+  document.getElementById("schedTue").value = d.TUESDAY || '';
+  document.getElementById("schedWed").value = d.WEDNESDAY || '';
+  document.getElementById("schedThu").value = d.THURSDAY || '';
+  document.getElementById("schedFri").value = d.FRIDAY || '';
+  document.getElementById("schedSat").value = d.SATURDAY || '';
+  document.getElementById("schedSun").value = d.SUNDAY || '';
+}
+
+function onSchedTrainerChange(){
+  const name = document.getElementById("schedTrainer").value;
+  const prev = document.getElementById("trainerPreview");
+  const emp = employees.find(e => e.data.Employee === name);
+  if(!emp){ prev.style.display = 'none'; return; }
+  const d = emp.data;
+  prev.style.display = 'block';
+  prev.innerHTML = `<b>${esc(name)}'s Schedule:</b> Mon: ${esc(d.MONDAY)} | Tue: ${esc(d.TUESDAY)} | Wed: ${esc(d.WEDNESDAY)} | Thu: ${esc(d.THURSDAY)} | Fri: ${esc(d.FRIDAY)} | Sat: ${esc(d.SATURDAY)} | Sun: ${esc(d.SUNDAY)}`;
+}
+
+async function addScheduledChange(){
+  const type = document.getElementById("schedType").value;
+  const desc = document.getElementById("schedDesc").value.trim();
+
+  if(type === 'schedule'){
+    const empName = document.getElementById("schedEmployee").value;
+    if(!empName){ toast("Select an employee."); return; }
+    const effectiveDate = document.getElementById("schedStart").value;
+    if(!effectiveDate){ toast("Effective date is required."); return; }
+    const endDate = document.getElementById("schedEnd").value || "";
+    const newPos = document.getElementById("schedNewPos").value || "";
+    const emp = employees.find(e => e.data.Employee === empName);
+    const seniority = emp ? (emp.data.SENIORITY ?? "") : "";
+
+    const newSchedule = {
+      MONDAY: document.getElementById("schedMon").value.trim() || "",
+      TUESDAY: document.getElementById("schedTue").value.trim() || "",
+      WEDNESDAY: document.getElementById("schedWed").value.trim() || "",
+      THURSDAY: document.getElementById("schedThu").value.trim() || "",
+      FRIDAY: document.getElementById("schedFri").value.trim() || "",
+      SATURDAY: document.getElementById("schedSat").value.trim() || "",
+      SUNDAY: document.getElementById("schedSun").value.trim() || "",
+    };
+
+    // Build days off label from schedule
+    const dayNames = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    const dayKeys = ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY","SUNDAY"];
+    const offDays = dayKeys.map((k,i) => (!newSchedule[k] || newSchedule[k].toUpperCase() === "OFF") ? dayNames[i] : null).filter(Boolean);
+    const newDaysOff = offDays.join("/") || "";
+
+    const payload = {
+      type: "schedule",
+      employee: empName,
+      seniority,
+      effectiveDate,
+      endDate,
+      status: "pending",
+      newSchedule,
+      newDaysOff,
+      newPosition: newPos,
+      description: desc,
+      _originalData: null,
+      _appliedAt: null,
+      _revertedAt: null,
+    };
+
+    try {
+      const ref = await db.collection("scheduledChanges").add(payload);
+      scheduledChanges.push({ docId: ref.id, data: payload });
+      scheduledChanges.sort((a,b) => (b.data.effectiveDate||'').localeCompare(a.data.effectiveDate||''));
+      toast("Scheduled change added for " + empName);
+      document.getElementById("addSchedForm").style.display = "none";
+      clearSchedForm();
+      renderScheduled();
+    } catch(err){
+      console.error(err);
+      toast("Failed to add: " + err.message);
+    }
+
+  } else if(type === 'mirror'){
+    const trainee = document.getElementById("schedTrainee").value.trim().toUpperCase();
+    if(!trainee){ toast("Trainee name is required."); return; }
+    const trainerName = document.getElementById("schedTrainer").value;
+    if(!trainerName){ toast("Select a trainer."); return; }
+    const effectiveDate = document.getElementById("schedMirrorStart").value;
+    if(!effectiveDate){ toast("Effective date is required."); return; }
+    const endDate = document.getElementById("schedMirrorEnd").value || "";
+
+    const payload = {
+      type: "mirror",
+      employee: trainee,
+      seniority: 9999,
+      effectiveDate,
+      endDate,
+      status: "pending",
+      trainerName,
+      description: desc || (trainee + " mirrors " + trainerName),
+      _originalData: null,
+      _appliedAt: null,
+      _revertedAt: null,
+    };
+
+    try {
+      const ref = await db.collection("scheduledChanges").add(payload);
+      scheduledChanges.push({ docId: ref.id, data: payload });
+      scheduledChanges.sort((a,b) => (b.data.effectiveDate||'').localeCompare(a.data.effectiveDate||''));
+      toast("Training mirror added: " + trainee + " → " + trainerName);
+      document.getElementById("addSchedForm").style.display = "none";
+      clearSchedForm();
+      renderScheduled();
+    } catch(err){
+      console.error(err);
+      toast("Failed to add: " + err.message);
+    }
+  }
+}
+
+function clearSchedForm(){
+  document.getElementById("schedEmployee").value = "";
+  document.getElementById("schedStart").value = "";
+  document.getElementById("schedEnd").value = "";
+  document.getElementById("schedNewPos").value = "";
+  ["schedMon","schedTue","schedWed","schedThu","schedFri","schedSat","schedSun"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("schedTrainee").value = "";
+  document.getElementById("schedTrainer").value = "";
+  document.getElementById("schedMirrorStart").value = "";
+  document.getElementById("schedMirrorEnd").value = "";
+  document.getElementById("schedDesc").value = "";
+  document.getElementById("trainerPreview").style.display = "none";
+}
+
+async function deleteScheduledChange(idx){
+  const c = scheduledChanges[idx];
+  if(!c) return;
+  const d = c.data;
+  const label = d.employee || "this change";
+
+  // If active, warn about revert
+  if(d.status === 'active'){
+    if(!confirm("Delete active change for " + label + "?\n\nThis will REVERT the employee back to their original schedule.")) return;
+    // Revert employee data
+    await revertChange(c);
+  } else {
+    if(!confirm("Delete scheduled change for " + label + "?")) return;
+  }
+
+  try {
+    if(c.docId){
+      await db.collection("scheduledChanges").doc(c.docId).delete();
+    }
+    scheduledChanges.splice(idx, 1);
+    toast("Deleted scheduled change for " + label);
+    renderScheduled();
+  } catch(err){
+    console.error(err);
+    toast("Delete failed: " + err.message);
+  }
+}
+
+async function revertChange(c){
+  const d = c.data;
+  if(!d._originalData) return;
+
+  try {
+    if(d._originalData._wasNewlyCreated){
+      // If trainee was newly created, delete them
+      const empEntry = employees.find(e => e.data.Employee === d.employee);
+      if(empEntry && empEntry.docId){
+        await db.collection("employees").doc(empEntry.docId).delete();
+      }
+    } else {
+      // Restore original data
+      const empEntry = employees.find(e => e.data.Employee === d.employee);
+      if(empEntry && empEntry.docId){
+        const orig = d._originalData;
+        const payload = {
+          Employee: orig.Employee,
+          SENIORITY: orig.SENIORITY ?? "",
+          POSITION: orig.POSITION || "",
+          MONDAY: orig.MONDAY || "",
+          TUESDAY: orig.TUESDAY || "",
+          WEDNESDAY: orig.WEDNESDAY || "",
+          THURSDAY: orig.THURSDAY || "",
+          FRIDAY: orig.FRIDAY || "",
+          SATURDAY: orig.SATURDAY || "",
+          SUNDAY: orig.SUNDAY || "",
+        };
+        await db.collection("employees").doc(empEntry.docId).set(payload);
+      }
+    }
+    // Reload employees to reflect revert
+    await loadEmployeesQuiet();
+  } catch(err){
+    console.error("Revert failed:", err);
+    toast("Warning: revert may have failed — " + err.message);
+  }
+}
+
+// Quiet reload (no toast, no re-process scheduled)
+async function loadEmployeesQuiet(){
+  try {
+    const snap = await db.collection("employees").get();
+    employees = snap.docs.map(doc => {
+      const d = doc.data();
+      return {
+        docId: doc.id,
+        data: {
+          Employee: d.Employee || doc.id,
+          SENIORITY: d.SENIORITY ?? d.Seniority ?? "",
+          POSITION: normalizePos(d.POSITION ?? d.Position ?? ""),
+          MONDAY: d.MONDAY ?? "",
+          TUESDAY: d.TUESDAY ?? "",
+          WEDNESDAY: d.WEDNESDAY ?? "",
+          THURSDAY: d.THURSDAY ?? "",
+          FRIDAY: d.FRIDAY ?? "",
+          SATURDAY: d.SATURDAY ?? "",
+          SUNDAY: d.SUNDAY ?? "",
+        },
+        dirty: false,
+        isNew: false
+      };
+    });
+    renderAll();
+  } catch(e){ console.error(e); }
+}
+
+async function processScheduledChanges(){
+  try {
+    const snap = await db.collection("scheduledChanges").get();
+    scheduledChanges = snap.docs.map(doc => ({ docId: doc.id, data: doc.data() }));
+    const today = todayStr();
+    let anyChanged = false;
+
+    // Phase 1: Apply pending changes whose date has arrived
+    for(const c of scheduledChanges){
+      const d = c.data;
+      if(d.status !== 'pending') continue;
+      if(d.effectiveDate > today) continue;
+
+      if(d.type === 'schedule'){
+        const emp = employees.find(e => e.data.Employee === d.employee);
+        if(!emp || !emp.docId) continue;
+
+        // Save original data
+        const origData = { ...emp.data };
+        d._originalData = origData;
+
+        // Apply new schedule
+        const newSched = d.newSchedule || {};
+        const payload = {
+          Employee: emp.data.Employee,
+          SENIORITY: emp.data.SENIORITY,
+          POSITION: d.newPosition || emp.data.POSITION,
+          MONDAY: newSched.MONDAY !== undefined ? newSched.MONDAY : emp.data.MONDAY,
+          TUESDAY: newSched.TUESDAY !== undefined ? newSched.TUESDAY : emp.data.TUESDAY,
+          WEDNESDAY: newSched.WEDNESDAY !== undefined ? newSched.WEDNESDAY : emp.data.WEDNESDAY,
+          THURSDAY: newSched.THURSDAY !== undefined ? newSched.THURSDAY : emp.data.THURSDAY,
+          FRIDAY: newSched.FRIDAY !== undefined ? newSched.FRIDAY : emp.data.FRIDAY,
+          SATURDAY: newSched.SATURDAY !== undefined ? newSched.SATURDAY : emp.data.SATURDAY,
+          SUNDAY: newSched.SUNDAY !== undefined ? newSched.SUNDAY : emp.data.SUNDAY,
+        };
+        await db.collection("employees").doc(emp.docId).set(payload);
+
+        d.status = 'active';
+        d._appliedAt = new Date().toISOString();
+        await db.collection("scheduledChanges").doc(c.docId).update({
+          status: 'active',
+          _appliedAt: d._appliedAt,
+          _originalData: d._originalData,
+        });
+        anyChanged = true;
+
+      } else if(d.type === 'mirror'){
+        const trainer = employees.find(e => e.data.Employee === d.trainerName);
+        if(!trainer) continue;
+
+        let trainee = employees.find(e => e.data.Employee === d.employee);
+        let wasNewlyCreated = false;
+
+        if(!trainee){
+          // Create trainee employee doc
+          const traineePayload = {
+            Employee: d.employee,
+            SENIORITY: d.seniority || 9999,
+            POSITION: trainer.data.POSITION,
+            MONDAY: trainer.data.MONDAY,
+            TUESDAY: trainer.data.TUESDAY,
+            WEDNESDAY: trainer.data.WEDNESDAY,
+            THURSDAY: trainer.data.THURSDAY,
+            FRIDAY: trainer.data.FRIDAY,
+            SATURDAY: trainer.data.SATURDAY,
+            SUNDAY: trainer.data.SUNDAY,
+          };
+          const ref = await db.collection("employees").add(traineePayload);
+          wasNewlyCreated = true;
+          d._originalData = { _wasNewlyCreated: true };
+        } else {
+          // Save original data then copy trainer schedule
+          d._originalData = { ...trainee.data };
+          const payload = {
+            Employee: trainee.data.Employee,
+            SENIORITY: trainee.data.SENIORITY,
+            POSITION: trainer.data.POSITION,
+            MONDAY: trainer.data.MONDAY,
+            TUESDAY: trainer.data.TUESDAY,
+            WEDNESDAY: trainer.data.WEDNESDAY,
+            THURSDAY: trainer.data.THURSDAY,
+            FRIDAY: trainer.data.FRIDAY,
+            SATURDAY: trainer.data.SATURDAY,
+            SUNDAY: trainer.data.SUNDAY,
+          };
+          await db.collection("employees").doc(trainee.docId).set(payload);
+        }
+
+        d.status = 'active';
+        d._appliedAt = new Date().toISOString();
+        await db.collection("scheduledChanges").doc(c.docId).update({
+          status: 'active',
+          _appliedAt: d._appliedAt,
+          _originalData: d._originalData,
+        });
+        anyChanged = true;
+      }
+    }
+
+    // Phase 2: Revert active changes whose end date has passed
+    for(const c of scheduledChanges){
+      const d = c.data;
+      if(d.status !== 'active') continue;
+      if(!d.endDate || d.endDate >= today) continue;
+
+      // End date has passed — revert
+      if(d._originalData){
+        if(d._originalData._wasNewlyCreated){
+          // Delete the newly created trainee
+          const snap2 = await db.collection("employees").where("Employee", "==", d.employee).get();
+          for(const doc of snap2.docs) await doc.ref.delete();
+        } else {
+          // Restore original data
+          const snap2 = await db.collection("employees").where("Employee", "==", d.employee).get();
+          if(!snap2.empty){
+            const orig = d._originalData;
+            const payload = {
+              Employee: orig.Employee,
+              SENIORITY: orig.SENIORITY ?? "",
+              POSITION: orig.POSITION || "",
+              MONDAY: orig.MONDAY || "",
+              TUESDAY: orig.TUESDAY || "",
+              WEDNESDAY: orig.WEDNESDAY || "",
+              THURSDAY: orig.THURSDAY || "",
+              FRIDAY: orig.FRIDAY || "",
+              SATURDAY: orig.SATURDAY || "",
+              SUNDAY: orig.SUNDAY || "",
+            };
+            await db.collection("employees").doc(snap2.docs[0].id).set(payload);
+          }
+        }
+      }
+
+      d.status = 'expired';
+      d._revertedAt = new Date().toISOString();
+      await db.collection("scheduledChanges").doc(c.docId).update({
+        status: 'expired',
+        _revertedAt: d._revertedAt,
+      });
+      anyChanged = true;
+    }
+
+    // Phase 3: If anything changed, reload employees
+    if(anyChanged){
+      await loadEmployeesQuiet();
+      toast("Scheduled changes processed.");
+    }
+
+    // Sort and render the table if we're on the scheduled tab
+    scheduledChanges.sort((a,b) => (b.data.effectiveDate||'').localeCompare(a.data.effectiveDate||''));
+    if(_scheduledLoaded) renderScheduled();
+
+  } catch(e){
+    console.error("processScheduledChanges error:", e);
+  }
+}
+
+// Scheduled Changes event listeners
+document.getElementById("btnAddSched").addEventListener("click", () => {
+  const f = document.getElementById("addSchedForm");
+  f.style.display = f.style.display === "none" ? "block" : "none";
+  if(f.style.display === "block") populateSchedDropdowns();
+});
+document.getElementById("btnReloadSched").addEventListener("click", () => {
+  _scheduledLoaded = false;
+  _scheduledLoaded = true;
+  loadScheduled();
 });
 </script>
 </body>
