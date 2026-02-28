@@ -4089,8 +4089,9 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
             if(wasSecondChance || !_sharedSkippedTurnsCache[pos].includes(personKey)) _sharedSkippedTurnsCache[pos].push(personKey);
 
             const { nextUpKey, secondChanceKey } = _computeSkipState(pos, people, sel);
-            const nextKey = !nextUpKey ? null :
-              (wasSecondChance ? nextUpKey : (secondChanceKey || nextUpKey));
+            // If this was already a second-chance skip, only advance to nextUpKey (no more chances)
+            // Otherwise, prefer secondChanceKey (could be the same person getting their 2nd chance)
+            const nextKey = wasSecondChance ? (nextUpKey || null) : (secondChanceKey || nextUpKey || null);
             const nextTs = Date.now();
             _diag(`SKIP(${pos}): computed next → nextUpKey=${nextUpKey?nextUpKey.split('||')[0]:'null'}, secondChanceKey=${secondChanceKey?secondChanceKey.split('||')[0]:'null'}, nextKey=${nextKey?nextKey.split('||')[0]:'null'} (wasSecondChance=${wasSecondChance})`);
 
