@@ -1150,6 +1150,7 @@ function renderMonthlyOTView() {
     html += '<button class="btn" id="btnExportOT" style="font-size:10px;padding:5px 14px;background:rgba(220,38,38,.15);color:#ef4444;border-color:rgba(220,38,38,.3)">EXPORT OT NEEDS</button>';
     html += '<button class="btn" id="btnImportOT" style="font-size:10px;padding:5px 14px;background:rgba(34,197,94,.12);color:#22c55e;border-color:rgba(34,197,94,.3);margin-left:6px">IMPORT OT</button>';
     html += '<input type="file" id="importOTFile" accept=".xlsx,.xls,.csv" style="display:none"/>';
+    html += '<button class="btn" id="btnClearOT" style="font-size:10px;padding:5px 14px;background:rgba(251,113,133,.12);color:#fb7185;border-color:rgba(251,113,133,.3);margin-left:6px">CLEAR OT</button>';
   }
   html += '</div>';
 
@@ -1271,6 +1272,10 @@ function renderMonthlyOTView() {
       if (fileImp.files.length) { importOTFromTeams(fileImp.files[0]); fileImp.value = ''; }
     });
   }
+
+  // Wire clear OT button
+  const btnClr = document.getElementById('btnClearOT');
+  if (btnClr) btnClr.addEventListener('click', clearOTAssignments);
 }
 
 // ========== OT EXPORT (Teams XLSX) ==========
@@ -1669,6 +1674,17 @@ function renderHirePanel() {}
 function saveOTAssignments() {
   _saveTs = Date.now();
   SETTINGS_REF.set({ otAssignments: _otAssignments }, { merge: true });
+}
+
+function clearOTAssignments() {
+  const count = Object.values(_otAssignments).reduce((s, a) => s + a.length, 0);
+  if (!count) { setErr('No OT assignments to clear.'); setTimeout(clearErr, 2000); return; }
+  if (!confirm('Clear all ' + count + ' OT assignment' + (count !== 1 ? 's' : '') + '?')) return;
+  _otAssignments = {};
+  saveOTAssignments();
+  renderOTNeeds();
+  setErr('Cleared ' + count + ' OT assignment' + (count !== 1 ? 's' : '') + '.');
+  setTimeout(clearErr, 2500);
 }
 
 function getOTAvailable(dayOfMonth, blockIdx) {
