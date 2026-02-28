@@ -665,6 +665,21 @@ textarea.copyBox,
 
   let SKIP_DURATION_MS = 5 * 60 * 1000; // 5 minutes (configurable via dropdown)
 
+  // ========== DIAGNOSTIC LOG ==========
+  const _diagLog = [];
+  const _DIAG_MAX = 500;
+  function _diag(msg){
+    const ts = new Date();
+    const hh = String(ts.getHours()).padStart(2,'0');
+    const mm = String(ts.getMinutes()).padStart(2,'0');
+    const ss = String(ts.getSeconds()).padStart(2,'0');
+    const ms = String(ts.getMilliseconds()).padStart(3,'0');
+    const line = `[${hh}:${mm}:${ss}.${ms}] ${msg}`;
+    _diagLog.push(line);
+    if(_diagLog.length > _DIAG_MAX) _diagLog.shift();
+    console.log('%c[DIAG]', 'color:#f59e0b;font-weight:bold', msg);
+  }
+
 
   // Per-scope cache so the 3 dispatcher tables at the top stay synced to their
   // own block's break selector / assignment map.
@@ -2967,6 +2982,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       }
     }
 
+    _diag(`_computeSkipState(${pos}): unpicked=${unpicked.length}, skippedArr=[${skippedArr.map(k=>k.split('||')[0]).join(',')}], skippedCounts={${Object.entries(skippedCount).map(([k,v])=>k.split('||')[0]+':'+v).join(',')}}, nextUpKey=${nextUpKey?nextUpKey.split('||')[0]:'null'}, secondChanceKey=${secondChanceKey?secondChanceKey.split('||')[0]:'null'}`);
     return { nextUpKey, secondChanceKey, skippedSet };
   }
 
@@ -3221,6 +3237,34 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         <option value="420000">7 MIN</option>
         <option value="600000">10 MIN</option>
       </select>
+      <button id="testSimBtn" style="
+        padding:10px 20px;
+        border-radius:12px;
+        background:linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+        color:#fff;
+        border:2px solid #f87171;
+        font-weight:800;
+        cursor:pointer;
+        font-size:12px;
+        letter-spacing:1px;
+        text-transform:uppercase;
+        box-shadow:0 0 12px rgba(239,68,68,.3);
+        transition: all 0.2s ease;
+      ">&#9881; TEST SIM</button>
+      <button id="copyDiagBtn" style="
+        padding:10px 20px;
+        border-radius:12px;
+        background:linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+        color:#fff;
+        border:2px solid #a78bfa;
+        font-weight:800;
+        cursor:pointer;
+        font-size:12px;
+        letter-spacing:1px;
+        text-transform:uppercase;
+        box-shadow:0 0 12px rgba(139,92,246,.3);
+        transition: all 0.2s ease;
+      ">&#128203; COPY DIAG</button>
     </div>
 
     <div id="slotCapsManager" style="margin:12px 0 6px; padding:12px; border:1px solid var(--border); border-radius:14px; background:rgba(255,255,255,0.03);">
@@ -3470,6 +3514,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
     deployBtn.addEventListener("click", async ()=>{
       if(!isLocked()){ toast("Unable to start breaks — still editing. Lock first, then deploy."); return; }
+      _diag(`DEPLOY: Deploy Breaks clicked`);
 
       // Block onSnapshot re-renders during deploy
       window._deployInProgress = true;
@@ -3623,6 +3668,146 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
     }
   }
 
+  // Wire up Test Simulation button
+  const testSimBtn = document.getElementById("testSimBtn");
+  if(testSimBtn){
+    testSimBtn.addEventListener("click", async ()=>{
+      const code = prompt("Enter passcode to run test simulation:");
+      if(code !== LOCK_PASSCODE){ if(code !== null) toast("Wrong passcode."); return; }
+      if(!confirm("This will CLEAR current data and fill random seats, breaks, and pre-selections for testing. Continue?")) return;
+
+      toast("Test: clearing old data...");
+      // Clear everything first
+      await clearAssignmentsForScope();
+      await clearBreaksForScope();
+
+      const seatMap = { CALLTAKER: ctSeatOpts, DISPATCHER: dpSeatOpts, PIC: picSeatOpts, ANET: anetSeatOpts };
+      const allSlots = breakSlotsForBlock(block);
+      const shuffle = arr => { const a = [...arr]; for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+      const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+      const newAssign = { CALLTAKER: {}, DISPATCHER: {}, PIC: {}, ANET: {} };
+      const newBreaks = { CALLTAKER: [], DISPATCHER: [], PIC: [], ANET: [] };
+      const newPreSels = { CALLTAKER: {}, DISPATCHER: {}, PIC: {}, ANET: {} };
+      let totalAssigned = 0, totalPicked = 0, totalPreSel = 0;
+
+      for(const pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
+        const people = peopleByPos[pos] || [];
+        if(!people.length) continue;
+        const seats = shuffle(seatMap[pos]);
+        const slots = shuffle(allSlots);
+
+        // Assign seats to everyone
+        for(let i = 0; i < people.length; i++){
+          const k = keyFor(people[i]);
+          newAssign[pos][k] = seats[i % seats.length];
+          totalAssigned++;
+        }
+
+        // Pick breaks for the first N people (random 1-3, up to half the list)
+        const pickCount = Math.min(randInt(1, 3), Math.floor(people.length / 2));
+        const cap = _CAPS[pos];
+        const slotUsed = new Map();
+        for(let i = 0; i < pickCount && i < people.length; i++){
+          const k = keyFor(people[i]);
+          // Find a slot with capacity
+          let picked = null;
+          for(const s of slots){
+            const used = slotUsed.get(s) || 0;
+            const slotCap = capFor(pos, s);
+            if(slotCap > 0 && used < slotCap){ picked = s; slotUsed.set(s, used + 1); break; }
+          }
+          if(picked){
+            newBreaks[pos].push({ key: k, name: up(people[i].Employee), time: picked });
+            totalPicked++;
+          }
+        }
+
+        // Pre-select for remaining unpicked people using alternating pattern:
+        // NO pre-sel (will timeout → skip) → HAS pre-sel (auto-picks, triggers second chance)
+        // This guarantees the skip → jump → second-chance flow gets tested.
+        let totalNoPreSel = 0;
+        for(let i = pickCount; i < people.length; i++){
+          const offset = i - pickCount;
+          const k = keyFor(people[i]);
+          const seat = newAssign[pos][k];
+          if(offset % 2 === 0){
+            // Even offset: NO pre-selection → will get skipped by timer
+            totalNoPreSel++;
+            _diag(`SIM(${pos}): ${up(people[i].Employee)} [#${offset}] → NO PRE-SEL (will skip)`);
+            continue;
+          }
+          // Odd offset: HAS pre-selection → will auto-pick, triggering second chance for previous person
+          const randomSlots = shuffle(allSlots).slice(0, 3);
+          newPreSels[pos][k] = { seat: seat, times: randomSlots };
+          totalPreSel++;
+          _diag(`SIM(${pos}): ${up(people[i].Employee)} [#${offset}] → PRE-SEL ${randomSlots.join(',')}`);
+        }
+        _diag(`SIM(${pos}): ${people.length} people, ${pickCount} already picked, ${totalNoPreSel} will skip, ${totalPreSel} pre-selected`);
+      }
+
+      try {
+        _diag(`SIM: saving all data...`);
+        toast("Test: saving assignments...");
+        await saveAssignmentsForScope(newAssign);
+        toast("Test: saving breaks...");
+        await saveBreaksForScope(newBreaks);
+        toast("Test: saving pre-selections...");
+        await savePreSelectionsForScope(newPreSels);
+
+        // Deploy breaks for all positions
+        toast("Test: deploying breaks...");
+        for(const pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
+          const people = peopleByPos[pos] || [];
+          if(!people.length) continue;
+          await saveBreakStartedForScope(pos, true);
+        }
+
+        _diag(`SIM: DONE — ${totalAssigned} seats, ${totalPicked} picked, ${totalPreSel} pre-selected. Deploying.`);
+        toast("Test done! " + totalAssigned + " seats, " + totalPicked + " picked, " + totalPreSel + " pre-selected. Timers starting...");
+        renderBreakPicker(selectedDay, mode, block, buckets);
+      } catch(e){
+        console.error("Test simulation error:", e);
+        toast("Test simulation failed: " + e.message);
+      }
+    });
+  }
+
+  // Wire up Copy Diagnostics button
+  const copyDiagBtn = document.getElementById("copyDiagBtn");
+  if(copyDiagBtn){
+    copyDiagBtn.addEventListener("click", async ()=>{
+      if(!_diagLog.length){ toast("No diagnostic events yet."); return; }
+      const header = `=== BreakOPS Diagnostic Log ===\nCopied: ${new Date().toLocaleString()}\nTimer duration: ${SKIP_DURATION_MS/1000}s\nEntries: ${_diagLog.length}\n${'='.repeat(40)}\n`;
+      // Snapshot current state
+      const stateLines = [];
+      for(const pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
+        const bs = loadBreakStartedForScope();
+        const timer = loadTurnTimersForScope()[pos];
+        const skipped = loadSkippedTurnsForScope()[pos] || [];
+        const sel = selectionMap(pos);
+        const people = peopleByPos[pos] || [];
+        const unpicked = people.filter(r => !(sel.get(keyFor(r))||"")).map(r => keyFor(r).split('||')[0]);
+        stateLines.push(`${pos}: started=${!!bs[pos]}, timer=${timer?timer.key.split('||')[0]:'none'}, skipped=[${skipped.map(k=>k.split('||')[0]).join(',')}], unpicked=[${unpicked.join(',')}]`);
+      }
+      const state = `\n--- CURRENT STATE ---\n${stateLines.join('\n')}\n${'='.repeat(40)}\n`;
+      const text = header + state + '\n--- EVENT LOG ---\n' + _diagLog.join('\n');
+      try {
+        await navigator.clipboard.writeText(text);
+        toast("Diagnostics copied to clipboard (" + _diagLog.length + " events).");
+      } catch(e){
+        // Fallback: create temp textarea
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        toast("Diagnostics copied (" + _diagLog.length + " events).");
+      }
+    });
+  }
+
   // Wire up per-position Reset buttons
   card.querySelectorAll(".resetPosBtn[data-reset-pos]").forEach(btn=>{
     btn.addEventListener("click", async ()=>{
@@ -3760,6 +3945,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
         // Nobody left to pick — clear any stale timer
         if(!effectiveKey){
+          _diag(`initTimers(${pos}): nobody left to pick, clearing stale timer`);
           if(timers[pos] || autoPickedAny){
             try {
               _sharedTurnTimersCache[pos] = null;
@@ -3790,6 +3976,8 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
             try {
               const rec = people.find(r => keyFor(r) === effectiveKey);
               const name = rec ? up(rec.Employee) : effectiveKey.split("||")[0];
+              _diag(`initTimers(${pos}): AUTO-PICK ${name} → ${autoSlot}${secondChanceKey===effectiveKey?' [SECOND CHANCE]':''}`);
+
               if(needsSeatAssign){
                 const curAssign = loadAssignmentsForScope();
                 if(!curAssign[pos]) curAssign[pos] = {};
@@ -3824,11 +4012,14 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         }
 
         // No pre-selection match — this person needs manual pick
-        // If timer already exists for this unpicked person, leave it running
-        if(timers[pos]){
-          const timerPersonPicked = !!(sel.get(timers[pos].key) || "");
-          if(!timerPersonPicked) break;
+        // If timer already exists for THIS SAME person, leave it running
+        const curTimer = loadTurnTimersForScope()[pos];
+        if(curTimer && curTimer.key === effectiveKey){
+          _diag(`initTimers(${pos}): timer already running for ${effectiveKey.split('||')[0]}${secondChanceKey===effectiveKey?' [SECOND CHANCE]':''} — keeping`);
+          break;
         }
+        // Otherwise create/replace timer for the correct person
+        _diag(`initTimers(${pos}): STARTING TIMER for ${effectiveKey.split('||')[0]}${secondChanceKey===effectiveKey?' [SECOND CHANCE]':''} (curTimer=${curTimer?curTimer.key.split('||')[0]:'none'})`);
         try {
           const newTs = Date.now();
           _sharedTurnTimersCache[pos] = { key: String(effectiveKey), ts: newTs };
@@ -3884,6 +4075,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
           try {
             // Check if this person was already skipped (on a second chance) BEFORE updating cache
             const wasSecondChance = (_sharedSkippedTurnsCache[pos]||[]).includes(personKey);
+            _diag(`SKIP(${pos}): TIMER EXPIRED for ${personKey.split('||')[0]}, wasSecondChance=${wasSecondChance}, skippedCache=[${(_sharedSkippedTurnsCache[pos]||[]).map(k=>k.split('||')[0]).join(',')}]`);
 
             const sel = selectionMap(pos);
             const people = peopleByPos[pos] || [];
@@ -3900,6 +4092,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
             const nextKey = !nextUpKey ? null :
               (wasSecondChance ? nextUpKey : (secondChanceKey || nextUpKey));
             const nextTs = Date.now();
+            _diag(`SKIP(${pos}): computed next → nextUpKey=${nextUpKey?nextUpKey.split('||')[0]:'null'}, secondChanceKey=${secondChanceKey?secondChanceKey.split('||')[0]:'null'}, nextKey=${nextKey?nextKey.split('||')[0]:'null'} (wasSecondChance=${wasSecondChance})`);
 
             // Nobody left: everyone skipped — stop timer and set position back to pending
             if(!nextKey){
@@ -3918,6 +4111,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
               _sharedTurnTimersCache[pos] = null;
               _sharedBreakStartedCache[pos] = false;
               _skipInProgress[pos] = false;
+              _diag(`SKIP(${pos}): ALL SKIPPED — position reset to pending`);
               toast(`${pos}: all skipped — hit Deploy Breaks to restart.`);
               renderBreakPicker(selectedDay, mode, block, buckets);
               return;
@@ -3941,8 +4135,10 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
             if(didSkip){
               _sharedTurnTimersCache[pos] = { key: String(nextKey), ts: nextTs };
+              _diag(`SKIP(${pos}): DONE — skipped ${personKey.split('||')[0]}, timer now → ${nextKey.split('||')[0]}`);
               toast(`${pos}: time expired — skipped to next person.`);
             } else {
+              _diag(`SKIP(${pos}): TX GUARDED — timer was already changed, reverting local cache`);
               // Transaction guard prevented write — revert local cache
               _sharedTurnTimersCache[pos] = prevTimerCache;
               if(!wasSecondChance){
