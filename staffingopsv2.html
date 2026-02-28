@@ -1148,6 +1148,8 @@ function renderMonthlyOTView() {
   html += '<span class="ot-month-title">' + roleLabel + ' — ' + MONTHS[mo - 1] + ' ' + yr + '</span>';
   if (!isDispatcher) {
     html += '<button class="btn" id="btnExportOT" style="font-size:10px;padding:5px 14px;background:rgba(220,38,38,.15);color:#ef4444;border-color:rgba(220,38,38,.3)">EXPORT OT NEEDS</button>';
+    html += '<button class="btn" id="btnImportOT" style="font-size:10px;padding:5px 14px;background:rgba(34,197,94,.12);color:#22c55e;border-color:rgba(34,197,94,.3);margin-left:6px">IMPORT OT</button>';
+    html += '<input type="file" id="importOTFile" accept=".xlsx,.xls,.csv" style="display:none"/>';
   }
   html += '</div>';
 
@@ -1259,6 +1261,16 @@ function renderMonthlyOTView() {
   // Wire export button
   const btn = document.getElementById('btnExportOT');
   if (btn) btn.addEventListener('click', exportOTNeedsXlsx);
+
+  // Wire import button
+  const btnImp = document.getElementById('btnImportOT');
+  const fileImp = document.getElementById('importOTFile');
+  if (btnImp && fileImp) {
+    btnImp.addEventListener('click', () => fileImp.click());
+    fileImp.addEventListener('change', () => {
+      if (fileImp.files.length) { importOTFromTeams(fileImp.files[0]); fileImp.value = ''; }
+    });
+  }
 }
 
 // ========== OT EXPORT (Teams XLSX) ==========
@@ -1295,7 +1307,7 @@ function _buildOTRows() {
         'End Date': _fmtDateSlash(endDate),
         'End Time': bt.endTime,
         'Open Slots': b.need,
-        'Theme Color': '8. DarkBlue',
+        'Theme Color': currentRole === 'CALLTAKER' ? '8. DarkBlue' : currentRole === 'PIC' ? '10. DarkPurple' : '9. DarkGreen',
         'Custom Label': '',
         'Unpaid Break (minutes)': '',
         'Notes': bt.key + ' ' + roleSuffix,
@@ -1316,6 +1328,164 @@ function exportOTNeedsXlsx() {
   XLSX.utils.sheet_add_aoa(wb.Sheets['Open Shifts'], dataOnly, { origin: 'A2' });
   XLSX.writeFile(wb, 'Open_Shifts_' + currentMonth + '_' + currentRole + '.xlsx');
   showToast('Exported ' + rows.length + ' OT shift(s) to XLSX');
+}
+
+// ========== OT IMPORT (Teams XLSX) ==========
+async function importOTFromTeams(file) {
+  if (!window.XLSX) { showToast('XLSX library not loaded.'); return; }
+  const [yr, mo] = currentMonth.split('-').map(Number);
+
+  // Read file
+  let wb;
+  try {
+    const buf = await file.arrayBuffer();
+    wb = XLSX.read(buf, { type: 'array', cellDates: true });
+  } catch (e) { showToast('Failed to read file: ' + e.message); return; }
+
+  // Find sheet
+  const sheetNames = ['Shifts', 'Shift', 'Assigned Shifts', 'Schedule', 'Open Shifts'];
+  let ws = null;
+  for (const sn of sheetNames) {
+    const key = Object.keys(wb.Sheets).find(k => k.toLowerCase() === sn.toLowerCase());
+    if (key) { ws = wb.Sheets[key]; break; }
+  }
+  if (!ws) ws = wb.Sheets[Object.keys(wb.Sheets)[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+  if (!rows.length) { showToast('No data rows found in file.'); return; }
+
+  // Detect columns flexibly
+  function findCol(row, candidates) {
+    const keys = Object.keys(row);
+    for (const c of candidates) {
+      const k = keys.find(k2 => k2.toLowerCase().replace(/[^a-z]/g, '') === c.toLowerCase().replace(/[^a-z]/g, ''));
+      if (k) return k;
+    }
+    return null;
+  }
+  const sample = rows[0];
+  const colName = findCol(sample, ['Member', 'Name', 'Display Name', 'DisplayName', 'Employee', 'User', 'Assigned To', 'First Name']);
+  const colStartDate = findCol(sample, ['Start Date', 'StartDate', 'Start']);
+  const colNotes = findCol(sample, ['Notes', 'Note', 'Description', 'Custom Label']);
+  const colStartTime = findCol(sample, ['Start Time', 'StartTime']);
+  const colTheme = findCol(sample, ['Theme Color', 'ThemeColor', 'Theme']);
+
+  if (!colName) { showToast('Could not find name column (Member/Name/Display Name).'); return; }
+
+  // Only import rows matching the current role's theme color
+  const ROLE_THEME = { 'CALLTAKER': '8. DarkBlue', 'DISPATCHER': '9. DarkGreen', 'PIC': '10. DarkPurple' };
+  const requiredTheme = ROLE_THEME[currentRole] || '';
+
+  // Build block key → OT block index lookup
+  const blockKeyToIdx = {};
+  _ROT_BLOCK_KEYS.forEach((k, i) => { blockKeyToIdx[k] = i; });
+
+  // Build employee name lookup
+  const empNameSet = new Set(_ALL_EMPLOYEES.map(e => e.name.toUpperCase()));
+
+  let imported = 0, skipped = 0, noMatch = 0;
+
+  for (const row of rows) {
+    // Filter by theme color for current role
+    if (colTheme && requiredTheme) {
+      const theme = String(row[colTheme] || '').trim();
+      if (theme && theme !== requiredTheme) { skipped++; continue; }
+    }
+
+    const rawName = String(row[colName] || '').trim();
+    if (!rawName) { skipped++; continue; }
+
+    // Extract date
+    let dayOfMonth = null;
+    if (colStartDate) {
+      const raw = row[colStartDate];
+      let d = null;
+      if (raw instanceof Date) {
+        d = raw;
+      } else {
+        const s = String(raw).trim();
+        const slashMatch = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+        if (slashMatch) {
+          d = new Date(Number(slashMatch[3]), Number(slashMatch[1]) - 1, Number(slashMatch[2]));
+        } else {
+          const isoMatch = s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+          if (isoMatch) d = new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+        }
+      }
+      if (!d || isNaN(d.getTime())) { skipped++; continue; }
+      if (d.getFullYear() !== yr || (d.getMonth() + 1) !== mo) { skipped++; continue; }
+      dayOfMonth = d.getDate();
+    }
+    if (!dayOfMonth) { skipped++; continue; }
+
+    // Determine OT block index from Notes or Start Time
+    let blockIdx = null;
+    if (colNotes) {
+      const notes = String(row[colNotes] || '').trim();
+      const bkMatch = notes.match(/(\d{4}-\d{4})/);
+      if (bkMatch && blockKeyToIdx[bkMatch[1]] !== undefined) {
+        blockIdx = blockKeyToIdx[bkMatch[1]];
+      }
+    }
+    if (blockIdx === null && (colStartTime || colStartDate)) {
+      const timeRaw = colStartTime ? String(row[colStartTime] || '') : '';
+      const hourMatch = timeRaw.match(/(\d{1,2}):(\d{2})/);
+      if (hourMatch) {
+        const h = Number(hourMatch[1]);
+        if (h >= 6 && h < 10) blockIdx = 0;
+        else if (h >= 10 && h < 14) blockIdx = 1;
+        else if (h >= 14 && h < 18) blockIdx = 2;
+        else if (h >= 18 && h < 22) blockIdx = 3;
+        else if (h >= 22) blockIdx = 4;
+        else if (h >= 2 && h < 6) blockIdx = 5;
+        else if (h < 2) blockIdx = 4;
+      }
+    }
+    if (blockIdx === null) { skipped++; continue; }
+
+    // Match name to employee
+    let matchedName = null;
+    const nameUp = rawName.toUpperCase();
+    if (empNameSet.has(nameUp)) {
+      matchedName = nameUp;
+    } else {
+      let lastName = '';
+      if (nameUp.includes(',')) {
+        lastName = nameUp.split(',')[0].trim();
+      } else {
+        const parts = nameUp.split(/\s+/);
+        lastName = parts[parts.length - 1];
+      }
+      if (lastName) {
+        for (const emp of _ALL_EMPLOYEES) {
+          if (emp.name.toUpperCase() === lastName || emp.name.toUpperCase().startsWith(lastName)) {
+            matchedName = emp.name.toUpperCase();
+            break;
+          }
+        }
+      }
+    }
+    if (!matchedName) { noMatch++; continue; }
+
+    // Add to _otAssignments
+    const key = dayOfMonth + '-' + blockIdx;
+    if (!_otAssignments[key]) _otAssignments[key] = [];
+    if (!_otAssignments[key].some(n => n.toUpperCase() === matchedName)) {
+      _otAssignments[key].push(matchedName);
+      imported++;
+    } else {
+      skipped++;
+    }
+  }
+
+  if (imported > 0) {
+    saveOTAssignments();
+    renderMonthlyOTView();
+  }
+
+  let msg = imported + ' OT assignment(s) imported';
+  if (skipped) msg += ', ' + skipped + ' skipped';
+  if (noMatch) msg += ', ' + noMatch + ' unmatched';
+  showToast(msg);
 }
 
 // ========== STAFFING CALCULATION ==========

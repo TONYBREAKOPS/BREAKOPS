@@ -8578,7 +8578,7 @@ function renderExceptions() {
 
   // --- Vacation / Exclusion table ---
   html += '<div>';
-  html += '<h2 style="margin:0 0 10px; font-size:13px; letter-spacing:.5px;">VACATION / EXCLUSION</h2>';
+  html += '<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;"><h2 style="margin:0; font-size:13px; letter-spacing:.5px;">VACATION / EXCLUSION</h2><button class="btn danger" id="btnClearDupeVac" style="font-size:10px; padding:3px 10px; border-radius:6px; white-space:nowrap;">CLEAR DUPES</button></div>';
   html += '<div style="display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; align-items:end;">';
   html += `<div style="flex:1; min-width:120px;"><div style="font-size:9px; color:var(--muted); margin-bottom:2px;">EMPLOYEE</div><select id="vacName" style="width:100%; font-size:12px; padding:6px; border-radius:6px; box-sizing:border-box; background:var(--panel2); border:1px solid var(--line); color:var(--text);">${opts}</select></div>`;
   html += '<div style="min-width:110px;"><div style="font-size:9px; color:var(--muted); margin-bottom:2px;">FROM</div><input id="vacFrom" type="date" style="width:100%; font-size:12px; padding:6px; border-radius:6px; box-sizing:border-box;" /></div>';
@@ -8673,6 +8673,30 @@ function renderExceptions() {
 
   html += '</div>';
   wrap.innerHTML = html;
+
+  // Wire clear duplicates button for vacations
+  const btnClearDupe = document.getElementById("btnClearDupeVac");
+  if (btnClearDupe) {
+    btnClearDupe.addEventListener("click", () => {
+      const v = getVacRanges();
+      const seen = new Set();
+      const deduped = [];
+      let removed = 0;
+      for (const r of v) {
+        const key = (r.name||'').toUpperCase() + '|' + (r.from||'') + '|' + (r.to||'');
+        if (seen.has(key)) { removed++; continue; }
+        seen.add(key);
+        deduped.push(r);
+      }
+      if (removed === 0) { showToast('No duplicates found'); return; }
+      if (!confirm('Found ' + removed + ' duplicate vacation(s). Remove them?')) return;
+      saveJSON(STORAGE.vac, deduped);
+      renderExceptions(); renderInfoStats();
+      const dk = document.getElementById("dayPick").value;
+      if (dk) renderDay(dk);
+      showToast(removed + ' duplicate(s) removed');
+    });
+  }
 
   // Wire delete buttons for vacations
   wrap.querySelectorAll(".exc-del-vac").forEach(btn => {
@@ -10857,16 +10881,40 @@ function boot() {
       }
     }
 
-    // OT candidates: all dispatchers NOT already assigned/CT/SD in this block AND not scheduled for this block
+    // Unassigned + OT candidates
     const dateObj = parseYMD(dayKey);
     if (dateObj) {
       const block = BLOCKS.find(b => b.key === blockKey);
       const allDispatchers = buildDispatcherPoolForDate(dateObj);
-      // Names already in this block (assigned, CT, SD)
+      // Names already in this block (assigned, CT, SD, absent)
       const usedNames = new Set();
       for (const nm of Object.values(blockData.assignments || {})) { if (nm) usedNames.add(String(nm).toUpperCase()); }
       for (const nm of (blockData.ct || [])) { if (nm) usedNames.add(String(nm).toUpperCase()); }
       for (const nm of (blockData.sd || [])) { if (nm) usedNames.add(String(nm).toUpperCase()); }
+      for (const nm of (blockData.absent || [])) { if (nm) usedNames.add(String(nm).toUpperCase()); }
+
+      // Unassigned: scheduled to work this block but not in any slot
+      const unassignedCandidates = [];
+      for (const disp of allDispatchers) {
+        const nameUp = String(disp.name).toUpperCase();
+        if (usedNames.has(nameUp)) continue;
+        if (block && worksBlock(disp, dateObj, block)) {
+          unassignedCandidates.push(disp.name);
+        }
+      }
+      if (unassignedCandidates.length > 0) {
+        const sep = document.createElement("option");
+        sep.disabled = true;
+        sep.textContent = "\u2500\u2500\u2500 UNASSIGNED \u2500\u2500\u2500";
+        sel.appendChild(sep);
+        unassignedCandidates.sort((a, b) => a.localeCompare(b));
+        for (const nm of unassignedCandidates) {
+          const opt = document.createElement("option");
+          opt.value = nm;
+          opt.textContent = nm.toUpperCase() + "  (UNASSIGNED)";
+          sel.appendChild(opt);
+        }
+      }
 
       // Also get ALL base dispatchers (including those excluded/off) for OT
       const base = normalizeBase();

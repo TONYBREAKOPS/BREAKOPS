@@ -733,7 +733,11 @@ td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
     <!-- Mirror fields -->
     <div id="schedFieldsMirror" style="display:none">
       <div class="form-row">
-        <div class="field-group"><label>Trainee Name</label><input type="text" id="schedTrainee" placeholder="LAST NAME" style="width:160px"/></div>
+        <div class="field-group"><label>Trainee Name</label>
+          <select id="schedTrainee" onchange="onSchedTraineeChange()" style="width:160px"><option value="">Select...</option></select>
+          <input type="text" id="schedTraineeCustom" placeholder="LAST NAME" style="width:160px;display:none;margin-top:4px"/>
+        </div>
+        <div class="trainer-preview" id="traineePreview" style="display:none"></div>
         <div class="field-group"><label>Trainer</label>
           <select id="schedTrainer" onchange="onSchedTrainerChange()" style="width:160px"><option value="">Select...</option></select>
         </div>
@@ -1895,10 +1899,12 @@ function onSchedTypeChange(){
 function populateSchedDropdowns(){
   const empSelect = document.getElementById("schedEmployee");
   const trainerSelect = document.getElementById("schedTrainer");
+  const traineeSelect = document.getElementById("schedTrainee");
   const sorted = [...employees].sort((a,b) => (a.data.Employee||'').localeCompare(b.data.Employee||''));
   const opts = sorted.map(e => `<option value="${esc(e.data.Employee)}">${esc(e.data.Employee)}</option>`).join("");
   empSelect.innerHTML = '<option value="">Select...</option>' + opts;
   trainerSelect.innerHTML = '<option value="">Select...</option>' + opts;
+  traineeSelect.innerHTML = '<option value="">Select...</option>' + opts + '<option value="__CUSTOM__">Custom (New Trainee)</option>';
 }
 
 function onSchedEmployeeChange(){
@@ -1924,6 +1930,25 @@ function onSchedTrainerChange(){
   const d = emp.data;
   prev.style.display = 'block';
   prev.innerHTML = `<b>${esc(name)}'s Schedule:</b> Mon: ${esc(d.MONDAY)} | Tue: ${esc(d.TUESDAY)} | Wed: ${esc(d.WEDNESDAY)} | Thu: ${esc(d.THURSDAY)} | Fri: ${esc(d.FRIDAY)} | Sat: ${esc(d.SATURDAY)} | Sun: ${esc(d.SUNDAY)}`;
+}
+
+function onSchedTraineeChange(){
+  const val = document.getElementById("schedTrainee").value;
+  const customInput = document.getElementById("schedTraineeCustom");
+  const prev = document.getElementById("traineePreview");
+  if(val === "__CUSTOM__"){
+    customInput.style.display = '';
+    customInput.focus();
+    prev.style.display = 'none';
+  } else {
+    customInput.style.display = 'none';
+    customInput.value = '';
+    const emp = employees.find(e => e.data.Employee === val);
+    if(!emp || !val){ prev.style.display = 'none'; return; }
+    const d = emp.data;
+    prev.style.display = 'block';
+    prev.innerHTML = `<b>${esc(val)}'s Current Schedule:</b> ${esc(d.POSITION || '')} — Mon: ${esc(d.MONDAY)} | Tue: ${esc(d.TUESDAY)} | Wed: ${esc(d.WEDNESDAY)} | Thu: ${esc(d.THURSDAY)} | Fri: ${esc(d.FRIDAY)} | Sat: ${esc(d.SATURDAY)} | Sun: ${esc(d.SUNDAY)}`;
+  }
 }
 
 async function addScheduledChange(){
@@ -1986,10 +2011,20 @@ async function addScheduledChange(){
     }
 
   } else if(type === 'mirror'){
-    const trainee = document.getElementById("schedTrainee").value.trim().toUpperCase();
+    const traineeVal = document.getElementById("schedTrainee").value;
+    let trainee;
+    let traineeSeniority = 9999;
+    if(traineeVal === "__CUSTOM__"){
+      trainee = document.getElementById("schedTraineeCustom").value.trim().toUpperCase();
+    } else {
+      trainee = traineeVal;
+      const existingEmp = employees.find(e => e.data.Employee === trainee);
+      if(existingEmp) traineeSeniority = existingEmp.data.SENIORITY ?? 9999;
+    }
     if(!trainee){ toast("Trainee name is required."); return; }
     const trainerName = document.getElementById("schedTrainer").value;
     if(!trainerName){ toast("Select a trainer."); return; }
+    if(trainee === trainerName){ toast("Trainee and trainer cannot be the same person."); return; }
     const effectiveDate = document.getElementById("schedMirrorStart").value;
     if(!effectiveDate){ toast("Effective date is required."); return; }
     const endDate = document.getElementById("schedMirrorEnd").value || "";
@@ -1997,7 +2032,7 @@ async function addScheduledChange(){
     const payload = {
       type: "mirror",
       employee: trainee,
-      seniority: 9999,
+      seniority: traineeSeniority,
       effectiveDate,
       endDate,
       status: "pending",
@@ -2030,11 +2065,14 @@ function clearSchedForm(){
   document.getElementById("schedNewPos").value = "";
   ["schedMon","schedTue","schedWed","schedThu","schedFri","schedSat","schedSun"].forEach(id => document.getElementById(id).value = "");
   document.getElementById("schedTrainee").value = "";
+  document.getElementById("schedTraineeCustom").value = "";
+  document.getElementById("schedTraineeCustom").style.display = "none";
   document.getElementById("schedTrainer").value = "";
   document.getElementById("schedMirrorStart").value = "";
   document.getElementById("schedMirrorEnd").value = "";
   document.getElementById("schedDesc").value = "";
   document.getElementById("trainerPreview").style.display = "none";
+  document.getElementById("traineePreview").style.display = "none";
 }
 
 async function deleteScheduledChange(idx){
