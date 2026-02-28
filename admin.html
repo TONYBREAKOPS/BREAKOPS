@@ -4170,11 +4170,9 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
               toast(`${pos}: time expired — skipped to next person.`);
             } else {
               _diag(`SKIP(${pos}): TX GUARDED — timer was already changed, reverting local cache`);
-              // Transaction guard prevented write — revert local cache
+              // Transaction guard prevented write — always revert both caches
               _sharedTurnTimersCache[pos] = prevTimerCache;
-              if(!wasSecondChance){
-                _sharedSkippedTurnsCache[pos] = prevSkippedCache;
-              }
+              _sharedSkippedTurnsCache[pos] = prevSkippedCache;
             }
             _skipInProgress[pos] = false;
             renderBreakPicker(selectedDay, mode, block, buckets);
