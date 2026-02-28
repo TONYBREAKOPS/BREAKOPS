@@ -872,7 +872,19 @@ textarea.copyBox,
       _sharedDpVisualCache = _normalizeDpVisual(data.dpVisual);
       _sharedDpVisualLockedCache = !!data.dpVisualLocked;
       _sharedExtrasCache = Array.isArray(data.extras) ? data.extras : [];
-      _sharedTurnTimersCache = _normalizeTurnTimers(data.turnTimers);
+      // Merge incoming timers carefully: don't let a stale snapshot clobber
+      // a locally-written timer whose Firestore write hasn't propagated yet.
+      {
+        const incomingTimers = _normalizeTurnTimers(data.turnTimers);
+        for(const _pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
+          const incoming = incomingTimers[_pos];
+          const local = _sharedTurnTimersCache[_pos];
+          if(local && local.ts && (!incoming || !incoming.ts || incoming.ts < local.ts)){
+            incomingTimers[_pos] = local; // keep locally-written timer
+          }
+        }
+        _sharedTurnTimersCache = incomingTimers;
+      }
       _sharedSkippedTurnsCache = _normalizeSkippedTurns(data.skippedTurns);
       _sharedBreakStartedCache = _normalizeBreakStarted(data.breakStarted);
       _sharedPreSelectionsCache = _normalizePreSelections(data.preSelections);

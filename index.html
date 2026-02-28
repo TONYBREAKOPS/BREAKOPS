@@ -1580,7 +1580,7 @@ function renderSheetSection(title, rows, overflow){
         <tbody>
           ${rows.map(r=>`
             <tr>
-              <td>${escapeHtml(up(r.name))} ${extraNote(r) ? "[" + extraNote(r) + "]" : ""} ${extraNote(r) ? "[" + extraNote(r) + "]" : ""} ${r.daysOff ? `(${escapeHtml(up(r.daysOff))})` : ""} ${escapeHtml(extraNote(r) ? "[" + extraNote(r) + "]" : "")}</td>
+              <td>${escapeHtml(up(r.name))} ${escapeHtml(extraNote(r) ? "[" + extraNote(r) + "]" : "")} ${r.daysOff ? `(${escapeHtml(up(r.daysOff))})` : ""}</td>
               <td>${r.time ? escapeHtml(slotLabelHHMM(r.time)) : 'OPEN'}</td>
             </tr>
           `).join("")}
