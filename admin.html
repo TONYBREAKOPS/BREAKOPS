@@ -1616,7 +1616,7 @@ function up(s){ return String(s||"").toUpperCase(); }
 
 function positionsOptions(current){
   const all = Array.from(new Set([...POSITIONS, "ABSENT", ...BASE.map(r=>String(r.Position||"ABSENT").toUpperCase())]));
-  return all.map(p=>`<option value="${p}" ${p===current?"selected":""}>${p}</option>`).join("");
+  return all.map(p=>`<option value="${escapeHtml(p)}" ${p===current?"selected":""}>${escapeHtml(p)}</option>`).join("");
 }
 
 function hoursOptions(current){
@@ -1626,7 +1626,7 @@ function hoursOptions(current){
     {v:"2/2", t:"2/2"}
   ];
   return opts.map(function(o){
-    return "<option value=\""+o.v+"\" "+(o.v===current?"selected":"")+">"+o.t+"</option>";
+    return "<option value=\""+escapeHtml(o.v)+"\" "+(o.v===current?"selected":"")+">"+escapeHtml(o.t)+"</option>";
   }).join("");
 }
 
@@ -1885,7 +1885,7 @@ function syncBlockOptions(){
   const blocks = blocksForMode(mode);
   const blockSel = document.getElementById("blockSel");
   const cur = blockSel.value;
-  blockSel.innerHTML = blocks.map(b=>`<option value="${b.id}">${b.label}</option>`).join("");
+  blockSel.innerHTML = blocks.map(b=>`<option value="${escapeHtml(b.id)}">${escapeHtml(b.label)}</option>`).join("");
   blockSel.value = blocks.some(b=>b.id===cur) ? cur : blocks[0].id;
 }
 
@@ -2022,7 +2022,7 @@ function renderPosTable(pos, rows, selectedDay, mode, posOverrides, block, cover
   const pretty = pos[0] + pos.slice(1).toLowerCase();
   return `
     <div>
-      <div class="muted" style="font-size:12px;margin:0 0 6px 2px;">${pretty} • ${rows.length}</div>
+      <div class="muted" style="font-size:12px;margin:0 0 6px 2px;">${escapeHtml(pretty)} • ${rows.length}</div>
       ${renderCoverageMini(pos, coverageRows || rows, selectedDay, mode, block)}
       <div class="posWithHours">
         <table>
@@ -2466,7 +2466,7 @@ function render(){
 
   document.getElementById("content").innerHTML = `
     <div class="sectionTitle">
-      <h2>Lists for ${block.label} • ${selectedDay} ${dateStr} • ${mode==="days" ? "Days" : "Nights"}</h2>
+      <h2>Lists for ${escapeHtml(block.label)} • ${escapeHtml(selectedDay)} ${escapeHtml(dateStr)} • ${mode==="days" ? "Days" : "Nights"}</h2>
       <div class="pill">${total} total</div>
     </div>
     <div class="posGrid">
@@ -2552,7 +2552,7 @@ function buildSlotRows(people, slots, perSlot){
 function renderSheetSection(title, rows, overflow){
   return `
     <div class="printSection">
-      <div class="printSectionTitle">${title}${overflow>0 ? ` • (+${overflow} not shown)` : ""}</div>
+      <div class="printSectionTitle">${escapeHtml(title)}${overflow>0 ? ` • (+${overflow} not shown)` : ""}</div>
       <table>
         <thead>
           <tr>
@@ -2592,7 +2592,7 @@ function renderDpPicTwoColumn(title, people, slots, picksByTime, perSlot){
 
   return `
     <div class="printSection">
-      <div class="printSectionTitle">${title}</div>
+      <div class="printSectionTitle">${escapeHtml(title)}</div>
       <div class="dpPrintWrap">
         <div class="dpNames">
           <table class="dpMiniTable">
@@ -2691,7 +2691,7 @@ function renderDispatcherPrint(title, people, slots, breaksByKey, assignmentsMap
   // Relief columns intentionally left BLANK (no OPEN). Reliefs fill these in by hand.
   return `
     <div class="printSection">
-      <div class="printSectionTitle">${title}</div>
+      <div class="printSectionTitle">${escapeHtml(title)}</div>
 
       <div style="width:88%; margin:0 auto 10px;">
         <table class="dpMiniTable" style="width:100%;">
@@ -2739,7 +2739,7 @@ function renderReliefTable(title, slots, picksByTime, perSlot){
   const colLabels = perSlot===2 ? ["RELIEF 1","RELIEF 2"] : ["RELIEF 1"];
   return `
     <div class="printSection dpReliefHalf">
-      <div class="printSectionTitle">${title}</div>
+      <div class="printSectionTitle">${escapeHtml(title)}</div>
       <table class="dpMiniTable" style="width:100%; margin:0 auto;">
         <thead>
           <tr>
@@ -2838,7 +2838,7 @@ function renderPrintSheets(selectedDay, dateStr, mode, block, buckets){
 
   const page1 = `
     <div class="printPage pageBreakAfter">
-      <div class="printTitle">CALL TAKER BREAKS (${block.label.replace("–","-")})</div>
+      <div class="printTitle">CALL TAKER BREAKS (${escapeHtml(block.label.replace("–","-"))})</div>
       <div class="printMeta">${escapeHtml(meta)}</div>
       ${renderSheetSection("CALL TAKER", ct.rows, ct.overflow)}
     </div>
@@ -2846,7 +2846,7 @@ function renderPrintSheets(selectedDay, dateStr, mode, block, buckets){
 
   const page2 = `
     <div class="printPage">
-      <div class="printTitle">DISPATCHER BREAKS (${block.label.replace("–","-")})</div>
+      <div class="printTitle">DISPATCHER BREAKS (${escapeHtml(block.label.replace("–","-"))})</div>
       <div class="printMeta">${escapeHtml(meta)}</div>
       ${renderDispatcherPrint("DISPATCHER", dispatchers, slots, dpTimesByKey, (assigns && assigns.DISPATCHER) ? assigns.DISPATCHER : {})}
       </div>
@@ -2983,7 +2983,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
     return `
       <div style="margin-top:10px;">
         <div class="sectionTitle" style="margin:0 2px 8px;">
-          <h2>${pos}</h2>
+          <h2>${escapeHtml(pos)}</h2>
           <div style="display:flex; gap:8px; align-items:center;">
             <div class="pill">${people.length} names • ${capDefault} per slot</div>
             ${started ? `<span class="pill" style="background:rgba(34,197,94,.15); color:#4ade80;">&#9989; Started</span>` : `<span class="pill" style="background:rgba(250,204,21,.12); color:#facc15;">&#9899; Pending</span>`}
@@ -3053,7 +3053,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                 const _myPreObj = (_preSels[pos] && _preSels[pos][k]) || null;
                 const _myPreTimes = _myPreObj ? (_myPreObj.times || []) : [];
                 const _myPreSeat = _myPreObj ? (_myPreObj.seat || '') : '';
-                const _preBadges = (!cur && (_myPreTimes.length || _myPreSeat)) ? `<div style="margin-top:2px;">${_myPreSeat ? `<span style="background:rgba(250,204,21,.15);color:#facc15;padding:1px 5px;border-radius:4px;font-size:10px;">${escapeHtml(_myPreSeat)}</span> ` : ''}${_myPreTimes.map((t,i)=>`<span style="background:rgba(59,130,246,.15);color:#60a5fa;padding:1px 5px;border-radius:4px;font-size:10px;">#${i+1}: ${slotLabelHHMM(t)}</span>`).join(' ')}</div>` : '';
+                const _preBadges = (!cur && (_myPreTimes.length || _myPreSeat)) ? `<div style="margin-top:2px;">${_myPreSeat ? `<span style="background:rgba(250,204,21,.15);color:#facc15;padding:1px 5px;border-radius:4px;font-size:10px;">${escapeHtml(_myPreSeat)}</span> ` : ''}${_myPreTimes.map((t,i)=>`<span style="background:rgba(59,130,246,.15);color:#60a5fa;padding:1px 5px;border-radius:4px;font-size:10px;">#${i+1}: ${escapeHtml(slotLabelHHMM(t))}</span>`).join(' ')}</div>` : '';
                 return `
                   <tr class="${rowClass}">
                     <td>${escapeHtml(up(r.Employee))}${hoursSuffix(cur)}${badge}${timerBadge}${_preBadges}</td>
@@ -3744,98 +3744,92 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
       const timers = loadTurnTimersForScope();
       const people = peopleByPos[pos] || [];
-      const sel = selMaps[pos];
+      let sel = selMaps[pos];
 
-      // If timer exists, only update if it points to someone who already picked
-      if(timers[pos]){
-        const timerPersonPicked = !!(sel.get(timers[pos].key) || "");
-        if(!timerPersonPicked) continue; // timer points to valid unpicked person — leave it
-      }
+      // Inner loop: keep auto-picking pre-selections for consecutive people in this position
+      let autoPickedAny = false;
+      while(true){
+        const { nextUpKey, secondChanceKey } = _computeSkipState(pos, people, sel);
+        const effectiveKey = secondChanceKey || nextUpKey;
 
-      const { nextUpKey, secondChanceKey } = _computeSkipState(pos, people, sel);
-      const effectiveKey = secondChanceKey || nextUpKey;
-
-      // Nobody left to pick — clear any stale timer
-      if(!effectiveKey){
-        if(timers[pos]){
-          try {
-            _sharedTurnTimersCache[pos] = null;
-            await saveTurnTimerForScope(pos, null);
-          } catch(e){ console.warn('Timer clear error:', e); }
+        // Nobody left to pick — clear any stale timer
+        if(!effectiveKey){
+          if(timers[pos] || autoPickedAny){
+            try {
+              _sharedTurnTimersCache[pos] = null;
+              await saveTurnTimerForScope(pos, null);
+            } catch(e){ console.warn('Timer clear error:', e); }
+          }
+          break; // done with this position
         }
-        continue;
-      }
 
-      // --- Auto-pick from pre-selections ---
-      const preSels = loadPreSelectionsForScope();
-      const personPreObj = (preSels[pos] && preSels[pos][effectiveKey]) || null;
-      const personPreTimes = personPreObj ? (personPreObj.times || []) : [];
-      const personPreSeat = personPreObj ? (personPreObj.seat || '') : '';
-      // Use existing assignment OR the pre-selected seat
-      let personAssign = (loadAssignmentsForScope()[pos] || {})[effectiveKey];
-      const needsSeatAssign = !personAssign && personPreSeat;
-      if(needsSeatAssign) personAssign = personPreSeat;
-      if(personPreTimes.length && personAssign){
-        // Try each pre-selection in priority order
-        const slotCounts = countsFor(pos, effectiveKey);
-        let autoSlot = null;
-        for(const slot of personPreTimes){
-          const used = slotCounts.get(slot) || 0;
-          const cap = capFor(pos, slot);
-          if(cap > 0 && used < cap){ autoSlot = slot; break; }
-        }
-        if(autoSlot){
-          try {
-            // Find the person's name from peopleByPos
-            const rec = people.find(r => keyFor(r) === effectiveKey);
-            const name = rec ? up(rec.Employee) : effectiveKey.split("||")[0];
-            // Assign seat if needed
-            if(needsSeatAssign){
-              const curAssign = loadAssignmentsForScope();
-              if(!curAssign[pos]) curAssign[pos] = {};
-              curAssign[pos][effectiveKey] = personPreSeat;
-              await saveAssignmentsForScope(curAssign);
+        // --- Auto-pick from pre-selections ---
+        const preSels = loadPreSelectionsForScope();
+        const personPreObj = (preSels[pos] && preSels[pos][effectiveKey]) || null;
+        const personPreTimes = personPreObj ? (personPreObj.times || []) : [];
+        const personPreSeat = personPreObj ? (personPreObj.seat || '') : '';
+        let personAssign = (loadAssignmentsForScope()[pos] || {})[effectiveKey];
+        const needsSeatAssign = !personAssign && personPreSeat;
+        if(needsSeatAssign) personAssign = personPreSeat;
+
+        if(personPreTimes.length && personAssign){
+          const slotCounts = countsFor(pos, effectiveKey);
+          let autoSlot = null;
+          for(const slot of personPreTimes){
+            const used = slotCounts.get(slot) || 0;
+            const cap = capFor(pos, slot);
+            if(cap > 0 && used < cap){ autoSlot = slot; break; }
+          }
+          if(autoSlot){
+            try {
+              const rec = people.find(r => keyFor(r) === effectiveKey);
+              const name = rec ? up(rec.Employee) : effectiveKey.split("||")[0];
+              if(needsSeatAssign){
+                const curAssign = loadAssignmentsForScope();
+                if(!curAssign[pos]) curAssign[pos] = {};
+                curAssign[pos][effectiveKey] = personPreSeat;
+                await saveAssignmentsForScope(curAssign);
+              }
+              const cur = loadBreaksForScope();
+              cur[pos] = Array.isArray(cur[pos]) ? cur[pos] : [];
+              cur[pos] = cur[pos].filter(x => x.key !== effectiveKey);
+              cur[pos].push({ key: effectiveKey, name, time: autoSlot });
+              const order = people.map(r => keyFor(r));
+              cur[pos].sort((a,b) => order.indexOf(a.key) - order.indexOf(b.key));
+              await saveBreaksForScope(cur);
+              const skipped = loadSkippedTurnsForScope();
+              if(skipped[pos].includes(effectiveKey)){
+                try { await unskipPersonForScope(pos, effectiveKey); } catch(e){ console.warn(e); }
+              }
+              await saveTurnTimerForScope(pos, null);
+              _sharedTurnTimersCache[pos] = null;
+              delete preSels[pos][effectiveKey];
+              await savePreSelectionsForScope(preSels);
+              toast(`${pos}: auto-picked ${needsSeatAssign ? personPreSeat+' + ' : ''}${slotLabelHHMM(autoSlot)} for ${name} (pre-selection #${personPreTimes.indexOf(autoSlot)+1})`);
+              // Update local sel map so _computeSkipState advances on next iteration
+              sel = selectionMap(pos);
+              autoPickedAny = true;
+              continue; // loop back to check next person in same position
+            } catch(e){
+              console.warn('Auto-pick error:', e);
+              // Fall through to normal timer
             }
-            // Add their break
-            const cur = loadBreaksForScope();
-            cur[pos] = Array.isArray(cur[pos]) ? cur[pos] : [];
-            cur[pos] = cur[pos].filter(x => x.key !== effectiveKey);
-            cur[pos].push({ key: effectiveKey, name, time: autoSlot });
-            const order = people.map(r => keyFor(r));
-            cur[pos].sort((a,b) => order.indexOf(a.key) - order.indexOf(b.key));
-            await saveBreaksForScope(cur);
-            // Clear their skip state if on second chance
-            const skipped = loadSkippedTurnsForScope();
-            if(skipped[pos].includes(effectiveKey)){
-              try { await unskipPersonForScope(pos, effectiveKey); } catch(e){ console.warn(e); }
-            }
-            // Clear timer and remove pre-selection
-            await saveTurnTimerForScope(pos, null);
-            _sharedTurnTimersCache[pos] = null;
-            delete preSels[pos][effectiveKey];
-            await savePreSelectionsForScope(preSels);
-            toast(`${pos}: auto-picked ${needsSeatAssign ? personPreSeat+' + ' : ''}${slotLabelHHMM(autoSlot)} for ${name} (pre-selection #${personPreTimes.indexOf(autoSlot)+1})`);
-            // Re-run initTimers for this position to advance to the next person
-            const { nextUpKey: nk2, secondChanceKey: sk2 } = _computeSkipState(pos, people, selectionMap(pos));
-            const eff2 = sk2 || nk2;
-            if(eff2){
-              const ts2 = Date.now();
-              _sharedTurnTimersCache[pos] = { key: String(eff2), ts: ts2 };
-              await saveTurnTimerForScope(pos, { key: eff2, ts: ts2 });
-            }
-            continue;
-          } catch(e){
-            console.warn('Auto-pick error:', e);
-            // Fall through to normal timer
           }
         }
-      }
 
-      try {
-        const newTs = Date.now();
-        _sharedTurnTimersCache[pos] = { key: String(effectiveKey), ts: newTs };
-        await saveTurnTimerForScope(pos, { key: effectiveKey, ts: newTs });
-      } catch(e){ console.warn('Timer init error:', e); }
+        // No pre-selection match — this person needs manual pick
+        // If timer already exists for this unpicked person, leave it running
+        if(timers[pos]){
+          const timerPersonPicked = !!(sel.get(timers[pos].key) || "");
+          if(!timerPersonPicked) break;
+        }
+        try {
+          const newTs = Date.now();
+          _sharedTurnTimersCache[pos] = { key: String(effectiveKey), ts: newTs };
+          await saveTurnTimerForScope(pos, { key: effectiveKey, ts: newTs });
+        } catch(e){ console.warn('Timer init error:', e); }
+        break; // done with this position — timer set for manual pick
+      }
     }
     } finally { _initTimersRunning = false; }
   })();

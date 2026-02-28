@@ -1076,7 +1076,7 @@ function up(s){ return String(s||"").toUpperCase(); }
 
 function positionsOptions(current){
   const all = Array.from(new Set([...POSITIONS, "ABSENT", ...BASE.map(r=>String(r.Position||"ABSENT").toUpperCase())]));
-  return all.map(p=>`<option value="${p}" ${p===current?"selected":""}>${p}</option>`).join("");
+  return all.map(p=>`<option value="${escapeHtml(p)}" ${p===current?"selected":""}>${escapeHtml(p)}</option>`).join("");
 }
 
 // Resolved date string (YYYY-MM-DD) that matches admin's date picker.
@@ -1165,7 +1165,7 @@ function initApp(){
   attachRosterListener();
 
   const daySel = document.getElementById("daySel");
-  daySel.innerHTML = DAYS.map(d=>`<option value="${d}">${d}</option>`).join("");
+  daySel.innerHTML = DAYS.map(d=>`<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join("");
   // Apply shared landing view (if set), otherwise default to Monday
   const _ls = window.__landingState || null;
 
@@ -1320,7 +1320,7 @@ function syncBlockOptions(){
   const blocks = blocksForMode(mode);
   const blockSel = document.getElementById("blockSel");
   const cur = blockSel.value;
-  blockSel.innerHTML = blocks.map(b=>`<option value="${b.id}">${b.label}</option>`).join("");
+  blockSel.innerHTML = blocks.map(b=>`<option value="${escapeHtml(b.id)}">${escapeHtml(b.label)}</option>`).join("");
   blockSel.value = blocks.some(b=>b.id===cur) ? cur : blocks[0].id;
 }
 
@@ -1385,7 +1385,7 @@ function renderPosTable(pos, rows, selectedDay, posOverrides){
   const pretty = pos[0] + pos.slice(1).toLowerCase();
   return `
     <div>
-      <div class="muted" style="font-size:12px;margin:0 0 6px 2px;">${pretty} • ${rows.length}</div>
+      <div class="muted" style="font-size:12px;margin:0 0 6px 2px;">${escapeHtml(pretty)} • ${rows.length}</div>
       <table>
         <thead>
           <tr>
@@ -1412,7 +1412,7 @@ function renderPosTable(pos, rows, selectedDay, posOverrides){
                 <td class="mono">${score===999 ? "—" : String(score)}</td>
                 <td class="mono">${Number(r.Seniority)}</td>
                 <td>
-                  <select class="posSel" data-action="posChange" data-key="${escapeHtml(k)}" data-extra="${r._extra ? "1" : "0"}" data-extra-index="${r._extraIndex ?? ""}">
+                  <select class="posSel" data-action="posChange" data-key="${escapeHtml(k)}" data-extra="${r._extra ? "1" : "0"}" data-extra-index="${escapeHtml(String(r._extraIndex ?? ""))}">
                     ${positionsOptions(curPos)}
                   </select>
                 </td>
@@ -1498,7 +1498,7 @@ function render(){
 
   document.getElementById("content").innerHTML = `
     <div class="sectionTitle">
-      <h2>Lists for ${block.label} • ${selectedDay} • ${mode==="days" ? "Days" : "Nights"}</h2>
+      <h2>Lists for ${escapeHtml(block.label)} • ${escapeHtml(selectedDay)} • ${mode==="days" ? "Days" : "Nights"}</h2>
       <div class="pill">${total} total</div>
     </div>
     <div class="posGrid">
@@ -1569,7 +1569,7 @@ function buildSlotRows(people, slots, perSlot){
 function renderSheetSection(title, rows, overflow){
   return `
     <div class="printSection">
-      <div class="printSectionTitle">${title}${overflow>0 ? ` • (+${overflow} not shown)` : ""}</div>
+      <div class="printSectionTitle">${escapeHtml(title)}${overflow>0 ? ` • (+${overflow} not shown)` : ""}</div>
       <table>
         <thead>
           <tr>
@@ -1610,7 +1610,7 @@ function renderDpPicTwoColumn(title, people, slots, picksByTime, perSlot){
 
   return `
     <div class="printSection">
-      <div class="printSectionTitle">${title}</div>
+      <div class="printSectionTitle">${escapeHtml(title)}</div>
       <div class="dpPrintWrap">
         <div class="dpNames">
           <table class="dpMiniTable">
@@ -1683,7 +1683,7 @@ function renderReliefTable(title, slots, picksByTime, perSlot){
   const colLabels = perSlot===2 ? ["RELIEF 1","RELIEF 2"] : ["RELIEF 1"];
   return `
     <div class="printSection">
-      <div class="printSectionTitle">${title}</div>
+      <div class="printSectionTitle">${escapeHtml(title)}</div>
       <table class="dpMiniTable" style="width:88%; margin:0 auto;">
         <thead>
           <tr>
@@ -1780,7 +1780,7 @@ function renderPrintSheets(selectedDay, mode, block, buckets){
 
   const page1 = `
     <div class="printPage pageBreakAfter">
-      <div class="printTitle">CALL TAKER BREAKS (${block.label.replace("–","-")})</div>
+      <div class="printTitle">CALL TAKER BREAKS (${escapeHtml(block.label.replace("–","-"))})</div>
       <div class="printMeta">${escapeHtml(meta)}</div>
       ${renderSheetSection("CALL TAKER", ct.rows, ct.overflow)}
     </div>
@@ -1788,7 +1788,7 @@ function renderPrintSheets(selectedDay, mode, block, buckets){
 
   const page2 = `
     <div class="printPage">
-      <div class="printTitle">DISPATCHER/PIC BREAKS (${block.label.replace("–","-")})</div>
+      <div class="printTitle">DISPATCHER/PIC BREAKS (${escapeHtml(block.label.replace("–","-"))})</div>
       <div class="printMeta">${escapeHtml(meta)}</div>
       ${renderDpPicTwoColumn("DISPATCHER", dispatchers, slots, dpByTime, 2)}
       ${renderReliefTable("PIC", slots, picByTime, 1)}
@@ -1975,7 +1975,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
     return `
       <div style="margin-top:10px;">
         <div class="sectionTitle" style="margin:0 2px 8px;">
-          <h2>${pos}</h2>
+          <h2>${escapeHtml(pos)}</h2>
           <div style="display:flex; gap:8px; align-items:center;">
             <div class="pill">${people.length} names • ${cap} per slot</div>
             ${started ? `<span class="pill" style="background:rgba(34,197,94,.15); color:#4ade80;">&#9989; Active</span>` : `<span class="pill" style="background:rgba(250,204,21,.12); color:#facc15;">&#9202; Waiting for admin</span>`}
@@ -2051,7 +2051,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                 const hasPicked = !!cur;
                 const showPreSelect = !hasPicked && !isActive;
                 // Build pre-select badge display
-                const preBadges = (myPreTimes.length || myPreSeat) ? `${myPreSeat ? `<span style="background:rgba(250,204,21,.15);color:#facc15;padding:1px 5px;border-radius:4px;font-size:10px;">${escapeHtml(myPreSeat)}</span> ` : ''}${myPreTimes.map((t,i)=>`<span style="background:rgba(59,130,246,.15);color:#60a5fa;padding:1px 5px;border-radius:4px;font-size:10px;">#${i+1}: ${slotLabelHHMM(t)}</span>`).join(' ')}` : '';
+                const preBadges = (myPreTimes.length || myPreSeat) ? `${myPreSeat ? `<span style="background:rgba(250,204,21,.15);color:#facc15;padding:1px 5px;border-radius:4px;font-size:10px;">${escapeHtml(myPreSeat)}</span> ` : ''}${myPreTimes.map((t,i)=>`<span style="background:rgba(59,130,246,.15);color:#60a5fa;padding:1px 5px;border-radius:4px;font-size:10px;">#${i+1}: ${escapeHtml(slotLabelHHMM(t))}</span>`).join(' ')}` : '';
                 return `
                   <tr class="${rowClass}">
                     <td>${escapeHtml(up(r.Employee))}${badge}${timerBadge}${preBadges ? `<div style="margin-top:2px;">${preBadges}</div>` : ''}</td>
@@ -2203,7 +2203,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
   if(_treeEl){
     const _days = Math.max(0, Math.floor((Date.now() - new Date(2026,0,18)) / 86400000));
     const _sheets = _days * 6;
-    _treeEl.innerHTML = "\uD83C\uDF33 " + _sheets.toLocaleString() + " sheets of paper saved since going digital (" + (_sheets/8333).toFixed(4) + " trees) #savethetrees";
+    _treeEl.textContent = "\uD83C\uDF33 " + _sheets.toLocaleString() + " sheets of paper saved since going digital (" + (_sheets/8333).toFixed(4) + " trees) #savethetrees";
   }
 
   // Wire up seat handlers (pending only; save happens on Enter)
@@ -2359,6 +2359,21 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
           </div>
         </div>`;
       document.body.appendChild(overlay);
+
+      // Disable already-chosen times in sibling dropdowns
+      const _preSelDropdowns = [overlay.querySelector("#presel1"), overlay.querySelector("#presel2"), overlay.querySelector("#presel3")];
+      function _syncPreSelOpts(){
+        const chosen = _preSelDropdowns.map(s => s.value);
+        _preSelDropdowns.forEach((sel, idx) => {
+          Array.from(sel.options).forEach(opt => {
+            if(!opt.value) return; // skip "— none —"
+            const usedElsewhere = chosen.some((v, j) => j !== idx && v && v === opt.value);
+            opt.disabled = usedElsewhere;
+          });
+        });
+      }
+      _preSelDropdowns.forEach(s => s.addEventListener("change", _syncPreSelOpts));
+      _syncPreSelOpts(); // apply on initial render in case of existing selections
 
       overlay.querySelector("#preselCancel").addEventListener("click", ()=> overlay.remove());
       overlay.addEventListener("click", (e)=>{ if(e.target === overlay) overlay.remove(); });
