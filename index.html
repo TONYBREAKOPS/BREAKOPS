@@ -547,42 +547,8 @@ body { padding-top: 12px !important; }
   let _sharedTurnTimersCache = { CALLTAKER: null, DISPATCHER: null, PIC: null, ANET: null };
   let _sharedSkippedTurnsCache = { CALLTAKER: [], DISPATCHER: [], PIC: [], ANET: [] };
   let _sharedBreakStartedCache = { CALLTAKER: false, DISPATCHER: false, PIC: false, ANET: false };
-  let _sharedPreSelectionsCache = { CALLTAKER: {}, DISPATCHER: {}, PIC: {}, ANET: {} };
   let _timerIntervalId = null;
   let SKIP_DURATION_MS = 5 * 60 * 1000; // 5 minutes
-
-  // Singleton timer interval — starts once, never recreated on re-render
-  function _ensureTimerInterval(){
-    if(_timerIntervalId) return;
-    _timerIntervalId = setInterval(()=>{
-      try {
-        const timers = loadTurnTimersForScope();
-        const now = Date.now();
-        const bsState = loadBreakStartedForScope();
-        for(const pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
-          const badge = document.querySelector(`.skip-timer[data-timer-pos="${pos}"]`);
-          if(!badge) continue;
-          if(!bsState[pos]){ badge.textContent = ""; continue; }
-          const timer = timers[pos];
-          if(!timer || !timer.ts){ badge.textContent = ""; continue; }
-          const elapsed = now - timer.ts;
-          const remaining = Math.max(0, SKIP_DURATION_MS - elapsed);
-          const totalSec = Math.floor(remaining / 1000);
-          const mins = Math.floor(totalSec / 60);
-          const secs = totalSec % 60;
-          badge.textContent = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
-          if(remaining < 60000) badge.classList.add('urgent');
-          else badge.classList.remove('urgent');
-          if(remaining <= 0) badge.textContent = "00:00";
-        }
-      } catch(e){ console.warn('Timer interval error:', e); }
-    }, 1000);
-  }
-
-  // Clean up timer on page unload
-  window.addEventListener('pagehide', ()=>{
-    if(_timerIntervalId){ clearInterval(_timerIntervalId); _timerIntervalId = null; }
-  });
 
   let _lastCtx = null;
   let _unsub = null;
@@ -650,27 +616,6 @@ body { padding-top: 12px !important; }
     return out;
   }
 
-  function _normalizePreSelections(ps){
-    const out = { CALLTAKER: {}, DISPATCHER: {}, PIC: {}, ANET: {} };
-    if(!ps || typeof ps !== 'object') return out;
-    for(const pos of ['CALLTAKER','DISPATCHER','PIC','ANET']){
-      const obj = (ps[pos] && typeof ps[pos]==='object') ? ps[pos] : {};
-      const norm = {};
-      for(const [k,v] of Object.entries(obj)){
-        if(Array.isArray(v)){
-          norm[String(k)] = { seat: '', times: v.filter(t=>typeof t==='string'&&t.length>0).slice(0,3) };
-        } else if(v && typeof v === 'object'){
-          norm[String(k)] = {
-            seat: typeof v.seat === 'string' ? v.seat : '',
-            times: Array.isArray(v.times) ? v.times.filter(t=>typeof t==='string'&&t.length>0).slice(0,3) : []
-          };
-        }
-      }
-      out[pos] = norm;
-    }
-    return out;
-  }
-
   function _normalizeTurnTimers(tt){
     const out = { CALLTAKER: null, DISPATCHER: null, PIC: null, ANET: null };
     if(!tt || typeof tt !== 'object') return out;
@@ -695,19 +640,6 @@ body { padding-top: 12px !important; }
 
   function loadBreakStartedForScope(){
     return _normalizeBreakStarted(_sharedBreakStartedCache);
-  }
-  function loadPreSelectionsForScope(){
-    return _normalizePreSelections(_sharedPreSelectionsCache);
-  }
-  async function savePreSelectionsForScope(preSelections){
-    const normalized = _normalizePreSelections(preSelections);
-    await runTransaction(_db, async (tx)=>{
-      const ref = _scopeRef();
-      const snap = await tx.get(ref);
-      const cur = snap.exists() ? (snap.data()||{}) : {};
-      tx.set(ref, { ...cur, preSelections: normalized }, { merge: true });
-    });
-    _sharedPreSelectionsCache = normalized;
   }
   function loadTurnTimersForScope(){
     return _normalizeTurnTimers(_sharedTurnTimersCache);
@@ -767,7 +699,6 @@ body { padding-top: 12px !important; }
       _sharedTurnTimersCache = _normalizeTurnTimers(data.turnTimers);
       _sharedSkippedTurnsCache = _normalizeSkippedTurns(data.skippedTurns);
       _sharedBreakStartedCache = _normalizeBreakStarted(data.breakStarted);
-      _sharedPreSelectionsCache = _normalizePreSelections(data.preSelections);
       _sharedExtrasCache = Array.isArray(data.extras) ? data.extras : [];
       _sharedSlotCapsCache = _normalizeSlotCaps(data.slotCaps);
       if(typeof data.skipDurationMs === "number" && data.skipDurationMs > 0){
@@ -901,7 +832,7 @@ function applyLockState(){
     else el.removeAttribute("disabled");
   });
 }
-const BASE = [{"Employee": "CHARLES", "Seniority": 13, "Position": "CALLTAKER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "MOORE", "Seniority": 15, "Position": "CALLTAKER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6P-6A"}}, {"Employee": "HERRERA", "Seniority": 19, "Position": "CALLTAKER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "DODD", "Seniority": 28, "Position": "CALLTAKER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6P-6A"}}, {"Employee": "RHOADES", "Seniority": 47, "Position": "CALLTAKER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "PENA", "Seniority": 58, "Position": "CALLTAKER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "JACKSON", "Seniority": 67, "Position": "CALLTAKER", "DaysOff": "Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "2P-10P"}}, {"Employee": "AILSHIE", "Seniority": 71, "Position": "CALLTAKER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "10A-6P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "DESSELLIER", "Seniority": 73, "Position": "CALLTAKER", "DaysOff": "Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-2P"}}, {"Employee": "HALL", "Seniority": 74, "Position": "CALLTAKER", "DaysOff": "Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "HORNER", "Seniority": 79, "Position": "CALLTAKER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "10A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "SHANKMAN", "Seniority": 80, "Position": "CALLTAKER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "10A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "ZAMAGUEY", "Seniority": 82, "Position": "CALLTAKER", "DaysOff": "Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "SANDOVAL", "Seniority": 83, "Position": "CALLTAKER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "BROWNV", "Seniority": 84, "Position": "CALLTAKER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "HUTTA", "Seniority": 98, "Position": "CALLTAKER", "DaysOff": "Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "10P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "10P-6A", "SUNDAY": "OFF"}}, {"Employee": "BANKS", "Seniority": 99, "Position": "CALLTAKER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "PHAM", "Seniority": 100, "Position": "CALLTAKER", "DaysOff": "Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "OFF"}}, {"Employee": "TREVINO", "Seniority": 101, "Position": "CALLTAKER", "DaysOff": "Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "GALINDO", "Seniority": 103, "Position": "CALLTAKER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "LUTTON", "Seniority": 106, "Position": "CALLTAKER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6P-6A", "THURSDAY": "6P-2A", "FRIDAY": "6P-2A", "SATURDAY": "6P-6A", "SUNDAY": "OFF"}}, {"Employee": "PERRY", "Seniority": 107, "Position": "CALLTAKER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6P-6A"}}, {"Employee": "GUERRA", "Seniority": 108, "Position": "CALLTAKER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "10A-6P", "FRIDAY": "10A-6P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "MARTIN", "Seniority": 109, "Position": "CALLTAKER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6P-6A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-2A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "CROSSMAN", "Seniority": 110, "Position": "CALLTAKER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "10A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "PEREZJ", "Seniority": 111, "Position": "CALLTAKER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "GALLAGHER", "Seniority": 112, "Position": "CALLTAKER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "TREJO", "Seniority": 113, "Position": "CALLTAKER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6P-6A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-2A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "DOUGHERTY", "Seniority": 114, "Position": "CALLTAKER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6P-6A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-2A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "PINNOW", "Seniority": 115, "Position": "CALLTAKER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-6P", "FRIDAY": "10A-6P", "SATURDAY": "10A-6P", "SUNDAY": "6A-6P"}}, {"Employee": "CASTLEMAN", "Seniority": 116, "Position": "CALLTAKER", "DaysOff": "Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "2P-10P", "SUNDAY": "2P-10P"}}, {"Employee": "MAHER", "Seniority": 117, "Position": "CALLTAKER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-6P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-6P"}}, {"Employee": "COX", "Seniority": 118, "Position": "CALLTAKER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-6P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-6P"}}, {"Employee": "DURAN", "Seniority": 119, "Position": "CALLTAKER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "MCKNIGHT", "Seniority": 120, "Position": "CALLTAKER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "10A-6P", "WEDNESDAY": "6A-6P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-6P"}}, {"Employee": "MAHLE", "Seniority": 121, "Position": "CALLTAKER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-6P", "SUNDAY": "10A-6P"}}, {"Employee": "THOMAS", "Seniority": 122, "Position": "CALLTAKER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-6P", "SUNDAY": "6A-2P"}}, {"Employee": "SCROGGINS", "Seniority": 123, "Position": "CALLTAKER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6P-6A", "SATURDAY": "6P-2A", "SUNDAY": "6P-2A"}}, {"Employee": "GONZALEZ", "Seniority": 124, "Position": "CALLTAKER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6P-6A", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "HARDIN", "Seniority": 125, "Position": "CALLTAKER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "GUERRERO", "Seniority": 126, "Position": "CALLTAKER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-6A", "SUNDAY": "6P-2A"}}, {"Employee": "KROCK", "Seniority": 127, "Position": "CALLTAKER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-6P", "SUNDAY": "10A-6P"}}, {"Employee": "REED", "Seniority": 128, "Position": "CALLTAKER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6P-6A", "THURSDAY": "6P-2A", "FRIDAY": "6P-2A", "SATURDAY": "6P-6A", "SUNDAY": "OFF"}}, {"Employee": "RENFRO", "Seniority": 129, "Position": "CALLTAKER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6A-6P", "SATURDAY": "10A-6P", "SUNDAY": "10A-6P"}}, {"Employee": "MONCADA", "Seniority": 130, "Position": "CALLTAKER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-6P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "6A-6P"}}, {"Employee": "ABRAM", "Seniority": 131, "Position": "CALLTAKER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6A-6P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "ALLEN", "Seniority": 132, "Position": "CALLTAKER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6A-6P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "ESTRADA", "Seniority": 133, "Position": "CALLTAKER", "DaysOff": "Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "2P-10P", "SUNDAY": "OFF"}}, {"Employee": "DANFORD", "Seniority": 134, "Position": "CALLTAKER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6P-6A", "FRIDAY": "6P-2A", "SATURDAY": "6P-2A", "SUNDAY": "6P-6A"}}, {"Employee": "GARCIAA", "Seniority": 135, "Position": "CALLTAKER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6P-6A", "FRIDAY": "6P-2A", "SATURDAY": "6P-2A", "SUNDAY": "6P-6A"}}, {"Employee": "MIMS", "Seniority": 136, "Position": "CALLTAKER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-6P", "FRIDAY": "10A-6P", "SATURDAY": "10A-6P", "SUNDAY": "6A-6P"}}, {"Employee": "GOLDBLATT", "Seniority": 137, "Position": "CALLTAKER", "DaysOff": "Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "GLASSK", "Seniority": 138, "Position": "CALLTAKER", "DaysOff": "Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "2P-10P", "SUNDAY": "2P-10P"}}, {"Employee": "Hopson", "Seniority": 200, "Position": "CALLTAKER", "DaysOff": "Mon/Tue/Wed/Thu/Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "GarciaM", "Seniority": 201, "Position": "CALLTAKER", "DaysOff": "Mon/Tue/Wed/Thu/Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Jones", "Seniority": 2, "Position": "DISPATCHER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Dillard", "Seniority": 4, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Graves", "Seniority": 6, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Wiese", "Seniority": 7, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Smothers", "Seniority": 14, "Position": "DISPATCHER", "DaysOff": "Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-2P"}}, {"Employee": "Finch", "Seniority": 16, "Position": "DISPATCHER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "6P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6P-6A"}}, {"Employee": "Ramirez", "Seniority": 17, "Position": "DISPATCHER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Jacobs", "Seniority": 18, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Toledo", "Seniority": 22, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "10A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Sierra", "Seniority": 23, "Position": "DISPATCHER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-6P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-6P"}}, {"Employee": "Lorona", "Seniority": 24, "Position": "DISPATCHER", "DaysOff": "Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "Rodriguez", "Seniority": 25, "Position": "DISPATCHER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-6P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-6P"}}, {"Employee": "Guidry", "Seniority": 26, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "10A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Marzahn", "Seniority": 27, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-2A", "SUNDAY": "6P-6A"}}, {"Employee": "Henas", "Seniority": 29, "Position": "DISPATCHER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "Curry", "Seniority": 30, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Bryan", "Seniority": 32, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "10A-6P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "FowlerL", "Seniority": 35, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "6A-6P", "FRIDAY": "10A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "SIGALA", "Seniority": 36, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-6P", "SUNDAY": "10A-6P"}}, {"Employee": "Maguda", "Seniority": 38, "Position": "DISPATCHER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "Harrison", "Seniority": 40, "Position": "DISPATCHER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6A-6P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "Black", "Seniority": 41, "Position": "DISPATCHER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6P-6A"}}, {"Employee": "Merrill", "Seniority": 42, "Position": "DISPATCHER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Rinaldi", "Seniority": 44, "Position": "DISPATCHER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "6P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6P-6A"}}, {"Employee": "Leatham", "Seniority": 46, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-6P", "SUNDAY": "6A-2P"}}, {"Employee": "AdamsS", "Seniority": 48, "Position": "DISPATCHER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "10A-6P", "FRIDAY": "10A-6P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "Brashear", "Seniority": 50, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "10P-6A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Johnson", "Seniority": 51, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Richardson", "Seniority": 52, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6P-6A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-2A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Olvera", "Seniority": 54, "Position": "DISPATCHER", "DaysOff": "Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "Grounds", "Seniority": 55, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-2P", "SUNDAY": "6A-6P"}}, {"Employee": "Quinones", "Seniority": 57, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-6P", "SUNDAY": "10A-6P"}}, {"Employee": "Buglehall", "Seniority": 61, "Position": "DISPATCHER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6P-6A", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "GarciaF", "Seniority": 62, "Position": "DISPATCHER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6A-6P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "Urrutia", "Seniority": 63, "Position": "DISPATCHER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6P-6A", "FRIDAY": "10P-6A", "SATURDAY": "10P-6A", "SUNDAY": "6P-6A"}}, {"Employee": "Slack", "Seniority": 68, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6P-6A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-2A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Wheat", "Seniority": 69, "Position": "DISPATCHER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6A-6P", "SATURDAY": "10A-6P", "SUNDAY": "10A-6P"}}, {"Employee": "Sanders", "Seniority": 72, "Position": "DISPATCHER", "DaysOff": "Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "2P-10P", "SUNDAY": "2P-10P"}}, {"Employee": "Clement", "Seniority": 75, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "PerezD", "Seniority": 76, "Position": "DISPATCHER", "DaysOff": "Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "2P-10P"}}, {"Employee": "White", "Seniority": 77, "Position": "DISPATCHER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-6P", "FRIDAY": "10A-6P", "SATURDAY": "10A-6P", "SUNDAY": "6A-6P"}}, {"Employee": "Clayton", "Seniority": 85, "Position": "DISPATCHER", "DaysOff": "Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "Cruz", "Seniority": 86, "Position": "DISPATCHER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-6P", "FRIDAY": "10A-6P", "SATURDAY": "10A-6P", "SUNDAY": "6A-6P"}}, {"Employee": "Robles", "Seniority": 87, "Position": "DISPATCHER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Fuller", "Seniority": 88, "Position": "DISPATCHER", "DaysOff": "Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "2P-10P", "SUNDAY": "OFF"}}, {"Employee": "Baiza", "Seniority": 89, "Position": "DISPATCHER", "DaysOff": "Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "10P-6A", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "FowlerH", "Seniority": 90, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-6A", "SUNDAY": "6P-2A"}}, {"Employee": "Warren", "Seniority": 91, "Position": "DISPATCHER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6P-6A", "THURSDAY": "6P-2A", "FRIDAY": "6P-2A", "SATURDAY": "6P-6A", "SUNDAY": "OFF"}}, {"Employee": "Claudio", "Seniority": 92, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-6A", "SUNDAY": "6P-2A"}}, {"Employee": "Thompkins", "Seniority": 93, "Position": "DISPATCHER", "DaysOff": "Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "Sumner", "Seniority": 94, "Position": "DISPATCHER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6P-6A", "SATURDAY": "6P-2A", "SUNDAY": "6P-2A"}}, {"Employee": "BrownC", "Seniority": 95, "Position": "DISPATCHER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-2A", "FRIDAY": "6P-2A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Dones", "Seniority": 96, "Position": "DISPATCHER", "DaysOff": "Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "Reynolds", "Seniority": 97, "Position": "DISPATCHER", "DaysOff": "Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "BLY", "Seniority": 102, "Position": "DISPATCHER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "10P-6A", "FRIDAY": "6P-6A", "SATURDAY": "10P-6A", "SUNDAY": "6P-6A"}}, {"Employee": "Wright", "Seniority": 104, "Position": "DISPATCHER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6P-6A", "FRIDAY": "10P-6A", "SATURDAY": "10P-6A", "SUNDAY": "6P-6A"}}, {"Employee": "Burnham", "Seniority": 105, "Position": "DISPATCHER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6P-6A", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "Dorsey", "Seniority": 3, "Position": "PIC", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-6P", "WEDNESDAY": "6A-2P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-6P"}}, {"Employee": "Rector", "Seniority": 8, "Position": "PIC", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "2P-10P", "THURSDAY": "10A-10P", "FRIDAY": "2P-10P", "SATURDAY": "10A-10P", "SUNDAY": "OFF"}}, {"Employee": "WALKER", "Seniority": 9, "Position": "PIC", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-6P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "6A-6P"}}, {"Employee": "MONING", "Seniority": 12, "Position": "PIC", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "10A-6P", "WEDNESDAY": "6A-6P", "THURSDAY": "10A-6P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "PETRIGNI", "Seniority": 20, "Position": "PIC", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "YOUNG", "Seniority": 37, "Position": "PIC", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "10P-6A", "FRIDAY": "6P-6A", "SATURDAY": "10P-6A", "SUNDAY": "6P-6A"}}, {"Employee": "GRISSO", "Seniority": 43, "Position": "PIC", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "10A-6P", "SUNDAY": "6A-6P"}}, {"Employee": "POPE", "Seniority": 56, "Position": "PIC", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "10P-6A", "WEDNESDAY": "6P-6A", "THURSDAY": "10P-6A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "GLENN", "Seniority": 59, "Position": "PIC", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "10P-6A", "SUNDAY": "6P-6A"}}, {"Employee": "DASKOU", "Seniority": 60, "Position": "PIC", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "ADAMSON", "Seniority": 64, "Position": "PIC", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "LINDLEY", "Seniority": 65, "Position": "PIC", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Santo", "Seniority": 70, "Position": "PIC", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "VALDEZ", "Seniority": 81, "Position": "PIC", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6P-6A", "SATURDAY": "6P-2A", "SUNDAY": "6P-6A"}}, {"Employee": "Cassell", "Seniority": 300, "Position": "SUPERVISOR", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Allison", "Seniority": 301, "Position": "SUPERVISOR", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-6A", "FRIDAY": "6P-2A", "SATURDAY": "6P-6A", "SUNDAY": "OFF"}}, {"Employee": "Medrano", "Seniority": 302, "Position": "SUPERVISOR", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-6A", "THURSDAY": "6P-2A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "AdamsJ", "Seniority": 303, "Position": "SUPERVISOR", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-6P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "Lazaro", "Seniority": 304, "Position": "SUPERVISOR", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "10A-6P", "SUNDAY": "6A-6P"}}, {"Employee": "Hatchett", "Seniority": 305, "Position": "SUPERVISOR", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-2P", "SUNDAY": "6A-6P"}}, {"Employee": "Parra", "Seniority": 306, "Position": "SUPERVISOR", "DaysOff": "Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "10A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "10A-6P", "FRIDAY": "10A-6P", "SATURDAY": "10A-6P", "SUNDAY": "OFF"}}, {"Employee": "Aguirre", "Seniority": 307, "Position": "SUPERVISOR", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-2A", "SUNDAY": "6P-6A"}}, {"Employee": "MartinezJ", "Seniority": 308, "Position": "SUPERVISOR", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "10P-6A", "SUNDAY": "6P-6A"}}, {"Employee": "Nolan", "Seniority": 309, "Position": "SUPERVISOR", "DaysOff": "Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "10P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "10P-6A", "SUNDAY": "OFF"}}];
+const BASE = [{"Employee": "CHARLES", "Seniority": 13, "Position": "CALLTAKER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "MOORE", "Seniority": 15, "Position": "CALLTAKER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6P-6A"}}, {"Employee": "HERRERA", "Seniority": 19, "Position": "CALLTAKER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "DODD", "Seniority": 28, "Position": "CALLTAKER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6P-6A"}}, {"Employee": "RHOADES", "Seniority": 47, "Position": "CALLTAKER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "PENA", "Seniority": 58, "Position": "CALLTAKER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "JACKSON", "Seniority": 67, "Position": "CALLTAKER", "DaysOff": "Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "2P-10P"}}, {"Employee": "AILSHIE", "Seniority": 71, "Position": "CALLTAKER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "10A-6P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "DESSELLIER", "Seniority": 73, "Position": "CALLTAKER", "DaysOff": "Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-2P"}}, {"Employee": "HALL", "Seniority": 74, "Position": "CALLTAKER", "DaysOff": "Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "HORNER", "Seniority": 79, "Position": "CALLTAKER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "10A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "SHANKMAN", "Seniority": 80, "Position": "CALLTAKER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "10A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "ZAMAGUEY", "Seniority": 82, "Position": "CALLTAKER", "DaysOff": "Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "SANDOVAL", "Seniority": 83, "Position": "CALLTAKER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "BROWNV", "Seniority": 84, "Position": "CALLTAKER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "HUTTA", "Seniority": 98, "Position": "CALLTAKER", "DaysOff": "Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "10P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "10P-6A", "SUNDAY": "OFF"}}, {"Employee": "BANKS", "Seniority": 99, "Position": "CALLTAKER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "PHAM", "Seniority": 100, "Position": "CALLTAKER", "DaysOff": "Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "OFF"}}, {"Employee": "TREVINO", "Seniority": 101, "Position": "CALLTAKER", "DaysOff": "Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "GALINDO", "Seniority": 103, "Position": "CALLTAKER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "LUTTON", "Seniority": 106, "Position": "CALLTAKER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6P-6A", "THURSDAY": "6P-2A", "FRIDAY": "6P-2A", "SATURDAY": "6P-6A", "SUNDAY": "OFF"}}, {"Employee": "PERRY", "Seniority": 107, "Position": "CALLTAKER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6P-6A"}}, {"Employee": "GUERRA", "Seniority": 108, "Position": "CALLTAKER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "10A-6P", "FRIDAY": "10A-6P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "MARTIN", "Seniority": 109, "Position": "CALLTAKER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6P-6A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-2A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "CROSSMAN", "Seniority": 110, "Position": "CALLTAKER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "PEREZJ", "Seniority": 111, "Position": "CALLTAKER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "GALLAGHER", "Seniority": 112, "Position": "CALLTAKER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "TREJO", "Seniority": 113, "Position": "CALLTAKER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6P-6A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-2A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "DOUGHERTY", "Seniority": 114, "Position": "CALLTAKER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6P-6A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-2A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "PINNOW", "Seniority": 115, "Position": "CALLTAKER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-6P", "FRIDAY": "10A-6P", "SATURDAY": "10A-6P", "SUNDAY": "6A-6P"}}, {"Employee": "CASTLEMAN", "Seniority": 116, "Position": "CALLTAKER", "DaysOff": "Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "2P-10P", "SUNDAY": "2P-10P"}}, {"Employee": "MAHER", "Seniority": 117, "Position": "CALLTAKER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-6P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-6P"}}, {"Employee": "COX", "Seniority": 118, "Position": "CALLTAKER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-6P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-6P"}}, {"Employee": "DURAN", "Seniority": 119, "Position": "CALLTAKER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "MCKNIGHT", "Seniority": 120, "Position": "CALLTAKER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "10A-6P", "WEDNESDAY": "6A-6P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-6P"}}, {"Employee": "MAHLE", "Seniority": 121, "Position": "CALLTAKER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-6P", "SUNDAY": "10A-6P"}}, {"Employee": "THOMAS", "Seniority": 122, "Position": "CALLTAKER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-6P", "SUNDAY": "6A-2P"}}, {"Employee": "SCROGGINS", "Seniority": 123, "Position": "CALLTAKER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6P-6A", "SATURDAY": "6P-2A", "SUNDAY": "6P-2A"}}, {"Employee": "GONZALEZ", "Seniority": 124, "Position": "CALLTAKER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6P-6A", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "HARDIN", "Seniority": 125, "Position": "CALLTAKER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "GUERRERO", "Seniority": 126, "Position": "CALLTAKER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-6A", "SUNDAY": "6P-2A"}}, {"Employee": "KROCK", "Seniority": 127, "Position": "CALLTAKER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-6P", "SUNDAY": "10A-6P"}}, {"Employee": "REED", "Seniority": 128, "Position": "CALLTAKER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6P-6A", "THURSDAY": "6P-2A", "FRIDAY": "6P-2A", "SATURDAY": "6P-6A", "SUNDAY": "OFF"}}, {"Employee": "RENFRO", "Seniority": 129, "Position": "CALLTAKER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6A-6P", "SATURDAY": "10A-6P", "SUNDAY": "10A-6P"}}, {"Employee": "MONCADA", "Seniority": 130, "Position": "CALLTAKER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-6P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "6A-6P"}}, {"Employee": "ABRAM", "Seniority": 131, "Position": "CALLTAKER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6A-6P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "ALLEN", "Seniority": 132, "Position": "CALLTAKER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6A-6P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "ESTRADA", "Seniority": 133, "Position": "CALLTAKER", "DaysOff": "Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "2P-10P", "SUNDAY": "OFF"}}, {"Employee": "DANFORD", "Seniority": 134, "Position": "CALLTAKER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6P-6A", "FRIDAY": "6P-2A", "SATURDAY": "6P-2A", "SUNDAY": "6P-6A"}}, {"Employee": "GARCIAA", "Seniority": 135, "Position": "CALLTAKER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6P-6A", "FRIDAY": "6P-2A", "SATURDAY": "6P-2A", "SUNDAY": "6P-6A"}}, {"Employee": "MIMS", "Seniority": 136, "Position": "CALLTAKER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-6P", "FRIDAY": "10A-6P", "SATURDAY": "10A-6P", "SUNDAY": "6A-6P"}}, {"Employee": "GOLDBLATT", "Seniority": 137, "Position": "CALLTAKER", "DaysOff": "Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "GLASSK", "Seniority": 138, "Position": "CALLTAKER", "DaysOff": "Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "2P-10P", "SUNDAY": "2P-10P"}}, {"Employee": "Jones", "Seniority": 2, "Position": "DISPATCHER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Dillard", "Seniority": 4, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Graves", "Seniority": 6, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Wiese", "Seniority": 7, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Smothers", "Seniority": 14, "Position": "DISPATCHER", "DaysOff": "Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-2P"}}, {"Employee": "Finch", "Seniority": 16, "Position": "DISPATCHER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "6P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6P-6A"}}, {"Employee": "Ramirez", "Seniority": 17, "Position": "DISPATCHER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Jacobs", "Seniority": 18, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Toledo", "Seniority": 22, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "10A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Sierra", "Seniority": 23, "Position": "DISPATCHER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-6P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-6P"}}, {"Employee": "Lorona", "Seniority": 24, "Position": "DISPATCHER", "DaysOff": "Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "Rodriguez", "Seniority": 25, "Position": "DISPATCHER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-6P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-6P"}}, {"Employee": "Guidry", "Seniority": 26, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "10A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Marzahn", "Seniority": 27, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-2A", "SUNDAY": "6P-6A"}}, {"Employee": "Henas", "Seniority": 29, "Position": "DISPATCHER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "Curry", "Seniority": 30, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Bryan", "Seniority": 32, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "10A-6P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "FowlerL", "Seniority": 35, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6A-6P", "WEDNESDAY": "10A-6P", "THURSDAY": "6A-6P", "FRIDAY": "10A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "SIGALA", "Seniority": 36, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-6P", "SUNDAY": "10A-6P"}}, {"Employee": "Maguda", "Seniority": 38, "Position": "DISPATCHER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "Harrison", "Seniority": 40, "Position": "DISPATCHER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6A-6P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "Black", "Seniority": 41, "Position": "DISPATCHER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6P-6A"}}, {"Employee": "Merrill", "Seniority": 42, "Position": "DISPATCHER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Rinaldi", "Seniority": 44, "Position": "DISPATCHER", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "6P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6P-6A"}}, {"Employee": "Leatham", "Seniority": 46, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-6P", "SUNDAY": "6A-2P"}}, {"Employee": "AdamsS", "Seniority": 48, "Position": "DISPATCHER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "10A-6P", "FRIDAY": "10A-6P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "Brashear", "Seniority": 50, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "10P-6A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Johnson", "Seniority": 51, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Richardson", "Seniority": 52, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6P-6A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-2A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Olvera", "Seniority": 54, "Position": "DISPATCHER", "DaysOff": "Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "Grounds", "Seniority": 55, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-2P", "SUNDAY": "6A-6P"}}, {"Employee": "Quinones", "Seniority": 57, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6A-6P", "SUNDAY": "10A-6P"}}, {"Employee": "Buglehall", "Seniority": 61, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-6A", "SUNDAY": "6P-2A"}}, {"Employee": "GarciaF", "Seniority": 62, "Position": "DISPATCHER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6A-6P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "Urrutia", "Seniority": 63, "Position": "DISPATCHER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6P-6A", "FRIDAY": "10P-6A", "SATURDAY": "10P-6A", "SUNDAY": "6P-6A"}}, {"Employee": "Slack", "Seniority": 68, "Position": "DISPATCHER", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "6P-6A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-2A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Wheat", "Seniority": 69, "Position": "DISPATCHER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6A-6P", "SATURDAY": "10A-6P", "SUNDAY": "10A-6P"}}, {"Employee": "Sanders", "Seniority": 72, "Position": "DISPATCHER", "DaysOff": "Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "2P-10P", "SUNDAY": "2P-10P"}}, {"Employee": "Clement", "Seniority": 75, "Position": "DISPATCHER", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "10P-6A", "WEDNESDAY": "10P-6A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "PerezD", "Seniority": 76, "Position": "DISPATCHER", "DaysOff": "Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "2P-10P"}}, {"Employee": "White", "Seniority": 77, "Position": "DISPATCHER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-6P", "FRIDAY": "10A-6P", "SATURDAY": "10A-6P", "SUNDAY": "6A-6P"}}, {"Employee": "CLayton", "Seniority": 85, "Position": "DISPATCHER", "DaysOff": "Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "Cruz", "Seniority": 86, "Position": "DISPATCHER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-6P", "FRIDAY": "10A-6P", "SATURDAY": "10A-6P", "SUNDAY": "6A-6P"}}, {"Employee": "Robles", "Seniority": 87, "Position": "DISPATCHER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "2P-10P", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Fuller", "Seniority": 88, "Position": "DISPATCHER", "DaysOff": "Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "2P-10P", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "2P-10P", "SUNDAY": "OFF"}}, {"Employee": "Baiza", "Seniority": 89, "Position": "DISPATCHER", "DaysOff": "Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "2P-10P", "THURSDAY": "2P-10P", "FRIDAY": "2P-10P", "SATURDAY": "2P-10P", "SUNDAY": "2P-10P"}}, {"Employee": "FowlerH", "Seniority": 90, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-6A", "SUNDAY": "6P-2A"}}, {"Employee": "Warren", "Seniority": 91, "Position": "DISPATCHER", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6P-6A", "THURSDAY": "6P-2A", "FRIDAY": "6P-2A", "SATURDAY": "6P-6A", "SUNDAY": "OFF"}}, {"Employee": "Claudio", "Seniority": 92, "Position": "DISPATCHER", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "6P-6A", "SUNDAY": "6P-2A"}}, {"Employee": "Thompkins", "Seniority": 93, "Position": "DISPATCHER", "DaysOff": "Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "10P-6A", "FRIDAY": "10P-6A", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "Sumner", "Seniority": 94, "Position": "DISPATCHER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6P-6A", "SATURDAY": "6P-2A", "SUNDAY": "6P-2A"}}, {"Employee": "BrownC", "Seniority": 95, "Position": "DISPATCHER", "DaysOff": "Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-2A", "FRIDAY": "6P-2A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Dones", "Seniority": 96, "Position": "DISPATCHER", "DaysOff": "Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "Reynolds", "Seniority": 97, "Position": "DISPATCHER", "DaysOff": "Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "6A-2P"}}, {"Employee": "Wright", "Seniority": 104, "Position": "DISPATCHER", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6P-6A", "FRIDAY": "6P-2A", "SATURDAY": "6P-2A", "SUNDAY": "6P-6A"}}, {"Employee": "Burnham", "Seniority": 105, "Position": "DISPATCHER", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6P-6A", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "Dorsey", "Seniority": 3, "Position": "PIC", "DaysOff": "Thu/Fri/Sat", "Present": "YES", "Schedule": {"MONDAY": "6A-2P", "TUESDAY": "6A-6P", "WEDNESDAY": "6A-2P", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "6A-6P"}}, {"Employee": "Rector", "Seniority": 8, "Position": "PIC", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "2P-10P", "THURSDAY": "10A-10P", "FRIDAY": "2P-10P", "SATURDAY": "10A-10P", "SUNDAY": "OFF"}}, {"Employee": "WALKER", "Seniority": 9, "Position": "PIC", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "6A-6P", "FRIDAY": "6A-2P", "SATURDAY": "6A-2P", "SUNDAY": "6A-6P"}}, {"Employee": "MONING", "Seniority": 12, "Position": "PIC", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "10A-6P", "WEDNESDAY": "6A-6P", "THURSDAY": "10A-6P", "FRIDAY": "6A-6P", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "PETRIGNI", "Seniority": 20, "Position": "PIC", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6A-6P", "TUESDAY": "6A-2P", "WEDNESDAY": "6A-2P", "THURSDAY": "6A-6P", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "YOUNG", "Seniority": 37, "Position": "PIC", "DaysOff": "Mon/Tue/Wed", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "10P-6A", "FRIDAY": "6P-6A", "SATURDAY": "10P-6A", "SUNDAY": "6P-6A"}}, {"Employee": "GRISSO", "Seniority": 43, "Position": "PIC", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10A-6P", "TUESDAY": "6A-6P", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "10A-6P", "SUNDAY": "6A-6P"}}, {"Employee": "POPE", "Seniority": 56, "Position": "PIC", "DaysOff": "Sat/Sun/Mon", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "10P-6A", "WEDNESDAY": "6P-6A", "THURSDAY": "10P-6A", "FRIDAY": "6P-6A", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "GLENN", "Seniority": 59, "Position": "PIC", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "10P-6A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "10P-6A", "SUNDAY": "6P-6A"}}, {"Employee": "DASKOU", "Seniority": 60, "Position": "PIC", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "ADAMSON", "Seniority": 64, "Position": "PIC", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6A-6P", "THURSDAY": "6A-2P", "FRIDAY": "6A-2P", "SATURDAY": "6A-6P", "SUNDAY": "OFF"}}, {"Employee": "LINDLEY", "Seniority": 65, "Position": "PIC", "DaysOff": "Fri/Sat/Sun", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-2A", "WEDNESDAY": "6P-2A", "THURSDAY": "6P-6A", "FRIDAY": "OFF", "SATURDAY": "OFF", "SUNDAY": "OFF"}}, {"Employee": "Santo", "Seniority": 70, "Position": "PIC", "DaysOff": "Wed/Thu/Fri", "Present": "YES", "Schedule": {"MONDAY": "6P-6A", "TUESDAY": "6P-6A", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "OFF", "SATURDAY": "10P-6A", "SUNDAY": "10P-6A"}}, {"Employee": "VALDEZ", "Seniority": 81, "Position": "PIC", "DaysOff": "Tue/Wed/Thu", "Present": "YES", "Schedule": {"MONDAY": "6P-2A", "TUESDAY": "OFF", "WEDNESDAY": "OFF", "THURSDAY": "OFF", "FRIDAY": "6P-6A", "SATURDAY": "6P-2A", "SUNDAY": "6P-6A"}}, {"Employee": "BLY", "Seniority": 102, "Position": "PIC", "DaysOff": "Sun/Mon/Tue", "Present": "YES", "Schedule": {"MONDAY": "OFF", "TUESDAY": "OFF", "WEDNESDAY": "6P-6A", "THURSDAY": "6P-2A", "FRIDAY": "6P-2A", "SATURDAY": "6P-6A", "SUNDAY": "OFF"}}];
 
 function toast(msg){
   const el = document.getElementById("toast");
@@ -1076,7 +1007,7 @@ function up(s){ return String(s||"").toUpperCase(); }
 
 function positionsOptions(current){
   const all = Array.from(new Set([...POSITIONS, "ABSENT", ...BASE.map(r=>String(r.Position||"ABSENT").toUpperCase())]));
-  return all.map(p=>`<option value="${escapeHtml(p)}" ${p===current?"selected":""}>${escapeHtml(p)}</option>`).join("");
+  return all.map(p=>`<option value="${p}" ${p===current?"selected":""}>${p}</option>`).join("");
 }
 
 // Resolved date string (YYYY-MM-DD) that matches admin's date picker.
@@ -1165,7 +1096,7 @@ function initApp(){
   attachRosterListener();
 
   const daySel = document.getElementById("daySel");
-  daySel.innerHTML = DAYS.map(d=>`<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join("");
+  daySel.innerHTML = DAYS.map(d=>`<option value="${d}">${d}</option>`).join("");
   // Apply shared landing view (if set), otherwise default to Monday
   const _ls = window.__landingState || null;
 
@@ -1320,7 +1251,7 @@ function syncBlockOptions(){
   const blocks = blocksForMode(mode);
   const blockSel = document.getElementById("blockSel");
   const cur = blockSel.value;
-  blockSel.innerHTML = blocks.map(b=>`<option value="${escapeHtml(b.id)}">${escapeHtml(b.label)}</option>`).join("");
+  blockSel.innerHTML = blocks.map(b=>`<option value="${b.id}">${b.label}</option>`).join("");
   blockSel.value = blocks.some(b=>b.id===cur) ? cur : blocks[0].id;
 }
 
@@ -1385,7 +1316,7 @@ function renderPosTable(pos, rows, selectedDay, posOverrides){
   const pretty = pos[0] + pos.slice(1).toLowerCase();
   return `
     <div>
-      <div class="muted" style="font-size:12px;margin:0 0 6px 2px;">${escapeHtml(pretty)} • ${rows.length}</div>
+      <div class="muted" style="font-size:12px;margin:0 0 6px 2px;">${pretty} • ${rows.length}</div>
       <table>
         <thead>
           <tr>
@@ -1412,7 +1343,7 @@ function renderPosTable(pos, rows, selectedDay, posOverrides){
                 <td class="mono">${score===999 ? "—" : String(score)}</td>
                 <td class="mono">${Number(r.Seniority)}</td>
                 <td>
-                  <select class="posSel" data-action="posChange" data-key="${escapeHtml(k)}" data-extra="${r._extra ? "1" : "0"}" data-extra-index="${escapeHtml(String(r._extraIndex ?? ""))}">
+                  <select class="posSel" data-action="posChange" data-key="${escapeHtml(k)}" data-extra="${r._extra ? "1" : "0"}" data-extra-index="${r._extraIndex ?? ""}">
                     ${positionsOptions(curPos)}
                   </select>
                 </td>
@@ -1498,7 +1429,7 @@ function render(){
 
   document.getElementById("content").innerHTML = `
     <div class="sectionTitle">
-      <h2>Lists for ${escapeHtml(block.label)} • ${escapeHtml(selectedDay)} • ${mode==="days" ? "Days" : "Nights"}</h2>
+      <h2>Lists for ${block.label} • ${selectedDay} • ${mode==="days" ? "Days" : "Nights"}</h2>
       <div class="pill">${total} total</div>
     </div>
     <div class="posGrid">
@@ -1569,7 +1500,7 @@ function buildSlotRows(people, slots, perSlot){
 function renderSheetSection(title, rows, overflow){
   return `
     <div class="printSection">
-      <div class="printSectionTitle">${escapeHtml(title)}${overflow>0 ? ` • (+${overflow} not shown)` : ""}</div>
+      <div class="printSectionTitle">${title}${overflow>0 ? ` • (+${overflow} not shown)` : ""}</div>
       <table>
         <thead>
           <tr>
@@ -1580,7 +1511,7 @@ function renderSheetSection(title, rows, overflow){
         <tbody>
           ${rows.map(r=>`
             <tr>
-              <td>${escapeHtml(up(r.name))} ${escapeHtml(extraNote(r) ? "[" + extraNote(r) + "]" : "")} ${r.daysOff ? `(${escapeHtml(up(r.daysOff))})` : ""}</td>
+              <td>${escapeHtml(up(r.name))} ${extraNote(r) ? "[" + extraNote(r) + "]" : ""} ${extraNote(r) ? "[" + extraNote(r) + "]" : ""} ${r.daysOff ? `(${escapeHtml(up(r.daysOff))})` : ""} ${escapeHtml(extraNote(r) ? "[" + extraNote(r) + "]" : "")}</td>
               <td>${r.time ? escapeHtml(slotLabelHHMM(r.time)) : 'OPEN'}</td>
             </tr>
           `).join("")}
@@ -1610,7 +1541,7 @@ function renderDpPicTwoColumn(title, people, slots, picksByTime, perSlot){
 
   return `
     <div class="printSection">
-      <div class="printSectionTitle">${escapeHtml(title)}</div>
+      <div class="printSectionTitle">${title}</div>
       <div class="dpPrintWrap">
         <div class="dpNames">
           <table class="dpMiniTable">
@@ -1683,7 +1614,7 @@ function renderReliefTable(title, slots, picksByTime, perSlot){
   const colLabels = perSlot===2 ? ["RELIEF 1","RELIEF 2"] : ["RELIEF 1"];
   return `
     <div class="printSection">
-      <div class="printSectionTitle">${escapeHtml(title)}</div>
+      <div class="printSectionTitle">${title}</div>
       <table class="dpMiniTable" style="width:88%; margin:0 auto;">
         <thead>
           <tr>
@@ -1780,7 +1711,7 @@ function renderPrintSheets(selectedDay, mode, block, buckets){
 
   const page1 = `
     <div class="printPage pageBreakAfter">
-      <div class="printTitle">CALL TAKER BREAKS (${escapeHtml(block.label.replace("–","-"))})</div>
+      <div class="printTitle">CALL TAKER BREAKS (${block.label.replace("–","-")})</div>
       <div class="printMeta">${escapeHtml(meta)}</div>
       ${renderSheetSection("CALL TAKER", ct.rows, ct.overflow)}
     </div>
@@ -1788,7 +1719,7 @@ function renderPrintSheets(selectedDay, mode, block, buckets){
 
   const page2 = `
     <div class="printPage">
-      <div class="printTitle">DISPATCHER/PIC BREAKS (${escapeHtml(block.label.replace("–","-"))})</div>
+      <div class="printTitle">DISPATCHER/PIC BREAKS (${block.label.replace("–","-")})</div>
       <div class="printMeta">${escapeHtml(meta)}</div>
       ${renderDpPicTwoColumn("DISPATCHER", dispatchers, slots, dpByTime, 2)}
       ${renderReliefTable("PIC", slots, picByTime, 1)}
@@ -1914,15 +1845,9 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
   }
 
 
-  // Skip-retry model: see admin.html _computeSkipState for full documentation.
-  // Jumper formula: person at (seniority index + skip count). Retry eligible
-  // when that jumper has picked or the index is past the end of the list.
   function _computeSkipState(pos, people, sel){
     const skipped = loadSkippedTurnsForScope();
-    const skippedArr = skipped[pos] || [];
-    const skippedSet = new Set(skippedArr);
-    const skippedCount = {};
-    for(const k of skippedArr) skippedCount[k] = (skippedCount[k]||0) + 1;
+    const skippedSet = new Set(skipped[pos] || []);
     const unpicked = [];
     let allPicked = true;
     for(const r of people){
@@ -1930,31 +1855,35 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       if(!(sel.get(k) || "")) { unpicked.push(k); allPicked = false; }
     }
     if(allPicked || unpicked.length === 0) return { nextUpKey: null, secondChanceKey: null, skippedSet };
-
-    const originalOrder = people.map(r => keyFor(r));
-    const unpickedSet = new Set(unpicked);
-
-    // nextUpKey: first unpicked person who has never been skipped
     let nextUpKey = null;
     for(const k of unpicked){
-      if((skippedCount[k] || 0) === 0){ nextUpKey = k; break; }
+      if(!skippedSet.has(k)){ nextUpKey = k; break; }
     }
-
-    // secondChanceKey: first skipped person whose jumper has picked
     let secondChanceKey = null;
-    for(const k of unpicked){
-      const count = skippedCount[k] || 0;
-      if(count === 0) continue;
-      const kIdx = originalOrder.indexOf(k);
-      const jumperIdx = kIdx + count;
-      if(jumperIdx >= originalOrder.length){
-        secondChanceKey = k;
-        break;
+    if(nextUpKey){
+      const originalOrder = people.map(r => keyFor(r));
+      const unpickedSet = new Set(unpicked);
+      for(const k of unpicked){
+        if(k === nextUpKey) break;
+        if(skippedSet.has(k)){
+          const kIdx = originalOrder.indexOf(k);
+          let jumperHasPicked = false;
+          for(let j = kIdx + 1; j < originalOrder.length; j++){
+            if(!skippedSet.has(originalOrder[j])){
+              jumperHasPicked = !unpickedSet.has(originalOrder[j]);
+              break;
+            }
+          }
+          if(jumperHasPicked){
+            secondChanceKey = k;
+            break;
+          }
+        }
       }
-      const jumperKey = originalOrder[jumperIdx];
-      if(!unpickedSet.has(jumperKey)){
-        secondChanceKey = k;
-        break;
+    }
+    if(!nextUpKey && unpicked.length > 0){
+      for(const k of unpicked){
+        if(skippedSet.has(k)){ secondChanceKey = k; break; }
       }
     }
     return { nextUpKey, secondChanceKey, skippedSet };
@@ -1977,7 +1906,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
     return `
       <div style="margin-top:10px;">
         <div class="sectionTitle" style="margin:0 2px 8px;">
-          <h2>${escapeHtml(pos)}</h2>
+          <h2>${pos}</h2>
           <div style="display:flex; gap:8px; align-items:center;">
             <div class="pill">${people.length} names • ${cap} per slot</div>
             ${started ? `<span class="pill" style="background:rgba(34,197,94,.15); color:#4ade80;">&#9989; Active</span>` : `<span class="pill" style="background:rgba(250,204,21,.12); color:#facc15;">&#9202; Waiting for admin</span>`}
@@ -2038,25 +1967,16 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                 let timerBadge = '';
                 if(started && timers[pos] && timers[pos].key === k){
                   const _rem = Math.max(0, SKIP_DURATION_MS - (Date.now() - timers[pos].ts));
-                  const _ts = Math.floor(_rem / 1000);
+                  const _ts = Math.ceil(_rem / 1000);
                   const _tm = String(Math.floor(_ts / 60)).padStart(2,'0');
                   const _tss = String(_ts % 60).padStart(2,'0');
-                  timerBadge = ` <span class="skip-timer" data-timer-pos="${escapeHtml(pos)}">${_tm}:${_tss}</span>`;
+                  timerBadge = ` <span class="skip-timer" data-timer-pos="${pos}">${_tm}:${_tss}</span>`;
                 }
 
                 const badge = r._extra ? (r._dayOff ? ' <span class="muted">(EXTRA • DAY OFF)</span>' : ' <span class="muted">(EXTRA)</span>') : "";
-                // Pre-selections for this person
-                const preSels = loadPreSelectionsForScope();
-                const myPreObj = (preSels[pos] && preSels[pos][k]) || null;
-                const myPreTimes = myPreObj ? (myPreObj.times || []) : [];
-                const myPreSeat = myPreObj ? (myPreObj.seat || '') : '';
-                const hasPicked = !!cur;
-                const showPreSelect = !hasPicked && !isActive;
-                // Build pre-select badge display
-                const preBadges = (myPreTimes.length || myPreSeat) ? `${myPreSeat ? `<span style="background:rgba(250,204,21,.15);color:#facc15;padding:1px 5px;border-radius:4px;font-size:10px;">${escapeHtml(myPreSeat)}</span> ` : ''}${myPreTimes.map((t,i)=>`<span style="background:rgba(59,130,246,.15);color:#60a5fa;padding:1px 5px;border-radius:4px;font-size:10px;">#${i+1}: ${escapeHtml(slotLabelHHMM(t))}</span>`).join(' ')}` : '';
                 return `
                   <tr class="${rowClass}">
-                    <td><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>${escapeHtml(up(r.Employee))}${badge}${timerBadge}</span>${showPreSelect ? `<button type="button" data-presel-pos="${escapeHtml(pos)}" data-presel-key="${escapeHtml(k)}" style="background:#1a73e8;color:#fff;border:none;padding:3px 7px;border-radius:5px;cursor:pointer;font-size:10px;font-weight:600;white-space:nowrap;">Pre-select</button>` : ''}</div>${preBadges ? `<div style="margin-top:2px;">${preBadges}</div>` : ''}</td>
+                    <td>${escapeHtml(up(r.Employee))}${badge}${timerBadge}</td>
                     <td>
                       ${(() => {
                         const seatOpts = (pos==='CALLTAKER') ? ctSeatOpts : (pos==='DISPATCHER' ? dpSeatOpts : (pos==='ANET' ? anetSeatOpts : picSeatOpts));
@@ -2076,11 +1996,11 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                             return `<option value="${escapeHtml(s)}" ${s===curSeat?'selected':''} ${dis}>${escapeHtml(s)}${tag}</option>`;
                           })
                         ].join('');
-                        return `<select class="seatSel" data-seat-pos="${escapeHtml(pos)}" data-seat-key="${escapeHtml(k)}" data-seat-name="${escapeHtml(up(r.Employee))}" ${(started && isActive)?"":"disabled"}>${seatOptions}</select>`;
+                        return `<select class="seatSel" data-seat-pos="${pos}" data-seat-key="${escapeHtml(k)}" data-seat-name="${escapeHtml(up(r.Employee))}" ${(started && isActive)?"":"disabled"}>${seatOptions}</select>`;
                       })()}
                     </td>
                     <td>
-                      <select class="posSel" data-break-pos="${escapeHtml(pos)}" data-break-key="${escapeHtml(k)}" data-break-name="${escapeHtml(up(r.Employee))}" ${ (started && isActive && (getPending(pos, k).seat)) ? "" : "disabled"}>
+                      <select class="posSel" data-break-pos="${pos}" data-break-key="${escapeHtml(k)}" data-break-name="${escapeHtml(up(r.Employee))}" ${ (started && isActive && (getPending(pos, k).seat)) ? "" : "disabled"}>
                         ${options}
                       </select>
                     </td>
@@ -2090,9 +2010,9 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                         const canEnter = started && isActive && (pend2.seat && pend2.time || (pend2.clearFlag) || ((pend2.baseSeat||pend2.baseTime) && (!pend2.seat && !pend2.time)));
                         const canClear = started && isActive && (pend2.seat || pend2.time || pend2.baseSeat || pend2.baseTime);
                         return `
-                          <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                            <button class="secondary" type="button" data-enter-pos="${escapeHtml(pos)}" data-enter-key="${escapeHtml(k)}" data-enter-name="${escapeHtml(up(r.Employee))}" ${canEnter?"":"disabled"}>Enter</button>
-                            <button class="secondary" type="button" data-clear-pos="${escapeHtml(pos)}" data-clear-key="${escapeHtml(k)}" ${canClear?"":"disabled"}>Clear</button>
+                          <div style="display:flex; gap:6px; align-items:center;">
+                            <button class="secondary" type="button" data-enter-pos="${pos}" data-enter-key="${escapeHtml(k)}" data-enter-name="${escapeHtml(up(r.Employee))}" ${canEnter?"":"disabled"}>Enter</button>
+                            <button class="secondary" type="button" data-clear-pos="${pos}" data-clear-key="${escapeHtml(k)}" ${canClear?"":"disabled"}>Clear</button>
                           </div>`;
                       })()}
                     </td>
@@ -2204,7 +2124,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
   if(_treeEl){
     const _days = Math.max(0, Math.floor((Date.now() - new Date(2026,0,18)) / 86400000));
     const _sheets = _days * 6;
-    _treeEl.textContent = "\uD83C\uDF33 " + _sheets.toLocaleString() + " sheets of paper saved since going digital (" + (_sheets/8333).toFixed(4) + " trees) #savethetrees";
+    _treeEl.innerHTML = "\uD83C\uDF33 " + _sheets.toLocaleString() + " sheets of paper saved since going digital (" + (_sheets/8333).toFixed(4) + " trees) #savethetrees";
   }
 
   // Wire up seat handlers (pending only; save happens on Enter)
@@ -2266,12 +2186,6 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       // Commit assignment, then break
       await commitAssignment(pos, key, pend.seat);
       await commitBreak(pos, key, name, pend.time);
-      // Clear pre-selections since they've picked
-      const _ps = loadPreSelectionsForScope();
-      if(_ps[pos] && _ps[pos][key]){
-        delete _ps[pos][key];
-        try { await savePreSelectionsForScope(_ps); } catch(e){ console.warn(e); }
-      }
       clearPending(pos, key);
       renderBreakPicker(selectedDay, mode, block, buckets);
       toast("Saved.");
@@ -2285,125 +2199,6 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       const key = btn.getAttribute("data-clear-key");
       setPending(pos, key, { seat: "", time: "", clearFlag: true });
       renderBreakPicker(selectedDay, mode, block, buckets);
-    });
-  });
-
-  // Pre-select buttons: open a picker to choose top 3 break preferences
-  card.querySelectorAll("[data-presel-pos]").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      const pos = btn.getAttribute("data-presel-pos");
-      const key = btn.getAttribute("data-presel-key");
-      const preSels = loadPreSelectionsForScope();
-      const existingObj = (preSels[pos] && preSels[pos][key]) || null;
-      const existingSeat = existingObj ? (existingObj.seat || '') : '';
-      const existingTimes = existingObj ? (existingObj.times || []) : [];
-
-      // Build a small inline modal
-      let overlay = document.getElementById("preselOverlay");
-      if(overlay) overlay.remove();
-      overlay = document.createElement("div");
-      overlay.id = "preselOverlay";
-      overlay.style.cssText = "position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);";
-
-      const counts = countsFor(pos, key);
-      const optHtml = (pick)=>{
-        return [
-          `<option value="">— none —</option>`,
-          ...slotOpts.map(o=>{
-            const used = counts.get(o.value)||0;
-            const slotCap = capFor(pos, o.value);
-            const full = used >= slotCap;
-            const blocked = slotCap === 0;
-            const suffix = blocked ? " (blocked)" : (full ? " (full)" : "");
-            return `<option value="${escapeHtml(o.value)}" ${o.value===pick?"selected":""}>${escapeHtml(o.label + suffix)}</option>`;
-          })
-        ].join("");
-      };
-
-      // Seat options for this position
-      const seatList = (pos==='CALLTAKER') ? ctSeatOpts : (pos==='DISPATCHER' ? dpSeatOpts : (pos==='ANET' ? anetSeatOpts : picSeatOpts));
-      const usedSeats = new Set(Object.entries((loadAssignmentsForScope()[pos]||{}))
-        .filter(([kk, v]) => kk !== key && v)
-        .map(([_, v]) => v)
-      );
-      const seatOptHtml = [
-        `<option value="">— select —</option>`,
-        ...seatList.map(s => {
-          const taken = usedSeats.has(s) && s !== existingSeat;
-          const tag = taken ? ' (taken)' : '';
-          return `<option value="${escapeHtml(s)}" ${s===existingSeat?'selected':''}>${escapeHtml(s)}${tag}</option>`;
-        })
-      ].join('');
-
-      overlay.innerHTML = `
-        <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;min-width:280px;max-width:360px;">
-          <h3 style="margin:0 0 12px;color:#e2e8f0;">Pre-select Seat & Breaks</h3>
-          <p style="margin:0 0 12px;color:#94a3b8;font-size:12px;">Pick your seat and top 3 break times. When it's your turn, your choices will be auto-assigned if available.</p>
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            <label style="color:#facc15;font-size:13px;font-weight:600;">Seat / Assignment
-              <select id="preselSeat" style="width:100%;margin-top:2px;padding:6px;background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:6px;">${seatOptHtml}</select>
-            </label>
-            <hr style="border:none;border-top:1px solid #334155;margin:4px 0;">
-            <label style="color:#cbd5e1;font-size:13px;">#1 Break Choice
-              <select id="presel1" style="width:100%;margin-top:2px;padding:6px;background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:6px;">${optHtml(existingTimes[0]||"")}</select>
-            </label>
-            <label style="color:#cbd5e1;font-size:13px;">#2 Break Choice
-              <select id="presel2" style="width:100%;margin-top:2px;padding:6px;background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:6px;">${optHtml(existingTimes[1]||"")}</select>
-            </label>
-            <label style="color:#cbd5e1;font-size:13px;">#3 Break Choice
-              <select id="presel3" style="width:100%;margin-top:2px;padding:6px;background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:6px;">${optHtml(existingTimes[2]||"")}</select>
-            </label>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">
-            <button id="preselCancel" class="secondary" type="button">Cancel</button>
-            <button id="preselSave" type="button" style="background:#1a73e8;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;">Save</button>
-          </div>
-        </div>`;
-      document.body.appendChild(overlay);
-
-      // Disable already-chosen times in sibling dropdowns
-      const _preSelDropdowns = [overlay.querySelector("#presel1"), overlay.querySelector("#presel2"), overlay.querySelector("#presel3")];
-      function _syncPreSelOpts(){
-        const chosen = _preSelDropdowns.map(s => s.value);
-        _preSelDropdowns.forEach((sel, idx) => {
-          Array.from(sel.options).forEach(opt => {
-            if(!opt.value) return; // skip "— none —"
-            const usedElsewhere = chosen.some((v, j) => j !== idx && v && v === opt.value);
-            opt.disabled = usedElsewhere;
-          });
-        });
-      }
-      _preSelDropdowns.forEach(s => s.addEventListener("change", _syncPreSelOpts));
-      _syncPreSelOpts(); // apply on initial render in case of existing selections
-
-      overlay.querySelector("#preselCancel").addEventListener("click", ()=> overlay.remove());
-      overlay.addEventListener("click", (e)=>{ if(e.target === overlay) overlay.remove(); });
-
-      overlay.querySelector("#preselSave").addEventListener("click", async ()=>{
-        const seat = overlay.querySelector("#preselSeat").value;
-        const v1 = overlay.querySelector("#presel1").value;
-        const v2 = overlay.querySelector("#presel2").value;
-        const v3 = overlay.querySelector("#presel3").value;
-        const picks = [v1, v2, v3].filter(v=>v);
-        const uniqueTimes = [...new Set(picks)];
-
-        const preSelsNow = loadPreSelectionsForScope();
-        if(seat || uniqueTimes.length){
-          if(!preSelsNow[pos]) preSelsNow[pos] = {};
-          preSelsNow[pos][key] = { seat: seat, times: uniqueTimes };
-        } else {
-          if(preSelsNow[pos]) delete preSelsNow[pos][key];
-        }
-        try {
-          await savePreSelectionsForScope(preSelsNow);
-          toast("Pre-selections saved.");
-        } catch(e){
-          console.warn("Pre-selection save error:", e);
-          toast("Error saving pre-selections.");
-        }
-        overlay.remove();
-        renderBreakPicker(selectedDay, mode, block, buckets);
-      });
     });
   });
 
@@ -2439,7 +2234,44 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
   }
 
   // --- Timer display (read-only — admin controls the timers, staff just sees them) ---
-  _ensureTimerInterval();
+  if(_timerIntervalId){ clearInterval(_timerIntervalId); _timerIntervalId = null; }
+
+  _timerIntervalId = setInterval(()=>{
+    const timers = loadTurnTimersForScope();
+    const now = Date.now();
+
+    const bsState = loadBreakStartedForScope();
+    for(const pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
+      const badge = document.querySelector(`.skip-timer[data-timer-pos="${pos}"]`);
+      if(!badge) continue;
+
+      // Don't run timer if position is pending (not deployed)
+      if(!bsState[pos]){
+        badge.textContent = "";
+        continue;
+      }
+
+      const timer = timers[pos];
+      if(!timer || !timer.ts){
+        badge.textContent = "";
+        continue;
+      }
+
+      const elapsed = now - timer.ts;
+      const remaining = Math.max(0, SKIP_DURATION_MS - elapsed);
+      const totalSec = Math.ceil(remaining / 1000);
+      const mins = Math.floor(totalSec / 60);
+      const secs = totalSec % 60;
+      badge.textContent = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+
+      // Urgent class when under 60 seconds
+      if(remaining < 60000) badge.classList.add('urgent');
+      else badge.classList.remove('urgent');
+
+      // When timer hits 0, just show 00:00 (admin handles auto-skip)
+      if(remaining <= 0) badge.textContent = "00:00";
+    }
+  }, 1000);
 }
 
 // Boot after Firebase module is ready and landing view is loaded
