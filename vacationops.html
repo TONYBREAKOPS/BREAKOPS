@@ -248,6 +248,7 @@ main{max-width:900px;margin:0 auto;padding:20px 18px}
         <span>VACATIONS &mdash; <span id="vacCount">0</span> entries</span>
         <div style="display:flex;align-items:center;gap:8px">
           <input type="text" id="vacEmployeeSearch" placeholder="Search employee..." oninput="renderAll()" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:12px;font-weight:600;outline:none;width:180px"/>
+          <button onclick="clearDuplicateVacations()" style="padding:4px 12px;font-size:10px;font-weight:800;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--bad);cursor:pointer;letter-spacing:.04em">CLEAR DUPES</button>
           <button onclick="fixMisplacedEntries()" style="padding:4px 12px;font-size:10px;font-weight:800;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--warn);cursor:pointer;letter-spacing:.04em">FIX MISPLACED</button>
         </div>
       </div>
@@ -1908,6 +1909,62 @@ function ilog(msg, cls){
   const el = document.getElementById('importLog');
   el.innerHTML += '<div' + (cls ? ' class="' + cls + '"' : '') + '>' + esc(msg) + '</div>';
   el.scrollTop = el.scrollHeight;
+}
+
+// ── Clear duplicate vacations ──
+async function clearDuplicateVacations(){
+  if(_allMode){
+    // ALL mode: scan every rotation_plans doc
+    showToast('Scanning all months for duplicates...');
+    try {
+      const snap = await db.collection('rotation_plans').get();
+      let totalRemoved = 0;
+      const batch = db.batch();
+      snap.docs.forEach(doc => {
+        const data = doc.data();
+        if(!Array.isArray(data.vacations) || data.vacations.length === 0) return;
+        const seen = new Set();
+        const deduped = [];
+        let removed = 0;
+        for(const v of data.vacations){
+          const key = (v.name||'') + '|' + (v.from||'') + '|' + (v.to||'');
+          if(seen.has(key)){ removed++; continue; }
+          seen.add(key);
+          deduped.push(v);
+        }
+        if(removed > 0){
+          batch.set(doc.ref, { vacations: deduped }, { merge: true });
+          totalRemoved += removed;
+        }
+      });
+      if(totalRemoved === 0){
+        showToast('No duplicates found');
+        return;
+      }
+      if(!confirm('Found ' + totalRemoved + ' duplicate vacation(s) across all months. Remove them?')) return;
+      _vacSaveTs = Date.now();
+      await batch.commit();
+      showToast(totalRemoved + ' duplicate(s) removed');
+      loadAllData();
+    } catch(e){ console.error(e); showToast('Error clearing duplicates'); }
+  } else {
+    // Single month mode
+    const seen = new Set();
+    const deduped = [];
+    let removed = 0;
+    for(const v of _vacations){
+      const key = (v.name||'') + '|' + (v.from||'') + '|' + (v.to||'');
+      if(seen.has(key)){ removed++; continue; }
+      seen.add(key);
+      deduped.push(v);
+    }
+    if(removed === 0){ showToast('No duplicates found'); return; }
+    if(!confirm('Found ' + removed + ' duplicate vacation(s). Remove them?')) return;
+    _vacations = deduped;
+    saveVacations();
+    renderAll();
+    showToast(removed + ' duplicate(s) removed');
+  }
 }
 
 // ── Fix misplaced entries ──

@@ -3313,6 +3313,41 @@ let ADEQ={CALLTAKER:{},DISPATCHER:{},PIC:{},SUPERVISOR:{}};
 let SEATS={CALLTAKER:[],DISPATCHER:[],PIC:[],SUPERVISOR:[]};
 let ABSENT_REASONS=[];
 
+let SCHED_CHANGES = [];
+let _effEmpCache = { iso: null, list: null };
+
+function getEffectiveEmpList(iso){
+  if(_effEmpCache.iso === iso && _effEmpCache.list) return _effEmpCache.list;
+  if(!SCHED_CHANGES.length){ _effEmpCache = {iso, list: BASE_EMP}; return BASE_EMP; }
+  const list = BASE_EMP.map(e => {
+    const change = SCHED_CHANGES.find(c => c.employee === e.Employee && iso < c.effectiveDate);
+    if(!change) return e;
+    // Before this change took effect — restore original schedule/position
+    const orig = change._originalData;
+    if(!orig || orig._wasNewlyCreated) return e; // shouldn't happen for existing employees
+    return {
+      Employee: e.Employee,
+      SENIORITY: orig.SENIORITY ?? e.SENIORITY,
+      POSITION: normalizeRole(orig.POSITION ?? e.POSITION),
+      SATURDAY: orig.SATURDAY ?? e.SATURDAY,
+      SUNDAY: orig.SUNDAY ?? e.SUNDAY,
+      MONDAY: orig.MONDAY ?? e.MONDAY,
+      TUESDAY: orig.TUESDAY ?? e.TUESDAY,
+      WEDNESDAY: orig.WEDNESDAY ?? e.WEDNESDAY,
+      THURSDAY: orig.THURSDAY ?? e.THURSDAY,
+      FRIDAY: orig.FRIDAY ?? e.FRIDAY,
+    };
+  });
+  // Exclude employees that were newly created by a mirror change and didn't exist yet
+  const filtered = list.filter(e => {
+    const change = SCHED_CHANGES.find(c => c.employee === e.Employee && iso < c.effectiveDate);
+    if(change && change._originalData && change._originalData._wasNewlyCreated) return false;
+    return true;
+  });
+  _effEmpCache = {iso, list: filtered};
+  return filtered;
+}
+
 let OT_BY_CTX=new Map(); // ctxKey -> array of OT entries
 let EDITS_BY_CTX=new Map(); // ctxKey -> Map(emp->edit)
 
@@ -3482,6 +3517,7 @@ async function loadFromFirebase(){
       ...adeqMap.map(([c])=> db.collection(c).get().catch(e=>{ console.warn("Failed to load "+c, e); return null; })),
       ...seatMap.map(([c])=> db.collection(c).get().catch(e=>{ console.warn("Failed to load "+c, e); return null; })),
       db.collection('Absent_Reason').get().catch(e=>{ console.warn("Failed to load Absent_Reason", e); return null; }),
+      db.collection('scheduledChanges').get().catch(e=>{ console.warn("Failed to load scheduledChanges", e); return null; }),
     ]);
 
     // 1. Process employees
@@ -3575,6 +3611,19 @@ async function loadFromFirebase(){
     // Ensure VACATION is always available as an absence reason
     if(!ABSENT_REASONS.includes("VACATION")) ABSENT_REASONS.unshift("VACATION");
 
+    // 5. Process scheduled changes (for date-aware schedule lookups)
+    SCHED_CHANGES = [];
+    _effEmpCache = { iso: null, list: null };
+    const schedSnap = otherSnaps[adeqMap.length + seatMap.length + 1];
+    if(schedSnap){
+      schedSnap.docs.forEach(doc => {
+        const d = doc.data();
+        if(d.status === 'active' && d._originalData && d.effectiveDate){
+          SCHED_CHANGES.push(d);
+        }
+      });
+    }
+
     const seatsOk = Object.values(SEATS).some(arr=>Array.isArray(arr)&&arr.length);
     const absOk = (ABSENT_REASONS && ABSENT_REASONS.length);
     pS.textContent = (seatsOk ? "Seats: loaded" : "Seats: not loaded") + " · " + (absOk ? ("Absent Reasons: "+ABSENT_REASONS.length) : "Absent Reasons: not loaded");
@@ -3586,6 +3635,7 @@ async function loadFromFirebase(){
       adeq: adeqLoaded,
       seats: seatsLoaded,
       absReasons: ABSENT_REASONS.length,
+      schedChanges: SCHED_CHANGES.length,
     });
     return true;
   } catch(err){
@@ -4184,7 +4234,8 @@ function shiftForDay(emp, dayName, iso){
   if(iso){
     const partner = getSwappedShift(emp.Employee, iso);
     if(partner){
-      const partnerRec = BASE_EMP.find(e => e.Employee === partner);
+      const effList = getEffectiveEmpList(iso);
+      const partnerRec = effList.find(e => e.Employee === partner);
       if(partnerRec) return String(partnerRec[dayName]||"").trim();
     }
   }
@@ -4376,6 +4427,8 @@ async function importTeamsWeek(file){
   if(!ws){ setErr("Pick Week Start (Saturday)."); return null; }
   const weekStart=parseISO(ws);
   const weekEnd=new Date(weekStart.getTime()+6*86400000);
+  // Extend by 1 day to catch post-midnight OT (e.g., Mar 1 02:00 belongs to Feb 28 NIGHT)
+  const weekEndExtended=new Date(weekStart.getTime()+7*86400000);
   // Merge: don't clear OT_BY_CTX so multiple week imports accumulate.
   // Cross-week night shift OT (e.g., 1/31 02:00 → 1/30 NIGHT) survives.
   // Page reload resets everything if a fresh start is needed.
@@ -4409,7 +4462,7 @@ async function importTeamsWeek(file){
     let cur=new Date(start.getFullYear(), start.getMonth(), start.getDate());
     const endDay=new Date(end.getFullYear(), end.getMonth(), end.getDate());
     while(cur<=endDay){
-      if(cur<weekStart || cur>weekEnd){ cur=new Date(cur.getTime()+86400000); continue; }
+      if(cur<weekStart || cur>weekEndExtended){ cur=new Date(cur.getTime()+86400000); continue; }
       const iso=toISODate(cur);
 
       // minutes for THIS date (0..1440), plus allow crossing into next day by extending end
@@ -4453,6 +4506,9 @@ async function importTeamsWeek(file){
           }
         }
       } else {
+        // On the extended day (day after week ends), only post-midnight night OT is valid.
+        // Skip regular daytime OT for that day — it doesn't belong to this week.
+        if(cur>weekEnd){ cur=new Date(cur.getTime()+86400000); continue; }
         // place OT into BOTH shift sets, by overlap with each block window
         for(const sh of ["DAY","NIGHT"]){
           const blocks = (sh==="NIGHT")?BLOCKS_NIGHT:BLOCKS_DAY;
@@ -4525,63 +4581,13 @@ function blockTitle(block){
   };
   return fmt(a)+"-"+fmt(b);
 }
-function renderStaffingTable(iso, shift, block, role){
-  const segs=hourSegments(block);
-  const rows=computeRowsForBlock(iso, shift, block);
-  const list=rows[role]||[];
-  const counts=[0,0,0,0];
-
-  // headcount per hour segment uses workedStart/workedEnd
-  for(const r of list){
-    const key=ctxKey(iso,shift,block.id);
-    const ed=ensureEdit(key,r.emp);
-    // TRAINEE employees don't count towards staffing numbers
-    if((ed.Present||r.present||"YES")==="TRAINEE") continue;
-    const ws=ed.WorkedStart || r.workedStart;
-    const we=ed.WorkedEnd || r.workedEnd;
-    let aS=minutesOf(ws), aE=minutesOf(we);
-    // handle 22-02 wrap
-    if(block.id==="2200-0200" && aE<=aS) aE += 1440;
-
-    const segsUse = (block.id==="2200-0200")
-      ? [{start:1320,end:1380},{start:1380,end:1440},{start:1440,end:1500},{start:1500,end:1560}]
-      : segs.map(s=>({start:s.start,end:s.end}));
-
-    for(let i=0;i<4;i++){
-      if(overlapMinutes(aS,aE,segsUse[i].start,segsUse[i].end)>0) counts[i]+=1;
-    }
-  }
-
-  const d=dayNameFromISO(iso);
-
-  function badge(adeq, sched){
-    const aNum = Number(adeq);
-    const sNum = Number(sched);
-    if(!Number.isFinite(aNum) || !Number.isFinite(sNum)) return "";
-    if(sNum < aNum) return ` <span class="statusShort">SHORT ${aNum-sNum}</span>`;
-    if(sNum === aNum) return ` <span class="statusStaffed">STAFFED</span>`;
-    return ` <span class="statusOver">OVER ${sNum-aNum}</span>`;
-  }
-
-  let html="<div class='tblWrap'><table><thead><tr><th class='compact'>Hr</th><th>Adeq</th><th>Sched</th></tr></thead><tbody>";
-  for(let i=0;i<4;i++){
-    const hk=segs[i].label;
-    const lookupKey = (hk==="2400") ? "0000" : hk;
-    const a=(ADEQ[role] && ADEQ[role][d] && ADEQ[role][d][lookupKey]!==undefined) ? ADEQ[role][d][lookupKey] : "";
-    const b=badge(a, counts[i]);
-    html += `<tr><td class='compact'>${hk}</td><td>${a!==""?a:""}</td><td>${counts[i]}${b}</td></tr>`;
-  }
-  html+="</tbody></table></div>";
-  return html;
-}
-
 function computeRowsForBlock(iso, shift, block){
   const dname=dayNameFromISO(iso);
   const bw=blockWindowMinutes(block);
   const res={CALLTAKER:[],DISPATCHER:[],PIC:[],SUPERVISOR:[],ABSENT:[],OTH:[]};
 
-  // scheduled
-  for(const e of BASE_EMP){
+  // scheduled (use effective employee list for date-aware schedule changes)
+  for(const e of getEffectiveEmpList(iso)){
     const shStr = shiftForDay(e, dname, iso);
     const sh=parseShiftString(shStr);
     if(!sh) continue;
@@ -5321,13 +5327,11 @@ function buildAdeqRowsForRole(iso, shift, block, role){
     return ((Math.floor(m/60))*100).toString().padStart(4,"0");
   });
    const d0 = dayNameFromISO(iso);
-   const d1 = dayNameFromISO(addDaysISO(iso, 1));
    const out=[];
    for(let i=0;i<4;i++){
      const hk=hours[i];
-     // For NIGHT shift, segments after midnight belong to NEXT calendar day for ADEQ lookup.
-     const segStart = segs[i] && typeof segs[i].start==='number' ? segs[i].start : 0;
-     const dUse = (shift==="NIGHT" && segStart>=1440) ? d1 : d0;
+     // ADEQ data is stored per shift-day, not calendar-day — always use d0
+     const dUse = d0;
      const av = adeqGet(role, dUse, hk);
      const adeq = (av!==undefined) ? Number(av) : NaN;
     const sched = counts[i]||0;
@@ -7292,7 +7296,7 @@ async function printWeekly(format){
     const blockColW=(usableW-nameW)/21;
     const dayGroupW=blockColW*3;
     const roleRGB={CALLTAKER:[26,82,118],DISPATCHER:[74,35,90],PIC:[14,102,85],SUPERVISOR:[125,102,8],OTH:[107,114,128]};
-    const roleBgRGB={CALLTAKER:[232,240,254],DISPATCHER:[243,229,245],PIC:[224,242,241],SUPERVISOR:[255,248,225],OTH:[243,244,246]};
+    const roleBgRGB={CALLTAKER:[230,230,230],DISPATCHER:[230,230,230],PIC:[230,230,230],SUPERVISOR:[230,230,230],OTH:[230,230,230]};
     let _rowIdx=0;
     function _rl(i){if(i<26)return String.fromCharCode(65+i);return String.fromCharCode(65+Math.floor(i/26)-1)+String.fromCharCode(65+(i%26));}
 
@@ -7302,7 +7306,7 @@ async function printWeekly(format){
       const mode=opts.mode||"all";
       const{grouped}=shiftData;
       const abbrMap={...roleAbbr,OTH:"OTH"};
-      const fullName={CALLTAKER:"CALLTAKERS",DISPATCHER:"DISPATCHERS",PIC:"PIC",SUPERVISOR:"SUPERVISORS",OTH:"OTHER"};
+      const fullName={CALLTAKER:"CALLTAKER",DISPATCHER:"DISPATCH",PIC:"PIC",SUPERVISOR:"SUPVSR",OTH:"OTHER"};
       const titleRowH=10,dayNameRowH=9,blockTimeRowH=8,roleHeaderH=8,otDividerH=6;
       const headerH=titleRowH+dayNameRowH+blockTimeRowH;
 
@@ -7412,7 +7416,7 @@ async function printWeekly(format){
           doc.text((abbrMap[role]||role)+" OT",margin+3,y+otDividerH*0.75);
           y+=otDividerH;
           for(let ei=0;ei<ots.length;ei++){
-            const altBg=ei%2===0?[255,255,255]:[255,245,220];
+            const altBg=ei%2===0?[255,255,255]:[230,230,230];
             y=drawEmpRow(ots[ei],altBg,blockDefs,y,rowH,fs,fsT,abbrMap[role]||role);
           }
         }
@@ -7651,8 +7655,8 @@ async function printWeeklyC(){
     const roleOrder=["CALLTAKER","DISPATCHER","PIC","SUPERVISOR"];
     const roleAbbr2={CALLTAKER:"CT",DISPATCHER:"DP",PIC:"PIC",SUPERVISOR:"SUP",OTH:"OTH"};
     const roleRGB={CALLTAKER:[26,82,118],DISPATCHER:[74,35,90],PIC:[14,102,85],SUPERVISOR:[125,102,8],OTH:[107,114,128]};
-    const roleBgRGB={CALLTAKER:[232,240,254],DISPATCHER:[243,229,245],PIC:[224,242,241],SUPERVISOR:[255,248,225],OTH:[243,244,246]};
-    const fullName={CALLTAKER:"CALLTAKERS",DISPATCHER:"DISPATCHERS",PIC:"PIC",SUPERVISOR:"SUPERVISORS",OTH:"OTHER"};
+    const roleBgRGB={CALLTAKER:[230,230,230],DISPATCHER:[230,230,230],PIC:[230,230,230],SUPERVISOR:[230,230,230],OTH:[230,230,230]};
+    const fullName={CALLTAKER:"CALLTAKER",DISPATCHER:"DISPATCH",PIC:"PIC",SUPERVISOR:"SUPVSR",OTH:"OTHER"};
 
     // Collect shift data (reuse logic from printWeekly)
     function collectData(shift,blockDefs){
@@ -7705,7 +7709,8 @@ async function printWeeklyC(){
           if(!has){ for(const b of blockDefs) rec.blocks[wd.iso+"|"+b.id]={assignment:"",hours:0,status:"OFF",statusDetail:""}; }
         }
       }
-      for(const e of BASE_EMP){
+      const _effWeekEmps = getEffectiveEmpList(weekDates[0].iso);
+      for(const e of _effWeekEmps){
         const role=normalizeRole(e.POSITION);
         if(!roleOrder.includes(role))continue;
         if(!regulars.has(e.Employee)&&!otEmps.has(e.Employee)){
@@ -7716,7 +7721,7 @@ async function printWeeklyC(){
       }
       // Force regulars to their default POSITION and blank assignments for manual backup
       const _baseRoleMap={};
-      for(const e of BASE_EMP) _baseRoleMap[e.Employee]=normalizeRole(e.POSITION);
+      for(const e of _effWeekEmps) _baseRoleMap[e.Employee]=normalizeRole(e.POSITION);
       for(const [emp,rec] of regulars){
         const defRole=_baseRoleMap[emp];
         if(defRole&&roleOrder.includes(defRole)) rec.role=defRole;
@@ -7856,7 +7861,7 @@ async function printWeeklyC(){
           doc.text((roleAbbr2[role]||role)+" OT",margin+3,y+otDividerH*0.75);
           y+=otDividerH;
           for(let ei=0;ei<ots.length;ei++){
-            const altBg=ei%2===0?[255,255,255]:[255,245,220];
+            const altBg=ei%2===0?[255,255,255]:[230,230,230];
             y=drawRow(ots[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role);
           }
         }
@@ -8044,14 +8049,51 @@ async function printWeeklyD(){
     const roleOrder=["CALLTAKER","DISPATCHER","PIC","SUPERVISOR"];
     const roleAbbr2={CALLTAKER:"CT",DISPATCHER:"DP",PIC:"PIC",SUPERVISOR:"SUP",OTH:"OTH"};
     const roleRGB={CALLTAKER:[26,82,118],DISPATCHER:[74,35,90],PIC:[14,102,85],SUPERVISOR:[125,102,8],OTH:[107,114,128]};
-    const roleBgRGB={CALLTAKER:[232,240,254],DISPATCHER:[243,229,245],PIC:[224,242,241],SUPERVISOR:[255,248,225],OTH:[243,244,246]};
-    const fullName={CALLTAKER:"CALLTAKERS",DISPATCHER:"DISPATCHERS",PIC:"PIC",SUPERVISOR:"SUPERVISORS",OTH:"OTHER"};
+    const roleBgRGB={CALLTAKER:[230,230,230],DISPATCHER:[230,230,230],PIC:[230,230,230],SUPERVISOR:[230,230,230],OTH:[230,230,230]};
+    const fullName={CALLTAKER:"CALLTAKER",DISPATCHER:"DISPATCH",PIC:"PIC",SUPERVISOR:"SUPVSR",OTH:"OTHER"};
 
     function collectData(shift,blockDefs){
       document.getElementById("shiftSel").value=shift;
-      const regulars=new Map(), otEmps=new Map();
+
+      // ── REGULARS: built purely from DB schedule ──
+      // No computeRowsForBlock — just read the employee's shift, check block coverage, check vacation.
+      const regulars=new Map();
+      const effEmps=getEffectiveEmpList(weekDates[0].iso);
+      for(const emp of effEmps){
+        const role=normalizeRole(emp.POSITION);
+        if(!roleOrder.includes(role)) continue;
+        const rec={role,isOT:false,blocks:{}};
+        for(const wd of weekDates){
+          const iso=wd.iso,d=parseISO(iso),mk=d.getFullYear()+"-"+d.getMonth();
+          _vacations=vacByMonth[mk]||[];
+          const dname=dayNameFromISO(iso);
+          const shStr=shiftForDay(emp,dname,iso);
+          const sh=parseShiftString(shStr);
+          const isVac=isOnVacationDate(emp.Employee,iso);
+          for(const block of blockDefs){
+            const bKey=iso+"|"+block.id;
+            const bw=blockWindowMinutes(block);
+            if(!sh){
+              rec.blocks[bKey]={assignment:"",hours:0,status:"OFF",statusDetail:""};
+            } else if(sh.start<=bw.startMin && sh.end>=bw.endMin){
+              // Shift fully covers this block
+              if(isVac){
+                rec.blocks[bKey]={assignment:"",hours:0,status:"VAC",statusDetail:"VACATION"};
+              } else {
+                rec.blocks[bKey]={assignment:"",hours:0,status:"WORK",statusDetail:""};
+              }
+            } else {
+              rec.blocks[bKey]={assignment:"",hours:0,status:"OFF",statusDetail:""};
+            }
+          }
+        }
+        regulars.set(emp.Employee,rec);
+      }
+
+      // ── OT: still uses computeRowsForBlock (only extracts OT rows) ──
+      const otEmps=new Map();
       for(const wd of weekDates){
-        const iso=wd.iso, d=parseISO(iso), mk=d.getFullYear()+"-"+d.getMonth();
+        const iso=wd.iso,d=parseISO(iso),mk=d.getFullYear()+"-"+d.getMonth();
         _vacations=vacByMonth[mk]||[];
         _trainingList=trainByMonth[mk]||[];
         for(const block of blockDefs){
@@ -8059,69 +8101,35 @@ async function printWeeklyD(){
           const bKey=iso+"|"+block.id;
           for(const role of roleOrder){
             for(const row of(rows[role]||[])){
-              const map=row.isOT?otEmps:regulars;
-              if(!map.has(row.emp))map.set(row.emp,{role,isOT:!!row.isOT,blocks:{}});
-              const rec=map.get(row.emp);
-              if(!rec.role||rec.role==="OTH"||(rec.role==="DISPATCHER"&&role!=="DISPATCHER"&&role!=="OTH"))rec.role=role;
+              if(!row.isOT) continue;
+              if(!otEmps.has(row.emp))otEmps.set(row.emp,{role,isOT:true,blocks:{}});
+              const rec=otEmps.get(row.emp);
               const hrs=typeof row.hours==="number"?row.hours:Number(row.hours)||0;
               const ctx=ctxKey(iso,shift,block.id);
               const ed=ensureEdit(ctx,row.emp);
-              rec.blocks[bKey]={assignment:ed.Assignment||row.assignment||"",hours:hrs,status:"WORK",
-                statusDetail:row.present==="TARDY"?"T":row.present==="PARTIAL"?"P":""};
+              rec.blocks[bKey]={assignment:ed.Assignment||row.assignment||"",hours:hrs,status:"WORK",statusDetail:""};
             }
           }
           for(const row of(rows.OTH||[])){
-            const map=row.isOT?otEmps:regulars;
-            if(!map.has(row.emp))map.set(row.emp,{role:"OTH",isOT:!!row.isOT,blocks:{}});
-            const rec=map.get(row.emp);
+            if(!row.isOT) continue;
+            if(!otEmps.has(row.emp))otEmps.set(row.emp,{role:"OTH",isOT:true,blocks:{}});
+            const rec=otEmps.get(row.emp);
             const hrs=typeof row.hours==="number"?row.hours:Number(row.hours)||0;
             rec.blocks[bKey]={assignment:row.assignment||"",hours:hrs,status:"WORK",statusDetail:""};
           }
-          for(const row of(rows.ABSENT||[])){
-            if(row.isPartial||row.isTardy)continue;
-            const map=row.isOT?otEmps:regulars;
-            if(!map.has(row.emp))map.set(row.emp,{role:row.role||"CALLTAKER",isOT:!!row.isOT,blocks:{}});
-            const rec=map.get(row.emp);
-            if(!rec.blocks[bKey]||rec.blocks[bKey].status!=="WORK"){
-              const ctx=ctxKey(iso,shift,block.id);
-              const ed=ensureEdit(ctx,row.emp);
-              rec.blocks[bKey]={assignment:"",hours:0,status:"ABS",statusDetail:ed.AbsenceReason||""};
-            }
-          }
         }
       }
-      for(const [emp,rec] of regulars){
-        for(const wd of weekDates){
-          let has=false;
-          for(const b of blockDefs){if(rec.blocks[wd.iso+"|"+b.id]){has=true;break;}}
-          if(!has){ for(const b of blockDefs) rec.blocks[wd.iso+"|"+b.id]={assignment:"",hours:0,status:"OFF",statusDetail:""}; }
-        }
-      }
-      for(const e of BASE_EMP){
-        const role=normalizeRole(e.POSITION);
-        if(!roleOrder.includes(role))continue;
-        if(!regulars.has(e.Employee)&&!otEmps.has(e.Employee)){
-          const rec={role,isOT:false,blocks:{}};
-          for(const wd of weekDates){ for(const b of blockDefs) rec.blocks[wd.iso+"|"+b.id]={assignment:"",hours:0,status:"OFF",statusDetail:""}; }
-          regulars.set(e.Employee,rec);
-        }
-      }
-      // Force regulars to their default POSITION and blank assignments for manual backup
-      const _baseRoleMap={};
-      for(const e of BASE_EMP) _baseRoleMap[e.Employee]=normalizeRole(e.POSITION);
-      for(const [emp,rec] of regulars){
-        const defRole=_baseRoleMap[emp];
-        if(defRole&&roleOrder.includes(defRole)) rec.role=defRole;
-        for(const bk of Object.keys(rec.blocks)) rec.blocks[bk].assignment="";
-      }
+
+      // ── Group & sort ──
       for(const [emp,rec] of otEmps){
-        const defRole=_baseRoleMap[emp];
-        if(defRole&&roleOrder.includes(defRole)) rec.role=defRole;
+        const e=effEmps.find(x=>x.Employee===emp);
+        if(e){ const dr=normalizeRole(e.POSITION); if(roleOrder.includes(dr)) rec.role=dr; }
       }
       const grouped={};
       for(const r of roleOrder)grouped[r]={regulars:[],ot:[]};
       grouped["OTH"]={regulars:[],ot:[]};
       for(const [emp,rec] of regulars){
+        if(!Object.values(rec.blocks).some(b=>b.status!=="OFF")) continue;
         const r=roleOrder.includes(rec.role)?rec.role:"OTH";
         grouped[r].regulars.push({emp,...rec});
       }
@@ -8130,7 +8138,6 @@ async function printWeeklyD(){
         grouped[r].ot.push({emp,...rec});
       }
       for(const r of Object.keys(grouped)){
-        grouped[r].regulars=grouped[r].regulars.filter(e=>Object.values(e.blocks).some(b=>b.status!=="OFF"));
         grouped[r].regulars.sort((a,b)=>a.emp.localeCompare(b.emp));
         grouped[r].ot.sort((a,b)=>a.emp.localeCompare(b.emp));
       }
@@ -8141,9 +8148,9 @@ async function printWeeklyD(){
     const dayData=collectData("DAY",BLOCKS_DAY);
     const nightData=collectData("NIGHT",BLOCKS_NIGHT);
 
-    // Legal portrait: 612 x 1008
+    // Legal portrait: 612 x 1008, minimal margin for max print area
     const doc=new jsPDF({orientation:"portrait",unit:"pt",format:"legal"});
-    const pw=612,ph=1008,mg=6;
+    const pw=612,ph=1008,mg=2;
     const usableW=pw-mg*2,usableH=ph-mg*2;
     const nameW=60;
     const blockColW=(usableW-nameW)/21;
@@ -8185,57 +8192,59 @@ async function printWeeklyD(){
 
     // --- Draw header rows, returns y after header ---
     function drawHeader(shiftLabel,blockDefs,y){
-      const titleH=10,dayNameH=9,blockTimeH=8;
-      doc.setFillColor(30,58,95);
+      const titleH=14,dayNameH=12;
+      // Title bar — black
+      doc.setFillColor(0,0,0);
       doc.rect(mg,y,usableW,titleH,'F');
-      doc.setFontSize(8);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.setFontSize(11);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
       doc.text(shiftLabel+"  "+weekDates[0].label+" \u2013 "+weekDates[6].label,mg+usableW/2,y+titleH*0.75,{align:"center"});
       y+=titleH;
-      doc.setFillColor(45,74,111);
+      // Day names bar — black, bigger/bolder text
+      doc.setFillColor(0,0,0);
       doc.rect(mg,y,usableW,dayNameH,'F');
-      doc.setFontSize(5);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
-      doc.text("EMPLOYEE",mg+2,y+dayNameH*0.72);
+      doc.setFontSize(7);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      // employee label removed
       doc.setDrawColor(80,80,80);doc.line(mg+nameW,y,mg+nameW,y+dayNameH);
       for(let di=0;di<7;di++){
         const dx=mg+nameW+di*dayGroupW;
         doc.setDrawColor(60,60,60);doc.line(dx,y,dx,y+dayNameH);
+        doc.setFontSize(7);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
         doc.text(weekDates[di].label,dx+dayGroupW/2,y+dayNameH*0.72,{align:"center"});
       }
       doc.setLineWidth(1.2);doc.setDrawColor(40,40,40);
       for(let di=0;di<=7;di++){doc.line(mg+nameW+di*dayGroupW,y,mg+nameW+di*dayGroupW,y+dayNameH);}
       doc.setLineWidth(0.2);
       y+=dayNameH;
-      doc.setFillColor(60,90,130);
-      doc.rect(mg,y,usableW,blockTimeH,'F');
-      doc.setFontSize(5);doc.setFont("helvetica","normal");doc.setTextColor(220,220,220);
-      doc.setDrawColor(80,80,80);doc.line(mg+nameW,y,mg+nameW,y+blockTimeH);
+      return y;
+    }
+
+    function drawBlockTimesRow(blockDefs,y,h){
+      doc.setFillColor(30,30,30);
+      doc.rect(mg+nameW,y,usableW-nameW,h,'F');
       for(let di=0;di<7;di++){
         for(let bi=0;bi<3;bi++){
           const dx=mg+nameW+(di*3+bi)*blockColW;
-          doc.setDrawColor(80,80,80);doc.line(dx,y,dx,y+blockTimeH);
-          const bl=blockDefs[bi];
-          doc.text(bl.start.replace(":","").slice(0,2)+"-"+bl.end.replace(":","").slice(0,2),dx+blockColW/2,y+blockTimeH*0.72,{align:"center"});
+          doc.setFontSize(8);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+          doc.text(blockDefs[bi].start.replace(":","").slice(0,2)+"-"+blockDefs[bi].end.replace(":","").slice(0,2),dx+blockColW/2,y+h*0.72,{align:"center"});
         }
       }
       doc.setLineWidth(1.2);doc.setDrawColor(40,40,40);
-      for(let di=0;di<=7;di++){doc.line(mg+nameW+di*dayGroupW,y,mg+nameW+di*dayGroupW,y+blockTimeH);}
+      for(let di=0;di<=7;di++){doc.line(mg+nameW+di*dayGroupW,y,mg+nameW+di*dayGroupW,y+h);}
       doc.setLineWidth(0.2);
-      y+=blockTimeH;
-      return y;
     }
 
     // --- Draw role section (regulars only) ---
     function drawRegSection(role,grouped,blockDefs,y,rowH,fs,fsT){
       _rowIdx=0;
       const regs=grouped[role].regulars;
-      const rc=roleRGB[role]||[100,100,100];
       const bg=roleBgRGB[role]||[255,255,255];
-      const roleHeaderH=7;
-      doc.setFillColor(rc[0],rc[1],rc[2]);
-      doc.rect(mg,y,usableW,roleHeaderH,'F');
-      doc.setDrawColor(100,100,100);doc.rect(mg,y,usableW,roleHeaderH,'S');
-      doc.setFontSize(5.5);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
-      doc.text((fullName[role]||role)+": "+regs.length,mg+3,y+roleHeaderH*0.78);
+      const roleHeaderH=10;
+      doc.setFillColor(0,0,0);
+      doc.rect(mg,y,nameW,roleHeaderH,'F');
+      doc.setDrawColor(0,0,0);doc.rect(mg,y,nameW,roleHeaderH,'S');
+      doc.setFontSize(7);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.text(fullName[role]||role,mg+nameW/2,y+roleHeaderH*0.73,{align:"center"});
+      drawBlockTimesRow(blockDefs,y,roleHeaderH);
       y+=roleHeaderH;
       for(let ei=0;ei<regs.length;ei++){
         const altBg=ei%2===0?[255,255,255]:bg;
@@ -8248,16 +8257,16 @@ async function printWeeklyD(){
     function drawOTSection(role,grouped,blockDefs,y,rowH,fs,fsT,blankCount){
       _rowIdx=0;
       const ots=grouped[role].ot;
-      const rc=roleRGB[role]||[100,100,100];
-      const roleHeaderH=7;
-      doc.setFillColor(rc[0],rc[1],rc[2]);
-      doc.rect(mg,y,usableW,roleHeaderH,'F');
-      doc.setDrawColor(100,100,100);doc.rect(mg,y,usableW,roleHeaderH,'S');
-      doc.setFontSize(5.5);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
-      doc.text((fullName[role]||role)+" OT: "+ots.length,mg+3,y+roleHeaderH*0.78);
+      const roleHeaderH=10;
+      doc.setFillColor(0,0,0);
+      doc.rect(mg,y,nameW,roleHeaderH,'F');
+      doc.setDrawColor(0,0,0);doc.rect(mg,y,nameW,roleHeaderH,'S');
+      doc.setFontSize(6);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.text((fullName[role]||role)+" OT",mg+nameW/2,y+roleHeaderH*0.73,{align:"center"});
+      drawBlockTimesRow(blockDefs,y,roleHeaderH);
       y+=roleHeaderH;
       for(let ei=0;ei<ots.length;ei++){
-        const altBg=ei%2===0?[255,255,255]:[255,245,220];
+        const altBg=ei%2===0?[255,255,255]:[230,230,230];
         y=drawRowD(ots[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role,false);
       }
       // Blank write-in rows (numbered 1,2,3…)
@@ -8265,30 +8274,26 @@ async function printWeeklyD(){
         const bNum=String(bi+1);
         doc.setFillColor(255,255,255);
         doc.rect(mg,y,usableW,rowH,'F');
-        // Block tints on blank rows
-        for(let ci=0;ci<21;ci++){
-          const bti=ci%3;
-          if(bti!==1){const bt=BLOCK_TINTS[bti];doc.setFillColor(bt[0],bt[1],bt[2]);doc.rect(mg+nameW+ci*blockColW,y,blockColW,rowH,'F');}
-        }
+        // No per-block tinting on blank rows
         // Number in bottom-left of each grid cell
         for(let ci=0;ci<21;ci++){
           const dx=mg+nameW+ci*blockColW;
-          doc.setFontSize(fsT*0.9);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);
+          doc.setFontSize(fsT*1.2);doc.setFont("helvetica","bold");doc.setTextColor(80,80,80);
           doc.text(bNum,dx+1,y+rowH-2.5);
         }
-        doc.setDrawColor(200,200,200);
+        doc.setLineWidth(0.8);doc.setDrawColor(40,40,40);
         doc.rect(mg,y,usableW,rowH,'S');
-        doc.setDrawColor(200,200,200);
+        doc.setLineWidth(0.5);doc.setDrawColor(60,60,60);
         doc.line(mg+nameW,y,mg+nameW,y+rowH);
         for(let ci=0;ci<21;ci++){
           const dx=mg+nameW+ci*blockColW;
-          doc.line(dx,y,dx,y+rowH);
+          doc.rect(dx,y,blockColW,rowH,'S');
         }
-        doc.setLineWidth(1);doc.setDrawColor(80,80,80);
+        doc.setLineWidth(1.0);doc.setDrawColor(40,40,40);
         for(let di=0;di<=7;di++){const dx=mg+nameW+di*dayGroupW;doc.line(dx,y,dx,y+rowH);}
         doc.setLineWidth(0.2);
-        // Number in bottom-right of name column
-        doc.setFontSize(fsT*0.75);doc.setFont("helvetica","normal");doc.setTextColor(180,180,180);
+        // Number bold in bottom-right of name column
+        doc.setFontSize(fsT*1.2);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
         doc.text(bNum,mg+nameW-2,y+rowH-2,{align:"right"});
         y+=rowH;
       }
@@ -8300,23 +8305,17 @@ async function printWeeklyD(){
       const rowLetter=_rl(_rowIdx++);
       doc.setFillColor(bgColor[0],bgColor[1],bgColor[2]);
       doc.rect(mg,y,usableW,rowH,'F');
-      doc.setDrawColor(180,180,180);doc.rect(mg,y,usableW,rowH,'S');
+      // Row outer border — thick, dark
+      doc.setLineWidth(0.8);doc.setDrawColor(40,40,40);doc.rect(mg,y,usableW,rowH,'S');doc.setLineWidth(0.2);
       const fullNm=String(e.emp).toUpperCase();
       doc.setFontSize(fs);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
       let nm=fullNm;
       const maxNm=Math.floor(nameW/(fs*0.52));
       if(nm.length>maxNm)nm=nm.slice(0,maxNm-1)+"\u2026";
       doc.text(nm,mg+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
-      // Row letter small in bottom-right of name column
-      doc.setFontSize(fsT*0.75);doc.setFont("helvetica","normal");doc.setTextColor(180,180,180);
+      // Row letter bold in bottom-right of name column
+      doc.setFontSize(fsT*1.2);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
       doc.text(rowLetter,mg+nameW-2,y+rowH-2,{align:"right"});
-      const _baseRec=BASE_EMP.find(b=>b.Employee===e.emp);
-      if(_baseRec&&normalizeRole(_baseRec.POSITION)==="DISPATCHER"&&roleAb!=="DP"){
-        const bw=fs*2.2,bh=fs*1.1,bx=mg+nameW-bw-1,by=y+1;
-        doc.setFillColor(74,35,90);doc.roundedRect(bx,by,bw,bh,1,1,'F');
-        doc.setFontSize(fs*0.7);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
-        doc.text("DP",bx+bw/2,by+bh*0.75,{align:"center"});
-      }
       doc.setDrawColor(140,140,140);doc.line(mg+nameW,y,mg+nameW,y+rowH);
       // Info/write divider line at 35% height
       const infoH=rowH*0.35;
@@ -8327,23 +8326,22 @@ async function printWeeklyD(){
           const dx=mg+nameW+ci*blockColW;
           const bKey=iso+"|"+blockDefs[bi].id;
           const cell=e.blocks[bKey];
-          // Block tint (blend with row stripe for regulars on odd rows)
-          const bt=BLOCK_TINTS[bi];
-          if(isReg&&bgColor[0]!==255){
-            const mix=bi===1?bgColor:[Math.round(bt[0]*0.85+bgColor[0]*0.15),Math.round(bt[1]*0.85+bgColor[1]*0.15),Math.round(bt[2]*0.85+bgColor[2]*0.15)];
-            doc.setFillColor(mix[0],mix[1],mix[2]);doc.rect(dx,y,blockColW,rowH,'F');
-          }else if(bi!==1){doc.setFillColor(bt[0],bt[1],bt[2]);doc.rect(dx,y,blockColW,rowH,'F');}
+          // No per-block tinting — row color extends uniformly across all columns
 
           if(!cell){
-            doc.setFontSize(fsT*0.9);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);doc.text(rowLetter,dx+1,y+rowH-2.5);
-            doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');
+            doc.setFontSize(fsT*1.2);doc.setFont("helvetica","bold");doc.setTextColor(80,80,80);doc.text(rowLetter,dx+1,y+rowH-2.5);
+            doc.setLineWidth(0.5);doc.setDrawColor(60,60,60);doc.rect(dx,y,blockColW,rowH,'S');doc.setLineWidth(0.2);
             continue;
           }
 
           if(cell.status==="OFF"){
-            doc.setFillColor(160,160,160);doc.rect(dx,y,blockColW,rowH,'F');
+            doc.setFillColor(0,0,0);doc.rect(dx,y,blockColW,rowH,'F');
             doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
             doc.text("OFF",dx+blockColW/2,y+rowH/2+fsT*0.35,{align:"center"});
+          }else if(cell.status==="VAC"){
+            doc.setFillColor(30,80,180);doc.rect(dx,y,blockColW,rowH,'F');
+            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+            doc.text("VAC",dx+blockColW/2,y+rowH/2+fsT*0.35,{align:"center"});
           }else if(cell.status==="ABS"){
             doc.setFillColor(190,30,30);doc.rect(dx,y,blockColW,rowH,'F');
             doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
@@ -8354,24 +8352,22 @@ async function printWeeklyD(){
             const hrs=Math.round(cell.hours*10)/10;
             const hStr=hrs%1===0?String(Math.round(hrs)):String(hrs);
             doc.text(roleAb+hStr,dx+blockColW/2,y+fsT*1.3+1,{align:"center"});
-            // Row letter small in bottom-left
-            doc.setFontSize(fsT*0.9);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);
+            // Row letter bold in bottom-left
+            doc.setFontSize(fsT*1.2);doc.setFont("helvetica","bold");doc.setTextColor(80,80,80);
             doc.text(rowLetter,dx+1,y+rowH-2.5);
           }else{
-            // Regulars WORK: letter only in bottom-left
-            doc.setFontSize(fsT*0.9);doc.setFont("helvetica","bold");doc.setTextColor(195,195,195);
+            // Regulars WORK: letter bold in bottom-left
+            doc.setFontSize(fsT*1.2);doc.setFont("helvetica","bold");doc.setTextColor(80,80,80);
             doc.text(rowLetter,dx+1,y+rowH-2.5);
           }
-          // Cell border
-          doc.setDrawColor(180,180,180);doc.rect(dx,y,blockColW,rowH,'S');
-          // (divider line removed)
+          // Cell border — thicker, darker
+          doc.setLineWidth(0.5);doc.setDrawColor(60,60,60);doc.rect(dx,y,blockColW,rowH,'S');doc.setLineWidth(0.2);
         }
       }
       // Day-group thick dividers
-      doc.setLineWidth(1);doc.setDrawColor(80,80,80);
+      doc.setLineWidth(1.0);doc.setDrawColor(40,40,40);
       for(let di=0;di<=7;di++){const dx=mg+nameW+di*dayGroupW;doc.line(dx,y,dx,y+rowH);}
       doc.setLineWidth(0.2);
-      // (write baseline removed)
       return y+rowH;
     }
 
@@ -8379,7 +8375,7 @@ async function printWeeklyD(){
     function computeRowH(roles,grouped,countFn,headerH,extraPerRole){
       let total=0;
       for(const r of roles) total+=countFn(r,grouped);
-      const fixedH=headerH+roles.length*(7+extraPerRole);
+      const fixedH=headerH+roles.length*(10+extraPerRole);
       const avail=usableH-fixedH;
       return avail/Math.max(1,total);
     }
@@ -8390,7 +8386,7 @@ async function printWeeklyD(){
       const{grouped}=shiftData;
       let regCount=0;
       for(const r of roles) regCount+=grouped[r].regulars.length;
-      const headerH=10+9+8;
+      const headerH=14+12;
       const rowH=Math.max(15,computeRowH(roles,grouped,function(r,g){return g[r].regulars.length;},headerH,0));
       const fs=Math.min(7,rowH*0.6);
       const fsT=fs*0.75;
@@ -8411,8 +8407,8 @@ async function printWeeklyD(){
       let otCount=0;
       for(const r of roles) otCount+=grouped[r].ot.length;
       // Calculate blank slots to fill remaining space
-      const headerH=10+9+8;
-      const roleHeaderTotal=roles.length*7;
+      const headerH=14+12;
+      const roleHeaderTotal=roles.length*10;
       // First pass: compute row height with just OT employees
       const fixedH=headerH+roleHeaderTotal;
       const availH=usableH-fixedH;
@@ -8539,8 +8535,8 @@ async function printWeeklyE(){
     const roleOrder=["CALLTAKER","DISPATCHER","PIC","SUPERVISOR"];
     const roleAbbr2={CALLTAKER:"CT",DISPATCHER:"DP",PIC:"PIC",SUPERVISOR:"SUP",OTH:"OTH"};
     const roleRGB={CALLTAKER:[26,82,118],DISPATCHER:[74,35,90],PIC:[14,102,85],SUPERVISOR:[125,102,8],OTH:[107,114,128]};
-    const roleBgRGB={CALLTAKER:[232,240,254],DISPATCHER:[243,229,245],PIC:[224,242,241],SUPERVISOR:[255,248,225],OTH:[243,244,246]};
-    const fullName={CALLTAKER:"CALLTAKERS",DISPATCHER:"DISPATCHERS",PIC:"PIC",SUPERVISOR:"SUPERVISORS",OTH:"OTHER"};
+    const roleBgRGB={CALLTAKER:[230,230,230],DISPATCHER:[230,230,230],PIC:[230,230,230],SUPERVISOR:[230,230,230],OTH:[230,230,230]};
+    const fullName={CALLTAKER:"CALLTAKER",DISPATCHER:"DISPATCH",PIC:"PIC",SUPERVISOR:"SUPVSR",OTH:"OTHER"};
 
     function collectData(shift,blockDefs){
       document.getElementById("shiftSel").value=shift;
@@ -8592,7 +8588,8 @@ async function printWeeklyE(){
           if(!has){ for(const b of blockDefs) rec.blocks[wd.iso+"|"+b.id]={assignment:"",hours:0,status:"OFF",statusDetail:""}; }
         }
       }
-      for(const e of BASE_EMP){
+      const _effWeekEmps = getEffectiveEmpList(weekDates[0].iso);
+      for(const e of _effWeekEmps){
         const role=normalizeRole(e.POSITION);
         if(!roleOrder.includes(role))continue;
         if(!regulars.has(e.Employee)&&!otEmps.has(e.Employee)){
@@ -8603,7 +8600,7 @@ async function printWeeklyE(){
       }
       // Force regulars to their default POSITION and blank assignments for manual backup
       const _baseRoleMap={};
-      for(const e of BASE_EMP) _baseRoleMap[e.Employee]=normalizeRole(e.POSITION);
+      for(const e of _effWeekEmps) _baseRoleMap[e.Employee]=normalizeRole(e.POSITION);
       for(const [emp,rec] of regulars){
         const defRole=_baseRoleMap[emp];
         if(defRole&&roleOrder.includes(defRole)) rec.role=defRole;
@@ -8674,55 +8671,55 @@ async function printWeeklyE(){
     }
 
     function drawHeader(shiftLabel,blockDefs,y){
-      const titleH=12,dayNameH=10,blockTimeH=9;
-      doc.setFillColor(30,58,95);
+      const titleH=14,dayNameH=12;
+      doc.setFillColor(0,0,0);
       doc.rect(mg,y,usableW,titleH,'F');
-      doc.setFontSize(10);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.setFontSize(11);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
       doc.text(shiftLabel+"  "+weekDates[0].label+" \u2013 "+weekDates[6].label,mg+usableW/2,y+titleH*0.75,{align:"center"});
       y+=titleH;
-      doc.setFillColor(45,74,111);
+      doc.setFillColor(0,0,0);
       doc.rect(mg,y,usableW,dayNameH,'F');
-      doc.setFontSize(5);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
-      doc.text("EMPLOYEE",mg+2,y+dayNameH*0.72);
+      doc.setFontSize(7);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      // employee label removed
       doc.setDrawColor(80,80,80);doc.line(mg+nameW,y,mg+nameW,y+dayNameH);
       for(let di=0;di<7;di++){
         const dx=mg+nameW+di*dayGroupW;
         doc.setDrawColor(60,60,60);doc.line(dx,y,dx,y+dayNameH);
+        doc.setFontSize(7);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
         doc.text(weekDates[di].label,dx+dayGroupW/2,y+dayNameH*0.72,{align:"center"});
       }
       doc.setLineWidth(1.2);doc.setDrawColor(40,40,40);
       for(let di=0;di<=7;di++){doc.line(mg+nameW+di*dayGroupW,y,mg+nameW+di*dayGroupW,y+dayNameH);}
       doc.setLineWidth(0.2);
       y+=dayNameH;
-      doc.setFillColor(60,90,130);
-      doc.rect(mg,y,usableW,blockTimeH,'F');
-      doc.setFontSize(5);doc.setFont("helvetica","normal");doc.setTextColor(220,220,220);
-      doc.setDrawColor(80,80,80);doc.line(mg+nameW,y,mg+nameW,y+blockTimeH);
+      return y;
+    }
+
+    function drawBlockTimesRow(blockDefs,y,h){
+      doc.setFillColor(30,30,30);
+      doc.rect(mg+nameW,y,usableW-nameW,h,'F');
       for(let di=0;di<7;di++){
         for(let bi=0;bi<3;bi++){
           const dx=mg+nameW+(di*3+bi)*blockColW;
-          doc.setDrawColor(80,80,80);doc.line(dx,y,dx,y+blockTimeH);
-          const bl=blockDefs[bi];
-          doc.text(bl.start.replace(":","").slice(0,2)+"-"+bl.end.replace(":","").slice(0,2),dx+blockColW/2,y+blockTimeH*0.72,{align:"center"});
+          doc.setFontSize(8);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+          doc.text(blockDefs[bi].start.replace(":","").slice(0,2)+"-"+blockDefs[bi].end.replace(":","").slice(0,2),dx+blockColW/2,y+h*0.72,{align:"center"});
         }
       }
       doc.setLineWidth(1.2);doc.setDrawColor(40,40,40);
-      for(let di=0;di<=7;di++){doc.line(mg+nameW+di*dayGroupW,y,mg+nameW+di*dayGroupW,y+blockTimeH);}
+      for(let di=0;di<=7;di++){doc.line(mg+nameW+di*dayGroupW,y,mg+nameW+di*dayGroupW,y+h);}
       doc.setLineWidth(0.2);
-      y+=blockTimeH;
-      return y;
     }
 
     function drawRegSection(role,grouped,blockDefs,y,rowH,fs,fsT){
       const regs=grouped[role].regulars;
-      const rc=roleRGB[role]||[100,100,100];
       const bg=roleBgRGB[role]||[255,255,255];
-      const roleHeaderH=9;
-      doc.setFillColor(rc[0],rc[1],rc[2]);
-      doc.rect(mg,y,usableW,roleHeaderH,'F');
-      doc.setDrawColor(100,100,100);doc.rect(mg,y,usableW,roleHeaderH,'S');
-      doc.setFontSize(fs+0.5);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
-      doc.text((fullName[role]||role)+": "+regs.length,mg+3,y+roleHeaderH*0.78);
+      const roleHeaderH=10;
+      doc.setFillColor(0,0,0);
+      doc.rect(mg,y,nameW,roleHeaderH,'F');
+      doc.setDrawColor(0,0,0);doc.rect(mg,y,nameW,roleHeaderH,'S');
+      doc.setFontSize(7);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.text(fullName[role]||role,mg+nameW/2,y+roleHeaderH*0.73,{align:"center"});
+      drawBlockTimesRow(blockDefs,y,roleHeaderH);
       y+=roleHeaderH;
       for(let ei=0;ei<regs.length;ei++){
         const altBg=ei%2===0?[255,255,255]:bg;
@@ -8733,16 +8730,16 @@ async function printWeeklyE(){
 
     function drawOTSection(role,grouped,blockDefs,y,rowH,fs,fsT,blankCount){
       const ots=grouped[role].ot;
-      const rc=roleRGB[role]||[100,100,100];
-      const roleHeaderH=9;
-      doc.setFillColor(rc[0],rc[1],rc[2]);
-      doc.rect(mg,y,usableW,roleHeaderH,'F');
-      doc.setDrawColor(100,100,100);doc.rect(mg,y,usableW,roleHeaderH,'S');
-      doc.setFontSize(fs+0.5);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
-      doc.text((fullName[role]||role)+" OT: "+ots.length,mg+3,y+roleHeaderH*0.78);
+      const roleHeaderH=10;
+      doc.setFillColor(0,0,0);
+      doc.rect(mg,y,nameW,roleHeaderH,'F');
+      doc.setDrawColor(0,0,0);doc.rect(mg,y,nameW,roleHeaderH,'S');
+      doc.setFontSize(6);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+      doc.text((fullName[role]||role)+" OT",mg+nameW/2,y+roleHeaderH*0.73,{align:"center"});
+      drawBlockTimesRow(blockDefs,y,roleHeaderH);
       y+=roleHeaderH;
       for(let ei=0;ei<ots.length;ei++){
-        const altBg=ei%2===0?[255,255,255]:[255,245,220];
+        const altBg=ei%2===0?[255,255,255]:[230,230,230];
         y=drawRowE(ots[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role);
       }
       // Blank write-in rows
@@ -8793,13 +8790,6 @@ async function printWeeklyE(){
       const maxNm=Math.floor(nameW/(fs*0.52))-prefix.length;
       if(nm.length>maxNm)nm=nm.slice(0,maxNm-1)+"\u2026";
       doc.text(prefix+nm,mg+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
-      const _baseRec=BASE_EMP.find(b=>b.Employee===e.emp);
-      if(_baseRec&&normalizeRole(_baseRec.POSITION)==="DISPATCHER"&&roleAb!=="DP"){
-        const bw=fs*2.2,bh=fs*1.1,bx=mg+nameW-bw-1,by=y+1;
-        doc.setFillColor(74,35,90);doc.roundedRect(bx,by,bw,bh,1,1,'F');
-        doc.setFontSize(fs*0.7);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
-        doc.text("DP",bx+bw/2,by+bh*0.75,{align:"center"});
-      }
       doc.setDrawColor(140,140,140);doc.line(mg+nameW,y,mg+nameW,y+rowH);
       for(let di=0;di<7;di++){
         const iso=weekDates[di].iso;
@@ -8851,7 +8841,7 @@ async function printWeeklyE(){
     function computeRowH(roles,grouped,countFn,headerH,extraPerRole){
       let total=0;
       for(const r of roles) total+=countFn(r,grouped);
-      const fixedH=headerH+roles.length*(9+extraPerRole);
+      const fixedH=headerH+roles.length*(10+extraPerRole);
       const avail=usableH-fixedH;
       return avail/Math.max(1,total);
     }
@@ -8859,7 +8849,7 @@ async function printWeeklyE(){
     function drawRegularsPage(shiftLabel,blockDefs,shiftData,roles){
       _rowIdx=0;
       const{grouped}=shiftData;
-      const headerH=12+10+9;
+      const headerH=14+12;
       const rowH=Math.max(15,computeRowH(roles,grouped,function(r,g){return g[r].regulars.length;},headerH,0));
       const fs=Math.min(7,rowH*0.6);
       const fsT=fs*0.75;
@@ -8874,8 +8864,8 @@ async function printWeeklyE(){
       const{grouped}=shiftData;
       let otCount=0;
       for(const r of roles) otCount+=grouped[r].ot.length;
-      const headerH=12+10+9;
-      const roleHeaderTotal=roles.length*9;
+      const headerH=14+12;
+      const roleHeaderTotal=roles.length*10;
       const fixedH=headerH+roleHeaderTotal;
       const availH=usableH-fixedH;
       let rowH=Math.min(22,availH/Math.max(1,otCount+roles.length*3));
