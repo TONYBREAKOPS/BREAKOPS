@@ -657,7 +657,14 @@ body { padding-top: 12px !important; }
       const obj = (ps[pos] && typeof ps[pos]==='object') ? ps[pos] : {};
       const norm = {};
       for(const [k,v] of Object.entries(obj)){
-        if(Array.isArray(v)) norm[String(k)] = v.filter(t=>typeof t==='string'&&t.length>0).slice(0,3);
+        if(Array.isArray(v)){
+          norm[String(k)] = { seat: '', times: v.filter(t=>typeof t==='string'&&t.length>0).slice(0,3) };
+        } else if(v && typeof v === 'object'){
+          norm[String(k)] = {
+            seat: typeof v.seat === 'string' ? v.seat : '',
+            times: Array.isArray(v.times) ? v.times.filter(t=>typeof t==='string'&&t.length>0).slice(0,3) : []
+          };
+        }
       }
       out[pos] = norm;
     }
@@ -2038,11 +2045,13 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                 const badge = r._extra ? (r._dayOff ? ' <span class="muted">(EXTRA • DAY OFF)</span>' : ' <span class="muted">(EXTRA)</span>') : "";
                 // Pre-selections for this person
                 const preSels = loadPreSelectionsForScope();
-                const myPre = (preSels[pos] && preSels[pos][k]) || [];
+                const myPreObj = (preSels[pos] && preSels[pos][k]) || null;
+                const myPreTimes = myPreObj ? (myPreObj.times || []) : [];
+                const myPreSeat = myPreObj ? (myPreObj.seat || '') : '';
                 const hasPicked = !!cur;
                 const showPreSelect = !hasPicked && !isActive;
                 // Build pre-select badge display
-                const preBadges = myPre.length ? myPre.map((t,i)=>`<span style="background:rgba(59,130,246,.15);color:#60a5fa;padding:1px 5px;border-radius:4px;font-size:10px;">#${i+1}: ${slotLabelHHMM(t)}</span>`).join(' ') : '';
+                const preBadges = (myPreTimes.length || myPreSeat) ? `${myPreSeat ? `<span style="background:rgba(250,204,21,.15);color:#facc15;padding:1px 5px;border-radius:4px;font-size:10px;">${escapeHtml(myPreSeat)}</span> ` : ''}${myPreTimes.map((t,i)=>`<span style="background:rgba(59,130,246,.15);color:#60a5fa;padding:1px 5px;border-radius:4px;font-size:10px;">#${i+1}: ${slotLabelHHMM(t)}</span>`).join(' ')}` : '';
                 return `
                   <tr class="${rowClass}">
                     <td>${escapeHtml(up(r.Employee))}${badge}${timerBadge}${preBadges ? `<div style="margin-top:2px;">${preBadges}</div>` : ''}</td>
@@ -2082,7 +2091,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                           <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                             <button class="secondary" type="button" data-enter-pos="${pos}" data-enter-key="${escapeHtml(k)}" data-enter-name="${escapeHtml(up(r.Employee))}" ${canEnter?"":"disabled"}>Enter</button>
                             <button class="secondary" type="button" data-clear-pos="${pos}" data-clear-key="${escapeHtml(k)}" ${canClear?"":"disabled"}>Clear</button>
-                            ${showPreSelect ? `<button class="secondary" type="button" data-presel-pos="${pos}" data-presel-key="${escapeHtml(k)}" style="font-size:10px;padding:3px 6px;">Pre-select</button>` : ''}
+                            ${showPreSelect ? `<button type="button" data-presel-pos="${pos}" data-presel-key="${escapeHtml(k)}" style="background:#1a73e8;color:#fff;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;">Pre-select</button>` : ''}
                           </div>`;
                       })()}
                     </td>
@@ -2284,7 +2293,9 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       const pos = btn.getAttribute("data-presel-pos");
       const key = btn.getAttribute("data-presel-key");
       const preSels = loadPreSelectionsForScope();
-      const existing = (preSels[pos] && preSels[pos][key]) || [];
+      const existingObj = (preSels[pos] && preSels[pos][key]) || null;
+      const existingSeat = existingObj ? (existingObj.seat || '') : '';
+      const existingTimes = existingObj ? (existingObj.times || []) : [];
 
       // Build a small inline modal
       let overlay = document.getElementById("preselOverlay");
@@ -2294,7 +2305,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       overlay.style.cssText = "position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);";
 
       const counts = countsFor(pos, key);
-      const optHtml = (pick, pickIdx)=>{
+      const optHtml = (pick)=>{
         return [
           `<option value="">— none —</option>`,
           ...slotOpts.map(o=>{
@@ -2308,19 +2319,38 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         ].join("");
       };
 
+      // Seat options for this position
+      const seatList = (pos==='CALLTAKER') ? ctSeatOpts : (pos==='DISPATCHER' ? dpSeatOpts : (pos==='ANET' ? anetSeatOpts : picSeatOpts));
+      const usedSeats = new Set(Object.entries((loadAssignmentsForScope()[pos]||{}))
+        .filter(([kk, v]) => kk !== key && v)
+        .map(([_, v]) => v)
+      );
+      const seatOptHtml = [
+        `<option value="">— select —</option>`,
+        ...seatList.map(s => {
+          const taken = usedSeats.has(s) && s !== existingSeat;
+          const tag = taken ? ' (taken)' : '';
+          return `<option value="${escapeHtml(s)}" ${s===existingSeat?'selected':''}>${escapeHtml(s)}${tag}</option>`;
+        })
+      ].join('');
+
       overlay.innerHTML = `
-        <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;min-width:260px;max-width:340px;">
-          <h3 style="margin:0 0 12px;color:#e2e8f0;">Pre-select Top 3 Breaks</h3>
-          <p style="margin:0 0 12px;color:#94a3b8;font-size:12px;">If your #1 choice is full when it's your turn, #2 will be tried, then #3.</p>
+        <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;min-width:280px;max-width:360px;">
+          <h3 style="margin:0 0 12px;color:#e2e8f0;">Pre-select Seat & Breaks</h3>
+          <p style="margin:0 0 12px;color:#94a3b8;font-size:12px;">Pick your seat and top 3 break times. When it's your turn, your choices will be auto-assigned if available.</p>
           <div style="display:flex;flex-direction:column;gap:8px;">
-            <label style="color:#cbd5e1;font-size:13px;">#1 Choice
-              <select id="presel1" style="width:100%;margin-top:2px;padding:6px;background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:6px;">${optHtml(existing[0]||"",0)}</select>
+            <label style="color:#facc15;font-size:13px;font-weight:600;">Seat / Assignment
+              <select id="preselSeat" style="width:100%;margin-top:2px;padding:6px;background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:6px;">${seatOptHtml}</select>
             </label>
-            <label style="color:#cbd5e1;font-size:13px;">#2 Choice
-              <select id="presel2" style="width:100%;margin-top:2px;padding:6px;background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:6px;">${optHtml(existing[1]||"",1)}</select>
+            <hr style="border:none;border-top:1px solid #334155;margin:4px 0;">
+            <label style="color:#cbd5e1;font-size:13px;">#1 Break Choice
+              <select id="presel1" style="width:100%;margin-top:2px;padding:6px;background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:6px;">${optHtml(existingTimes[0]||"")}</select>
             </label>
-            <label style="color:#cbd5e1;font-size:13px;">#3 Choice
-              <select id="presel3" style="width:100%;margin-top:2px;padding:6px;background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:6px;">${optHtml(existing[2]||"",2)}</select>
+            <label style="color:#cbd5e1;font-size:13px;">#2 Break Choice
+              <select id="presel2" style="width:100%;margin-top:2px;padding:6px;background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:6px;">${optHtml(existingTimes[1]||"")}</select>
+            </label>
+            <label style="color:#cbd5e1;font-size:13px;">#3 Break Choice
+              <select id="presel3" style="width:100%;margin-top:2px;padding:6px;background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:6px;">${optHtml(existingTimes[2]||"")}</select>
             </label>
           </div>
           <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">
@@ -2334,17 +2364,17 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       overlay.addEventListener("click", (e)=>{ if(e.target === overlay) overlay.remove(); });
 
       overlay.querySelector("#preselSave").addEventListener("click", async ()=>{
+        const seat = overlay.querySelector("#preselSeat").value;
         const v1 = overlay.querySelector("#presel1").value;
         const v2 = overlay.querySelector("#presel2").value;
         const v3 = overlay.querySelector("#presel3").value;
         const picks = [v1, v2, v3].filter(v=>v);
-        // Remove duplicates
-        const unique = [...new Set(picks)];
+        const uniqueTimes = [...new Set(picks)];
 
         const preSelsNow = loadPreSelectionsForScope();
-        if(unique.length){
+        if(seat || uniqueTimes.length){
           if(!preSelsNow[pos]) preSelsNow[pos] = {};
-          preSelsNow[pos][key] = unique;
+          preSelsNow[pos][key] = { seat: seat, times: uniqueTimes };
         } else {
           if(preSelsNow[pos]) delete preSelsNow[pos][key];
         }

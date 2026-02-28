@@ -793,7 +793,15 @@ textarea.copyBox,
       const obj = (ps[pos] && typeof ps[pos]==='object') ? ps[pos] : {};
       const norm = {};
       for(const [k,v] of Object.entries(obj)){
-        if(Array.isArray(v)) norm[String(k)] = v.filter(t=>typeof t==='string'&&t.length>0).slice(0,3);
+        if(Array.isArray(v)){
+          // Backward compat: old format was just an array of times
+          norm[String(k)] = { seat: '', times: v.filter(t=>typeof t==='string'&&t.length>0).slice(0,3) };
+        } else if(v && typeof v === 'object'){
+          norm[String(k)] = {
+            seat: typeof v.seat === 'string' ? v.seat : '',
+            times: Array.isArray(v.times) ? v.times.filter(t=>typeof t==='string'&&t.length>0).slice(0,3) : []
+          };
+        }
       }
       out[pos] = norm;
     }
@@ -3042,8 +3050,10 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                 const badge = r._extra ? (r._dayOff ? ' <span class="muted">(EXTRA • DAY OFF)</span>' : ' <span class="muted">(EXTRA)</span>') : "";
                 // Pre-selection badges
                 const _preSels = loadPreSelectionsForScope();
-                const _myPre = (_preSels[pos] && _preSels[pos][k]) || [];
-                const _preBadges = (!cur && _myPre.length) ? `<div style="margin-top:2px;">${_myPre.map((t,i)=>`<span style="background:rgba(59,130,246,.15);color:#60a5fa;padding:1px 5px;border-radius:4px;font-size:10px;">#${i+1}: ${slotLabelHHMM(t)}</span>`).join(' ')}</div>` : '';
+                const _myPreObj = (_preSels[pos] && _preSels[pos][k]) || null;
+                const _myPreTimes = _myPreObj ? (_myPreObj.times || []) : [];
+                const _myPreSeat = _myPreObj ? (_myPreObj.seat || '') : '';
+                const _preBadges = (!cur && (_myPreTimes.length || _myPreSeat)) ? `<div style="margin-top:2px;">${_myPreSeat ? `<span style="background:rgba(250,204,21,.15);color:#facc15;padding:1px 5px;border-radius:4px;font-size:10px;">${escapeHtml(_myPreSeat)}</span> ` : ''}${_myPreTimes.map((t,i)=>`<span style="background:rgba(59,130,246,.15);color:#60a5fa;padding:1px 5px;border-radius:4px;font-size:10px;">#${i+1}: ${slotLabelHHMM(t)}</span>`).join(' ')}</div>` : '';
                 return `
                   <tr class="${rowClass}">
                     <td>${escapeHtml(up(r.Employee))}${hoursSuffix(cur)}${badge}${timerBadge}${_preBadges}</td>
@@ -3758,13 +3768,18 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
       // --- Auto-pick from pre-selections ---
       const preSels = loadPreSelectionsForScope();
-      const personPre = (preSels[pos] && preSels[pos][effectiveKey]) || [];
-      const personAssign = (loadAssignmentsForScope()[pos] || {})[effectiveKey];
-      if(personPre.length && personAssign){
+      const personPreObj = (preSels[pos] && preSels[pos][effectiveKey]) || null;
+      const personPreTimes = personPreObj ? (personPreObj.times || []) : [];
+      const personPreSeat = personPreObj ? (personPreObj.seat || '') : '';
+      // Use existing assignment OR the pre-selected seat
+      let personAssign = (loadAssignmentsForScope()[pos] || {})[effectiveKey];
+      const needsSeatAssign = !personAssign && personPreSeat;
+      if(needsSeatAssign) personAssign = personPreSeat;
+      if(personPreTimes.length && personAssign){
         // Try each pre-selection in priority order
         const slotCounts = countsFor(pos, effectiveKey);
         let autoSlot = null;
-        for(const slot of personPre){
+        for(const slot of personPreTimes){
           const used = slotCounts.get(slot) || 0;
           const cap = capFor(pos, slot);
           if(cap > 0 && used < cap){ autoSlot = slot; break; }
@@ -3774,6 +3789,13 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
             // Find the person's name from peopleByPos
             const rec = people.find(r => keyFor(r) === effectiveKey);
             const name = rec ? up(rec.Employee) : effectiveKey.split("||")[0];
+            // Assign seat if needed
+            if(needsSeatAssign){
+              const curAssign = loadAssignmentsForScope();
+              if(!curAssign[pos]) curAssign[pos] = {};
+              curAssign[pos][effectiveKey] = personPreSeat;
+              await saveAssignmentsForScope(curAssign);
+            }
             // Add their break
             const cur = loadBreaksForScope();
             cur[pos] = Array.isArray(cur[pos]) ? cur[pos] : [];
@@ -3792,7 +3814,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
             _sharedTurnTimersCache[pos] = null;
             delete preSels[pos][effectiveKey];
             await savePreSelectionsForScope(preSels);
-            toast(`${pos}: auto-picked ${slotLabelHHMM(autoSlot)} for ${name} (pre-selection #${personPre.indexOf(autoSlot)+1})`);
+            toast(`${pos}: auto-picked ${needsSeatAssign ? personPreSeat+' + ' : ''}${slotLabelHHMM(autoSlot)} for ${name} (pre-selection #${personPreTimes.indexOf(autoSlot)+1})`);
             // Re-run initTimers for this position to advance to the next person
             const { nextUpKey: nk2, secondChanceKey: sk2 } = _computeSkipState(pos, people, selectionMap(pos));
             const eff2 = sk2 || nk2;
