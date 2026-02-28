@@ -885,7 +885,21 @@ textarea.copyBox,
         }
         _sharedTurnTimersCache = incomingTimers;
       }
-      _sharedSkippedTurnsCache = _normalizeSkippedTurns(data.skippedTurns);
+      // Merge incoming skippedTurns carefully: don't let a stale snapshot clobber
+      // locally-pushed skip entries whose Firestore write hasn't propagated yet.
+      // SkippedTurns arrays only grow (push, never pop), so if local is longer,
+      // the extra entries haven't reached Firestore yet — keep local.
+      {
+        const incomingSkipped = _normalizeSkippedTurns(data.skippedTurns);
+        for(const _pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
+          const incoming = incomingSkipped[_pos] || [];
+          const local = _sharedSkippedTurnsCache[_pos] || [];
+          if(local.length > incoming.length){
+            incomingSkipped[_pos] = local; // keep locally-pushed entries
+          }
+        }
+        _sharedSkippedTurnsCache = incomingSkipped;
+      }
       _sharedBreakStartedCache = _normalizeBreakStarted(data.breakStarted);
       _sharedPreSelectionsCache = _normalizePreSelections(data.preSelections);
       if(typeof data.skipDurationMs === "number" && data.skipDurationMs > 0){
@@ -4088,6 +4102,9 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         if(_skipInProgress[pos]) continue;
         _skipInProgress[pos] = true;
         (async ()=>{
+          // Declare cache backups OUTSIDE try so they're accessible in catch
+          let prevTimerCache = _sharedTurnTimersCache[pos];
+          let prevSkippedCache = _sharedSkippedTurnsCache[pos] ? [..._sharedSkippedTurnsCache[pos]] : [];
           try {
             // Check if this person is on a second chance (odd skip count = mid-round)
             const curSkipCount = (_sharedSkippedTurnsCache[pos]||[]).filter(k => k === personKey).length;
@@ -4096,10 +4113,6 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
             const sel = selectionMap(pos);
             const people = peopleByPos[pos] || [];
-
-            // Temporarily update local skip cache so _computeSkipState sees this person as skipped
-            const prevTimerCache = _sharedTurnTimersCache[pos];
-            const prevSkippedCache = _sharedSkippedTurnsCache[pos] ? [..._sharedSkippedTurnsCache[pos]] : [];
             _sharedTurnTimersCache[pos] = null;
             if(!_sharedSkippedTurnsCache[pos]) _sharedSkippedTurnsCache[pos] = [];
             // Always push — count tracks which round we're in
