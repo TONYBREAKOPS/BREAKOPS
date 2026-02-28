@@ -515,6 +515,7 @@ td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
     <button class="ok" id="btnSaveAll">Save All Changes</button>
     <button id="btnReload">Reload</button>
     <button class="danger" onclick="auth.signOut()">Sign Out</button>
+    <button style="margin-left:auto;background:#1a73e8;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer" onclick="exportSchedules()">Export Schedules</button>
   </div>
 </header>
 
@@ -908,6 +909,62 @@ function normalizePos(p){
   if(s.includes("PIC")) return "PIC";
   if(s.includes("SUP")) return "SUPERVISOR";
   return s || "";
+}
+
+function exportSchedules(){
+  if(!employees.length){ alert("No employees loaded."); return; }
+  const DAY_LABELS = {MONDAY:"Mon",TUESDAY:"Tue",WEDNESDAY:"Wed",THURSDAY:"Thu",FRIDAY:"Fri",SATURDAY:"Sat",SUNDAY:"Sun"};
+  const base = employees.map(e => {
+    const d = e.data;
+    const sched = {};
+    const offIndices = [];
+    for(let i = 0; i < DAYS.length; i++){
+      const val = (d[DAYS[i]] || "").trim() || "OFF";
+      sched[DAYS[i]] = val;
+      if(val.toUpperCase() === "OFF" || val === "") offIndices.push(i);
+    }
+    // Rotation-based ordering: find consecutive block start in circular week
+    const ALL_LABELS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    let daysOffStr = "None";
+    if(offIndices.length){
+      let startIdx = 0;
+      if(offIndices.length < 7){
+        let maxGap = 0, gapAfter = 0;
+        for(let j = 0; j < offIndices.length; j++){
+          const next = offIndices[(j+1) % offIndices.length];
+          const gap = (next - offIndices[j] + 7) % 7;
+          if(gap > maxGap){ maxGap = gap; gapAfter = j; }
+        }
+        startIdx = (gapAfter + 1) % offIndices.length;
+      }
+      const ordered = [];
+      for(let j = 0; j < offIndices.length; j++){
+        ordered.push(ALL_LABELS[offIndices[(startIdx + j) % offIndices.length]]);
+      }
+      daysOffStr = ordered.join("/");
+    }
+    return {
+      Employee: d.Employee || "",
+      Seniority: typeof d.SENIORITY === "number" ? d.SENIORITY : (parseInt(d.SENIORITY,10) || 0),
+      Position: d.POSITION || "",
+      DaysOff: daysOffStr,
+      Present: "YES",
+      Schedule: sched
+    };
+  });
+  base.sort((a,b) => a.Position.localeCompare(b.Position) || a.Seniority - b.Seniority);
+  const json = JSON.stringify(base);
+  const txt = "const BASE = " + json + ";";
+  navigator.clipboard.writeText(txt).then(() => {
+    alert("Exported " + base.length + " employees to clipboard!\nPaste it to update admin.html / index.html.");
+  }).catch(() => {
+    const ta = document.createElement("textarea");
+    ta.value = txt;
+    ta.style.cssText = "position:fixed;top:10%;left:5%;width:90%;height:80%;z-index:9999;font-size:11px";
+    document.body.appendChild(ta);
+    ta.select();
+    alert("Could not copy to clipboard. Select all text in the textarea and copy manually.");
+  });
 }
 
 function renderStats(){

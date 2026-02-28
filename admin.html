@@ -2909,7 +2909,11 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
   // Helper: compute effective next/second-chance keys for a position
   function _computeSkipState(pos, people, sel){
     const skipped = loadSkippedTurnsForScope();
-    const skippedSet = new Set(skipped[pos] || []);
+    const skippedArr = skipped[pos] || [];
+    const skippedSet = new Set(skippedArr);
+    // Count how many times each key appears — 2+ means second chance was already used
+    const skippedCount = {};
+    for(const k of skippedArr) skippedCount[k] = (skippedCount[k]||0) + 1;
 
     // Build ordered unpicked list
     const unpicked = [];
@@ -2929,13 +2933,14 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
     // Check for second-chance: a skipped person gets their turn back only AFTER
     // the person who jumped them (first non-skipped person after them in seniority) has picked.
+    // Only eligible if skipped exactly once (count === 1). Count >= 2 means second chance already used.
     let secondChanceKey = null;
     if(nextUpKey){
       const originalOrder = people.map(r => keyFor(r));
       const unpickedSet = new Set(unpicked);
       for(const k of unpicked){
         if(k === nextUpKey) break;
-        if(skippedSet.has(k)){
+        if(skippedSet.has(k) && skippedCount[k] === 1){
           // Find the first non-skipped person after k in original seniority order
           const kIdx = originalOrder.indexOf(k);
           let jumperHasPicked = false;
@@ -2955,9 +2960,10 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
     }
 
     // If no non-skipped unpicked person exists, first skipped unpicked person gets second chance
+    // (only if they haven't already used their second chance)
     if(!nextUpKey && unpicked.length > 0){
       for(const k of unpicked){
-        if(skippedSet.has(k)){ secondChanceKey = k; break; }
+        if(skippedSet.has(k) && skippedCount[k] === 1){ secondChanceKey = k; break; }
       }
     }
 
@@ -2987,7 +2993,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
           <div style="display:flex; gap:8px; align-items:center;">
             <div class="pill">${people.length} names • ${capDefault} per slot</div>
             ${started ? `<span class="pill" style="background:rgba(34,197,94,.15); color:#4ade80;">&#9989; Started</span>` : `<span class="pill" style="background:rgba(250,204,21,.12); color:#facc15;">&#9899; Pending</span>`}
-            <button class="secondary resetPosBtn" data-reset-pos="${pos}" style="padding:6px 10px; border-radius:10px; font-size:12px; cursor:pointer; color:#f87171;">Reset ${pos[0]}${pos.slice(1).toLowerCase()}</button>
+            <button class="secondary resetPosBtn" data-reset-pos="${escapeHtml(pos)}" style="padding:6px 10px; border-radius:10px; font-size:12px; cursor:pointer; color:#f87171;">Reset ${escapeHtml(pos[0]+pos.slice(1).toLowerCase())}</button>
           </div>
         </div>
         <div style="overflow:auto; position:relative;">
@@ -3043,7 +3049,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                   const _ts = Math.floor(_rem / 1000);
                   const _tm = String(Math.floor(_ts / 60)).padStart(2,'0');
                   const _tss = String(_ts % 60).padStart(2,'0');
-                  timerBadge = ` <span class="skip-timer" data-timer-pos="${pos}">${_tm}:${_tss}</span>`;
+                  timerBadge = ` <span class="skip-timer" data-timer-pos="${escapeHtml(pos)}">${_tm}:${_tss}</span>`;
                 }
 
                 const hasSel = !!(cur || (assignments[pos] && assignments[pos][k]));
@@ -3075,17 +3081,17 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                           })
                         ].join('');
                         const lockSeatHere = !started || (!isActive) || (pos==='DISPATCHER' && !!curSeat);
-                        return `<select class="seatSel" data-seat-pos="${pos}" data-seat-key="${escapeHtml(k)}" data-seat-name="${escapeHtml(up(r.Employee))}" ${lockSeatHere?"disabled":""}>${seatOptions}</select>`;
+                        return `<select class="seatSel" data-seat-pos="${escapeHtml(pos)}" data-seat-key="${escapeHtml(k)}" data-seat-name="${escapeHtml(up(r.Employee))}" ${lockSeatHere?"disabled":""}>${seatOptions}</select>`;
                       })()}
                     </td>
                     <td>
-                      <select class="posSel" data-break-pos="${pos}" data-break-key="${escapeHtml(k)}" data-break-name="${escapeHtml(up(r.Employee))}" ${ (started && isActive && ((assignments[pos]||{})[k])) ? "" : "disabled"}>
+                      <select class="posSel" data-break-pos="${escapeHtml(pos)}" data-break-key="${escapeHtml(k)}" data-break-name="${escapeHtml(up(r.Employee))}" ${ (started && isActive && ((assignments[pos]||{})[k])) ? "" : "disabled"}>
                         ${options}
                       </select>
                     </td>
                     <td style="white-space:nowrap;">
-                      <button class="secondary adminEditBtn" data-aedit-pos="${pos}" data-aedit-key="${escapeHtml(k)}" title="Edit this row" style="padding:4px 8px; border-radius:8px; font-size:12px; cursor:pointer;">&#9998;</button>
-                      ${hasSel ? `<button class="secondary adminClearBtn" data-aclear-pos="${pos}" data-aclear-key="${escapeHtml(k)}" data-aclear-name="${escapeHtml(up(r.Employee))}" title="Clear this row" style="padding:4px 8px; border-radius:8px; font-size:12px; cursor:pointer; color:#f87171;">&#10005;</button>` : ''}
+                      <button class="secondary adminEditBtn" data-aedit-pos="${escapeHtml(pos)}" data-aedit-key="${escapeHtml(k)}" title="Edit this row" style="padding:4px 8px; border-radius:8px; font-size:12px; cursor:pointer;">&#9998;</button>
+                      ${hasSel ? `<button class="secondary adminClearBtn" data-aclear-pos="${escapeHtml(pos)}" data-aclear-key="${escapeHtml(k)}" data-aclear-name="${escapeHtml(up(r.Employee))}" title="Clear this row" style="padding:4px 8px; border-radius:8px; font-size:12px; cursor:pointer; color:#f87171;">&#10005;</button>` : ''}
                     </td>
                   </tr>
                 `;
@@ -3285,9 +3291,9 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         const upDis = locked ? 'disabled' : '';
         return `
           <div style="display:flex; gap:8px; align-items:center;">
-            <button class="secondary capBtn" data-cap-dir="down" data-cap-pos="${pos}" data-cap-time="${escapeHtml(t)}" ${downDis} style="padding:6px 10px; border-radius:10px;">−</button>
+            <button class="secondary capBtn" data-cap-dir="down" data-cap-pos="${escapeHtml(pos)}" data-cap-time="${escapeHtml(t)}" ${downDis} style="padding:6px 10px; border-radius:10px;">−</button>
             <span class="mono" style="min-width:24px; text-align:center; display:inline-block;">${val}</span>
-            <button class="secondary capBtn" data-cap-dir="up" data-cap-pos="${pos}" data-cap-time="${escapeHtml(t)}" ${upDis} style="padding:6px 10px; border-radius:10px;">+</button>
+            <button class="secondary capBtn" data-cap-dir="up" data-cap-pos="${escapeHtml(pos)}" data-cap-time="${escapeHtml(t)}" ${upDis} style="padding:6px 10px; border-radius:10px;">+</button>
           </div>`;
       }
       return `
@@ -3841,7 +3847,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
     const bsState = loadBreakStartedForScope();
     for(const pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
-      const badge = document.querySelector(`.skip-timer[data-timer-pos="${pos}"]`);
+      const badge = document.querySelector(`.skip-timer[data-timer-pos="${escapeHtml(pos)}"]`);
       if(!badge) continue;
 
       // Don't run timer if position is pending (not deployed)
@@ -3887,7 +3893,8 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
             const prevSkippedCache = _sharedSkippedTurnsCache[pos] ? [..._sharedSkippedTurnsCache[pos]] : [];
             _sharedTurnTimersCache[pos] = null;
             if(!_sharedSkippedTurnsCache[pos]) _sharedSkippedTurnsCache[pos] = [];
-            if(!_sharedSkippedTurnsCache[pos].includes(personKey)) _sharedSkippedTurnsCache[pos].push(personKey);
+            // Always push on second-chance skip (duplicate marks second chance used)
+            if(wasSecondChance || !_sharedSkippedTurnsCache[pos].includes(personKey)) _sharedSkippedTurnsCache[pos].push(personKey);
 
             const { nextUpKey, secondChanceKey } = _computeSkipState(pos, people, sel);
             const nextKey = !nextUpKey ? null :
@@ -3903,7 +3910,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                 const tt = _normalizeTurnTimers(cur.turnTimers);
                 tt[pos] = null;
                 const st = _normalizeSkippedTurns(cur.skippedTurns);
-                if(!st[pos].includes(personKey)) st[pos].push(personKey);
+                if(wasSecondChance || !st[pos].includes(personKey)) st[pos].push(personKey);
                 const bs = _normalizeBreakStarted(cur.breakStarted);
                 bs[pos] = false;
                 tx.set(ref, { ...cur, turnTimers: tt, skippedTurns: st, breakStarted: bs }, { merge: true });
@@ -3927,7 +3934,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
               if(!tt[pos] || tt[pos].key !== personKey) return;
               tt[pos] = { key: String(nextKey), ts: nextTs };
               const st = _normalizeSkippedTurns(cur.skippedTurns);
-              if(!st[pos].includes(personKey)) st[pos].push(personKey);
+              if(wasSecondChance || !st[pos].includes(personKey)) st[pos].push(personKey);
               tx.set(ref, { ...cur, turnTimers: tt, skippedTurns: st }, { merge: true });
               didSkip = true;
             });
@@ -3947,7 +3954,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
           } catch(e){
             console.warn('Auto-skip error:', e);
             // Revert local cache on error
-            _sharedSkippedTurnsCache[pos] = (_sharedSkippedTurnsCache[pos]||[]).filter(k => k !== personKey);
+            _sharedSkippedTurnsCache[pos] = prevSkippedCache;
             _skipInProgress[pos] = false;
             renderBreakPicker(selectedDay, mode, block, buckets);
           }

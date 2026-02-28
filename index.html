@@ -1916,7 +1916,11 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
   function _computeSkipState(pos, people, sel){
     const skipped = loadSkippedTurnsForScope();
-    const skippedSet = new Set(skipped[pos] || []);
+    const skippedArr = skipped[pos] || [];
+    const skippedSet = new Set(skippedArr);
+    // Count occurrences — 2+ means second chance was already used
+    const skippedCount = {};
+    for(const k of skippedArr) skippedCount[k] = (skippedCount[k]||0) + 1;
     const unpicked = [];
     let allPicked = true;
     for(const r of people){
@@ -1934,7 +1938,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       const unpickedSet = new Set(unpicked);
       for(const k of unpicked){
         if(k === nextUpKey) break;
-        if(skippedSet.has(k)){
+        if(skippedSet.has(k) && skippedCount[k] === 1){
           const kIdx = originalOrder.indexOf(k);
           let jumperHasPicked = false;
           for(let j = kIdx + 1; j < originalOrder.length; j++){
@@ -1952,7 +1956,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
     }
     if(!nextUpKey && unpicked.length > 0){
       for(const k of unpicked){
-        if(skippedSet.has(k)){ secondChanceKey = k; break; }
+        if(skippedSet.has(k) && skippedCount[k] === 1){ secondChanceKey = k; break; }
       }
     }
     return { nextUpKey, secondChanceKey, skippedSet };
@@ -2039,7 +2043,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                   const _ts = Math.floor(_rem / 1000);
                   const _tm = String(Math.floor(_ts / 60)).padStart(2,'0');
                   const _tss = String(_ts % 60).padStart(2,'0');
-                  timerBadge = ` <span class="skip-timer" data-timer-pos="${pos}">${_tm}:${_tss}</span>`;
+                  timerBadge = ` <span class="skip-timer" data-timer-pos="${escapeHtml(pos)}">${_tm}:${_tss}</span>`;
                 }
 
                 const badge = r._extra ? (r._dayOff ? ' <span class="muted">(EXTRA • DAY OFF)</span>' : ' <span class="muted">(EXTRA)</span>') : "";
@@ -2054,7 +2058,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                 const preBadges = (myPreTimes.length || myPreSeat) ? `${myPreSeat ? `<span style="background:rgba(250,204,21,.15);color:#facc15;padding:1px 5px;border-radius:4px;font-size:10px;">${escapeHtml(myPreSeat)}</span> ` : ''}${myPreTimes.map((t,i)=>`<span style="background:rgba(59,130,246,.15);color:#60a5fa;padding:1px 5px;border-radius:4px;font-size:10px;">#${i+1}: ${escapeHtml(slotLabelHHMM(t))}</span>`).join(' ')}` : '';
                 return `
                   <tr class="${rowClass}">
-                    <td>${escapeHtml(up(r.Employee))}${badge}${timerBadge}${preBadges ? `<div style="margin-top:2px;">${preBadges}</div>` : ''}</td>
+                    <td><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>${escapeHtml(up(r.Employee))}${badge}${timerBadge}</span>${showPreSelect ? `<button type="button" data-presel-pos="${escapeHtml(pos)}" data-presel-key="${escapeHtml(k)}" style="background:#1a73e8;color:#fff;border:none;padding:3px 7px;border-radius:5px;cursor:pointer;font-size:10px;font-weight:600;white-space:nowrap;">Pre-select</button>` : ''}</div>${preBadges ? `<div style="margin-top:2px;">${preBadges}</div>` : ''}</td>
                     <td>
                       ${(() => {
                         const seatOpts = (pos==='CALLTAKER') ? ctSeatOpts : (pos==='DISPATCHER' ? dpSeatOpts : (pos==='ANET' ? anetSeatOpts : picSeatOpts));
@@ -2074,11 +2078,11 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                             return `<option value="${escapeHtml(s)}" ${s===curSeat?'selected':''} ${dis}>${escapeHtml(s)}${tag}</option>`;
                           })
                         ].join('');
-                        return `<select class="seatSel" data-seat-pos="${pos}" data-seat-key="${escapeHtml(k)}" data-seat-name="${escapeHtml(up(r.Employee))}" ${(started && isActive)?"":"disabled"}>${seatOptions}</select>`;
+                        return `<select class="seatSel" data-seat-pos="${escapeHtml(pos)}" data-seat-key="${escapeHtml(k)}" data-seat-name="${escapeHtml(up(r.Employee))}" ${(started && isActive)?"":"disabled"}>${seatOptions}</select>`;
                       })()}
                     </td>
                     <td>
-                      <select class="posSel" data-break-pos="${pos}" data-break-key="${escapeHtml(k)}" data-break-name="${escapeHtml(up(r.Employee))}" ${ (started && isActive && (getPending(pos, k).seat)) ? "" : "disabled"}>
+                      <select class="posSel" data-break-pos="${escapeHtml(pos)}" data-break-key="${escapeHtml(k)}" data-break-name="${escapeHtml(up(r.Employee))}" ${ (started && isActive && (getPending(pos, k).seat)) ? "" : "disabled"}>
                         ${options}
                       </select>
                     </td>
@@ -2089,9 +2093,8 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                         const canClear = started && isActive && (pend2.seat || pend2.time || pend2.baseSeat || pend2.baseTime);
                         return `
                           <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                            <button class="secondary" type="button" data-enter-pos="${pos}" data-enter-key="${escapeHtml(k)}" data-enter-name="${escapeHtml(up(r.Employee))}" ${canEnter?"":"disabled"}>Enter</button>
-                            <button class="secondary" type="button" data-clear-pos="${pos}" data-clear-key="${escapeHtml(k)}" ${canClear?"":"disabled"}>Clear</button>
-                            ${showPreSelect ? `<button type="button" data-presel-pos="${pos}" data-presel-key="${escapeHtml(k)}" style="background:#1a73e8;color:#fff;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;">Pre-select</button>` : ''}
+                            <button class="secondary" type="button" data-enter-pos="${escapeHtml(pos)}" data-enter-key="${escapeHtml(k)}" data-enter-name="${escapeHtml(up(r.Employee))}" ${canEnter?"":"disabled"}>Enter</button>
+                            <button class="secondary" type="button" data-clear-pos="${escapeHtml(pos)}" data-clear-key="${escapeHtml(k)}" ${canClear?"":"disabled"}>Clear</button>
                           </div>`;
                       })()}
                     </td>
