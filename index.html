@@ -1918,7 +1918,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
     const skipped = loadSkippedTurnsForScope();
     const skippedArr = skipped[pos] || [];
     const skippedSet = new Set(skippedArr);
-    // Count occurrences — 2+ means second chance was already used
+    // Count how many times each key appears
     const skippedCount = {};
     for(const k of skippedArr) skippedCount[k] = (skippedCount[k]||0) + 1;
     const unpicked = [];
@@ -1928,9 +1928,16 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       if(!(sel.get(k) || "")) { unpicked.push(k); allPicked = false; }
     }
     if(allPicked || unpicked.length === 0) return { nextUpKey: null, secondChanceKey: null, skippedSet };
+
+    // Round-based cycling: each round = 2 skip entries (first skip + second chance).
+    // When everyone completes a round, a new round starts automatically — never stops.
+    const minCount = Math.min(...unpicked.map(k => skippedCount[k] || 0));
+    const roundBase = minCount & ~1; // round down to even: 0→0, 1→0, 2→2, 3→2, 4→4
+
+    // Find first unpicked not yet skipped in this round → nextUpKey
     let nextUpKey = null;
     for(const k of unpicked){
-      if(!skippedSet.has(k)){ nextUpKey = k; break; }
+      if((skippedCount[k] || 0) <= roundBase){ nextUpKey = k; break; }
     }
     let secondChanceKey = null;
     if(nextUpKey){
@@ -1938,11 +1945,11 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       const unpickedSet = new Set(unpicked);
       for(const k of unpicked){
         if(k === nextUpKey) break;
-        if(skippedSet.has(k) && skippedCount[k] === 1){
+        if((skippedCount[k] || 0) === roundBase + 1){
           const kIdx = originalOrder.indexOf(k);
           let jumperHasPicked = false;
           for(let j = kIdx + 1; j < originalOrder.length; j++){
-            if(!skippedSet.has(originalOrder[j])){
+            if((skippedCount[originalOrder[j]] || 0) <= roundBase){
               jumperHasPicked = !unpickedSet.has(originalOrder[j]);
               break;
             }
@@ -1954,9 +1961,10 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         }
       }
     }
+    // If no fresh person left, first person needing second chance in this round
     if(!nextUpKey && unpicked.length > 0){
       for(const k of unpicked){
-        if(skippedSet.has(k) && skippedCount[k] === 1){ secondChanceKey = k; break; }
+        if((skippedCount[k] || 0) === roundBase + 1){ secondChanceKey = k; break; }
       }
     }
     return { nextUpKey, secondChanceKey, skippedSet };

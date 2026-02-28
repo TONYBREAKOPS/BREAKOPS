@@ -2926,7 +2926,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
     const skipped = loadSkippedTurnsForScope();
     const skippedArr = skipped[pos] || [];
     const skippedSet = new Set(skippedArr);
-    // Count how many times each key appears — 2+ means second chance was already used
+    // Count how many times each key appears
     const skippedCount = {};
     for(const k of skippedArr) skippedCount[k] = (skippedCount[k]||0) + 1;
 
@@ -2940,27 +2940,32 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
 
     if(allPicked || unpicked.length === 0) return { nextUpKey: null, secondChanceKey: null, skippedSet };
 
-    // Find first unpicked NOT in skippedTurns → nextUpKey
+    // Round-based cycling: each round = 2 skip entries (first skip + second chance).
+    // When everyone completes a round, a new round starts automatically — never stops.
+    const minCount = Math.min(...unpicked.map(k => skippedCount[k] || 0));
+    const roundBase = minCount & ~1; // round down to even: 0→0, 1→0, 2→2, 3→2, 4→4
+
+    // Find first unpicked not yet skipped in this round → nextUpKey
     let nextUpKey = null;
     for(const k of unpicked){
-      if(!skippedSet.has(k)){ nextUpKey = k; break; }
+      if((skippedCount[k] || 0) <= roundBase){ nextUpKey = k; break; }
     }
 
     // Check for second-chance: a skipped person gets their turn back only AFTER
     // the person who jumped them (first non-skipped person after them in seniority) has picked.
-    // Only eligible if skipped exactly once (count === 1). Count >= 2 means second chance already used.
+    // Eligible if skipped exactly once in current round (count === roundBase + 1).
     let secondChanceKey = null;
     if(nextUpKey){
       const originalOrder = people.map(r => keyFor(r));
       const unpickedSet = new Set(unpicked);
       for(const k of unpicked){
         if(k === nextUpKey) break;
-        if(skippedSet.has(k) && skippedCount[k] === 1){
-          // Find the first non-skipped person after k in original seniority order
+        if((skippedCount[k] || 0) === roundBase + 1){
+          // Find the first non-skipped-this-round person after k in original seniority order
           const kIdx = originalOrder.indexOf(k);
           let jumperHasPicked = false;
           for(let j = kIdx + 1; j < originalOrder.length; j++){
-            if(!skippedSet.has(originalOrder[j])){
+            if((skippedCount[originalOrder[j]] || 0) <= roundBase){
               // This is the person who jumped k — check if they've picked
               jumperHasPicked = !unpickedSet.has(originalOrder[j]);
               break;
@@ -2974,11 +2979,10 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       }
     }
 
-    // If no non-skipped unpicked person exists, first skipped unpicked person gets second chance
-    // (only if they haven't already used their second chance)
+    // If no non-skipped unpicked person exists, first person needing second chance in this round
     if(!nextUpKey && unpicked.length > 0){
       for(const k of unpicked){
-        if(skippedSet.has(k) && skippedCount[k] === 1){ secondChanceKey = k; break; }
+        if((skippedCount[k] || 0) === roundBase + 1){ secondChanceKey = k; break; }
       }
     }
 
@@ -4073,9 +4077,10 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         _skipInProgress[pos] = true;
         (async ()=>{
           try {
-            // Check if this person was already skipped (on a second chance) BEFORE updating cache
-            const wasSecondChance = (_sharedSkippedTurnsCache[pos]||[]).includes(personKey);
-            _diag(`SKIP(${pos}): TIMER EXPIRED for ${personKey.split('||')[0]}, wasSecondChance=${wasSecondChance}, skippedCache=[${(_sharedSkippedTurnsCache[pos]||[]).map(k=>k.split('||')[0]).join(',')}]`);
+            // Check if this person is on a second chance (odd skip count = mid-round)
+            const curSkipCount = (_sharedSkippedTurnsCache[pos]||[]).filter(k => k === personKey).length;
+            const wasSecondChance = curSkipCount % 2 === 1;
+            _diag(`SKIP(${pos}): TIMER EXPIRED for ${personKey.split('||')[0]}, wasSecondChance=${wasSecondChance}, skipCount=${curSkipCount}, skippedCache=[${(_sharedSkippedTurnsCache[pos]||[]).map(k=>k.split('||')[0]).join(',')}]`);
 
             const sel = selectionMap(pos);
             const people = peopleByPos[pos] || [];
@@ -4085,13 +4090,13 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
             const prevSkippedCache = _sharedSkippedTurnsCache[pos] ? [..._sharedSkippedTurnsCache[pos]] : [];
             _sharedTurnTimersCache[pos] = null;
             if(!_sharedSkippedTurnsCache[pos]) _sharedSkippedTurnsCache[pos] = [];
-            // Always push on second-chance skip (duplicate marks second chance used)
-            if(wasSecondChance || !_sharedSkippedTurnsCache[pos].includes(personKey)) _sharedSkippedTurnsCache[pos].push(personKey);
+            // Always push — count tracks which round we're in
+            _sharedSkippedTurnsCache[pos].push(personKey);
 
             const { nextUpKey, secondChanceKey } = _computeSkipState(pos, people, sel);
-            // If this was already a second-chance skip, only advance to nextUpKey (no more chances)
-            // Otherwise, prefer secondChanceKey (could be the same person getting their 2nd chance)
-            const nextKey = wasSecondChance ? (nextUpKey || null) : (secondChanceKey || nextUpKey || null);
+            // After second-chance skip, prefer fresh person; fall back to next second chance if none.
+            // After first skip, prefer giving second chance before moving on.
+            const nextKey = wasSecondChance ? (nextUpKey || secondChanceKey || null) : (secondChanceKey || nextUpKey || null);
             const nextTs = Date.now();
             _diag(`SKIP(${pos}): computed next → nextUpKey=${nextUpKey?nextUpKey.split('||')[0]:'null'}, secondChanceKey=${secondChanceKey?secondChanceKey.split('||')[0]:'null'}, nextKey=${nextKey?nextKey.split('||')[0]:'null'} (wasSecondChance=${wasSecondChance})`);
 
@@ -4104,7 +4109,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                 const tt = _normalizeTurnTimers(cur.turnTimers);
                 tt[pos] = null;
                 const st = _normalizeSkippedTurns(cur.skippedTurns);
-                if(wasSecondChance || !st[pos].includes(personKey)) st[pos].push(personKey);
+                st[pos].push(personKey);
                 const bs = _normalizeBreakStarted(cur.breakStarted);
                 bs[pos] = false;
                 tx.set(ref, { ...cur, turnTimers: tt, skippedTurns: st, breakStarted: bs }, { merge: true });
@@ -4129,7 +4134,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
               if(!tt[pos] || tt[pos].key !== personKey) return;
               tt[pos] = { key: String(nextKey), ts: nextTs };
               const st = _normalizeSkippedTurns(cur.skippedTurns);
-              if(wasSecondChance || !st[pos].includes(personKey)) st[pos].push(personKey);
+              st[pos].push(personKey);
               tx.set(ref, { ...cur, turnTimers: tt, skippedTurns: st }, { merge: true });
               didSkip = true;
             });
