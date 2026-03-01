@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Channel Day View</title>
+<style>
+:root{
+  --bg:#0b0f14;
+  --card:#111826;
+  --muted:#9aa4b2;
+  --text:#e7eef8;
+  --accent:#4aa3ff;
+  --border:#233043;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{
+  margin:0; min-height:100vh;
+  font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
+  color:var(--text);
+  background:var(--bg);
+}
+
+/* ── Header ── */
+header{
+  padding:18px 18px 14px;
+  position:sticky; top:0; z-index:10;
+  background:linear-gradient(to bottom, rgba(11,15,20,.98), rgba(11,15,20,.75));
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+}
+header h1{margin:0; font-size:28px; font-weight:900; letter-spacing:.04em;}
+header .day-info{margin-left:auto; display:flex; align-items:center; gap:10px;}
+header .day-info .date-text{font-size:15px; font-weight:700; color:var(--text);}
+header .day-info .dow-text{font-size:13px; color:var(--muted); font-weight:600;}
+
+/* ── Shift toggle ── */
+.shift-toggle{display:flex; gap:0; border:1px solid var(--border); border-radius:10px; overflow:hidden;}
+.shift-toggle button{
+  background:#0c1320; color:var(--muted); border:none; padding:8px 18px;
+  font:inherit; font-size:13px; font-weight:700; cursor:pointer; transition:background .15s, color .15s;
+}
+.shift-toggle button.active{background:var(--accent); color:#04101f;}
+.shift-toggle button:not(.active):hover{background:rgba(74,163,255,.08);}
+
+/* ── Wrap ── */
+.wrap{padding:14px 18px 22px; max-width:1400px; margin:0 auto;}
+
+/* ── Cards ── */
+.card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:12px; margin-bottom:14px;}
+.card h2{margin:0 0 10px; font-size:15px; font-weight:900;}
+
+/* ── No-data ── */
+.no-data{text-align:center; padding:80px 24px; color:var(--muted); font-size:16px;}
+.no-data b{color:var(--text);}
+
+/* ── Channel grid table ── */
+.grid-wrap{overflow-x:auto; border-radius:14px; border:1px solid var(--border); background:var(--card);}
+table.chGrid{
+  width:100%; border-collapse:collapse; table-layout:fixed;
+}
+table.chGrid th, table.chGrid td{
+  padding:9px 10px; border-bottom:1px solid var(--border); font-size:13px; text-align:center;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+table.chGrid thead th{
+  background:#0c1320; color:#cfe3ff; text-align:center; font-weight:600; font-size:11px;
+  text-transform:uppercase; letter-spacing:.5px; position:sticky; top:0;
+}
+table.chGrid thead th:first-child{text-align:left; width:120px;}
+table.chGrid tbody tr:last-child td{border-bottom:none;}
+table.chGrid tbody tr:hover td{background:rgba(74,163,255,.04);}
+table.chGrid .ch-label{
+  text-align:left; font-weight:700; white-space:nowrap;
+}
+.channel-badge{
+  display:inline-block; width:80px; text-align:center;
+  padding:3px 0; border-radius:8px; font-size:11px; font-weight:900;
+}
+table.chGrid td.cell-empty{color:#3a4555;}
+.tr-badge{
+  display:inline-block; background:#7c3aed; color:#fff;
+  font-size:9px; font-weight:700; padding:1px 5px;
+  border-radius:4px; margin-left:4px; vertical-align:middle;
+}
+
+/* ── Person flow ── */
+.flow-list{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(320px,1fr)); gap:8px;
+}
+.flow-item{
+  background:#0c1320; border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; font-size:13px; line-height:1.6;
+}
+.flow-item .person-name{font-weight:900; color:#fff; margin-right:6px;}
+.flow-item .arrow{color:#4a5568; margin:0 3px;}
+.flow-item .all-day{color:var(--muted); font-style:italic; font-size:12px;}
+.flow-item.has-movement{border-left:3px solid #fde047;}
+.flow-item.no-movement{border-left:3px solid var(--border);}
+.ch-color{font-weight:700; padding:1px 6px; border-radius:4px; font-size:12px;}
+
+@media(max-width:700px){
+  .stats-bar{grid-template-columns:repeat(2,1fr);}
+  .flow-list{grid-template-columns:1fr;}
+  .channel-badge{width:60px; font-size:10px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Channel Day View</h1>
+  <div class="shift-toggle">
+    <button id="btnAll" class="active" onclick="setShift('all')">All</button>
+    <button id="btnDay" onclick="setShift('day')">Day</button>
+    <button id="btnNight" onclick="setShift('night')">Night</button>
+  </div>
+  <div class="day-info">
+    <span class="date-text" id="dateText"></span>
+    <span class="dow-text" id="dowText"></span>
+  </div>
+</header>
+
+<div class="wrap" id="app"></div>
+
+<script>
+(function(){
+"use strict";
+
+const BLOCKS = [
+  {key:"0600-1000", label:"6a \u2013 10a"},
+  {key:"1000-1400", label:"10a \u2013 2p"},
+  {key:"1400-1800", label:"2p \u2013 6p"},
+  {key:"1800-2200", label:"6p \u2013 10p"},
+  {key:"2200-0200", label:"10p \u2013 2a"},
+  {key:"0200-0600", label:"2a \u2013 6a"},
+];
+
+const CHANNELS = ["North","East","South","West","Northwest","Central","DC1","DC2","Relief 1","Relief 2"];
+const SEVENTH_CHANNEL = "7th";
+const SEVENTH_BLOCKS = new Set(["2200-0200","0200-0600"]);
+
+const CHANNEL_COLORS = {
+  "North":"#9c27b0","East":"#4caf50","South":"#2196f3","West":"#ff9800",
+  "Northwest":"#00bcd4","Central":"#e91e63","DC1":"#ff5722","DC2":"#8bc34a",
+  "Relief 1":"#607d8b","Relief 2":"#795548","7th":"#ffd700","CT":"#ff4081",
+};
+
+const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+function pad2(n){return String(n).padStart(2,"0")}
+function ymd(d){return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate())}
+function esc(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML}
+function chColor(ch){return CHANNEL_COLORS[ch]||"#888"}
+function chBg(ch){
+  const c=chColor(ch);
+  const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);
+  return "rgba("+r+","+g+","+b+",.15)";
+}
+
+function isFriSat(d){const dow=d.getDay();return dow===5||dow===6}
+
+// Shift filter: day=first 3 blocks, night=last 3 blocks
+let _shift="all"; // "all" | "day" | "night"
+const DAY_BLOCKS=new Set(["0600-1000","1000-1400","1400-1800"]);
+const NIGHT_BLOCKS=new Set(["1800-2200","2200-0200","0200-0600"]);
+function visibleBlocks(){
+  if(_shift==="day")return BLOCKS.filter(b=>DAY_BLOCKS.has(b.key));
+  if(_shift==="night")return BLOCKS.filter(b=>NIGHT_BLOCKS.has(b.key));
+  return BLOCKS;
+}
+function isBlockVisible(key){
+  if(_shift==="day")return DAY_BLOCKS.has(key);
+  if(_shift==="night")return NIGHT_BLOCKS.has(key);
+  return true;
+}
+window.setShift=function(s){
+  _shift=s;
+  document.getElementById("btnAll").classList.toggle("active",s==="all");
+  document.getElementById("btnDay").classList.toggle("active",s==="day");
+  document.getElementById("btnNight").classList.toggle("active",s==="night");
+  render();
+};
+
+function loadPlan(){try{return JSON.parse(localStorage.getItem("rotation_plan_v2"))}catch(e){return null}}
+
+function loadTrainees(dateStr){
+  let t;
+  try{t=JSON.parse(localStorage.getItem("rotation_training_v2")||"[]")}catch(e){t=[]}
+  if(!Array.isArray(t))return new Set();
+  const names=new Set();
+  for(const item of t){
+    let name,from,to;
+    if(typeof item==="string"){name=item.trim().toUpperCase();from="";to=""}
+    else{name=String(item.name||"").trim().toUpperCase();from=item.from||"";to=item.to||""}
+    if(!name)continue;
+    if(from&&dateStr<from)continue;
+    if(to&&dateStr>to)continue;
+    names.add(name);
+  }
+  return names;
+}
+
+function buildPersonAssignments(dayData){
+  const map=new Map();
+  if(!dayData)return map;
+  for(let bi=0;bi<BLOCKS.length;bi++){
+    if(!isBlockVisible(BLOCKS[bi].key))continue;
+    const bd=dayData[BLOCKS[bi].key];
+    if(!bd)continue;
+    for(const[ch,name]of Object.entries(bd.assignments||{})){
+      if(!name)continue;
+      const nm=String(name).toUpperCase();
+      if(!map.has(nm))map.set(nm,[]);
+      map.get(nm).push({blockIdx:bi, blockKey:BLOCKS[bi].key, channel:ch});
+    }
+    for(const name of(bd.ct||[])){
+      const nm=String(name).toUpperCase();
+      if(!map.has(nm))map.set(nm,[]);
+      map.get(nm).push({blockIdx:bi, blockKey:BLOCKS[bi].key, channel:"CT"});
+    }
+  }
+  return map;
+}
+
+function render(){
+  const app=document.getElementById("app");
+  const now=new Date();
+  const dateStr=ymd(now);
+
+  // Header date display
+  document.getElementById("dateText").textContent=MONTHS[now.getMonth()]+" "+now.getDate()+", "+now.getFullYear();
+  document.getElementById("dowText").textContent=DAYS[now.getDay()];
+
+  const plan=loadPlan();
+  if(!plan||!plan.days){
+    app.innerHTML='<div class="no-data">No plan data found.<br><span style="font-size:13px">Open <b>rotationopsv2.html</b> in the same browser and create a rotation plan.</span></div>';
+    return;
+  }
+
+  const dayData=plan.days[dateStr]||null;
+  if(!dayData){
+    app.innerHTML='<div class="no-data">No data for today in the rotation plan.</div>';
+    return;
+  }
+
+  const friSat=isFriSat(now);
+  const trainees=loadTrainees(dateStr);
+  const channelsToShow=[...CHANNELS];
+  if(friSat)channelsToShow.push(SEVENTH_CHANNEL);
+
+  const personAssignments=buildPersonAssignments(dayData);
+
+  let h="";
+
+  // Channel Grid
+  const vBlocks=visibleBlocks();
+  h+='<div class="card"><h2>Channel Assignments</h2>';
+  h+='<div class="grid-wrap"><table class="chGrid"><thead><tr>';
+  h+='<th style="text-align:left">Channel</th>';
+  for(const b of vBlocks) h+='<th>'+esc(b.label)+'</th>';
+  h+='</tr></thead><tbody>';
+
+  for(const ch of channelsToShow){
+    const color=chColor(ch), bg=chBg(ch);
+    h+='<tr><td class="ch-label"><span class="channel-badge" style="background:'+bg+';color:'+color+';border:1px solid '+color+'40">'+esc(ch)+'</span></td>';
+    for(const b of vBlocks){
+      if(ch===SEVENTH_CHANNEL&&!SEVENTH_BLOCKS.has(b.key)){
+        h+='<td class="cell-empty" style="background:rgba(0,0,0,.2)">\u2014</td>';
+        continue;
+      }
+      const bd=dayData[b.key];
+      const assigned=bd&&bd.assignments?bd.assignments[ch]||"":"";
+      const isTr=assigned&&trainees.has(String(assigned).toUpperCase());
+      if(assigned){
+        h+='<td style="font-weight:700;color:#fff">';
+        h+=esc(assigned);
+        if(isTr)h+='<span class="tr-badge">TR</span>';
+        h+='</td>';
+      }else{
+        h+='<td class="cell-empty">\u2014</td>';
+      }
+    }
+    h+='</tr>';
+  }
+
+  // CT row
+  h+='<tr><td class="ch-label"><span class="channel-badge" style="background:rgba(255,64,129,.12);color:#ff4081;border:1px solid #ff408140">CT</span></td>';
+  for(const b of vBlocks){
+    const bd=dayData[b.key];
+    const ctList=bd&&bd.ct?bd.ct.filter(Boolean):[];
+    if(ctList.length){
+      h+='<td style="font-size:12px;color:#f472b6">';
+      h+=ctList.map(n=>{let s=esc(n);if(trainees.has(String(n).toUpperCase()))s+='<span class="tr-badge">TR</span>';return s}).join(", ");
+      h+='</td>';
+    }else{
+      h+='<td class="cell-empty">\u2014</td>';
+    }
+  }
+  h+='</tr>';
+
+  h+='</tbody></table></div></div>';
+
+  // Person Flow
+  h+='<div class="card"><h2>Personnel Movement</h2><div class="flow-list">';
+  const entries=[...personAssignments.entries()].map(([name,blocks])=>{
+    const sorted=[...blocks].sort((a,b)=>a.blockIdx-b.blockIdx);
+    const channels=sorted.map(b=>b.channel);
+    const hasMovement=channels.some((c,i)=>i>0&&c!==channels[i-1]);
+    return{name,sorted,channels,hasMovement};
+  });
+  entries.sort((a,b)=>{
+    if(a.hasMovement!==b.hasMovement)return a.hasMovement?-1:1;
+    return a.name.localeCompare(b.name);
+  });
+
+  for(const entry of entries){
+    const{name,channels,hasMovement}=entry;
+    const isTr=trainees.has(name);
+    h+='<div class="flow-item '+(hasMovement?"has-movement":"no-movement")+'">';
+    h+='<span class="person-name">'+esc(name)+'</span>';
+    if(isTr)h+='<span class="tr-badge">TR</span> ';
+    if(!hasMovement){
+      const ch=channels[0], c=chColor(ch);
+      h+='<span class="ch-color" style="color:'+c+';background:'+chBg(ch)+'">'+esc(ch)+'</span>';
+      h+=' <span class="all-day">(all day)</span>';
+    }else{
+      const path=[channels[0]];
+      for(let i=1;i<channels.length;i++){if(channels[i]!==channels[i-1])path.push(channels[i])}
+      h+=path.map(ch=>'<span class="ch-color" style="color:'+chColor(ch)+';background:'+chBg(ch)+'">'+esc(ch)+'</span>').join('<span class="arrow"> \u2192 </span>');
+    }
+    h+='</div>';
+  }
+  if(!entries.length)h+='<div style="color:var(--muted);font-size:13px">No personnel assigned for this day.</div>';
+  h+='</div></div>';
+
+  app.innerHTML=h;
+}
+
+render();
+
+// Live-update if rotationopsv2 writes data in another tab
+window.addEventListener("storage",function(e){
+  if(e.key==="rotation_plan_v2"||e.key==="rotation_training_v2")render();
+});
+
+})();
+</script>
+</body>
+</html>
