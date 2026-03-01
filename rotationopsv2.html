@@ -166,6 +166,14 @@
   .modal-overlay{position:fixed; inset:0; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; z-index:1000;}
   .modal-overlay.show{display:flex;}
   .modal-content{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px; max-width:600px; width:90%; max-height:80vh; overflow:auto;}
+  .training-modal .modal-content{max-width:860px; max-height:85vh; padding:24px;}
+  .training-modal .tgrid-row{display:flex; align-items:center; gap:8px; padding:6px 8px; border-bottom:1px solid rgba(255,255,255,.06);}
+  .training-modal .tgrid-row.off{opacity:.35;}
+  .training-modal .tgrid-day{font-size:12px; min-width:130px; font-family:monospace;}
+  .training-modal .tgrid-ch{font-size:11px; padding:3px 4px; border-radius:4px; background:var(--panel2); border:1px solid var(--line); color:var(--text); min-width:80px;}
+  .training-modal .tgrid-blk label{display:inline-flex; align-items:center; gap:3px; font-size:11px; padding:3px 8px; border-radius:4px; border:1px solid var(--line); cursor:pointer; user-select:none;}
+  .training-modal .tgrid-blk label input{margin:0;}
+  .training-modal .tgrid-apply{display:flex; align-items:center; gap:8px; padding:8px; background:rgba(251,191,36,.08); border-radius:6px; margin-bottom:8px;}
   .modal-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;}
   .modal-header h3{margin:0; font-size:16px;}
   .modal-close{background:transparent; border:none; color:var(--muted); font-size:20px; cursor:pointer; padding:5px;}
@@ -530,6 +538,7 @@
     const plan = JSON.parse(localStorage.getItem("rotation_plan_v2") || "null");
     const vac = JSON.parse(localStorage.getItem("rotation_vac_ranges_v2") || "[]");
     const training = JSON.parse(localStorage.getItem("rotation_training_v2") || "[]");
+    const extOverrides = JSON.parse(localStorage.getItem("rotation_ext_training_overrides_v2") || "{}");
 
     if (!plan || !plan.meta) { console.error("SAVE: No plan or plan.meta"); return false; }
 
@@ -541,6 +550,7 @@
         plan: plan,
         vacations: vac,
         trainers: training,
+        extTrainingOverrides: extOverrides,
         savedAt: new Date().toISOString()
       }, { merge: true });
       console.log("SAVE: SUCCESS for", docId);
@@ -574,6 +584,7 @@
         if (data.plan) localStorage.setItem("rotation_plan_v2", JSON.stringify(data.plan));
         if (data.vacations) localStorage.setItem("rotation_vac_ranges_v2", JSON.stringify(data.vacations));
         if (data.trainers) localStorage.setItem("rotation_training_v2", JSON.stringify(data.trainers));
+        if (data.extTrainingOverrides) localStorage.setItem("rotation_ext_training_overrides_v2", JSON.stringify(data.extTrainingOverrides));
         return true;
       }
       console.log("LOAD: Doc does not exist for", docId);
@@ -587,6 +598,7 @@
           if (data.plan) localStorage.setItem("rotation_plan_v2", JSON.stringify(data.plan));
           if (data.vacations) localStorage.setItem("rotation_vac_ranges_v2", JSON.stringify(data.vacations));
           if (data.trainers) localStorage.setItem("rotation_training_v2", JSON.stringify(data.trainers));
+          if (data.extTrainingOverrides) localStorage.setItem("rotation_ext_training_overrides_v2", JSON.stringify(data.extTrainingOverrides));
           return true;
         }
       } catch (_) {}
@@ -594,8 +606,11 @@
     return false;
   }
 
+  let _isApplyingSync = false; // Guard: true while applying incoming sync data (prevents re-save loop)
+
   function scheduleAutoSave() {
     if (!initialLoadDone) return; // Don't auto-save during page load
+    if (_isApplyingSync) return;  // Don't auto-save while applying incoming sync data
     if (autoSaveTimer) clearTimeout(autoSaveTimer);
     setSyncStatus("PENDING...", "pending");
 
@@ -666,11 +681,16 @@
         if (trainingChanged) {
           originalSetItem.call(localStorage, "rotation_training_v2", JSON.stringify(incomingTraining));
         }
-        // Refresh views
-        const dk = document.getElementById("dayPick")?.value;
-        if (dk && typeof renderDay === "function") { renderDay(dk); renderWeek(dk); }
-        if (typeof renderMonth === "function") renderMonth(year, monthIndex);
-        if (typeof renderExceptions === "function") renderExceptions();
+        // Refresh views — guard against re-save loop
+        _isApplyingSync = true;
+        try {
+          const dk = document.getElementById("dayPick")?.value;
+          if (dk && typeof renderDay === "function") { renderDay(dk); renderWeek(dk); }
+          if (typeof renderMonth === "function") renderMonth(year, monthIndex);
+          if (typeof renderExceptions === "function") renderExceptions();
+        } finally {
+          _isApplyingSync = false;
+        }
         setSyncStatus("LIVE", "good");
         return;
       }
@@ -678,20 +698,27 @@
       setSyncStatus("UPDATING...", "pending");
 
       // Tag the plan with savedAt so we can detect duplicates
+      // Use originalSetItem to bypass the hook — we don't want to re-save data we just received
       if (data.plan) {
         data.plan._savedAt = data.savedAt;
-        localStorage.setItem("rotation_plan_v2", JSON.stringify(data.plan));
+        originalSetItem.call(localStorage, "rotation_plan_v2", JSON.stringify(data.plan));
       }
-      if (data.vacations) localStorage.setItem("rotation_vac_ranges_v2", JSON.stringify(data.vacations));
-      if (data.trainers) localStorage.setItem("rotation_training_v2", JSON.stringify(data.trainers));
+      if (data.vacations) originalSetItem.call(localStorage, "rotation_vac_ranges_v2", JSON.stringify(data.vacations));
+      if (data.trainers) originalSetItem.call(localStorage, "rotation_training_v2", JSON.stringify(data.trainers));
+      if (data.extTrainingOverrides) originalSetItem.call(localStorage, "rotation_ext_training_overrides_v2", JSON.stringify(data.extTrainingOverrides));
 
-      // Refresh views
-      const dayKey = document.getElementById("dayPick")?.value;
-      if (dayKey && typeof renderDay === "function") {
-        renderDay(dayKey);
-        renderWeek(dayKey);
+      // Refresh views — guard against re-save loop (renderDay calls savePlan)
+      _isApplyingSync = true;
+      try {
+        const dayKey = document.getElementById("dayPick")?.value;
+        if (dayKey && typeof renderDay === "function") {
+          renderDay(dayKey);
+          renderWeek(dayKey);
+        }
+        if (typeof renderMonth === "function") renderMonth(year, monthIndex);
+      } finally {
+        _isApplyingSync = false;
       }
-      if (typeof renderMonth === "function") renderMonth(year, monthIndex);
 
       setSyncStatus("LIVE", "good");
     }, (err) => {
@@ -911,6 +938,21 @@
 
 
 <div class="toast" id="toast"></div>
+
+<!-- Training Edit Modal -->
+<div id="trainingEditModal" class="modal-overlay training-modal" onclick="if(event.target===this)closeTrainingModal();">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="trainingModalTitle" style="font-size:15px; letter-spacing:.5px;">EDIT TRAINING</h3>
+      <button class="modal-close" onclick="closeTrainingModal();">&times;</button>
+    </div>
+    <div id="trainingModalBody"></div>
+    <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end;">
+      <button class="btn secondary" onclick="closeTrainingModal();" style="padding:6px 16px;">CANCEL</button>
+      <button class="btn" id="trainingModalSave" style="padding:6px 16px; background:var(--accent); color:#fff; border:none; border-radius:6px; cursor:pointer;">SAVE</button>
+    </div>
+  </div>
+</div>
 
 <!-- Swap tip bubble -->
 <div id="swapTip" style="display:none; position:fixed; bottom:70px; left:50%; transform:translateX(-50%); background:rgba(31,111,235,.92); color:#fff; padding:12px 20px; border-radius:12px; font-size:13px; font-weight:600; z-index:999; box-shadow:0 8px 30px rgba(0,0,0,.4); cursor:pointer; text-align:center; max-width:400px; animation:tipSlideUp .4s ease-out;">
@@ -1220,6 +1262,7 @@ const STORAGE = {
   vac: "rotation_vac_ranges_v2",
   hires: "rotation_new_hires_v2",
   training: "rotation_training_v2",
+  extTrainingOverrides: "rotation_ext_training_overrides_v2",
   ui: "rotation_ui_v2",
   employees: "rotation_employees_v2",
   swapHistory: "rotation_swap_history_v2",
@@ -1284,6 +1327,7 @@ function getNewHires() {
 }
 let _crossMonthVac = [];
 let _crossMonthTraining = [];
+let _mirrorTrainers = []; // Dispatchers who are training someone via schedule mirroring
 
 function getVacRanges() {
   const v = loadJSON(STORAGE.vac, []);
@@ -1292,8 +1336,104 @@ function getVacRanges() {
 function getVacRangesWithCrossMonth() {
   return getVacRanges().concat(_crossMonthVac);
 }
+function _applyExtOverrides(entries) {
+  // Apply saved block overrides to cross-month / mirror trainer entries
+  const overrides = loadJSON(STORAGE.extTrainingOverrides, {});
+  return entries.map(r => {
+    const key = (r.name||'').toUpperCase() + '|' + (r.from||'') + '|' + (r.to||'');
+    const ov = overrides[key];
+    if (ov) {
+      return Object.assign({}, r, {
+        blocks: Array.isArray(ov.blocks) ? ov.blocks : r.blocks,
+        dayBlocks: (ov.dayBlocks && typeof ov.dayBlocks === 'object') ? ov.dayBlocks : r.dayBlocks || {},
+        channel: ov.channel || r.channel || 'Auto',
+        dayChannels: (ov.dayChannels && typeof ov.dayChannels === 'object') ? ov.dayChannels : r.dayChannels || {}
+      });
+    }
+    return r;
+  });
+}
 function getTrainerRangesWithCrossMonth() {
-  return getTrainerRanges().concat(_crossMonthTraining);
+  return getTrainerRanges().concat(_applyExtOverrides(_crossMonthTraining)).concat(_applyExtOverrides(_mirrorTrainers));
+}
+
+// Load active mirrors from Firestore scheduledChanges and build trainer entries for the dispatchers
+async function loadMirrorTrainers() {
+  _mirrorTrainers = [];
+  try {
+    const snap = await db.collection('scheduledChanges').where('type', '==', 'mirror').get();
+    snap.docs.forEach(doc => {
+      const d = doc.data();
+      if (!d.trainerName || !d.effectiveDate) return;
+      // Only include active or pending mirrors (not expired/reverted)
+      const status = String(d.status || '').toLowerCase();
+      if (status === 'expired' || status === 'reverted') return;
+      const trainerName = String(d.trainerName).trim().toUpperCase();
+      if (!trainerName) return;
+      // Don't add if this dispatcher is already manually in the training list
+      const existing = getTrainerRanges().concat(_crossMonthTraining);
+      const from = d.effectiveDate || '';
+      const to = d.endDate || '';
+      const alreadyExists = existing.some(r =>
+        r.name.toUpperCase() === trainerName &&
+        r.from === from && r.to === to
+      );
+      if (alreadyExists) return;
+      _mirrorTrainers.push({
+        name: trainerName,
+        from: from,
+        to: to,
+        blocks: [], // all blocks (trainee mirrors full schedule)
+        dayBlocks: {},
+        _mirror: true, // flag so we can identify these in the UI
+        _traineeName: String(d.employee || '').trim().toUpperCase()
+      });
+    });
+    console.log('Mirror trainers loaded: ' + _mirrorTrainers.length);
+  } catch (e) {
+    console.warn('loadMirrorTrainers error:', e);
+  }
+}
+
+// Returns a Set of employee names who are actively mirroring a trainer on a given day
+function getMirrorTraineeNames(dayKey) {
+  const names = new Set();
+  const dt = parseYMD(dayKey);
+  if (!dt) return names;
+  for (const mt of _mirrorTrainers) {
+    if (mt.from) { const f = parseYMD(mt.from); if (f && dt < f) continue; }
+    if (mt.to) { const t = parseYMD(mt.to); if (t && dt > t) continue; }
+    if (mt._traineeName) names.add(mt._traineeName.toUpperCase());
+  }
+  return names;
+}
+
+// Returns the trainee name for a given trainer on a given day, or null
+function getMirrorTraineeForTrainer(trainerName, dayKey) {
+  const dt = parseYMD(dayKey);
+  if (!dt) return null;
+  const tUpper = String(trainerName || '').toUpperCase();
+  for (const mt of _mirrorTrainers) {
+    if (mt.name.toUpperCase() !== tUpper) continue;
+    if (mt.from) { const f = parseYMD(mt.from); if (f && dt < f) continue; }
+    if (mt.to) { const t = parseYMD(mt.to); if (t && dt > t) continue; }
+    if (mt._traineeName) return mt._traineeName;
+  }
+  return null;
+}
+
+// Returns the trainer name for a given mirror trainee on a given day, or null
+function getMirrorTrainerForTrainee(traineeName, dayKey) {
+  const dt = parseYMD(dayKey);
+  if (!dt) return null;
+  const tUpper = String(traineeName || '').toUpperCase();
+  for (const mt of _mirrorTrainers) {
+    if (!mt._traineeName || mt._traineeName.toUpperCase() !== tUpper) continue;
+    if (mt.from) { const f = parseYMD(mt.from); if (f && dt < f) continue; }
+    if (mt.to) { const t = parseYMD(mt.to); if (t && dt > t) continue; }
+    return mt.name; // trainer name
+  }
+  return null;
 }
 
 async function loadCrossMonthData(year, monthIndex) {
@@ -1323,7 +1463,7 @@ async function loadCrossMonthData(year, monthIndex) {
         const arr = data.trainers || data.training || [];
         for (const t of arr) {
           if (t.to && t.to >= firstISO && t.from && t.from < firstISO) {
-            _crossMonthTraining.push({ name: t.name, from: t.from, to: t.to, blocks: t.blocks || [], _crossMonth: monthName(prevMo) + ' ' + prevYear });
+            _crossMonthTraining.push({ name: t.name, from: t.from, to: t.to, blocks: t.blocks || [], dayBlocks: (t.dayBlocks && typeof t.dayBlocks === 'object') ? t.dayBlocks : {}, channel: t.channel || 'Auto', dayChannels: (t.dayChannels && typeof t.dayChannels === 'object') ? t.dayChannels : {}, _crossMonth: monthName(prevMo) + ' ' + prevYear });
           }
         }
       }
@@ -1363,7 +1503,7 @@ function getTrainerRanges() {
   // Support old format (plain strings) and new format (objects with name, from, to, blocks)
   return t.map(item => {
     if (typeof item === 'string') return { name: item.trim().toUpperCase(), from: '', to: '', blocks: [] };
-    return { name: String(item.name||'').trim().toUpperCase(), from: item.from||'', to: item.to||'', blocks: Array.isArray(item.blocks) ? item.blocks : [] };
+    return { name: String(item.name||'').trim().toUpperCase(), from: item.from||'', to: item.to||'', blocks: Array.isArray(item.blocks) ? item.blocks : [], dayBlocks: (item.dayBlocks && typeof item.dayBlocks === 'object') ? item.dayBlocks : {}, channel: item.channel || 'Auto', dayChannels: (item.dayChannels && typeof item.dayChannels === 'object') ? item.dayChannels : {} };
   }).filter(r => r.name);
 }
 function getTrainees() {
@@ -1377,6 +1517,7 @@ function isTrainee(name, dayKey, blockKey) {
   const dt = dateObj ? dateObj.getTime() : null;
   return ranges.some(r => {
     if (!r || !r.name) return false;
+    if (r._mirror) return false; // Mirror entries are trainers, not trainees
     if (r.name.toUpperCase() !== nm) return false;
     // If no dates specified, always applies
     if (!r.from && !r.to) { /* date matches */ }
@@ -1386,6 +1527,12 @@ function isTrainee(name, dayKey, blockKey) {
       const toT = r.to ? new Date(r.to + "T23:59:59").getTime() : Infinity;
       if (dt < fromT || dt > toT) return false;
     }
+    // Per-day block check: if dayBlocks has an entry for this day, use it
+    if (blockKey && dayKey && r.dayBlocks && r.dayBlocks[dayKey] !== undefined) {
+      const dayArr = r.dayBlocks[dayKey];
+      if (!Array.isArray(dayArr) || dayArr.length === 0) return false; // empty = no training that day
+      return dayArr.includes(blockKey);
+    }
     // Block check: if trainer has specific blocks and blockKey is provided, must match
     if (blockKey && r.blocks && r.blocks.length > 0) {
       return r.blocks.includes(blockKey);
@@ -1393,12 +1540,64 @@ function isTrainee(name, dayKey, blockKey) {
     return true;
   });
 }
-// Global trainee channel restriction check for use in all balancing passes
-// Only restricts during actual training blocks (uses blockKey so non-training blocks are unrestricted)
+// Returns "TRAINEE", "TRAINER", or null based on whether a person is in a training range for this day+block
+// Mirror entries have _mirror: true (the trainer); regular entries are trainees
+function getTrainingStatus(name, dayKey, blockKey) {
+  const ranges = getTrainerRangesWithCrossMonth();
+  const nm = String(name || "").trim().toUpperCase();
+  const dateObj = dayKey ? parseYMD(dayKey) : null;
+  const dt = dateObj ? dateObj.getTime() : null;
+  for (const r of ranges) {
+    if (!r || !r.name) continue;
+    if (r.name.toUpperCase() !== nm) continue;
+    if (r.from || r.to) {
+      if (!dt) continue;
+      const fromT = r.from ? new Date(r.from + "T00:00:00").getTime() : -Infinity;
+      const toT = r.to ? new Date(r.to + "T23:59:59").getTime() : Infinity;
+      if (dt < fromT || dt > toT) continue;
+    }
+    if (blockKey) {
+      if (r.dayBlocks && r.dayBlocks[dayKey] !== undefined) {
+        const dayArr = r.dayBlocks[dayKey];
+        if (!Array.isArray(dayArr) || dayArr.length === 0) continue;
+        if (!dayArr.includes(blockKey)) continue;
+      } else if (r.blocks && r.blocks.length > 0) {
+        if (!r.blocks.includes(blockKey)) continue;
+      }
+    }
+    return r._mirror ? "TRAINER" : "TRAINEE";
+  }
+  return null;
+}
+// Sticky channel maps — declared in outer scope so traineeBlocked() and balanceMonth() can access them
+// Populated fresh by _precomputeStickyChannels() inside randomizeMonth()
+let traineeStickyChannel = new Map(); // dayKey -> Map(name -> channelName)
+let trainerStickyChannel = new Map(); // dayKey -> Map(trainerName -> channelName)
+
+// Global training channel restriction check for use in all balancing passes
+// Blocks trainees from non-E/S/W/C channels AND trainers from non-sticky channels during training blocks
 const _TRAINEE_OK_CHANNELS = new Set(["EAST","SOUTH","WEST","CENTRAL"]);
 function traineeBlocked(name, dayKey, blockKey, channelUpper) {
-  if (!isTrainee(name, dayKey, blockKey)) return false;
-  return !_TRAINEE_OK_CHANNELS.has(String(channelUpper).toUpperCase());
+  const chUp = String(channelUpper).toUpperCase();
+  // Trainee restriction: only E/S/W/C allowed during training blocks
+  if (isTrainee(name, dayKey, blockKey)) {
+    return !_TRAINEE_OK_CHANNELS.has(chUp);
+  }
+  // Trainer (mirror) restriction: must stay on sticky channel during training blocks
+  if (getTrainingStatus(name, dayKey, blockKey) === "TRAINER") {
+    const trStickyMap = trainerStickyChannel.get(dayKey);
+    if (trStickyMap) {
+      const nmUp = String(name).toUpperCase();
+      let trSticky = null;
+      for (const [k, v] of trStickyMap) {
+        if (String(k).toUpperCase() === nmUp) { trSticky = v; break; }
+      }
+      if (trSticky && chUp !== trSticky.toUpperCase()) return true; // blocked: wrong channel
+    }
+    // Also block trainers from CT/Relief during training blocks
+    if (!_TRAINEE_OK_CHANNELS.has(chUp)) return true;
+  }
+  return false;
 }
 
 function isExcluded(name, dateObj) {
@@ -1428,7 +1627,15 @@ function buildDispatcherPoolForDate(dateObj) {
     .filter(n => dispatchers.every(d => d.name.toUpperCase() !== n.toUpperCase()))
     .map(n => ({ name:n, seniority:0, sched:null, isHire:true }));
 
-  return dispatchers.concat(hireObjs).filter(d => !isExcluded(d.name, dateObj));
+  const pool = dispatchers.concat(hireObjs).filter(d => !isExcluded(d.name, dateObj));
+
+  // Mirror trainees are treated as calltakers — completely exclude from dispatcher pool
+  const dayKey = ymd(dateObj);
+  const mirrorTrainees = getMirrorTraineeNames(dayKey);
+  if (mirrorTrainees.size > 0) {
+    return pool.filter(d => !mirrorTrainees.has(d.name.toUpperCase()));
+  }
+  return pool;
 }
 
 function worksBlock(disp, dateObj, block) {
@@ -1493,6 +1700,7 @@ function buildEmptyPlan(year, monthIndex) {
     const dateObj = new Date(year, monthIndex, day, 12,0,0,0);
     const dayKey = ymd(dateObj);
     const wk = weekKeyFromDate(dateObj);
+    // Mirror trainees already excluded at source (buildDispatcherPoolForDate)
     const poolAll = buildDispatcherPoolForDate(dateObj);
     let score = 0;
     for (let bi=0; bi<BLOCKS.length; bi++) {
@@ -1526,6 +1734,130 @@ function buildEmptyPlan(year, monthIndex) {
 
 function randomizeMonth(year, monthIndex) {
   const plan = buildEmptyPlan(year, monthIndex);
+
+  // Clear sticky channel maps (outer-scope vars shared with traineeBlocked/balanceMonth)
+  traineeStickyChannel = new Map();
+  trainerStickyChannel = new Map();
+  const traineeChannelHistory = new Map(); // name -> string[] of channels used on previous days
+  const trainerChannelHistory = new Map(); // trainerName -> string[] of channels used on previous days
+  const _STICKY_OPTS = ["East","South","West","Central"];
+  const _allTrainerRanges = getTrainerRangesWithCrossMonth();
+  function _precomputeStickyChannels(dayKey, dateObj, poolAll, day) {
+    const _todayTrainees = poolAll.filter(d => {
+      for (const blk of BLOCKS) {
+        if (worksBlock(d, dateObj, blk) && isTrainee(d.name, dayKey, blk.key)) return true;
+      }
+      return false;
+    });
+    const _usedChannels = new Set();
+    const _dayMap = new Map();
+    // First pass: assign manually-picked channels (dayChannels / channel overrides)
+    const _manualTrainees = [];
+    const _autoTrainees = [];
+    for (const tr of _todayTrainees) {
+      const nm = tr.name.toUpperCase();
+      const entry = _allTrainerRanges.find(r => {
+        if (r.name.toUpperCase() !== nm) return false;
+        if (!r.from && !r.to) return true;
+        const dt = dateObj.getTime();
+        const fromT = r.from ? new Date(r.from + "T00:00:00").getTime() : -Infinity;
+        const toT = r.to ? new Date(r.to + "T23:59:59").getTime() : Infinity;
+        return dt >= fromT && dt <= toT;
+      });
+      let manualCh = null;
+      if (entry) {
+        if (entry.dayChannels && entry.dayChannels[dayKey] && entry.dayChannels[dayKey] !== 'Auto') {
+          manualCh = entry.dayChannels[dayKey];
+        } else if (entry.channel && entry.channel !== 'Auto') {
+          manualCh = entry.channel;
+        }
+      }
+      if (manualCh && _STICKY_OPTS.includes(manualCh)) {
+        _manualTrainees.push({ tr, ch: manualCh });
+      } else {
+        _autoTrainees.push(tr);
+      }
+    }
+    // Assign manual channels first
+    for (const { tr, ch } of _manualTrainees) {
+      _dayMap.set(tr.name, ch);
+      _usedChannels.add(ch);
+      const hist = traineeChannelHistory.get(tr.name) || [];
+      hist.push(ch);
+      traineeChannelHistory.set(tr.name, hist);
+    }
+    // Second pass: auto-assign remaining trainees using rotation logic
+    _autoTrainees.sort((a, b2) => {
+      const ha = (traineeChannelHistory.get(a.name) || []).length;
+      const hb = (traineeChannelHistory.get(b2.name) || []).length;
+      return hb - ha;
+    });
+    for (const tr of _autoTrainees) {
+      const history = traineeChannelHistory.get(tr.name) || [];
+      let best = null;
+      for (const ch of _STICKY_OPTS) {
+        if (_usedChannels.has(ch)) continue;
+        if (!history.includes(ch)) { best = ch; break; }
+      }
+      if (!best) {
+        for (const ch of _STICKY_OPTS) {
+          if (_usedChannels.has(ch)) continue;
+          if (!best || history.lastIndexOf(ch) < history.lastIndexOf(best)) best = ch;
+        }
+      }
+      if (!best) {
+        for (const ch of _STICKY_OPTS) {
+          if (!history.includes(ch)) { best = ch; break; }
+        }
+        if (!best) best = _STICKY_OPTS[day % _STICKY_OPTS.length];
+      }
+      _dayMap.set(tr.name, best);
+      _usedChannels.add(best);
+      const hist = traineeChannelHistory.get(tr.name) || [];
+      hist.push(best);
+      traineeChannelHistory.set(tr.name, hist);
+    }
+    traineeStickyChannel.set(dayKey, _dayMap);
+
+    // ---- Trainer (mirror) sticky channels ----
+    // Mirror trainers should stay on one E/S/W/C channel during training blocks for consistency
+    const _todayTrainers = poolAll.filter(d => {
+      for (const blk of BLOCKS) {
+        if (worksBlock(d, dateObj, blk) && getTrainingStatus(d.name, dayKey, blk.key) === "TRAINER") return true;
+      }
+      return false;
+    });
+    const _trainerUsedCh = new Set(_usedChannels); // don't collide with trainee sticky channels
+    const _trainerDayMap = new Map();
+    for (const tr of _todayTrainers) {
+      const history = trainerChannelHistory.get(tr.name) || [];
+      let best = null;
+      // Pick unused channel the trainer hasn't been on recently
+      for (const ch of _STICKY_OPTS) {
+        if (_trainerUsedCh.has(ch)) continue;
+        if (!history.includes(ch)) { best = ch; break; }
+      }
+      if (!best) {
+        for (const ch of _STICKY_OPTS) {
+          if (_trainerUsedCh.has(ch)) continue;
+          if (!best || history.lastIndexOf(ch) < history.lastIndexOf(best)) best = ch;
+        }
+      }
+      // Fallback: all channels taken, share with someone
+      if (!best) {
+        for (const ch of _STICKY_OPTS) {
+          if (!history.includes(ch)) { best = ch; break; }
+        }
+        if (!best) best = _STICKY_OPTS[day % _STICKY_OPTS.length];
+      }
+      _trainerDayMap.set(tr.name, best);
+      _trainerUsedCh.add(best);
+      const hist = trainerChannelHistory.get(tr.name) || [];
+      hist.push(best);
+      trainerChannelHistory.set(tr.name, hist);
+    }
+    trainerStickyChannel.set(dayKey, _trainerDayMap);
+  }
 
   // Track last channel (prevents immediate back-to-back repeats)
   const lastAssign = new Map();
@@ -1651,6 +1983,10 @@ function randomizeMonth(year, monthIndex) {
           if (!disp) continue;
           if (!worksBlock(disp, dateObj, b)) continue;
 
+          // Don't assign to SD if this person is a TRAINER or TRAINEE during a training block
+          if (getTrainingStatus(sdName, dayKey, b.key) === "TRAINER") continue;
+          if (isTrainee(sdName, dayKey, b.key)) continue;
+
           // Assign to SD
           dayMap.get(b.key).push(sdName);
           sdBlocksThisWeek.set(sdName, weeklyBlocks + 1);
@@ -1748,7 +2084,13 @@ function updateStreaks(name, assignedChannel){
     if (!dayChannelsWorked.has(dayKey)) dayChannelsWorked.set(dayKey, new Map());
     const todayChannels = dayChannelsWorked.get(dayKey); // Map(name -> Set of channels)
 
-const poolAll = buildDispatcherPoolForDate(dateObj);
+    // Mirror trainees already excluded at source (buildDispatcherPoolForDate treats them as calltakers)
+    const poolAll = buildDispatcherPoolForDate(dateObj);
+    if (day === 1) {
+      console.log('[TRAINING DEBUG] _mirrorTrainers count:', _mirrorTrainers.length);
+      console.log('[TRAINING DEBUG] pool size:', poolAll.length, 'mirror trainees excluded at source');
+    }
+    _precomputeStickyChannels(dayKey, dateObj, poolAll, day);
 
     for (let bi=0; bi<BLOCKS.length; bi++) {
       const b = BLOCKS[bi];
@@ -1822,12 +2164,150 @@ const poolAll = buildDispatcherPoolForDate(dateObj);
         return SD_ELIGIBLE.has(nm) && (sdRemainingMap.get(nm) || 0) > 0 && !usedNames.has(nm);
       }
 
-      // Training restriction: trainees can only be assigned to E, S, W, C
+      // Training restriction: trainees AND trainers locked to sticky E/S/W/C during training blocks
       const TRAINEE_ALLOWED_CHANNELS = new Set(["EAST","SOUTH","WEST","CENTRAL"]);
       function canTraineeWork(candName, channelUpper, blockKey) {
-        if (!isTrainee(candName, dayKey, blockKey)) return true; // Only restrict during training blocks
-        return TRAINEE_ALLOWED_CHANNELS.has(channelUpper);
+        // Check trainee restriction
+        if (isTrainee(candName, dayKey, blockKey)) {
+          if (!TRAINEE_ALLOWED_CHANNELS.has(channelUpper)) return false;
+          const stickyMap = traineeStickyChannel.get(dayKey);
+          if (stickyMap) {
+            const sticky = stickyMap.get(candName);
+            if (sticky && channelUpper !== sticky.toUpperCase()) return false;
+          }
+          return true;
+        }
+        // Check trainer (mirror) restriction — lock to sticky channel during training blocks
+        if (getTrainingStatus(candName, dayKey, blockKey) === "TRAINER") {
+          const trStickyMap = trainerStickyChannel.get(dayKey);
+          if (trStickyMap) {
+            const trSticky = trStickyMap.get(candName);
+            if (trSticky && channelUpper !== trSticky.toUpperCase()) return false;
+          }
+        }
+        return true;
       }
+
+      // ========== TRAINEE PRE-ASSIGNMENT ==========
+      const traineeProtected = new Set();
+      {
+        const _stickyMapTP = traineeStickyChannel.get(dayKey);
+        if (_stickyMapTP) {
+          for (const [traineeName, stickyChannel] of _stickyMapTP) {
+            const cand = shuffled.find(c => c.name === traineeName && !usedNames.has(c.name));
+            if (!cand) continue;
+            if (!isTrainee(traineeName, dayKey, b.key)) continue;
+            const matchCh = CHANNELS.find(c => String(c).toUpperCase() === stickyChannel.toUpperCase());
+            if (!matchCh) continue;
+
+            // If sticky channel already taken, try to swap with holder
+            if (assignments[matchCh]) {
+              const _tpHolder = assignments[matchCh];
+              // Can't displace another trainee
+              if (traineeProtected.has(_tpHolder) || isTrainee(_tpHolder, dayKey, b.key)) continue;
+              // Swap: undo holder's assignment so they go back to the pool for main loop
+              usedNames.delete(_tpHolder);
+              const _tpHolderDayCh = todayChannels.get(_tpHolder);
+              if (_tpHolderDayCh) _tpHolderDayCh.delete(stickyChannel.toUpperCase());
+              if (channelCycle.has(_tpHolder)) channelCycle.get(_tpHolder).delete(matchCh);
+              if (channelCounts.has(_tpHolder)) {
+                const _tphm = channelCounts.get(_tpHolder);
+                const _tphc = _tphm.get(matchCh) || 0;
+                if (_tphc > 1) _tphm.set(matchCh, _tphc - 1); else _tphm.delete(matchCh);
+              }
+            }
+
+            assignments[matchCh] = traineeName;
+            usedNames.add(traineeName);
+            lastAssign.set(traineeName, matchCh);
+            if (!todayChannels.has(traineeName)) todayChannels.set(traineeName, new Set());
+            todayChannels.get(traineeName).add(stickyChannel.toUpperCase());
+            if (!channelCycle.has(traineeName)) channelCycle.set(traineeName, new Set());
+            channelCycle.get(traineeName).add(matchCh);
+            if (!channelCounts.has(traineeName)) channelCounts.set(traineeName, new Map());
+            const m = channelCounts.get(traineeName);
+            m.set(matchCh, (m.get(matchCh) || 0) + 1);
+            updateStreaks(traineeName, stickyChannel.toUpperCase());
+            // Primary channel weekly count tracking
+            if (PRIMARY_SET.has(stickyChannel.toUpperCase())) {
+              const pcKey = `${traineeName}|${stickyChannel.toUpperCase()}`;
+              pcwmap.set(pcKey, (pcwmap.get(pcKey) || 0) + 1);
+            }
+            mustGetChannelNextBlock.delete(traineeName);
+            // SD remaining tracking
+            const _tpUpper = String(traineeName).toUpperCase();
+            if (SD_ELIGIBLE.has(_tpUpper) && sdRemainingMap && sdRemainingMap.has(_tpUpper)) {
+              const rem = sdRemainingMap.get(_tpUpper) || 0;
+              if (rem > 0) sdRemainingMap.set(_tpUpper, rem - 1);
+            }
+            const nd = getNeeds(wk, traineeName);
+            if (nd.primary > 0) nd.primary--;
+            traineeProtected.add(traineeName);
+          }
+        }
+      }
+      // ========== END TRAINEE PRE-ASSIGNMENT ==========
+
+      // ========== TRAINER (MIRROR) PRE-ASSIGNMENT ==========
+      // Lock mirror trainers to their sticky E/S/W/C channel during training blocks
+      const trainerProtected = new Set();
+      {
+        const _trStickyMapTP = trainerStickyChannel.get(dayKey);
+        // DEBUG: log on first day/first block
+        if (day === 1 && bi === 0) {
+          console.log('[TRAINER PRE-ASSIGN DEBUG] trainerStickyChannel for', dayKey, ':', _trStickyMapTP ? JSON.stringify([..._trStickyMapTP]) : 'NULL');
+          console.log('[TRAINER PRE-ASSIGN DEBUG] block:', b.key, 'shuffled count:', shuffled.length);
+        }
+        if (_trStickyMapTP) {
+          for (const [trainerName, trStickyCh] of _trStickyMapTP) {
+            const tStatus = getTrainingStatus(trainerName, dayKey, b.key);
+            if (day === 1) console.log('[TRAINER PRE-ASSIGN DEBUG]', trainerName, 'block:', b.key, 'status:', tStatus, 'sticky:', trStickyCh, 'usedNames.has:', usedNames.has(trainerName));
+            if (tStatus !== "TRAINER") continue;
+            const trCand = shuffled.find(c => c.name === trainerName && !usedNames.has(c.name));
+            if (!trCand) { if (day === 1) console.log('[TRAINER PRE-ASSIGN DEBUG]', trainerName, 'NOT FOUND in shuffled or already used'); continue; }
+            const trMatchCh = CHANNELS.find(c => String(c).toUpperCase() === trStickyCh.toUpperCase());
+            if (!trMatchCh) { if (day === 1) console.log('[TRAINER PRE-ASSIGN DEBUG]', trainerName, 'channel', trStickyCh, 'NOT FOUND in CHANNELS'); continue; }
+
+            // If channel already taken, try to swap with holder (not a trainee/trainer)
+            if (assignments[trMatchCh]) {
+              const trHolder = assignments[trMatchCh];
+              if (traineeProtected.has(trHolder) || isTrainee(trHolder, dayKey, b.key)) continue;
+              if (trainerProtected.has(trHolder)) continue;
+              // Undo holder's assignment
+              usedNames.delete(trHolder);
+              const trHolderDayCh = todayChannels.get(trHolder);
+              if (trHolderDayCh) trHolderDayCh.delete(trStickyCh.toUpperCase());
+              if (channelCycle.has(trHolder)) channelCycle.get(trHolder).delete(trMatchCh);
+              if (channelCounts.has(trHolder)) {
+                const _trhm = channelCounts.get(trHolder);
+                const _trhc = _trhm.get(trMatchCh) || 0;
+                if (_trhc > 1) _trhm.set(trMatchCh, _trhc - 1); else _trhm.delete(trMatchCh);
+              }
+            }
+
+            assignments[trMatchCh] = trainerName;
+            usedNames.add(trainerName);
+            lastAssign.set(trainerName, trMatchCh);
+            if (!todayChannels.has(trainerName)) todayChannels.set(trainerName, new Set());
+            todayChannels.get(trainerName).add(trStickyCh.toUpperCase());
+            if (!channelCycle.has(trainerName)) channelCycle.set(trainerName, new Set());
+            channelCycle.get(trainerName).add(trMatchCh);
+            if (!channelCounts.has(trainerName)) channelCounts.set(trainerName, new Map());
+            const trm = channelCounts.get(trainerName);
+            trm.set(trMatchCh, (trm.get(trMatchCh) || 0) + 1);
+            updateStreaks(trainerName, trStickyCh.toUpperCase());
+            if (PRIMARY_SET.has(trStickyCh.toUpperCase())) {
+              const trpcKey = `${trainerName}|${trStickyCh.toUpperCase()}`;
+              pcwmap.set(trpcKey, (pcwmap.get(trpcKey) || 0) + 1);
+            }
+            mustGetChannelNextBlock.delete(trainerName);
+            const trNd = getNeeds(wk, trainerName);
+            if (trNd.primary > 0) trNd.primary--;
+            trainerProtected.add(trainerName);
+          }
+        }
+      }
+      // ========== END TRAINER PRE-ASSIGNMENT ==========
 
       // ========== B2B PRE-ASSIGNMENT ==========
       // Before main channel loop, pre-assign b2b for primary channels when it helps fairness.
@@ -1920,7 +2400,7 @@ const poolAll = buildDispatcherPoolForDate(dateObj);
       // ========== END B2B PRE-ASSIGNMENT ==========
 
       for (const ch of CHANNELS) {
-  // Skip channels already filled by b2b pre-assignment
+  // Skip channels already filled by pre-assignment
   if (assignments[ch]) {
     // Still need to clear mustGetChannelNextBlock for anyone who got their channel
     continue;
@@ -2363,7 +2843,7 @@ const filled = Object.keys(assignments).length;
 
       if (isFriOrSat && is7thBlock && filled >= 10) {
         // Find someone for 7th channel from remaining available
-        const remaining7th = shuffled.filter(c => !usedNames.has(c.name) && !isTrainee(c.name, dayKey, b.key));
+        const remaining7th = shuffled.filter(c => !usedNames.has(c.name) && !isTrainee(c.name, dayKey, b.key) && getTrainingStatus(c.name, dayKey, b.key) !== "TRAINER");
 
         // Sort by fewest total assignments (fairness)
         remaining7th.sort((a,b2)=>{
@@ -2449,7 +2929,9 @@ if (available.length > 10) {
       const ctrSet = new Set(["CT","RELIEF 1","RELIEF 2","R1","R2"]);
       if (ctrSet.has(holderLastUpper)) continue; // Holder can't go to CT
       if (mustGetChannelNextBlock.has(cur)) continue; // Holder also needs a channel
-      if (b2bProtected.has(cur)) continue; // Don't undo b2b pre-assignments
+      if (b2bProtected.has(cur) || traineeProtected.has(cur) || trainerProtected.has(cur)) continue; // Don't undo pre-assignments
+      if (isTrainee(cur, dayKey, b.key)) continue; // Don't displace trainees from their channel
+      if (getTrainingStatus(cur, dayKey, b.key) === "TRAINER") continue; // Don't displace trainers
 
       // Swap: cand gets channel, cur goes to CT pool
       assignments[ch] = cand.name;
@@ -2484,7 +2966,9 @@ if (available.length > 10) {
 
       // only swap out someone who is NOT capped
       if (atOrOverCap(cur)) continue;
-      if (b2bProtected.has(cur)) continue; // Don't undo b2b pre-assignments
+      if (b2bProtected.has(cur) || traineeProtected.has(cur) || trainerProtected.has(cur)) continue; // Don't undo pre-assignments
+      if (isTrainee(cur, dayKey, b.key)) continue; // Don't displace trainees
+      if (getTrainingStatus(cur, dayKey, b.key) === "TRAINER") continue; // Don't displace trainers
       if (!canTakeChannel(cand.name, ch)) continue;
       if (!canTraineeWork(cand.name, String(ch).toUpperCase(), b.key)) continue;
 
@@ -2562,8 +3046,9 @@ if (available.length > 10) {
 
   for (const cand of remaining) {
     const name = cand.name;
-    // Training restriction: trainees should not be assigned to CT (date-only, all blocks)
+    // Training restriction: trainees and trainers should not be on CT during training blocks
     if (isTrainee(name, dayKey, b.key)) { continue; }
+    if (getTrainingStatus(name, dayKey, b.key) === "TRAINER") { continue; }
 
     // 12hr shift restriction: max 1 CT per day for 12-hour shift employees
     if (is12HrShift(cand, dateObj)) {
@@ -2655,7 +3140,7 @@ for (const u of unassigned) {
       for (const ch of CHANNELS) {
         const currentHolder = assignments[ch];
         if (!currentHolder) continue;
-        if (b2bProtected.has(currentHolder)) continue; // Don't undo b2b pre-assignments
+        if (b2bProtected.has(currentHolder) || traineeProtected.has(currentHolder) || trainerProtected.has(currentHolder)) continue; // Don't undo pre-assignments
         if (isTrainee(currentHolder, dayKey, b.key)) continue; // Don't push trainee to CT during training blocks
         const chUpper = String(ch).toUpperCase();
         if (chUpper === "RELIEF 1" || chUpper === "RELIEF 2") continue;
@@ -2714,7 +3199,7 @@ for (const u of unassigned) {
       for (const ch of CHANNELS) {
         const currentHolder = assignments[ch];
         if (!currentHolder) continue;
-        if (b2bProtected.has(currentHolder)) continue; // Don't undo b2b pre-assignments
+        if (b2bProtected.has(currentHolder) || traineeProtected.has(currentHolder) || trainerProtected.has(currentHolder)) continue; // Don't undo pre-assignments
         if (isTrainee(currentHolder, dayKey, b.key)) continue; // Don't push trainee to CT during training blocks
         const chUpper = String(ch).toUpperCase();
         if (chUpper === "RELIEF 1" || chUpper === "RELIEF 2") continue;
@@ -2769,12 +3254,14 @@ for (const u of unassigned) {
 
     // THIRD ATTEMPT: Allow swapping with someone OVER cap (uneven CT is better than violation)
     // Sort by CT count to prefer swapping with lowest CT person even if over cap
+    // traineeProtected NOT checked here — preventing a violation is more important;
+    // the trainee rescue logic below will re-place the displaced trainee.
     if (!foundChannel) {
       const swapCandidates = [];
       for (const ch of CHANNELS) {
         const currentHolder = assignments[ch];
         if (!currentHolder) continue;
-        if (b2bProtected.has(currentHolder)) continue; // Don't undo b2b pre-assignments
+        if (b2bProtected.has(currentHolder) || trainerProtected.has(currentHolder)) continue; // Don't undo pre-assignments
         if (isTrainee(currentHolder, dayKey, b.key)) continue; // Don't push trainee to CT during training blocks
         const chUpper = String(ch).toUpperCase();
         if (chUpper === "RELIEF 1" || chUpper === "RELIEF 2") continue;
@@ -2882,7 +3369,13 @@ for (const u of unassigned) {
 // TRAINEE RESCUE: Get unassigned trainees into allowed channels (E/S/W/C) via swap
 const traineeUnassigned = available.filter(d => !usedNames.has(d.name) && !ct.includes(d.name) && !sd.includes(d.name) && isTrainee(d.name, dayKey, b.key));
 for (const u of traineeUnassigned) {
-  const _traineeAllowed = ["East","South","West","Central"];
+  let _traineeAllowed = ["East","South","West","Central"];
+  // Reorder to put sticky channel first for this trainee
+  const _stickyMapR = traineeStickyChannel.get(dayKey);
+  if (_stickyMapR) {
+    const _stickyR = _stickyMapR.get(u.name);
+    if (_stickyR) _traineeAllowed = [_stickyR, ..._traineeAllowed.filter(c => c !== _stickyR)];
+  }
   let placed = false;
   // Try empty allowed channel first
   for (const ch of _traineeAllowed) {
@@ -2896,13 +3389,14 @@ for (const u of traineeUnassigned) {
       break;
     }
   }
-  // If no empty slot, swap with a non-trainee on an allowed channel (prefer under weekly CT cap)
+  // If no empty slot, swap with a non-trainee/non-trainer on an allowed channel (prefer under weekly CT cap)
   if (!placed) {
     const _trSwapCands = [];
     for (const ch of _traineeAllowed) {
       const holder = assignments[ch];
       if (!holder) continue;
       if (isTrainee(holder, dayKey, b.key)) continue;
+      if (getTrainingStatus(holder, dayKey, b.key) === "TRAINER") continue; // Don't displace trainers
       const hWkCT = (ctWeekCounts.get(wk) || new Map()).get(holder) || 0;
       _trSwapCands.push({ ch, holder, hWkCT });
     }
@@ -2927,12 +3421,68 @@ for (const u of traineeUnassigned) {
   }
 }
 
+// TRAINER RESCUE: Get unassigned trainers into their sticky E/S/W/C channel via swap
+const trainerUnassigned = available.filter(d => !usedNames.has(d.name) && !ct.includes(d.name) && !sd.includes(d.name) && getTrainingStatus(d.name, dayKey, b.key) === "TRAINER");
+for (const u of trainerUnassigned) {
+  const _trStickyMapR = trainerStickyChannel.get(dayKey);
+  let _trAllowed = ["East","South","West","Central"];
+  if (_trStickyMapR) {
+    const _trStickyR = _trStickyMapR.get(u.name);
+    if (_trStickyR) _trAllowed = [_trStickyR, ..._trAllowed.filter(c => c !== _trStickyR)];
+  }
+  let placed = false;
+  // Try empty allowed channel first
+  for (const ch of _trAllowed) {
+    if (!assignments[ch]) {
+      assignments[ch] = u.name;
+      usedNames.add(u.name);
+      lastAssign.set(u.name, ch);
+      if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+      todayChannels.get(u.name).add(ch.toUpperCase());
+      placed = true;
+      break;
+    }
+  }
+  // If no empty slot, swap with a non-trainee/non-trainer on an allowed channel
+  if (!placed) {
+    const _trSwapCands2 = [];
+    for (const ch of _trAllowed) {
+      const holder = assignments[ch];
+      if (!holder) continue;
+      if (isTrainee(holder, dayKey, b.key)) continue;
+      if (getTrainingStatus(holder, dayKey, b.key) === "TRAINER") continue;
+      const hWkCT = (ctWeekCounts.get(wk) || new Map()).get(holder) || 0;
+      _trSwapCands2.push({ ch, holder, hWkCT });
+    }
+    _trSwapCands2.sort((a, b2) => a.hWkCT - b2.hWkCT);
+    if (_trSwapCands2.length > 0) {
+      const pick = _trSwapCands2[0];
+      assignments[pick.ch] = u.name;
+      usedNames.add(u.name);
+      lastAssign.set(u.name, pick.ch);
+      if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+      todayChannels.get(u.name).add(pick.ch.toUpperCase());
+      ct.push(pick.holder);
+      lastAssign.set(pick.holder, "CT");
+      if (!todayChannels.has(pick.holder)) todayChannels.set(pick.holder, new Set());
+      todayChannels.get(pick.holder).add("CT");
+      ctMonthCounts.set(pick.holder, (ctMonthCounts.get(pick.holder) || 0) + 1);
+      const wkMapTR2 = ctWeekCounts.get(wk) || new Map();
+      wkMapTR2.set(pick.holder, (wkMapTR2.get(pick.holder) || 0) + 1);
+      ctWeekCounts.set(wk, wkMapTR2);
+      placed = true;
+    }
+  }
+}
+
 // FINAL SWEEP: Catch anyone still not assigned (edge cases) — force to CT
 const finalUnassigned = available.filter(d => !usedNames.has(d.name) && !ct.includes(d.name) && !sd.includes(d.name));
 for (const u of finalUnassigned) {
   // Trainee restriction: never push trainee to CT — try allowed channel or leave unassigned
   if (isTrainee(u.name, dayKey, b.key)) {
-    const _tOk = ["East","South","West","Central"];
+    let _tOk = ["East","South","West","Central"];
+    const _stickyMapF = traineeStickyChannel.get(dayKey);
+    if (_stickyMapF) { const _sF = _stickyMapF.get(u.name); if (_sF) _tOk = [_sF, ..._tOk.filter(c => c !== _sF)]; }
     let _tPlaced = false;
     // Try empty allowed channel
     for (const _tCh of _tOk) {
@@ -2946,13 +3496,14 @@ for (const u of finalUnassigned) {
         break;
       }
     }
-    // Try swapping with a non-trainee holder in an allowed channel (prefer under weekly CT cap)
+    // Try swapping with a non-trainee/non-trainer holder in an allowed channel (prefer under weekly CT cap)
     if (!_tPlaced) {
       const _tSwapCands = [];
       for (const _tCh of _tOk) {
         const _tH = assignments[_tCh];
         if (!_tH) continue;
         if (isTrainee(_tH, dayKey, b.key)) continue;
+        if (getTrainingStatus(_tH, dayKey, b.key) === "TRAINER") continue;
         const _tHwk = (ctWeekCounts.get(wk) || new Map()).get(_tH) || 0;
         _tSwapCands.push({ ch: _tCh, holder: _tH, wkCT: _tHwk });
       }
@@ -2977,6 +3528,47 @@ for (const u of finalUnassigned) {
     }
     continue; // never push trainee to CT
   }
+  // TRAINER: never push trainer to CT during training blocks — try E/S/W/C
+  if (getTrainingStatus(u.name, dayKey, b.key) === "TRAINER") {
+    const _trStickyMapFS = trainerStickyChannel.get(dayKey);
+    let _trOkFS = ["East","South","West","Central"];
+    if (_trStickyMapFS) {
+      const _trSF = _trStickyMapFS.get(u.name);
+      if (_trSF) _trOkFS = [_trSF, ..._trOkFS.filter(c => c !== _trSF)];
+    }
+    let _trPlacedFS = false;
+    for (const _trCh of _trOkFS) {
+      if (!assignments[_trCh]) {
+        assignments[_trCh] = u.name; usedNames.add(u.name);
+        lastAssign.set(u.name, _trCh);
+        if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+        todayChannels.get(u.name).add(_trCh.toUpperCase());
+        _trPlacedFS = true; break;
+      }
+    }
+    if (!_trPlacedFS) {
+      for (const _trCh of _trOkFS) {
+        const _trH = assignments[_trCh];
+        if (!_trH) continue;
+        if (isTrainee(_trH, dayKey, b.key)) continue;
+        if (getTrainingStatus(_trH, dayKey, b.key) === "TRAINER") continue;
+        assignments[_trCh] = u.name; usedNames.add(u.name);
+        lastAssign.set(u.name, _trCh);
+        if (!todayChannels.has(u.name)) todayChannels.set(u.name, new Set());
+        todayChannels.get(u.name).add(_trCh.toUpperCase());
+        ct.push(_trH);
+        lastAssign.set(_trH, "CT");
+        if (!todayChannels.has(_trH)) todayChannels.set(_trH, new Set());
+        todayChannels.get(_trH).add("CT");
+        ctMonthCounts.set(_trH, (ctMonthCounts.get(_trH) || 0) + 1);
+        const _trWk = ctWeekCounts.get(wk) || new Map();
+        _trWk.set(_trH, (_trWk.get(_trH) || 0) + 1);
+        ctWeekCounts.set(wk, _trWk);
+        _trPlacedFS = true; break;
+      }
+    }
+    continue; // never push trainer to CT during training blocks
+  }
   // 12hr shift: max 1 CT per day — skip if already had CT today
   if (is12HrShift(u, dateObj)) {
     const uDayCh = todayChannels.get(u.name);
@@ -2992,6 +3584,16 @@ for (const u of finalUnassigned) {
   ctWeekCounts.set(wk, wkMapFinal);
 }
 
+      // Hard scrub: remove any mirror trainees from assignments/CT — they shadow, not dispatch
+      const _mirScrub = getMirrorTraineeNames(dayKey);
+      if (_mirScrub.size > 0) {
+        for (const [ch, nm] of Object.entries(assignments)) {
+          if (nm && _mirScrub.has(String(nm).toUpperCase())) assignments[ch] = null;
+        }
+        for (let _si = ct.length - 1; _si >= 0; _si--) {
+          if (ct[_si] && _mirScrub.has(String(ct[_si]).toUpperCase())) ct.splice(_si, 1);
+        }
+      }
       plan.days[dayKey][b.key] = { assignments, sd, ct, filled, needed: 10 };
     }
   }
@@ -3104,7 +3706,10 @@ for (const u of finalUnassigned) {
           const underOtherChs = _rebalDayChannels(under, dk, bk);
           if (underOtherChs.has(ch.toUpperCase())) continue; // 'under' already has ch elsewhere today
 
-          // Trainee restriction: don't swap trainee into restricted channel
+          // Training sticky: never swap anyone in training during rebalancing (preserves sticky channel)
+          if (isTrainee(under, dk, bk) || isTrainee(over, dk, bk)) continue;
+          if (getTrainingStatus(under, dk, bk) === "TRAINER" || getTrainingStatus(over, dk, bk) === "TRAINER") continue;
+          // Training restriction: don't swap into restricted channel
           if (traineeBlocked(under, dk, bk, ch.toUpperCase())) continue;
           if (traineeBlocked(over, dk, bk, underCh.toUpperCase())) continue;
 
@@ -3208,7 +3813,10 @@ for (const u of finalUnassigned) {
           const underOtherChs = _rebalDayChannels(under, dk, bk);
           if (underOtherChs.has(ch.toUpperCase())) continue;
 
-          // Trainee restriction
+          // Training sticky: never swap anyone in training during rebalancing (preserves sticky channel)
+          if (isTrainee(under, dk, bk) || isTrainee(over, dk, bk)) continue;
+          if (getTrainingStatus(under, dk, bk) === "TRAINER" || getTrainingStatus(over, dk, bk) === "TRAINER") continue;
+          // Training restriction
           if (traineeBlocked(under, dk, bk, ch.toUpperCase())) continue;
           if (traineeBlocked(over, dk, bk, underCh.toUpperCase())) continue;
 
@@ -3312,7 +3920,10 @@ for (const u of finalUnassigned) {
           const underOtherChs = _rebalDayChannels(under, dk, bk);
           if (underOtherChs.has(ch.toUpperCase())) continue;
 
-          // Trainee restriction
+          // Training sticky: never swap anyone in training during rebalancing (preserves sticky channel)
+          if (isTrainee(under, dk, bk) || isTrainee(donor, dk, bk)) continue;
+          if (getTrainingStatus(under, dk, bk) === "TRAINER" || getTrainingStatus(donor, dk, bk) === "TRAINER") continue;
+          // Training restriction
           if (traineeBlocked(under, dk, bk, ch.toUpperCase())) continue;
           if (traineeBlocked(donor, dk, bk, underCh.toUpperCase())) continue;
 
@@ -3397,7 +4008,10 @@ for (const u of finalUnassigned) {
           const underOtherChs = _rebalDayChannels(under, dk, bk);
           if (underOtherChs.has(ch.toUpperCase())) continue;
 
-          // Trainee restriction
+          // Training sticky: never swap anyone in training during rebalancing (preserves sticky channel)
+          if (isTrainee(under, dk, bk) || isTrainee(donor, dk, bk)) continue;
+          if (getTrainingStatus(under, dk, bk) === "TRAINER" || getTrainingStatus(donor, dk, bk) === "TRAINER") continue;
+          // Training restriction
           if (traineeBlocked(under, dk, bk, ch.toUpperCase())) continue;
           if (traineeBlocked(donor, dk, bk, underCh.toUpperCase())) continue;
 
@@ -3520,7 +4134,10 @@ for (const u of finalUnassigned) {
           const otherCounts = finalCounts.get(otherName);
           if (otherCounts && (otherCounts.get(needCh) || 0) <= 2) continue;
 
-          // Trainee restriction
+          // Training sticky: never swap anyone in training during rebalancing (preserves sticky channel)
+          if (isTrainee(sdName, dk, bk) || isTrainee(otherName, dk, bk)) continue;
+          if (getTrainingStatus(sdName, dk, bk) === "TRAINER" || getTrainingStatus(otherName, dk, bk) === "TRAINER") continue;
+          // Training restriction
           if (traineeBlocked(sdName, dk, bk, needCh.toUpperCase())) continue;
           if (traineeBlocked(otherName, dk, bk, currentCh.toUpperCase())) continue;
 
@@ -3857,6 +4474,7 @@ for (const u of finalUnassigned) {
               if (!nm || nm === overName || !groupPeople.has(nm)) continue;
               if (bd.ct.includes(nm)) continue;
               if (isTrainee(nm, dk, bk)) continue; // Trainees can't be moved to CT during training blocks
+              if (getTrainingStatus(nm, dk, bk) === "TRAINER") continue; // Trainers can't be moved to CT during training blocks
               const uCT = ctCounts.get(nm) || 0;
               if (uCT >= underThresh) continue;
 
@@ -4604,6 +5222,8 @@ for (const u of finalUnassigned) {
         if (!nm) return false;
         if (ch === offenderChannel) return false; // same channel
         if (String(nm).toUpperCase() === offenderNameUpper) return false; // same person
+        // Skip candidates who are trainees/trainers on their protected channel
+        if (traineeBlocked(nm, v.dayKey, v.blockKey, offenderChannel)) return false;
         return true;
       });
 
@@ -4613,6 +5233,9 @@ for (const u of finalUnassigned) {
         if (_wouldCreateViolation(candName, v.dayKey, v.blockIdx, offenderChannel)) continue;
         // Would the swap create a violation for the offender?
         if (_wouldCreateViolation(offenderOrigName, v.dayKey, v.blockIdx, candChannel)) continue;
+        // Don't swap trainee/trainer to a disallowed channel
+        if (traineeBlocked(offenderOrigName, v.dayKey, v.blockKey, candChannel)) continue;
+        if (traineeBlocked(candName, v.dayKey, v.blockKey, offenderChannel)) continue;
 
         // Perform the swap
         blockData.assignments[offenderChannel] = candName;
@@ -4631,6 +5254,7 @@ for (const u of finalUnassigned) {
 
   // ========== TRAINEE CORRECTION PASS ==========
   // After ALL balancing, scan every block and fix any trainee still on a disallowed channel or CT
+  // Uses sticky channel from traineeStickyChannel map to prefer the correct channel
   {
     const _tcOkSet = new Set(["EAST","SOUTH","WEST","CENTRAL"]);
     const _tcAllowed = ["East","South","West","Central"];
@@ -4639,6 +5263,7 @@ for (const u of finalUnassigned) {
       const _tcDk = ymd(_tcDate);
       const _tcDayData = plan.days[_tcDk];
       if (!_tcDayData) continue;
+      const _tcStickyMap = traineeStickyChannel.get(_tcDk); // Map(name -> "East"|"South"|...)
       for (const _tcBlk of BLOCKS) {
         const _tcBd = _tcDayData[_tcBlk.key];
         if (!_tcBd) continue;
@@ -4648,62 +5273,156 @@ for (const u of finalUnassigned) {
           if (!nm) continue;
           if (!isTrainee(nm, _tcDk, _tcBlk.key)) continue;
           if (_tcOkSet.has(ch.toUpperCase())) continue; // Already on allowed channel
-          // Trainee on disallowed channel — try to swap with non-trainee on allowed channel
+
+          // Determine preferred sticky channel
+          const _tcSticky = _tcStickyMap ? _tcStickyMap.get(nm) : null;
+
+          // Try sticky channel first
           let _tcFixed = false;
-          for (const _tcCh of _tcAllowed) {
-            const _tcHolder = _tcBd.assignments[_tcCh];
+          if (_tcSticky) {
+            const _tcHolder = _tcBd.assignments[_tcSticky];
             if (!_tcHolder) {
-              // Empty allowed slot — just move
-              _tcBd.assignments[_tcCh] = nm;
-              _tcBd.assignments[ch] = null;
-              _tcFixed = true;
-              break;
+              _tcBd.assignments[_tcSticky] = nm; _tcBd.assignments[ch] = null; _tcFixed = true;
+            } else if (!isTrainee(_tcHolder, _tcDk, _tcBlk.key)) {
+              _tcBd.assignments[_tcSticky] = nm; _tcBd.assignments[ch] = _tcHolder; _tcFixed = true;
             }
-            if (isTrainee(_tcHolder, _tcDk, _tcBlk.key)) continue;
-            // Swap trainee into allowed channel, push holder to disallowed
-            _tcBd.assignments[_tcCh] = nm;
-            _tcBd.assignments[ch] = _tcHolder;
-            _tcFixed = true;
-            break;
+          }
+          // Fallback: any allowed channel (protect trainees AND trainers from being displaced)
+          if (!_tcFixed) {
+            for (const _tcCh of _tcAllowed) {
+              const _tcHolder = _tcBd.assignments[_tcCh];
+              if (!_tcHolder) {
+                _tcBd.assignments[_tcCh] = nm; _tcBd.assignments[ch] = null; _tcFixed = true; break;
+              }
+              if (isTrainee(_tcHolder, _tcDk, _tcBlk.key)) continue;
+              if (getTrainingStatus(_tcHolder, _tcDk, _tcBlk.key) === "TRAINER") continue;
+              _tcBd.assignments[_tcCh] = nm; _tcBd.assignments[ch] = _tcHolder; _tcFixed = true; break;
+            }
           }
           if (!_tcFixed) {
-            // Last resort: move trainee to CT-free — put in empty allowed or leave (don't push to CT)
-            _tcBd.assignments[ch] = null;
-            // Try one more time for any empty allowed slot
+            // Last resort: only move if we can place on an allowed channel — never leave UNASSIGNED
             for (const _tcCh of _tcAllowed) {
               if (!_tcBd.assignments[_tcCh]) {
-                _tcBd.assignments[_tcCh] = nm;
-                break;
+                _tcBd.assignments[_tcCh] = nm; _tcBd.assignments[ch] = null; _tcFixed = true; break;
+              }
+            }
+            // If still can't place (all E/S/W/C occupied by trainees/trainers), leave in place
+            // — being on wrong channel is better than UNASSIGNED
+          }
+        }
+
+        // Fix trainees in CT — move to allowed channel (prefer sticky) if possible
+        if (_tcBd.ct && _tcBd.ct.length > 0) {
+          for (let _ci = _tcBd.ct.length - 1; _ci >= 0; _ci--) {
+            const _ctName = _tcBd.ct[_ci];
+            if (!isTrainee(_ctName, _tcDk, _tcBlk.key)) continue;
+
+            // Determine preferred sticky channel
+            const _ctSticky = _tcStickyMap ? _tcStickyMap.get(_ctName) : null;
+            let _ctFixed = false;
+
+            // Try sticky channel first
+            if (_ctSticky) {
+              const _ctHolder = _tcBd.assignments[_ctSticky];
+              if (!_ctHolder) {
+                _tcBd.assignments[_ctSticky] = _ctName; _tcBd.ct.splice(_ci, 1); _ctFixed = true;
+              } else if (!isTrainee(_ctHolder, _tcDk, _tcBlk.key)) {
+                _tcBd.assignments[_ctSticky] = _ctName; _tcBd.ct[_ci] = _ctHolder; _ctFixed = true;
+              }
+            }
+            // Fallback: any allowed channel
+            if (!_ctFixed) {
+              for (const _tcCh of _tcAllowed) {
+                if (!_tcBd.assignments[_tcCh]) {
+                  _tcBd.assignments[_tcCh] = _ctName; _tcBd.ct.splice(_ci, 1); _ctFixed = true; break;
+                }
+              }
+            }
+            if (!_ctFixed) {
+              for (const _tcCh of _tcAllowed) {
+                const _tcHolder = _tcBd.assignments[_tcCh];
+                if (!_tcHolder) continue;
+                if (isTrainee(_tcHolder, _tcDk, _tcBlk.key)) continue;
+                if (getTrainingStatus(_tcHolder, _tcDk, _tcBlk.key) === "TRAINER") continue;
+                _tcBd.assignments[_tcCh] = _ctName; _tcBd.ct[_ci] = _tcHolder; _ctFixed = true; break;
+              }
+            }
+            // If still not fixed, trainee stays in CT — better than UNASSIGNED
+          }
+        }
+      }
+    }
+  }
+  // ========== END TRAINEE CORRECTION PASS ==========
+
+  // ========== TRAINER (MIRROR) CORRECTION PASS ==========
+  // After all balancing, fix trainers on wrong channel or in CT during training blocks
+  {
+    const _trcOkSet = new Set(["EAST","SOUTH","WEST","CENTRAL"]);
+    for (let _trcDay = 1; _trcDay <= daysInMonth; _trcDay++) {
+      const _trcDate = new Date(year, monthIndex, _trcDay, 12, 0, 0, 0);
+      const _trcDk = ymd(_trcDate);
+      const _trcDayData = plan.days[_trcDk];
+      if (!_trcDayData) continue;
+      const _trcStickyMap = trainerStickyChannel.get(_trcDk); // Map(trainerName -> "East"|"South"|...)
+      for (const _trcBlk of BLOCKS) {
+        const _trcBd = _trcDayData[_trcBlk.key];
+        if (!_trcBd) continue;
+
+        // Fix trainers on wrong channels during training blocks
+        for (const [ch, nm] of Object.entries(_trcBd.assignments || {})) {
+          if (!nm) continue;
+          if (getTrainingStatus(nm, _trcDk, _trcBlk.key) !== "TRAINER") continue;
+          const _trcSticky = _trcStickyMap ? _trcStickyMap.get(nm) : null;
+          if (!_trcSticky) continue;
+          if (ch.toUpperCase() === _trcSticky.toUpperCase()) continue;
+          // Trainer is on wrong channel — move to sticky
+          let _trcFixed = false;
+          const _trcHolder = _trcBd.assignments[_trcSticky];
+          if (!_trcHolder) {
+            _trcBd.assignments[_trcSticky] = nm; _trcBd.assignments[ch] = null; _trcFixed = true;
+          } else if (getTrainingStatus(_trcHolder, _trcDk, _trcBlk.key) !== "TRAINER" && !isTrainee(_trcHolder, _trcDk, _trcBlk.key)) {
+            _trcBd.assignments[_trcSticky] = nm; _trcBd.assignments[ch] = _trcHolder; _trcFixed = true;
+          }
+          // Fallback: if sticky channel blocked by trainee/trainer, try any other E/S/W/C
+          if (!_trcFixed) {
+            for (const _fbCh of ["East","South","West","Central"]) {
+              if (_fbCh.toUpperCase() === _trcSticky.toUpperCase()) continue; // already tried
+              if (_fbCh.toUpperCase() === ch.toUpperCase()) continue; // already on this
+              const _fbHolder = _trcBd.assignments[_fbCh];
+              if (!_fbHolder) { _trcBd.assignments[_fbCh] = nm; _trcBd.assignments[ch] = null; _trcFixed = true; break; }
+              if (getTrainingStatus(_fbHolder, _trcDk, _trcBlk.key) !== "TRAINER" && !isTrainee(_fbHolder, _trcDk, _trcBlk.key)) {
+                _trcBd.assignments[_fbCh] = nm; _trcBd.assignments[ch] = _fbHolder; _trcFixed = true; break;
               }
             }
           }
         }
 
-        // Fix trainees in CT — move to allowed channel if possible
-        if (_tcBd.ct && _tcBd.ct.length > 0) {
-          for (let _ci = _tcBd.ct.length - 1; _ci >= 0; _ci--) {
-            const _ctName = _tcBd.ct[_ci];
-            if (!isTrainee(_ctName, _tcDk, _tcBlk.key)) continue;
-            // Trainee on CT — try empty allowed channel
+        // Fix trainers in CT during training blocks
+        if (_trcBd.ct && _trcBd.ct.length > 0) {
+          for (let _ci = _trcBd.ct.length - 1; _ci >= 0; _ci--) {
+            const _ctNm = _trcBd.ct[_ci];
+            if (!_ctNm || getTrainingStatus(_ctNm, _trcDk, _trcBlk.key) !== "TRAINER") continue;
+            const _trcSticky = _trcStickyMap ? _trcStickyMap.get(_ctNm) : null;
             let _ctFixed = false;
-            for (const _tcCh of _tcAllowed) {
-              if (!_tcBd.assignments[_tcCh]) {
-                _tcBd.assignments[_tcCh] = _ctName;
-                _tcBd.ct.splice(_ci, 1);
-                _ctFixed = true;
-                break;
+            // Try sticky channel first (if available)
+            if (_trcSticky) {
+              const _trcHolder = _trcBd.assignments[_trcSticky];
+              if (!_trcHolder) {
+                _trcBd.assignments[_trcSticky] = _ctNm; _trcBd.ct.splice(_ci, 1); _ctFixed = true;
+              } else if (getTrainingStatus(_trcHolder, _trcDk, _trcBlk.key) !== "TRAINER" && !isTrainee(_trcHolder, _trcDk, _trcBlk.key)) {
+                _trcBd.assignments[_trcSticky] = _ctNm; _trcBd.ct[_ci] = _trcHolder; _ctFixed = true;
               }
             }
+            // Fallback: any E/S/W/C channel
             if (!_ctFixed) {
-              // Swap with non-trainee on allowed channel → push them to CT
-              for (const _tcCh of _tcAllowed) {
-                const _tcHolder = _tcBd.assignments[_tcCh];
-                if (!_tcHolder) continue;
-                if (isTrainee(_tcHolder, _tcDk, _tcBlk.key)) continue;
-                _tcBd.assignments[_tcCh] = _ctName;
-                _tcBd.ct[_ci] = _tcHolder;
-                _ctFixed = true;
-                break;
+              for (const _fbCh of ["East","South","West","Central"]) {
+                if (_trcSticky && _fbCh.toUpperCase() === _trcSticky.toUpperCase()) continue;
+                const _fbHolder = _trcBd.assignments[_fbCh];
+                if (!_fbHolder) { _trcBd.assignments[_fbCh] = _ctNm; _trcBd.ct.splice(_ci, 1); _ctFixed = true; break; }
+                if (getTrainingStatus(_fbHolder, _trcDk, _trcBlk.key) !== "TRAINER" && !isTrainee(_fbHolder, _trcDk, _trcBlk.key)) {
+                  _trcBd.assignments[_fbCh] = _ctNm; _trcBd.ct[_ci] = _fbHolder; _ctFixed = true; break;
+                }
               }
             }
           }
@@ -4711,7 +5430,144 @@ for (const u of finalUnassigned) {
       }
     }
   }
-  // ========== END TRAINEE CORRECTION PASS ==========
+  // ========== END TRAINER CORRECTION PASS ==========
+
+  // ========== NUCLEAR FINAL PASS: Absolute guarantee for trainees/trainers ==========
+  // After ALL other passes, scan every block and force-fix any remaining issues.
+  // This is the last line of defense — nothing runs after this before savePlan.
+  {
+    const _nfOkSet = new Set(["EAST","SOUTH","WEST","CENTRAL"]);
+    const _nfAllowed = ["East","South","West","Central"];
+    const _nfPoolRaw = {}; // dayKey -> poolAll (cached)
+    for (let _nfDay = 1; _nfDay <= daysInMonth; _nfDay++) {
+      const _nfDate = new Date(year, monthIndex, _nfDay, 12, 0, 0, 0);
+      const _nfDk = ymd(_nfDate);
+      const _nfDayData = plan.days[_nfDk];
+      if (!_nfDayData) continue;
+      // 0) Hard scrub: remove mirror trainees from ALL assignments/CT for this day
+      const _nfMirScrub = getMirrorTraineeNames(_nfDk);
+      if (_nfMirScrub.size > 0) {
+        for (const _nfBlkS of BLOCKS) {
+          const _nfBdS = _nfDayData[_nfBlkS.key];
+          if (!_nfBdS) continue;
+          for (const [ch, nm] of Object.entries(_nfBdS.assignments || {})) {
+            if (nm && _nfMirScrub.has(String(nm).toUpperCase())) _nfBdS.assignments[ch] = null;
+          }
+          if (_nfBdS.ct) {
+            for (let _si = _nfBdS.ct.length - 1; _si >= 0; _si--) {
+              if (_nfBdS.ct[_si] && _nfMirScrub.has(String(_nfBdS.ct[_si]).toUpperCase())) _nfBdS.ct.splice(_si, 1);
+            }
+          }
+        }
+      }
+      // Build pool for this day (for UNASSIGNED detection)
+      // Mirror trainees already excluded at source (buildDispatcherPoolForDate)
+      if (!_nfPoolRaw[_nfDk]) {
+        _nfPoolRaw[_nfDk] = buildDispatcherPoolForDate(_nfDate);
+      }
+      const _nfPool = _nfPoolRaw[_nfDk];
+      const _nfTraineeStickyMap = traineeStickyChannel.get(_nfDk);
+      const _nfTrainerStickyMap = trainerStickyChannel.get(_nfDk);
+      for (const _nfBlk of BLOCKS) {
+        const _nfBd = _nfDayData[_nfBlk.key];
+        if (!_nfBd) continue;
+        // Collect all assigned names for this block
+        const _nfAssigned = new Set();
+        for (const [, nm] of Object.entries(_nfBd.assignments || {})) { if (nm) _nfAssigned.add(String(nm).toUpperCase()); }
+        for (const nm of (_nfBd.ct || [])) { if (nm) _nfAssigned.add(String(nm).toUpperCase()); }
+        for (const nm of (_nfBd.sd || [])) { if (nm) _nfAssigned.add(String(nm).toUpperCase()); }
+
+        // 1) Fix trainees on wrong channels
+        for (const [ch, nm] of Object.entries(_nfBd.assignments || {})) {
+          if (!nm) continue;
+          if (!isTrainee(nm, _nfDk, _nfBlk.key)) continue;
+          if (_nfOkSet.has(ch.toUpperCase())) continue;
+          // Trainee on wrong channel — force to sticky or any E/S/W/C
+          let _nfSticky = _nfTraineeStickyMap ? _nfTraineeStickyMap.get(nm) : null;
+          let _nfTargets = _nfSticky ? [_nfSticky, ..._nfAllowed.filter(c => c !== _nfSticky)] : [..._nfAllowed];
+          let _nfFixed = false;
+          for (const _tc of _nfTargets) {
+            const _h = _nfBd.assignments[_tc];
+            if (!_h) { _nfBd.assignments[_tc] = nm; _nfBd.assignments[ch] = null; _nfFixed = true; break; }
+            if (!isTrainee(_h, _nfDk, _nfBlk.key) && getTrainingStatus(_h, _nfDk, _nfBlk.key) !== "TRAINER") {
+              _nfBd.assignments[_tc] = nm; _nfBd.assignments[ch] = _h; _nfFixed = true; break;
+            }
+          }
+        }
+        // 2) Fix trainers on wrong channels
+        for (const [ch, nm] of Object.entries(_nfBd.assignments || {})) {
+          if (!nm) continue;
+          if (getTrainingStatus(nm, _nfDk, _nfBlk.key) !== "TRAINER") continue;
+          if (_nfOkSet.has(ch.toUpperCase())) continue;
+          let _nfSticky = _nfTrainerStickyMap ? _nfTrainerStickyMap.get(nm) : null;
+          let _nfTargets = _nfSticky ? [_nfSticky, ..._nfAllowed.filter(c => c !== _nfSticky)] : [..._nfAllowed];
+          for (const _tc of _nfTargets) {
+            const _h = _nfBd.assignments[_tc];
+            if (!_h) { _nfBd.assignments[_tc] = nm; _nfBd.assignments[ch] = null; break; }
+            if (!isTrainee(_h, _nfDk, _nfBlk.key) && getTrainingStatus(_h, _nfDk, _nfBlk.key) !== "TRAINER") {
+              _nfBd.assignments[_tc] = nm; _nfBd.assignments[ch] = _h; break;
+            }
+          }
+        }
+        // 3) Fix trainees in CT
+        if (_nfBd.ct) {
+          for (let _ci = _nfBd.ct.length - 1; _ci >= 0; _ci--) {
+            const _cn = _nfBd.ct[_ci];
+            if (!_cn || !isTrainee(_cn, _nfDk, _nfBlk.key)) continue;
+            let _nfSticky = _nfTraineeStickyMap ? _nfTraineeStickyMap.get(_cn) : null;
+            let _nfTargets = _nfSticky ? [_nfSticky, ..._nfAllowed.filter(c => c !== _nfSticky)] : [..._nfAllowed];
+            for (const _tc of _nfTargets) {
+              const _h = _nfBd.assignments[_tc];
+              if (!_h) { _nfBd.assignments[_tc] = _cn; _nfBd.ct.splice(_ci, 1); break; }
+              if (!isTrainee(_h, _nfDk, _nfBlk.key) && getTrainingStatus(_h, _nfDk, _nfBlk.key) !== "TRAINER") {
+                _nfBd.assignments[_tc] = _cn; _nfBd.ct[_ci] = _h; break;
+              }
+            }
+          }
+        }
+        // 4) Fix trainers in CT
+        if (_nfBd.ct) {
+          for (let _ci = _nfBd.ct.length - 1; _ci >= 0; _ci--) {
+            const _cn = _nfBd.ct[_ci];
+            if (!_cn || getTrainingStatus(_cn, _nfDk, _nfBlk.key) !== "TRAINER") continue;
+            let _nfSticky = _nfTrainerStickyMap ? _nfTrainerStickyMap.get(_cn) : null;
+            let _nfTargets = _nfSticky ? [_nfSticky, ..._nfAllowed.filter(c => c !== _nfSticky)] : [..._nfAllowed];
+            for (const _tc of _nfTargets) {
+              const _h = _nfBd.assignments[_tc];
+              if (!_h) { _nfBd.assignments[_tc] = _cn; _nfBd.ct.splice(_ci, 1); break; }
+              if (!isTrainee(_h, _nfDk, _nfBlk.key) && getTrainingStatus(_h, _nfDk, _nfBlk.key) !== "TRAINER") {
+                _nfBd.assignments[_tc] = _cn; _nfBd.ct[_ci] = _h; break;
+              }
+            }
+          }
+        }
+        // 5) Fix UNASSIGNED trainees/trainers — people who work this block but aren't assigned anywhere
+        const _nfAssignedAfter = new Set();
+        for (const [, nm] of Object.entries(_nfBd.assignments || {})) { if (nm) _nfAssignedAfter.add(String(nm).toUpperCase()); }
+        for (const nm of (_nfBd.ct || [])) { if (nm) _nfAssignedAfter.add(String(nm).toUpperCase()); }
+        for (const nm of (_nfBd.sd || [])) { if (nm) _nfAssignedAfter.add(String(nm).toUpperCase()); }
+        for (const _nfP of _nfPool) {
+          if (!worksBlock(_nfP, _nfDate, _nfBlk)) continue;
+          if (_nfAssignedAfter.has(_nfP.name.toUpperCase())) continue;
+          const _isT = isTrainee(_nfP.name, _nfDk, _nfBlk.key);
+          const _isTR = getTrainingStatus(_nfP.name, _nfDk, _nfBlk.key) === "TRAINER";
+          if (!_isT && !_isTR) continue; // Only rescue trainees/trainers
+          let _nfSticky = null;
+          if (_isT && _nfTraineeStickyMap) _nfSticky = _nfTraineeStickyMap.get(_nfP.name);
+          if (_isTR && _nfTrainerStickyMap) _nfSticky = _nfTrainerStickyMap.get(_nfP.name);
+          let _nfTargets = _nfSticky ? [_nfSticky, ..._nfAllowed.filter(c => c !== _nfSticky)] : [..._nfAllowed];
+          for (const _tc of _nfTargets) {
+            const _h = _nfBd.assignments[_tc];
+            if (!_h) { _nfBd.assignments[_tc] = _nfP.name; break; }
+            if (!isTrainee(_h, _nfDk, _nfBlk.key) && getTrainingStatus(_h, _nfDk, _nfBlk.key) !== "TRAINER") {
+              _nfBd.assignments[_tc] = _nfP.name; _nfBd.ct.push(_h); break;
+            }
+          }
+        }
+      }
+    }
+  }
+  // ========== END NUCLEAR FINAL PASS ==========
 
   savePlan(plan);
 
@@ -4998,6 +5854,10 @@ function randomizeMonthB(year, monthIndex) { return randomizeMonth(year, monthIn
           if (!disp) continue;
           if (!worksBlock(disp, dateObj, b)) continue;
 
+          // Don't assign to SD if this person is a TRAINER or TRAINEE during a training block
+          if (getTrainingStatus(sdName, dayKey, b.key) === "TRAINER") continue;
+          if (isTrainee(sdName, dayKey, b.key)) continue;
+
           // Assign to SD
           dayMap.get(b.key).push(sdName);
           sdBlocksThisWeek.set(sdName, weeklyBlocks + 1);
@@ -5095,7 +5955,9 @@ function updateStreaks(name, assignedChannel){
     if (!dayChannelsWorked.has(dayKey)) dayChannelsWorked.set(dayKey, new Map());
     const todayChannels = dayChannelsWorked.get(dayKey); // Map(name -> Set of channels)
 
-const poolAll = buildDispatcherPoolForDate(dateObj);
+const poolAllRaw2 = buildDispatcherPoolForDate(dateObj);
+    const mirrorExcluded2 = getMirrorTraineeNames(dayKey);
+    const poolAll = poolAllRaw2.filter(d => !mirrorExcluded2.has(d.name.toUpperCase()));
 
     for (let bi=0; bi<BLOCKS.length; bi++) {
       const b = BLOCKS[bi];
@@ -5175,6 +6037,38 @@ const poolAll = buildDispatcherPoolForDate(dateObj);
         if (!isTrainee(candName, dayKey, blockKey)) return true; // Only restrict during training blocks
         return TRAINEE_ALLOWED_CHANNELS.has(channelUpper);
       }
+
+      // ========== TRAINEE PRE-ASSIGNMENT (PASS 2) ==========
+      const traineeProtected = new Set();
+      {
+        const _stickyMapTP2 = traineeStickyChannel.get(dayKey);
+        if (_stickyMapTP2) {
+          for (const [traineeName, stickyChannel] of _stickyMapTP2) {
+            const cand = shuffled.find(c => c.name === traineeName && !usedNames.has(c.name));
+            if (!cand) continue;
+            if (!isTrainee(traineeName, dayKey, b.key)) continue;
+            const matchCh = CHANNELS.find(c => String(c).toUpperCase() === stickyChannel.toUpperCase());
+            if (!matchCh) continue;
+            if (assignments[matchCh]) continue;
+
+            assignments[matchCh] = traineeName;
+            usedNames.add(traineeName);
+            lastAssign.set(traineeName, matchCh);
+            if (!todayChannels.has(traineeName)) todayChannels.set(traineeName, new Set());
+            todayChannels.get(traineeName).add(stickyChannel.toUpperCase());
+            if (!channelCycle.has(traineeName)) channelCycle.set(traineeName, new Set());
+            channelCycle.get(traineeName).add(matchCh);
+            if (!channelCounts.has(traineeName)) channelCounts.set(traineeName, new Map());
+            const m = channelCounts.get(traineeName);
+            m.set(matchCh, (m.get(matchCh) || 0) + 1);
+            updateStreaks(traineeName, stickyChannel.toUpperCase());
+            const nd = getNeeds(wk, traineeName);
+            if (nd.primary > 0) nd.primary--;
+            traineeProtected.add(traineeName);
+          }
+        }
+      }
+      // ========== END TRAINEE PRE-ASSIGNMENT (PASS 2) ==========
 
       // ========== B2B PRE-ASSIGNMENT ==========
       // Before main channel loop, pre-assign b2b for primary channels when it helps fairness.
@@ -5267,7 +6161,7 @@ const poolAll = buildDispatcherPoolForDate(dateObj);
       // ========== END B2B PRE-ASSIGNMENT ==========
 
       for (const ch of CHANNELS) {
-  // Skip channels already filled by b2b pre-assignment
+  // Skip channels already filled by pre-assignment
   if (assignments[ch]) {
     // Still need to clear mustGetChannelNextBlock for anyone who got their channel
     continue;
@@ -5698,7 +6592,7 @@ const filled = Object.keys(assignments).length;
 
       if (isFriOrSat && is7thBlock && filled >= 10) {
         // Find someone for 7th channel from remaining available
-        const remaining7th = shuffled.filter(c => !usedNames.has(c.name) && !isTrainee(c.name, dayKey, b.key));
+        const remaining7th = shuffled.filter(c => !usedNames.has(c.name) && !isTrainee(c.name, dayKey, b.key) && getTrainingStatus(c.name, dayKey, b.key) !== "TRAINER");
 
         // Sort by fewest total assignments (fairness)
         remaining7th.sort((a,b2)=>{
@@ -5784,7 +6678,9 @@ if (available.length > 10) {
       const ctrSet = new Set(["CT","RELIEF 1","RELIEF 2","R1","R2"]);
       if (ctrSet.has(holderLastUpper)) continue; // Holder can't go to CT
       if (mustGetChannelNextBlock.has(cur)) continue; // Holder also needs a channel
-      if (b2bProtected.has(cur)) continue; // Don't undo b2b pre-assignments
+      if (b2bProtected.has(cur) || traineeProtected.has(cur) || trainerProtected.has(cur)) continue; // Don't undo pre-assignments
+      if (isTrainee(cur, dayKey, b.key)) continue; // Don't displace trainees from their channel
+      if (getTrainingStatus(cur, dayKey, b.key) === "TRAINER") continue; // Don't displace trainers
 
       // Swap: cand gets channel, cur goes to CT pool
       assignments[ch] = cand.name;
@@ -5819,7 +6715,9 @@ if (available.length > 10) {
 
       // only swap out someone who is NOT capped
       if (atOrOverCap(cur)) continue;
-      if (b2bProtected.has(cur)) continue; // Don't undo b2b pre-assignments
+      if (b2bProtected.has(cur) || traineeProtected.has(cur) || trainerProtected.has(cur)) continue; // Don't undo pre-assignments
+      if (isTrainee(cur, dayKey, b.key)) continue; // Don't displace trainees
+      if (getTrainingStatus(cur, dayKey, b.key) === "TRAINER") continue; // Don't displace trainers
       if (!canTakeChannel(cand.name, ch)) continue;
       if (!canTraineeWork(cand.name, String(ch).toUpperCase(), b.key)) continue;
 
@@ -5881,8 +6779,9 @@ if (available.length > 10) {
 
   for (const cand of remaining) {
     const name = cand.name;
-    // Training restriction: trainees should not be assigned to CT (date-only, all blocks)
+    // Training restriction: trainees and trainers should not be on CT during training blocks
     if (isTrainee(name, dayKey, b.key)) { continue; }
+    if (getTrainingStatus(name, dayKey, b.key) === "TRAINER") { continue; }
 
     // CT/Relief back-to-back is now allowed (weekly caps enforce limits)
 
@@ -5968,7 +6867,7 @@ for (const u of unassigned) {
       for (const ch of CHANNELS) {
         const currentHolder = assignments[ch];
         if (!currentHolder) continue;
-        if (b2bProtected.has(currentHolder)) continue; // Don't undo b2b pre-assignments
+        if (b2bProtected.has(currentHolder) || traineeProtected.has(currentHolder) || trainerProtected.has(currentHolder)) continue; // Don't undo pre-assignments
         if (isTrainee(currentHolder, dayKey, b.key)) continue; // Don't push trainee to CT during training blocks
         const chUpper = String(ch).toUpperCase();
         if (chUpper === "RELIEF 1" || chUpper === "RELIEF 2") continue;
@@ -6027,7 +6926,7 @@ for (const u of unassigned) {
       for (const ch of CHANNELS) {
         const currentHolder = assignments[ch];
         if (!currentHolder) continue;
-        if (b2bProtected.has(currentHolder)) continue; // Don't undo b2b pre-assignments
+        if (b2bProtected.has(currentHolder) || traineeProtected.has(currentHolder) || trainerProtected.has(currentHolder)) continue; // Don't undo pre-assignments
         if (isTrainee(currentHolder, dayKey, b.key)) continue; // Don't push trainee to CT during training blocks
         const chUpper = String(ch).toUpperCase();
         if (chUpper === "RELIEF 1" || chUpper === "RELIEF 2") continue;
@@ -6082,12 +6981,14 @@ for (const u of unassigned) {
 
     // THIRD ATTEMPT: Allow swapping with someone OVER cap (uneven CT is better than violation)
     // Sort by CT count to prefer swapping with lowest CT person even if over cap
+    // traineeProtected NOT checked here — preventing a violation is more important;
+    // the trainee rescue logic below will re-place the displaced trainee.
     if (!foundChannel) {
       const swapCandidates = [];
       for (const ch of CHANNELS) {
         const currentHolder = assignments[ch];
         if (!currentHolder) continue;
-        if (b2bProtected.has(currentHolder)) continue; // Don't undo b2b pre-assignments
+        if (b2bProtected.has(currentHolder) || trainerProtected.has(currentHolder)) continue; // Don't undo pre-assignments
         if (isTrainee(currentHolder, dayKey, b.key)) continue; // Don't push trainee to CT during training blocks
         const chUpper = String(ch).toUpperCase();
         if (chUpper === "RELIEF 1" || chUpper === "RELIEF 2") continue;
@@ -6254,13 +7155,14 @@ for (const u of finalUnassigned) {
         break;
       }
     }
-    // Try swapping with a non-trainee holder in an allowed channel (prefer under weekly CT cap)
+    // Try swapping with a non-trainee/non-trainer holder in an allowed channel (prefer under weekly CT cap)
     if (!_tPlaced) {
       const _tSwapCands = [];
       for (const _tCh of _tOk) {
         const _tH = assignments[_tCh];
         if (!_tH) continue;
         if (isTrainee(_tH, dayKey, b.key)) continue;
+        if (getTrainingStatus(_tH, dayKey, b.key) === "TRAINER") continue;
         const _tHwk = (ctWeekCounts.get(wk) || new Map()).get(_tH) || 0;
         _tSwapCands.push({ ch: _tCh, holder: _tH, wkCT: _tHwk });
       }
@@ -6295,6 +7197,16 @@ for (const u of finalUnassigned) {
   ctWeekCounts.set(wk, wkMapFinal);
 }
 
+      // Hard scrub: remove any mirror trainees from assignments/CT — they shadow, not dispatch
+      const _mirScrub = getMirrorTraineeNames(dayKey);
+      if (_mirScrub.size > 0) {
+        for (const [ch, nm] of Object.entries(assignments)) {
+          if (nm && _mirScrub.has(String(nm).toUpperCase())) assignments[ch] = null;
+        }
+        for (let _si = ct.length - 1; _si >= 0; _si--) {
+          if (ct[_si] && _mirScrub.has(String(ct[_si]).toUpperCase())) ct.splice(_si, 1);
+        }
+      }
       plan.days[dayKey][b.key] = { assignments, sd, ct, filled, needed: 10 };
     }
   }
@@ -6965,7 +7877,11 @@ function renderDay(dayKey) {
       const abbr = chAbbrev[ch] || ch;
       const isOT = nm && (entry.ot || []).some(n => String(n).toUpperCase() === nm.toUpperCase());
       const otTag = isOT ? `<span style="background:#ef4444; color:#fff; font-size:9px; font-weight:900; padding:1px 4px; border-radius:3px; margin-left:4px; letter-spacing:0.5px;">OT</span>` : '';
-      html += `<td>${ nm ? `<span class="assign-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" style="background:${bg}; cursor:pointer;"><b>${abbr}</b> ${escapeHtml(nm.toUpperCase())}${otTag}</span>` : `<span class="assign-cell needed-badge clickable-needed" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-type="channel" style="cursor:pointer;"><b>${abbr}</b> NEEDED</span>` }</td>`;
+      const isTrn = nm && isTrainee(nm, dayKey, b.key);
+      const trnTag = isTrn ? `<span style="position:absolute; left:3px; top:50%; transform:translateY(-50%); background:#a855f7; color:#fff; font-size:8px; font-weight:900; padding:1px 3px; border-radius:3px; letter-spacing:0.5px; line-height:1;">TR</span>` : '';
+      const _mirroree = (nm && getTrainingStatus(nm, dayKey, b.key) === "TRAINER") ? getMirrorTraineeForTrainer(nm, dayKey) : null;
+      const _mirrorTag = _mirroree ? `<span style="font-size:9px; color:#c084fc; margin-left:3px;">(+${escapeHtml(_mirroree)})</span>` : '';
+      html += `<td>${ nm ? `<span class="assign-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" style="background:${bg}; cursor:pointer;${isTrn ? ' position:relative;' : ''}">${trnTag}<b>${abbr}</b> ${escapeHtml(nm.toUpperCase())}${_mirrorTag}${otTag}</span>` : `<span class="assign-cell needed-badge clickable-needed" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-type="channel" style="cursor:pointer;"><b>${abbr}</b> NEEDED</span>` }</td>`;
     }
     html += "</tr>";
   }
@@ -7066,6 +7982,8 @@ function renderDay(dayKey) {
 
   // UNASSIGNED row: people scheduled to work but not in any channel/CT/SD
   html += `<tr><td class="sticky-col"><b style="color:rgba(200,200,210,.7);">UNASSIGNED</b></td>`;
+  // Mirror trainees already excluded at source (buildDispatcherPoolForDate treats them as calltakers)
+  const _poolRawDay = buildDispatcherPoolForDate(d);
   for (let bi=0; bi<BLOCKS.length; bi++) {
     const b = BLOCKS[bi];
     const entry = plan.days[dayKey][b.key];
@@ -7076,8 +7994,11 @@ function renderDay(dayKey) {
       for (const nm of (entry.ct||[])) { if (nm) assignedNames.add(String(nm).trim().toUpperCase()); }
       for (const nm of (entry.absent||[])) { assignedNames.add(String(nm).trim().toUpperCase()); }
     }
-    const pool = buildDispatcherPoolForDate(d);
-    const unassigned = pool.filter(p => worksBlock(p, d, b) && !assignedNames.has(String(p.name).trim().toUpperCase()));
+    const unassigned = _poolRawDay.filter(p => {
+      if (!worksBlock(p, d, b)) return false;
+      if (assignedNames.has(String(p.name).trim().toUpperCase())) return false;
+      return true;
+    });
     if (unassigned.length) {
       const items = unassigned.map(u =>
         `<div style="margin:1px 0;"><span class="assign-cell" style="background:rgba(200,200,210,.15); color:rgba(200,200,210,.7); font-weight:700; font-size:10px; border:1px solid rgba(200,200,210,.25); cursor:default;">${escapeHtml(String(u.name).toUpperCase())}</span></div>`
@@ -7666,7 +8587,9 @@ function renderWeek(anchorDayKey) {
         const abbr = channelAbbrev(ch);
         const _isOTw = nm && entry && (entry.ot || []).some(o => String(o).toUpperCase() === nm.toUpperCase());
         const _otW = _isOTw ? '<span style="background:#ef4444; color:#fff; font-size:8px; font-weight:900; padding:0px 3px; border-radius:2px; margin-left:3px;">OT</span>' : '';
-        html += `<td style="${db}">${nm ? `<span class="assign-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" style="background:${bg}; cursor:pointer; ${short?'outline:2px solid rgba(217,72,72,.6); outline-offset:1px;':''}">${abbr} ${escapeHtml(nm.toUpperCase())}${_otW}</span>` : `<span class="assign-cell needed-badge clickable-needed" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-type="channel" style="cursor:pointer;">${abbr} NEEDED</span>`}</td>`;
+        const _mirroreeW = (nm && getTrainingStatus(nm, dayKey, b.key) === "TRAINER") ? getMirrorTraineeForTrainer(nm, dayKey) : null;
+        const _mirrorTagW = _mirroreeW ? `<span style="font-size:8px; color:#c084fc; margin-left:2px;">(+${escapeHtml(_mirroreeW)})</span>` : '';
+        html += `<td style="${db}">${nm ? `<span class="assign-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" style="background:${bg}; cursor:pointer; ${short?'outline:2px solid rgba(217,72,72,.6); outline-offset:1px;':''}">${abbr} ${escapeHtml(nm.toUpperCase())}${_mirrorTagW}${_otW}</span>` : `<span class="assign-cell needed-badge clickable-needed" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-type="channel" style="cursor:pointer;">${abbr} NEEDED</span>`}</td>`;
       }
     }
     html += `</tr>`;
@@ -7784,6 +8707,8 @@ function renderWeek(anchorDayKey) {
   html += `<tr><td class="sticky-col"><b style="color:rgba(200,200,210,.7);">UNASSIGNED</b></td>`;
   for (const d of daysList) {
     const dayKey = ymd(d);
+    // Mirror trainees already excluded at source (buildDispatcherPoolForDate)
+    const _poolRawW = buildDispatcherPoolForDate(d);
     const blocks = plan.days[dayKey];
     for (const b of BLOCKS) {
       const db = _dbW(b);
@@ -7795,8 +8720,11 @@ function renderWeek(anchorDayKey) {
         for (const nm of (entry.ct||[])) { if (nm) assignedNames.add(String(nm).trim().toUpperCase()); }
         for (const nm of (entry.absent||[])) { assignedNames.add(String(nm).trim().toUpperCase()); }
       }
-      const pool = buildDispatcherPoolForDate(d);
-      const unassigned = pool.filter(p => worksBlock(p, d, b) && !assignedNames.has(String(p.name).trim().toUpperCase()));
+      const unassigned = _poolRawW.filter(p => {
+        if (!worksBlock(p, d, b)) return false;
+        if (assignedNames.has(String(p.name).trim().toUpperCase())) return false;
+        return true;
+      });
       if (unassigned.length) {
         const items = unassigned.map(u => `<div style="margin:1px 0"><span class="assign-cell" style="background:rgba(200,200,210,.15); color:rgba(200,200,210,.7); font-weight:700; font-size:10px; border:1px solid rgba(200,200,210,.25); cursor:default;">${escapeHtml(String(u.name).toUpperCase())}</span></div>`).join("");
         html += `<td style="${db}">${items}</td>`;
@@ -7975,7 +8903,9 @@ function renderMonth(year, monthIndex) {
         const isViolation = nm && violationCells.has(`${dayKey}|${b.key}|${nm.toUpperCase()}`);
         const _isOTm = nm && entry && (entry.ot || []).some(o => String(o).toUpperCase() === nm.toUpperCase());
         const _otM = _isOTm ? '<span style="background:#ef4444; color:#fff; font-size:7px; font-weight:900; padding:0px 2px; border-radius:2px; margin-left:2px;">OT</span>' : '';
-        html += `<td style="${db}">${nm ? `<span class="assign-cell month-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" data-emp="${escapeHtml(nm.toUpperCase())}" style="background:${bg}; cursor:pointer; ${short?'outline:2px solid rgba(217,72,72,.6); outline-offset:1px;':''}"><b>${chAbbr}</b> ${escapeHtml(nm.toUpperCase())}${_otM}</span>` : `<span class="assign-cell month-cell needed-badge clickable-needed" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-type="channel" style="cursor:pointer;"><b>${chAbbr}</b> NEEDED</span>`}</td>`;
+        const _mirroreeM = (nm && getTrainingStatus(nm, dayKey, b.key) === "TRAINER") ? getMirrorTraineeForTrainer(nm, dayKey) : null;
+        const _mirrorTagM = _mirroreeM ? `<span style="font-size:7px; color:#c084fc; margin-left:2px;">(+${escapeHtml(_mirroreeM)})</span>` : '';
+        html += `<td style="${db}">${nm ? `<span class="assign-cell month-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" data-emp="${escapeHtml(nm.toUpperCase())}" style="background:${bg}; cursor:pointer; ${short?'outline:2px solid rgba(217,72,72,.6); outline-offset:1px;':''}"><b>${chAbbr}</b> ${escapeHtml(nm.toUpperCase())}${_mirrorTagM}${_otM}</span>` : `<span class="assign-cell month-cell needed-badge clickable-needed" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-type="channel" style="cursor:pointer;"><b>${chAbbr}</b> NEEDED</span>`}</td>`;
       }
     }
     html += `</tr>`;
@@ -8093,6 +9023,8 @@ function renderMonth(year, monthIndex) {
   html += `<tr><td class="sticky-col"><b style="color:rgba(200,200,210,.7);">UNASSIGNED</b></td>`;
   for (const d of daysList) {
     const dayKey = ymd(d);
+    // Mirror trainees already excluded at source (buildDispatcherPoolForDate)
+    const _poolRawM = buildDispatcherPoolForDate(d);
     const blocks = plan.days[dayKey];
     for (const b of BLOCKS) {
       const db = _dbM(b);
@@ -8104,8 +9036,11 @@ function renderMonth(year, monthIndex) {
         for (const nm of (entry.ct||[])) { if (nm) assignedNames.add(String(nm).trim().toUpperCase()); }
         for (const nm of (entry.absent||[])) { assignedNames.add(String(nm).trim().toUpperCase()); }
       }
-      const pool = buildDispatcherPoolForDate(d);
-      const unassigned = pool.filter(p => worksBlock(p, d, b) && !assignedNames.has(String(p.name).trim().toUpperCase()));
+      const unassigned = _poolRawM.filter(p => {
+        if (!worksBlock(p, d, b)) return false;
+        if (assignedNames.has(String(p.name).trim().toUpperCase())) return false;
+        return true;
+      });
       if (unassigned.length) {
         const items = unassigned.map(u => `<div style="margin:2px 0"><span class="assign-cell month-cell" style="background:rgba(200,200,210,.15); color:rgba(200,200,210,.7); font-weight:700; font-size:9px; border:1px solid rgba(200,200,210,.25); cursor:default;">${escapeHtml(String(u.name).toUpperCase())}</span></div>`).join("");
         html += `<td style="${db}">${items}</td>`;
@@ -8562,6 +9497,47 @@ function initSelectors() {
   yearSel.value = String(now.getFullYear());
 }
 
+// Full channel options list — primary channels first, then others
+const _ALL_CH_OPTS = [
+  {val:"Auto",label:"Auto",group:"main"},
+  {val:"East",label:"East",group:"main"},{val:"South",label:"South",group:"main"},
+  {val:"West",label:"West",group:"main"},{val:"Central",label:"Central",group:"main"},
+  {val:"North",label:"North",group:"other"},{val:"Northwest",label:"Northwest",group:"other"},
+  {val:"DC1",label:"DC1",group:"other"},{val:"DC2",label:"DC2",group:"other"},
+  {val:"Relief 1",label:"Relief 1",group:"other"},{val:"Relief 2",label:"Relief 2",group:"other"},
+  {val:"7th",label:"7th",group:"other"},{val:"CT",label:"CT",group:"other"}
+];
+function _chOptHtml(selected) {
+  let h = '';
+  _ALL_CH_OPTS.forEach((co, ci) => {
+    if (ci === 5) h += '<option disabled>───────</option>';
+    h += `<option value="${co.val}" ${selected === co.val ? 'selected' : ''}>${co.label}</option>`;
+  });
+  return h;
+}
+
+// Helper: collect all blocks an employee works on any day of the week
+const _allDays = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
+const _shiftMap = {"6A-2P":[6,14],"6A-6P":[6,18],"10A-6P":[10,18],"10A-10P":[10,22],"2P-10P":[14,22],"6P-2A":[18,26],"6P-6A":[18,30],"10P-6A":[22,30],"2A-10A":[2,10]};
+function _getEmployeeBlocks(empName) {
+  const nm = String(empName||"").trim().toUpperCase();
+  const base = normalizeBase();
+  const row = base.find(r => String(r.Employee||"").trim().toUpperCase() === nm);
+  if (!row) return new Set(BLOCKS.map(b=>b.key));
+  const out = new Set();
+  for (const dn of _allDays) {
+    const shift = String(row[dn]||"").trim().toUpperCase();
+    if (!shift || shift === "OFF") continue;
+    const rng = _shiftMap[shift];
+    if (!rng) continue;
+    const [s, e] = rng;
+    for (const blk of BLOCKS) {
+      if (blk.start >= s && blk.end <= e) out.add(blk.key);
+    }
+  }
+  return out.size ? out : new Set(BLOCKS.map(b=>b.key));
+}
+
 function renderExceptions() {
   const wrap = document.getElementById("exceptionsWrap");
   if (!wrap) return;
@@ -8620,54 +9596,64 @@ function renderExceptions() {
     html += `<label data-block-key="${bo.key}" style="display:inline-flex; align-items:center; gap:3px; font-size:11px; padding:3px 8px; border-radius:5px; border:1px solid var(--line); cursor:pointer; user-select:none;"><input type="checkbox" class="trainee-block-cb" value="${bo.key}" style="margin:0;" />${bo.label}</label>`;
   });
   html += '</div></div>';
-  // Helper: collect all blocks an employee works on any day of the week
-  // Uses the same shift-to-hours map as worksBlock() so all shift types are handled
-  const _allDays = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
-  const _shiftMap = {"6A-2P":[6,14],"6A-6P":[6,18],"10A-6P":[10,18],"10A-10P":[10,22],"2P-10P":[14,22],"6P-2A":[18,26],"6P-6A":[18,30],"10P-6A":[22,30],"2A-10A":[2,10]};
-  function _getEmployeeBlocks(empName) {
-    const nm = String(empName||"").trim().toUpperCase();
-    const base = normalizeBase();
-    const row = base.find(r => String(r.Employee||"").trim().toUpperCase() === nm);
-    if (!row) return new Set(BLOCKS.map(b=>b.key)); // fallback: show all
-    const out = new Set();
-    for (const dn of _allDays) {
-      const shift = String(row[dn]||"").trim().toUpperCase();
-      if (!shift || shift === "OFF") continue;
-      const rng = _shiftMap[shift];
-      if (!rng) continue; // unknown shift — skip rather than showing all
-      const [s, e] = rng;
-      for (const blk of BLOCKS) {
-        if (blk.start >= s && blk.end <= e) out.add(blk.key);
-      }
-    }
-    return out.size ? out : new Set(BLOCKS.map(b=>b.key)); // fallback if nothing found
-  }
-
-  html += '<table style="width:100%; table-layout:fixed;"><thead><tr><th style="text-align:left; width:22%;">NAME</th><th style="width:14%;">FROM</th><th style="width:14%;">TO</th><th style="width:34%;">BLOCKS</th><th style="width:16%;"></th></tr></thead><tbody>';
-  // Show cross-month trainers first, then current month trainers
-  if (_crossMonthTraining.length) {
-    _crossMonthTraining.forEach((r) => {
-      const blocksLabel = (r.blocks && r.blocks.length > 0) ? r.blocks.map(k => { const m2 = _blockOpts.find(o=>o.key===k); return m2 ? m2.label : k; }).join(', ') : 'ALL';
-      const nameHtml = escapeHtml((r.name||"").toUpperCase()) + ' <span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(125,211,252,.12);color:#7dd3fc;border:1px solid rgba(125,211,252,.25);margin-left:4px;font-weight:800;">FROM ' + escapeHtml(r._crossMonth).toUpperCase() + '</span>';
-      html += `<tr style="opacity:.7;"><td style="text-align:left; font-weight:700;">${nameHtml}</td><td>${r.from||"—"}</td><td>${r.to||"rest of month"}</td><td style="font-size:10px;">${blocksLabel}</td><td></td></tr>`;
+  // Channel picker dropdown (all channels, primary at top)
+  html += '<div style="margin-bottom:10px;"><div style="font-size:9px; color:var(--muted); margin-bottom:4px;">CHANNEL (Auto = random rotation)</div>';
+  html += `<select id="traineeChannel" style="font-size:12px; padding:6px; border-radius:6px; background:var(--panel2); border:1px solid var(--line); color:var(--text);">${_chOptHtml('Auto')}</select>`;
+  html += '</div>';
+  html += '<table style="width:100%; table-layout:fixed;"><thead><tr><th style="text-align:left; width:20%;">NAME</th><th style="width:12%;">FROM</th><th style="width:12%;">TO</th><th style="width:24%;">BLOCKS</th><th style="width:12%;">CHANNEL</th><th style="width:20%;"></th></tr></thead><tbody>';
+  // Show cross-month + mirror trainers (with EDIT support via overrides)
+  const _base = normalizeBase();
+  const _extTrainers = _applyExtOverrides(_crossMonthTraining).concat(_applyExtOverrides(_mirrorTrainers));
+  if (_extTrainers.length) {
+    _extTrainers.forEach((r, ei) => {
+      const eid = 'ext-' + ei;
+      const _dayBlockKeys = r.dayBlocks ? Object.keys(r.dayBlocks) : [];
+      const blocksLabel = _dayBlockKeys.length > 0
+        ? `<span style="color:#fbbf24;">CUSTOM (${_dayBlockKeys.length} day${_dayBlockKeys.length>1?'s':''})</span>`
+        : (r.blocks && r.blocks.length > 0) ? r.blocks.map(k => { const m2 = _blockOpts.find(o=>o.key===k); return m2 ? m2.label : k; }).join(', ') : 'ALL';
+      let badge = '';
+      if (r._crossMonth) badge = ' <span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(125,211,252,.12);color:#7dd3fc;border:1px solid rgba(125,211,252,.25);margin-left:4px;font-weight:800;">FROM ' + escapeHtml(r._crossMonth).toUpperCase() + '</span>';
+      else if (r._mirror) badge = ' <span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(168,85,247,.15);color:#c084fc;border:1px solid rgba(168,85,247,.3);margin-left:4px;font-weight:800;">MIRROR \u2192 ' + escapeHtml(r._traineeName || '') + '</span>';
+      const nameHtml = escapeHtml((r.name||"").toUpperCase()) + badge;
+      // External trainer channel label
+      const _extDayChKeys = r.dayChannels ? Object.keys(r.dayChannels).filter(k => r.dayChannels[k] && r.dayChannels[k] !== 'Auto') : [];
+      const _extChColors = {East:'#34d399',South:'#60a5fa',West:'#f472b6',Central:'#fbbf24'};
+      let extChannelLabel;
+      if (_extDayChKeys.length > 0) {
+        const vals = new Set(_extDayChKeys.map(k => r.dayChannels[k]));
+        if (vals.size === 1 && (!r.channel || r.channel === 'Auto' || r.channel === [...vals][0])) {
+          const ch = [...vals][0]; extChannelLabel = `<span style="color:${_extChColors[ch]||'var(--text)'}; font-weight:700;">${ch.toUpperCase()}</span>`;
+        } else { extChannelLabel = '<span style="color:#fbbf24; font-weight:700;">CUSTOM</span>'; }
+      } else if (r.channel && r.channel !== 'Auto') {
+        extChannelLabel = `<span style="color:${_extChColors[r.channel]||'var(--text)'}; font-weight:700;">${r.channel.toUpperCase()}</span>`;
+      } else { extChannelLabel = '<span style="color:var(--muted);">AUTO</span>'; }
+      html += `<tr id="tr-row-${eid}" style="opacity:.7;"><td style="text-align:left; font-weight:700;">${nameHtml}</td><td>${r.from||"—"}</td><td>${r.to||"rest of month"}</td><td style="font-size:10px;">${blocksLabel}</td><td style="font-size:10px;">${extChannelLabel}</td><td style="white-space:nowrap;"><button class="btn secondary exc-edit-ext" data-eid="${ei}" style="font-size:10px; padding:3px 8px;">EDIT</button></td></tr>`;
     });
   }
   if (trainerRanges.length) {
     trainerRanges.forEach((r, idx) => {
-      const blocksLabel = (r.blocks && r.blocks.length > 0) ? r.blocks.map(k => { const m = _blockOpts.find(o=>o.key===k); return m ? m.label : k; }).join(', ') : 'ALL';
+      const _dayBlockKeys = r.dayBlocks ? Object.keys(r.dayBlocks) : [];
+      const blocksLabel = _dayBlockKeys.length > 0
+        ? `<span style="color:#fbbf24;">CUSTOM (${_dayBlockKeys.length} day${_dayBlockKeys.length>1?'s':''})</span>`
+        : (r.blocks && r.blocks.length > 0) ? r.blocks.map(k => { const m = _blockOpts.find(o=>o.key===k); return m ? m.label : k; }).join(', ') : 'ALL';
+      // Channel label
+      const _dayChKeys = r.dayChannels ? Object.keys(r.dayChannels).filter(k => r.dayChannels[k] && r.dayChannels[k] !== 'Auto') : [];
+      const _chColors = {East:'#34d399',South:'#60a5fa',West:'#f472b6',Central:'#fbbf24'};
+      let channelLabel;
+      if (_dayChKeys.length > 0) {
+        const vals = new Set(_dayChKeys.map(k => r.dayChannels[k]));
+        if (vals.size === 1 && (!r.channel || r.channel === 'Auto' || r.channel === [...vals][0])) {
+          const ch = [...vals][0]; channelLabel = `<span style="color:${_chColors[ch]||'var(--text)'}; font-weight:700;">${ch.toUpperCase()}</span>`;
+        } else { channelLabel = '<span style="color:#fbbf24; font-weight:700;">CUSTOM</span>'; }
+      } else if (r.channel && r.channel !== 'Auto') {
+        channelLabel = `<span style="color:${_chColors[r.channel]||'var(--text)'}; font-weight:700;">${r.channel.toUpperCase()}</span>`;
+      } else { channelLabel = '<span style="color:var(--muted);">AUTO</span>'; }
       // Normal display row
-      html += `<tr id="tr-row-${idx}"><td style="text-align:left; font-weight:700;">${escapeHtml((r.name||"").toUpperCase())}</td><td>${r.from||"—"}</td><td>${r.to||"rest of month"}</td><td style="font-size:10px;">${blocksLabel}</td><td style="white-space:nowrap;"><button class="btn secondary exc-edit-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px; margin-right:2px;">EDIT</button><button class="btn danger exc-del-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px;">X</button></td></tr>`;
-      // Inline edit row — all 6 checkboxes rendered; filtered at click time via data-emp
-      let editCbs = '';
-      _blockOpts.forEach(bo => {
-        const chk = (r.blocks && r.blocks.includes(bo.key)) ? 'checked' : '';
-        editCbs += `<label data-block-key="${bo.key}" style="display:inline-flex; align-items:center; gap:2px; font-size:10px; padding:2px 5px; border-radius:4px; border:1px solid var(--line); cursor:pointer; user-select:none;"><input type="checkbox" class="edit-block-cb-${idx}" value="${bo.key}" ${chk} style="margin:0;" />${bo.label}</label> `;
-      });
-      html += `<tr id="tr-edit-${idx}" style="display:none;"><td colspan="3" style="text-align:left; font-size:9px; color:var(--muted); padding:6px 0;">EDITING BLOCKS FOR <b>${escapeHtml((r.name||"").toUpperCase())}</b></td><td style="padding:6px 0;"><div style="display:flex; gap:3px; flex-wrap:wrap;">${editCbs}</div></td><td style="white-space:nowrap; padding:6px 0;"><button class="btn secondary exc-save-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px; margin-right:2px;">SAVE</button><button class="btn secondary exc-cancel-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px;">CANCEL</button></td></tr>`;
+      html += `<tr id="tr-row-${idx}"><td style="text-align:left; font-weight:700;">${escapeHtml((r.name||"").toUpperCase())}</td><td>${r.from||"—"}</td><td>${r.to||"rest of month"}</td><td style="font-size:10px;">${blocksLabel}</td><td style="font-size:10px;">${channelLabel}</td><td style="white-space:nowrap;"><button class="btn secondary exc-edit-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px; margin-right:2px;">EDIT</button><button class="btn danger exc-del-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px;">X</button></td></tr>`;
     });
   }
-  if (!trainerRanges.length && !_crossMonthTraining.length) {
-    html += '<tr><td colspan="5" style="color:var(--muted); font-size:11px;">No trainers.</td></tr>';
+  if (!trainerRanges.length && !_extTrainers.length) {
+    html += '<tr><td colspan="6" style="color:var(--muted); font-size:11px;">No trainers.</td></tr>';
   }
   html += '</tbody></table></div>';
 
@@ -8716,51 +9702,18 @@ function renderExceptions() {
       renderExceptions(); renderInfoStats();
     });
   });
-  // Wire edit buttons for trainers — toggles inline edit row, filters blocks at click time
+  // Wire edit buttons for trainers — opens modal
   wrap.querySelectorAll(".exc-edit-tr").forEach(btn => {
     btn.addEventListener("click", () => {
-      const i = btn.getAttribute("data-ti");
-      const row = document.getElementById("tr-row-" + i);
-      const edit = document.getElementById("tr-edit-" + i);
-      if (row) row.style.display = "none";
-      if (edit) {
-        edit.style.display = "";
-        // Filter checkboxes to only blocks this employee actually works
-        const empName = trainerRanges[Number(i)] ? trainerRanges[Number(i)].name : "";
-        const empBlocks = _getEmployeeBlocks(empName);
-        edit.querySelectorAll("label[data-block-key]").forEach(lbl => {
-          const bk = lbl.getAttribute("data-block-key");
-          if (empBlocks.has(bk)) {
-            lbl.style.display = "";
-          } else {
-            lbl.style.display = "none";
-            const cb = lbl.querySelector("input[type=checkbox]");
-            if (cb) cb.checked = false;
-          }
-        });
-      }
-    });
-  });
-  // Wire cancel buttons — hides edit row, shows normal row
-  wrap.querySelectorAll(".exc-cancel-tr").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const i = btn.getAttribute("data-ti");
-      const row = document.getElementById("tr-row-" + i);
-      const edit = document.getElementById("tr-edit-" + i);
-      if (row) row.style.display = "";
-      if (edit) edit.style.display = "none";
-    });
-  });
-  // Wire save buttons — reads checkboxes, updates trainer entry, re-renders
-  wrap.querySelectorAll(".exc-save-tr").forEach(btn => {
-    btn.addEventListener("click", () => {
       const i = Number(btn.getAttribute("data-ti"));
-      const cbs = document.querySelectorAll(".edit-block-cb-" + i + ":checked");
-      const blocks = Array.from(cbs).map(cb => cb.value);
-      const t = getTrainerRanges();
-      if (t[i]) { t[i].blocks = blocks; saveJSON(STORAGE.training, t); }
-      renderExceptions(); renderInfoStats();
-      showToast("Updated training blocks.");
+      openTrainingModal('normal', i, trainerRanges[i]);
+    });
+  });
+  // Wire EDIT buttons for external trainers — opens modal
+  wrap.querySelectorAll(".exc-edit-ext").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const ei = Number(btn.getAttribute("data-eid"));
+      openTrainingModal('ext', ei, _extTrainers[ei]);
     });
   });
   // Wire trainee employee dropdown to filter ADD form block picker
@@ -8811,6 +9764,141 @@ function renderVacList() {
   });
 }
 
+// ========== TRAINING EDIT MODAL ==========
+let _trainingModalCtx = null; // { type:'normal'|'ext', index, entry }
+function openTrainingModal(type, index, entry) {
+  if (!entry) return;
+  _trainingModalCtx = { type, index, entry };
+  const modal = document.getElementById("trainingEditModal");
+  const title = document.getElementById("trainingModalTitle");
+  const body = document.getElementById("trainingModalBody");
+  const empName = (entry.name || "").toUpperCase();
+  title.textContent = "EDIT TRAINING — " + empName;
+  const _curYear = Number(document.getElementById("yearSel").value);
+  const _curMo = Number(document.getElementById("monthSel").value);
+  const _rangeFrom = entry.from ? parseYMD(entry.from) : new Date(_curYear, _curMo, 1, 12,0,0,0);
+  const _rangeTo = entry.to ? parseYMD(entry.to) : new Date(_curYear, _curMo + 1, 0, 12,0,0,0);
+  // Clamp to current month for ext trainers
+  const _moStart = new Date(_curYear, _curMo, 1, 12,0,0,0);
+  const _moEnd = new Date(_curYear, _curMo + 1, 0, 12,0,0,0);
+  const fromD = (type === 'ext' && _rangeFrom < _moStart) ? _moStart : _rangeFrom;
+  const toD = (type === 'ext' && _rangeTo > _moEnd) ? _moEnd : _rangeTo;
+  const dates = [];
+  if (fromD && toD) { const d2 = new Date(fromD); while (d2 <= toD) { dates.push(new Date(d2)); d2.setDate(d2.getDate()+1); } }
+  const _base = normalizeBase();
+  const _empRow = _base.find(rr => String(rr.Employee||"").trim().toUpperCase() === empName);
+  function blocksFor(dateObj) {
+    if (!_empRow) return new Set(BLOCKS.map(b=>b.key));
+    const dn = dayName(dateObj);
+    const shift = String(_empRow[dn]||"").trim().toUpperCase();
+    if (!shift || shift === "OFF") return new Set();
+    const rng = _shiftMap[shift]; if (!rng) return new Set();
+    const out = new Set(); for (const blk of BLOCKS) { if (blk.start >= rng[0] && blk.end <= rng[1]) out.add(blk.key); } return out;
+  }
+  const allEmpBlocks = _getEmployeeBlocks(empName);
+  const _blkOpts = [{key:"0600-1000",label:"6A-10A"},{key:"1000-1400",label:"10A-2P"},{key:"1400-1800",label:"2P-6P"},{key:"1800-2200",label:"6P-10P"},{key:"2200-0200",label:"10P-2A"},{key:"0200-0600",label:"2A-6A"}];
+  const _dn = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  // APPLY TO ALL row
+  let h = '<div class="tgrid-apply">';
+  h += '<span style="font-size:11px; font-weight:800; min-width:130px; color:#fbbf24;">APPLY TO ALL</span>';
+  h += `<select class="tgrid-ch" id="tmApplyAllCh">${_chOptHtml('Auto')}</select>`;
+  _blkOpts.forEach(bo => {
+    const vis = allEmpBlocks.has(bo.key) ? '' : 'display:none;';
+    h += `<label class="tgrid-blk" style="${vis}"><input type="checkbox" class="tm-applyall-cb" value="${bo.key}" />${bo.label}</label>`;
+  });
+  h += '<button class="btn secondary" id="tmApplyAllBtn" style="font-size:10px; padding:4px 12px; margin-left:auto;">APPLY</button>';
+  h += '</div>';
+  // Per-day rows
+  h += '<div style="max-height:55vh; overflow-y:auto; border:1px solid var(--line); border-radius:8px;">';
+  dates.forEach(dateObj => {
+    const dk = ymd(dateObj);
+    const dayLabel = _dn[dateObj.getDay()] + ' ' + dk;
+    const avail = blocksFor(dateObj);
+    const isOff = avail.size === 0;
+    const dayArr = (entry.dayBlocks && entry.dayBlocks[dk] !== undefined) ? entry.dayBlocks[dk] : null;
+    const dayCh = (entry.dayChannels && entry.dayChannels[dk]) ? entry.dayChannels[dk] : (entry.channel || 'Auto');
+    h += `<div class="tgrid-row ${isOff ? 'off' : ''}">`;
+    h += `<span class="tgrid-day" style="color:${isOff ? 'var(--muted)' : 'var(--text)'};">${dayLabel}${isOff ? ' <i>OFF</i>' : ''}</span>`;
+    h += `<select class="tgrid-ch tm-day-ch" data-day="${dk}" ${isOff ? 'disabled' : ''}>${_chOptHtml(dayCh)}</select>`;
+    _blkOpts.forEach(bo => {
+      const isAvail = avail.has(bo.key);
+      let chk = '';
+      if (isAvail) {
+        if (dayArr !== null) { chk = Array.isArray(dayArr) && dayArr.includes(bo.key) ? 'checked' : ''; }
+        else if (entry.blocks && entry.blocks.length > 0) { chk = entry.blocks.includes(bo.key) ? 'checked' : ''; }
+        else { chk = 'checked'; }
+      }
+      const vis = isAvail ? '' : 'display:none;';
+      h += `<label class="tgrid-blk" style="${vis}"><input type="checkbox" class="tm-day-cb" data-day="${dk}" value="${bo.key}" ${chk} ${isOff || !isAvail ? 'disabled' : ''} />${bo.label}</label>`;
+    });
+    h += '</div>';
+  });
+  h += '</div>';
+  body.innerHTML = h;
+  // Wire APPLY TO ALL
+  document.getElementById("tmApplyAllBtn").addEventListener("click", () => {
+    const applyChecked = new Set(Array.from(body.querySelectorAll(".tm-applyall-cb:checked")).map(cb => cb.value));
+    body.querySelectorAll(".tm-day-cb").forEach(cb => { if (!cb.disabled) cb.checked = applyChecked.has(cb.value); });
+    const chVal = document.getElementById("tmApplyAllCh").value;
+    body.querySelectorAll(".tm-day-ch").forEach(sel => { if (!sel.disabled) sel.value = chVal; });
+  });
+  // Wire SAVE
+  document.getElementById("trainingModalSave").onclick = _saveTrainingModal;
+  modal.classList.add("show");
+}
+function closeTrainingModal() {
+  document.getElementById("trainingEditModal").classList.remove("show");
+  _trainingModalCtx = null;
+}
+function _saveTrainingModal() {
+  if (!_trainingModalCtx) return;
+  const { type, index, entry } = _trainingModalCtx;
+  const body = document.getElementById("trainingModalBody");
+  // Read blocks per day
+  const dayMap = {};
+  body.querySelectorAll(".tm-day-cb").forEach(cb => {
+    const dk = cb.getAttribute("data-day");
+    if (!dayMap[dk]) dayMap[dk] = [];
+    if (cb.checked && !cb.disabled) dayMap[dk].push(cb.value);
+  });
+  // Read channels per day
+  const dayChMap = {};
+  body.querySelectorAll(".tm-day-ch").forEach(sel => {
+    const dk = sel.getAttribute("data-day");
+    dayChMap[dk] = sel.value;
+  });
+  const dayKeys = Object.keys(dayMap);
+  let allSame = true;
+  if (dayKeys.length > 1) {
+    const first = dayMap[dayKeys[0]].slice().sort().join(",");
+    for (let di = 1; di < dayKeys.length; di++) {
+      if (dayMap[dayKeys[di]].slice().sort().join(",") !== first) { allSame = false; break; }
+    }
+  }
+  const chVals = Object.values(dayChMap);
+  const allChSame = chVals.length > 0 && chVals.every(v => v === chVals[0]);
+  if (type === 'normal') {
+    const t = getTrainerRanges();
+    if (t[index]) {
+      if (allSame && dayKeys.length > 0) { t[index].blocks = dayMap[dayKeys[0]]; t[index].dayBlocks = {}; }
+      else { t[index].blocks = []; t[index].dayBlocks = dayMap; }
+      if (allChSame) { t[index].channel = chVals[0]; t[index].dayChannels = {}; }
+      else { t[index].channel = 'Auto'; t[index].dayChannels = dayChMap; }
+      saveJSON(STORAGE.training, t);
+    }
+  } else {
+    const overrides = loadJSON(STORAGE.extTrainingOverrides, {});
+    const key = (entry.name||'').toUpperCase() + '|' + (entry.from||'') + '|' + (entry.to||'');
+    const blkData = allSame && dayKeys.length > 0 ? { blocks: dayMap[dayKeys[0]], dayBlocks: {} } : { blocks: [], dayBlocks: dayMap };
+    const chData = allChSame ? { channel: chVals[0], dayChannels: {} } : { channel: 'Auto', dayChannels: dayChMap };
+    overrides[key] = Object.assign({}, blkData, chData);
+    saveJSON(STORAGE.extTrainingOverrides, overrides);
+  }
+  closeTrainingModal();
+  renderExceptions(); renderInfoStats();
+  showToast("Updated training blocks & channel.");
+}
+
 function renderTraineeList() {
   const list = document.getElementById("traineeList");
   if (!list) return;
@@ -8820,8 +9908,9 @@ function renderTraineeList() {
     const from = r.from ? r.from : "–";
     const to = r.to ? r.to : "–";
     const blks = (r.blocks && r.blocks.length) ? r.blocks.join(', ') : 'ALL';
+    const ch = (r.dayChannels && Object.keys(r.dayChannels).some(k => r.dayChannels[k] && r.dayChannels[k] !== 'Auto')) ? 'CUSTOM' : (r.channel && r.channel !== 'Auto' ? r.channel.toUpperCase() : 'AUTO');
     return `<div class="pill">
-      <div><b>${escapeHtml(r.name.toUpperCase())}</b><div class="meta">FROM: ${from} TO: ${to} BLOCKS: ${blks}</div></div>
+      <div><b>${escapeHtml(r.name.toUpperCase())}</b><div class="meta">FROM: ${from} TO: ${to} BLOCKS: ${blks} CH: ${ch}</div></div>
       <button data-ti="${idx}">X</button>
     </div>`;
   }).join("");
@@ -9297,7 +10386,8 @@ function buildMonthRosterHTML(mode) {
           } else {
             const ch = (assignMap[dk] && assignMap[dk][bk]) ? (assignMap[dk][bk].get(p.name.toUpperCase()) || "") : "";
             const ab = ch ? (chAbbrMap[ch] || ch) : "?";
-            lines.push('<span class="ch-' + ab.replace(/\s/g,'').toLowerCase() + '">' + ab + '</span>');
+            const _trn = isTrainee(p.name, dk, bk);
+            lines.push('<span class="ch-' + ab.replace(/\s/g,'').toLowerCase() + '">' + (_trn ? '<b style="color:#a855f7;">TR</b>' : '') + ab + '</span>');
           }
         }
         tbl += '<td class="assign' + (isWkend ? ' wkend' : '') + '">' + lines.join('<br>') + '</td>';
@@ -9827,7 +10917,8 @@ function boot() {
               const ab = ch ? (chAbbrMap[ch] || ch) : "?";
               const otEntry = plan.days[dk] && plan.days[dk][bk];
               const isOT = ch && otEntry && (otEntry.ot || []).some(n => String(n).toUpperCase() === p.name.toUpperCase());
-              lines.push(ab + (isOT ? ' OT' : ''));
+              const _trn2 = isTrainee(p.name, dk, bk);
+              lines.push((_trn2 ? 'TR·' : '') + ab + (isOT ? ' OT' : ''));
             }
             // Color based on first non-dash assignment
             const firstCh = lines.find(l => l !== '-' && l !== '?') || '';
@@ -10180,9 +11271,11 @@ function boot() {
             if (!nm) continue;
             const emp = toShiftOpsName(nm);
             const role = channelToRole(ch);
+            const tStatus = getTrainingStatus(nm, iso, bk);
+            const present = tStatus || "YES";
             if (!edits[emp]) edits[emp] = {};
             edits[emp][bk] = {
-              Present: "YES", Hours: "", Role: role,
+              Present: present, Hours: "", Role: role,
               Assignment: channelToSeat(ch), AbsenceReason: "",
               PartialReason: "", WorkedStart: "", WorkedEnd: "", OthType: ""
             };
@@ -10198,9 +11291,11 @@ function boot() {
           for (const nm of entry.ct) {
             if (!nm) continue;
             const emp = toShiftOpsName(nm);
+            const tStatus = getTrainingStatus(nm, iso, bk);
+            const present = tStatus || "YES";
             if (!edits[emp]) edits[emp] = {};
             edits[emp][bk] = {
-              Present: "YES", Hours: "", Role: "CALLTAKER",
+              Present: present, Hours: "", Role: "CALLTAKER",
               Assignment: "", AbsenceReason: "",
               PartialReason: "", WorkedStart: "", WorkedEnd: "", OthType: ""
             };
@@ -10216,9 +11311,11 @@ function boot() {
           for (const nm of entry.sd) {
             if (!nm) continue;
             const emp = toShiftOpsName(nm);
+            const tStatus = getTrainingStatus(nm, iso, bk);
+            const present = tStatus || "YES";
             if (!edits[emp]) edits[emp] = {};
             edits[emp][bk] = {
-              Present: "YES", Hours: "", Role: "OTH",
+              Present: present, Hours: "", Role: "OTH",
               Assignment: "", AbsenceReason: "",
               PartialReason: "", WorkedStart: "", WorkedEnd: "", OthType: "SD"
             };
@@ -10309,13 +11406,16 @@ function boot() {
       const to = document.getElementById("traineeTo").value || "";
       if (!name) return showToast("Select a trainer first.");
       const blocks = Array.from(document.querySelectorAll('.trainee-block-cb:checked')).map(cb => cb.value);
+      const channelSel = document.getElementById("traineeChannel");
+      const channel = channelSel ? channelSel.value : 'Auto';
       const ranges = getTrainerRanges();
-      ranges.push({name, from, to, blocks});
+      ranges.push({name, from, to, blocks, dayBlocks: {}, channel, dayChannels: {}});
       saveJSON(STORAGE.training, ranges);
       sel.selectedIndex = 0;
       document.getElementById("traineeFrom").value = "";
       document.getElementById("traineeTo").value = "";
       document.querySelectorAll('.trainee-block-cb').forEach(cb => cb.checked = false);
+      if (channelSel) channelSel.selectedIndex = 0;
       renderExceptions(); renderInfoStats();
       const blkMsg = blocks.length ? ` during ${blocks.length} block(s)` : ' (all blocks)';
       showToast("Added trainer" + blkMsg + ". They will only be assigned E, S, W, C.");
@@ -10348,9 +11448,11 @@ function boot() {
       const docId = dayKey + "_" + shiftName;
       const docRef = db.collection('daily_edits').doc(docId);
 
+      const tStatus = getTrainingStatus(personName, dayKey, blockKey);
+      const present = tStatus || "YES";
       const update = {};
       update["edits." + soName + "." + blockKey] = {
-        Present: "YES", Hours: "", Role: role,
+        Present: present, Hours: "", Role: role,
         Assignment: seat, AbsenceReason: "",
         PartialReason: "", WorkedStart: "", WorkedEnd: "", OthType: ""
       };
@@ -11524,6 +12626,9 @@ function boot() {
               if (gain <= bestGain) continue;
               if (wouldViolate(a.nm, dk, bk.key, b.ch)) continue;
               if (wouldViolate(b.nm, dk, bk.key, a.ch)) continue;
+              // Training protection: never swap anyone in training during balance
+              if (isTrainee(a.nm, dk, bk.key) || isTrainee(b.nm, dk, bk.key)) continue;
+              if (getTrainingStatus(a.nm, dk, bk.key) === "TRAINER" || getTrainingStatus(b.nm, dk, bk.key) === "TRAINER") continue;
               if (traineeBlocked(a.nm, dk, bk.key, b.ch.toUpperCase())) continue;
               if (traineeBlocked(b.nm, dk, bk.key, a.ch.toUpperCase())) continue;
               // Primary channel weekly cap: don't swap if it would push either person over 2 for that channel
@@ -11581,8 +12686,12 @@ function boot() {
 
               if (wouldViolate(ctPerson, dk, bk.key, ch)) continue;
               if (wouldViolate(chPerson, dk, bk.key, "CT")) continue;
+              // Training protection: skip anyone in training (TRAINEE or TRAINER)
+              if (isTrainee(ctPerson, dk, bk.key)) continue;
+              if (isTrainee(chPerson, dk, bk.key)) continue;
+              if (getTrainingStatus(ctPerson, dk, bk.key) === "TRAINER") continue;
+              if (getTrainingStatus(chPerson, dk, bk.key) === "TRAINER") continue;
               if (traineeBlocked(ctPerson, dk, bk.key, ch.toUpperCase())) continue;
-              if (isTrainee(chPerson, dk, bk.key)) continue; // Trainee can't go to CT during training blocks
               // Weekly CT cap: don't move chPerson into CT if they're already at cap this week
               if (countWeeklyBlocks(chPerson, dk, "CT") >= 2) continue;
               // Primary channel cap: don't move ctPerson onto primary ch if they're at cap for that channel
@@ -11624,7 +12733,9 @@ function boot() {
               if (!chPerson || !PRIMARY.has(ch)) continue;
               if (chPerson === overPerson) continue;
               if (SD_ELIGIBLE.has(chPerson.toUpperCase())) continue;
-              if (isTrainee(chPerson, dk, bk.key)) continue;
+              // Training protection: skip anyone in training
+              if (isTrainee(overPerson, dk, bk.key) || isTrainee(chPerson, dk, bk.key)) continue;
+              if (getTrainingStatus(overPerson, dk, bk.key) === "TRAINER" || getTrainingStatus(chPerson, dk, bk.key) === "TRAINER") continue;
               if (countWeeklyBlocks(chPerson, dk, "CT") >= 2) continue;
               if (wouldViolate(overPerson, dk, bk.key, ch)) continue;
               if (wouldViolate(chPerson, dk, bk.key, "CT")) continue;
@@ -11670,6 +12781,9 @@ function boot() {
               if (!PRIMARY.has(ch2)) continue;
               if (underPerson === overPerson) continue;
               if (SD_ELIGIBLE.has(underPerson.toUpperCase())) continue;
+              // Training protection: skip anyone in training
+              if (isTrainee(overPerson, dk, bk.key) || isTrainee(underPerson, dk, bk.key)) continue;
+              if (getTrainingStatus(overPerson, dk, bk.key) === "TRAINER" || getTrainingStatus(underPerson, dk, bk.key) === "TRAINER") continue;
               if (countWeeklyBlocks(underPerson, dk, "RELIEF") >= 2) continue;
               if (wouldViolate(overPerson, dk, bk.key, ch2)) continue;
               if (wouldViolate(underPerson, dk, bk.key, rCh)) continue;
@@ -11716,6 +12830,9 @@ function boot() {
               if (!PRIMARY.has(ch2)) continue;
               if (underPerson === overPerson) continue;
               if (SD_ELIGIBLE.has(underPerson.toUpperCase())) continue;
+              // Training protection: skip anyone in training
+              if (isTrainee(overPerson, dk, bk.key) || isTrainee(underPerson, dk, bk.key)) continue;
+              if (getTrainingStatus(overPerson, dk, bk.key) === "TRAINER" || getTrainingStatus(underPerson, dk, bk.key) === "TRAINER") continue;
               if (countWeeklyBlocks(underPerson, dk, "DC") >= 2) continue;
               if (wouldViolate(overPerson, dk, bk.key, ch2)) continue;
               if (wouldViolate(underPerson, dk, bk.key, dCh)) continue;
@@ -11764,6 +12881,9 @@ function boot() {
               if (!PRIMARY.has(ch2)) continue;
               if (underPerson === overPerson) continue;
               if (SD_ELIGIBLE.has(underPerson.toUpperCase())) continue;
+              // Training protection: skip anyone in training (preserves sticky channel + trainer B2B)
+              if (isTrainee(overPerson, dk, bk.key) || isTrainee(underPerson, dk, bk.key)) continue;
+              if (getTrainingStatus(overPerson, dk, bk.key) === "TRAINER" || getTrainingStatus(underPerson, dk, bk.key) === "TRAINER") continue;
               // underPerson must be under cap for the channel they'd receive (pCh)
               if (countWeeklyBlocks(underPerson, dk, pUp) >= 2) continue;
               // overPerson must be under cap for the channel they'd receive (ch2)
@@ -11788,6 +12908,299 @@ function boot() {
       }
       if (!fixed) break;
     }
+
+    // ========== TRAINEE CORRECTION PASS (post-balance safety net) ==========
+    // Ensure no trainee ended up on a disallowed channel or in CT after balance swaps
+    {
+      const _balOkSet = new Set(["EAST","SOUTH","WEST","CENTRAL"]);
+      const _balAllowed = ["East","South","West","Central"];
+      const _balRanges = getTrainerRangesWithCrossMonth();
+      for (const dk of dayKeys) {
+        const dayData = plan.days[dk];
+        if (!dayData) continue;
+        for (const bk of BLOCKS) {
+          const bd = dayData[bk.key];
+          if (!bd) continue;
+
+          // Fix trainees on disallowed channels
+          for (const [ch, nm] of Object.entries(bd.assignments || {})) {
+            if (!nm) continue;
+            if (!isTrainee(nm, dk, bk.key)) continue;
+            if (_balOkSet.has(ch.toUpperCase())) continue;
+            // Determine preferred sticky channel from training entry
+            const nmUp = nm.toUpperCase();
+            const entry = _balRanges.find(r => r && r.name && r.name.toUpperCase() === nmUp && !r._mirror);
+            let preferCh = null;
+            if (entry) {
+              if (entry.dayChannels && entry.dayChannels[dk] && entry.dayChannels[dk] !== 'Auto') preferCh = entry.dayChannels[dk];
+              else if (entry.channel && entry.channel !== 'Auto') preferCh = entry.channel;
+            }
+            // Also check: what channel are they on in adjacent blocks? (that's their sticky)
+            if (!preferCh) {
+              for (const bk2 of BLOCKS) {
+                if (bk2.key === bk.key) continue;
+                const bd2 = dayData[bk2.key];
+                if (!bd2 || !bd2.assignments) continue;
+                for (const [ch2, nm2] of Object.entries(bd2.assignments)) {
+                  if (nm2 && String(nm2).toUpperCase() === nmUp && _balOkSet.has(ch2.toUpperCase())) {
+                    preferCh = ch2; break;
+                  }
+                }
+                if (preferCh) break;
+              }
+            }
+            let fixed = false;
+            // Try preferred sticky channel first
+            if (preferCh) {
+              const matchCh = _balAllowed.find(c => c.toUpperCase() === preferCh.toUpperCase());
+              if (matchCh) {
+                const holder = bd.assignments[matchCh];
+                if (!holder) {
+                  bd.assignments[matchCh] = nm; bd.assignments[ch] = null; fixed = true;
+                } else if (!isTrainee(holder, dk, bk.key) && getTrainingStatus(holder, dk, bk.key) !== "TRAINER") {
+                  bd.assignments[matchCh] = nm; bd.assignments[ch] = holder; fixed = true;
+                }
+              }
+            }
+            // Fallback: any allowed channel (protect trainees AND trainers)
+            if (!fixed) {
+              for (const ac of _balAllowed) {
+                const holder = bd.assignments[ac];
+                if (!holder) { bd.assignments[ac] = nm; bd.assignments[ch] = null; fixed = true; break; }
+                if (isTrainee(holder, dk, bk.key)) continue;
+                if (getTrainingStatus(holder, dk, bk.key) === "TRAINER") continue;
+                bd.assignments[ac] = nm; bd.assignments[ch] = holder; fixed = true; break;
+              }
+            }
+            // If still not fixed, leave in place — better on wrong channel than UNASSIGNED
+          }
+
+          // Fix trainees in CT
+          if (bd.ct && bd.ct.length > 0) {
+            for (let ci = bd.ct.length - 1; ci >= 0; ci--) {
+              const ctNm = bd.ct[ci];
+              if (!ctNm || !isTrainee(ctNm, dk, bk.key)) continue;
+              let fixed = false;
+              // Try empty allowed channel first
+              for (const ac of _balAllowed) {
+                if (!bd.assignments[ac]) { bd.assignments[ac] = ctNm; bd.ct.splice(ci, 1); fixed = true; break; }
+              }
+              // Then try swapping with non-trainee/non-trainer
+              if (!fixed) {
+                for (const ac of _balAllowed) {
+                  const holder = bd.assignments[ac];
+                  if (!holder) continue;
+                  if (isTrainee(holder, dk, bk.key)) continue;
+                  if (getTrainingStatus(holder, dk, bk.key) === "TRAINER") continue;
+                  bd.assignments[ac] = ctNm; bd.ct[ci] = holder; fixed = true; break;
+                }
+              }
+              // If still not fixed, trainee stays in CT — better than UNASSIGNED
+            }
+          }
+        }
+      }
+    }
+    // ========== END TRAINEE CORRECTION PASS ==========
+
+    // ========== TRAINER (MIRROR) CORRECTION PASS (post-balance safety net) ==========
+    // Ensure trainers stay on their sticky E/S/W/C channel during training blocks after balance
+    // Uses the outer-scope trainerStickyChannel map (populated by randomizeMonth), falls back to plan-based detection
+    {
+      const _trBalOkSet = new Set(["EAST","SOUTH","WEST","CENTRAL"]);
+      for (const dk of dayKeys) {
+        const dayData = plan.days[dk];
+        if (!dayData) continue;
+        // Use the authoritative sticky map from randomizeMonth if available
+        const _trStickyDay = trainerStickyChannel.get(dk) || new Map();
+
+        for (const bk of BLOCKS) {
+          const bd = dayData[bk.key];
+          if (!bd) continue;
+
+          // Fix trainers on wrong channels during training blocks
+          for (const [ch, nm] of Object.entries(bd.assignments || {})) {
+            if (!nm) continue;
+            if (getTrainingStatus(nm, dk, bk.key) !== "TRAINER") continue;
+            // Case-insensitive lookup for sticky channel
+            const nmUp = nm.toUpperCase();
+            let stickyForTrainer = null;
+            for (const [k, v] of _trStickyDay) {
+              if (String(k).toUpperCase() === nmUp) { stickyForTrainer = v; break; }
+            }
+            if (!stickyForTrainer) continue;
+            if (ch.toUpperCase() === stickyForTrainer.toUpperCase()) continue;
+            // Trainer is on wrong channel — swap to sticky
+            let _trFixed = false;
+            const matchCh = Object.keys(bd.assignments).find(c => c.toUpperCase() === stickyForTrainer.toUpperCase()) || stickyForTrainer;
+            const holder = bd.assignments[matchCh];
+            if (!holder) {
+              bd.assignments[matchCh] = nm;
+              bd.assignments[ch] = null;
+              _trFixed = true;
+            } else if (getTrainingStatus(holder, dk, bk.key) !== "TRAINER" && !isTrainee(holder, dk, bk.key)) {
+              bd.assignments[matchCh] = nm;
+              bd.assignments[ch] = holder;
+              _trFixed = true;
+            }
+            // Fallback: if sticky blocked by trainee/trainer, try any other E/S/W/C
+            if (!_trFixed) {
+              for (const _fbCh of ["East","South","West","Central"]) {
+                if (_fbCh.toUpperCase() === stickyForTrainer.toUpperCase()) continue;
+                if (_fbCh.toUpperCase() === ch.toUpperCase()) continue;
+                const _fbMatchCh = Object.keys(bd.assignments).find(c => c.toUpperCase() === _fbCh.toUpperCase()) || _fbCh;
+                const _fbHolder = bd.assignments[_fbMatchCh];
+                if (!_fbHolder) { bd.assignments[_fbMatchCh] = nm; bd.assignments[ch] = null; _trFixed = true; break; }
+                if (getTrainingStatus(_fbHolder, dk, bk.key) !== "TRAINER" && !isTrainee(_fbHolder, dk, bk.key)) {
+                  bd.assignments[_fbMatchCh] = nm; bd.assignments[ch] = _fbHolder; _trFixed = true; break;
+                }
+              }
+            }
+          }
+
+          // Fix trainers in CT during training blocks
+          if (bd.ct && bd.ct.length > 0) {
+            for (let ci = bd.ct.length - 1; ci >= 0; ci--) {
+              const ctNm = bd.ct[ci];
+              if (!ctNm || getTrainingStatus(ctNm, dk, bk.key) !== "TRAINER") continue;
+              const ctNmUp = ctNm.toUpperCase();
+              let stickyForTrainer = null;
+              for (const [k, v] of _trStickyDay) {
+                if (String(k).toUpperCase() === ctNmUp) { stickyForTrainer = v; break; }
+              }
+              let _ctFixed = false;
+              // Try sticky channel first
+              if (stickyForTrainer) {
+                const matchCh = Object.keys(bd.assignments).find(c => c.toUpperCase() === stickyForTrainer.toUpperCase()) || stickyForTrainer;
+                const holder = bd.assignments[matchCh];
+                if (!holder) {
+                  bd.assignments[matchCh] = ctNm; bd.ct.splice(ci, 1); _ctFixed = true;
+                } else if (getTrainingStatus(holder, dk, bk.key) !== "TRAINER" && !isTrainee(holder, dk, bk.key)) {
+                  bd.assignments[matchCh] = ctNm; bd.ct[ci] = holder; _ctFixed = true;
+                }
+              }
+              // Fallback: any E/S/W/C channel
+              if (!_ctFixed) {
+                for (const _fbCh of ["East","South","West","Central"]) {
+                  if (stickyForTrainer && _fbCh.toUpperCase() === stickyForTrainer.toUpperCase()) continue;
+                  const _fbMatchCh = Object.keys(bd.assignments).find(c => c.toUpperCase() === _fbCh.toUpperCase()) || _fbCh;
+                  const _fbHolder = bd.assignments[_fbMatchCh];
+                  if (!_fbHolder) { bd.assignments[_fbMatchCh] = ctNm; bd.ct.splice(ci, 1); _ctFixed = true; break; }
+                  if (getTrainingStatus(_fbHolder, dk, bk.key) !== "TRAINER" && !isTrainee(_fbHolder, dk, bk.key)) {
+                    bd.assignments[_fbMatchCh] = ctNm; bd.ct[ci] = _fbHolder; _ctFixed = true; break;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    // ========== END TRAINER CORRECTION PASS ==========
+
+    // ========== NUCLEAR FINAL PASS (balance): Absolute guarantee ==========
+    {
+      const _nfOkSet = new Set(["EAST","SOUTH","WEST","CENTRAL"]);
+      const _nfAllowed = ["East","South","West","Central"];
+      for (const dk of dayKeys) {
+        const _nfDayData = plan.days[dk];
+        if (!_nfDayData) continue;
+        // 0) Hard scrub: remove mirror trainees from ALL assignments/CT
+        const _nfMirScrubB = getMirrorTraineeNames(dk);
+        if (_nfMirScrubB.size > 0) {
+          for (const bkS of BLOCKS) {
+            const bdS = _nfDayData[bkS.key];
+            if (!bdS) continue;
+            for (const [ch, nm] of Object.entries(bdS.assignments || {})) {
+              if (nm && _nfMirScrubB.has(String(nm).toUpperCase())) bdS.assignments[ch] = null;
+            }
+            if (bdS.ct) {
+              for (let si = bdS.ct.length - 1; si >= 0; si--) {
+                if (bdS.ct[si] && _nfMirScrubB.has(String(bdS.ct[si]).toUpperCase())) bdS.ct.splice(si, 1);
+              }
+            }
+          }
+        }
+        const _nfTSM = traineeStickyChannel.get(dk);
+        const _nfTrSM = trainerStickyChannel.get(dk);
+        for (const bk of BLOCKS) {
+          const _nfBd = _nfDayData[bk.key];
+          if (!_nfBd) continue;
+          // Fix trainees on wrong channels
+          for (const [ch, nm] of Object.entries(_nfBd.assignments || {})) {
+            if (!nm) continue;
+            if (!isTrainee(nm, dk, bk.key)) continue;
+            if (_nfOkSet.has(ch.toUpperCase())) continue;
+            let _nfS = _nfTSM ? _nfTSM.get(nm) : null;
+            // Case-insensitive lookup
+            if (!_nfS && _nfTSM) { for (const [k, v] of _nfTSM) { if (String(k).toUpperCase() === nm.toUpperCase()) { _nfS = v; break; } } }
+            let _nfT = _nfS ? [_nfS, ..._nfAllowed.filter(c => c !== _nfS)] : [..._nfAllowed];
+            for (const tc of _nfT) {
+              const mCh = Object.keys(_nfBd.assignments).find(c => c.toUpperCase() === tc.toUpperCase()) || tc;
+              const h = _nfBd.assignments[mCh];
+              if (!h) { _nfBd.assignments[mCh] = nm; _nfBd.assignments[ch] = null; break; }
+              if (!isTrainee(h, dk, bk.key) && getTrainingStatus(h, dk, bk.key) !== "TRAINER") {
+                _nfBd.assignments[mCh] = nm; _nfBd.assignments[ch] = h; break;
+              }
+            }
+          }
+          // Fix trainers on wrong channels
+          for (const [ch, nm] of Object.entries(_nfBd.assignments || {})) {
+            if (!nm) continue;
+            if (getTrainingStatus(nm, dk, bk.key) !== "TRAINER") continue;
+            if (_nfOkSet.has(ch.toUpperCase())) continue;
+            let _nfS = _nfTrSM ? _nfTrSM.get(nm) : null;
+            if (!_nfS && _nfTrSM) { for (const [k, v] of _nfTrSM) { if (String(k).toUpperCase() === nm.toUpperCase()) { _nfS = v; break; } } }
+            let _nfT = _nfS ? [_nfS, ..._nfAllowed.filter(c => c !== _nfS)] : [..._nfAllowed];
+            for (const tc of _nfT) {
+              const mCh = Object.keys(_nfBd.assignments).find(c => c.toUpperCase() === tc.toUpperCase()) || tc;
+              const h = _nfBd.assignments[mCh];
+              if (!h) { _nfBd.assignments[mCh] = nm; _nfBd.assignments[ch] = null; break; }
+              if (!isTrainee(h, dk, bk.key) && getTrainingStatus(h, dk, bk.key) !== "TRAINER") {
+                _nfBd.assignments[mCh] = nm; _nfBd.assignments[ch] = h; break;
+              }
+            }
+          }
+          // Fix trainees in CT
+          if (_nfBd.ct) {
+            for (let ci = _nfBd.ct.length - 1; ci >= 0; ci--) {
+              const cn = _nfBd.ct[ci];
+              if (!cn || !isTrainee(cn, dk, bk.key)) continue;
+              let _nfS = _nfTSM ? _nfTSM.get(cn) : null;
+              if (!_nfS && _nfTSM) { for (const [k, v] of _nfTSM) { if (String(k).toUpperCase() === cn.toUpperCase()) { _nfS = v; break; } } }
+              let _nfT = _nfS ? [_nfS, ..._nfAllowed.filter(c => c !== _nfS)] : [..._nfAllowed];
+              for (const tc of _nfT) {
+                const mCh = Object.keys(_nfBd.assignments).find(c => c.toUpperCase() === tc.toUpperCase()) || tc;
+                const h = _nfBd.assignments[mCh];
+                if (!h) { _nfBd.assignments[mCh] = cn; _nfBd.ct.splice(ci, 1); break; }
+                if (!isTrainee(h, dk, bk.key) && getTrainingStatus(h, dk, bk.key) !== "TRAINER") {
+                  _nfBd.assignments[mCh] = cn; _nfBd.ct[ci] = h; break;
+                }
+              }
+            }
+          }
+          // Fix trainers in CT
+          if (_nfBd.ct) {
+            for (let ci = _nfBd.ct.length - 1; ci >= 0; ci--) {
+              const cn = _nfBd.ct[ci];
+              if (!cn || getTrainingStatus(cn, dk, bk.key) !== "TRAINER") continue;
+              let _nfS = _nfTrSM ? _nfTrSM.get(cn) : null;
+              if (!_nfS && _nfTrSM) { for (const [k, v] of _nfTrSM) { if (String(k).toUpperCase() === cn.toUpperCase()) { _nfS = v; break; } } }
+              let _nfT = _nfS ? [_nfS, ..._nfAllowed.filter(c => c !== _nfS)] : [..._nfAllowed];
+              for (const tc of _nfT) {
+                const mCh = Object.keys(_nfBd.assignments).find(c => c.toUpperCase() === tc.toUpperCase()) || tc;
+                const h = _nfBd.assignments[mCh];
+                if (!h) { _nfBd.assignments[mCh] = cn; _nfBd.ct.splice(ci, 1); break; }
+                if (!isTrainee(h, dk, bk.key) && getTrainingStatus(h, dk, bk.key) !== "TRAINER") {
+                  _nfBd.assignments[mCh] = cn; _nfBd.ct[ci] = h; break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    // ========== END NUCLEAR FINAL PASS ==========
 
     savePlan(plan);
 
@@ -11825,6 +13238,24 @@ function boot() {
     const m = Number(document.getElementById("monthSel").value);
     const y = Number(document.getElementById("yearSel").value);
 
+    // Re-fetch employee schedules from Firestore so changes are picked up
+    await loadEmployeesFromFirestore();
+
+    // Force-reload vacation/training data from Firestore so external changes (AttendanceOps) are picked up
+    // Uses originalSetItem to avoid triggering auto-save
+    try {
+      const _refreshDoc = await db.collection('rotation_plans').doc(`rotation_${y}_${m}`).get({ source: 'server' });
+      if (_refreshDoc.exists) {
+        const _rd = _refreshDoc.data();
+        if (_rd.vacations) originalSetItem.call(localStorage, "rotation_vac_ranges_v2", JSON.stringify(_rd.vacations));
+        if (_rd.trainers) originalSetItem.call(localStorage, "rotation_training_v2", JSON.stringify(_rd.trainers));
+      }
+    } catch (_e) { console.warn("Could not refresh vacation/training data before randomize:", _e); }
+
+    // Refresh mirror trainer data so pool exclusions are up to date
+    await loadMirrorTrainers();
+    await loadCrossMonthData(y, m);
+
     // Ask how long to search
     const minutesInput = prompt("How many MINUTES should the optimizer run?\n\n• 1 = quick (~200 attempts)\n• 5 = solid (~1000 attempts)\n• 30 = thorough\n• 480 = overnight (8 hours)\n\nEnter minutes (or blank for 1):", "1");
     if (minutesInput === null) return; // cancelled
@@ -11850,6 +13281,8 @@ function boot() {
     let bestB2bSpread = Infinity;
     let bestDcSpread = Infinity;
     let bestTotalSpread = Infinity;
+    let bestTraineeStickyChannel = null;
+    let bestTrainerStickyChannel = null;
     let lastImprovedAt = 0;
 
     // Composite score: violations use threshold (under 10 is acceptable, focus on balance)
@@ -11915,6 +13348,9 @@ function boot() {
           bestDcSpread = dcSpread;
           bestTotalSpread = totalSpread;
           bestPlan = JSON.parse(JSON.stringify(loadPlan()));
+          // Save sticky channel maps for this best plan (so balanceMonth uses correct maps)
+          bestTraineeStickyChannel = new Map(traineeStickyChannel);
+          bestTrainerStickyChannel = new Map(trainerStickyChannel);
           lastImprovedAt = attempts;
         }
 
@@ -11945,6 +13381,9 @@ function boot() {
     // Always restore best plan and update stats
     if (bestPlan) {
       savePlan(bestPlan);
+      // Restore sticky maps so balanceMonth uses the correct maps for the best plan
+      if (bestTraineeStickyChannel) traineeStickyChannel = bestTraineeStickyChannel;
+      if (bestTrainerStickyChannel) trainerStickyChannel = bestTrainerStickyChannel;
       viol = bestViol;
     }
     window.lastRandomizeStats = window.lastRandomizeStats || {};
@@ -12424,6 +13863,7 @@ function boot() {
     setSyncStatus("LOADING...", "pending");
     const loaded = await loadRotationFromFirebase(y, m);
     await loadCrossMonthData(y, m);
+    await loadMirrorTrainers();
     if (loaded) {
       setSyncStatus("SYNCED", "good");
       const plan = loadPlan();
@@ -12444,9 +13884,19 @@ function boot() {
 
   const btnRandomizeAgain = document.getElementById("btnRandomizeAgain");
   if (btnRandomizeAgain) {
-    btnRandomizeAgain.addEventListener("click", ()=>{
+    btnRandomizeAgain.addEventListener("click", async ()=>{
       const m = Number(document.getElementById("monthSel").value);
       const y = Number(document.getElementById("yearSel").value);
+      await loadEmployeesFromFirestore();
+      // Force-reload vacation/training data from Firestore so external changes are picked up
+      try {
+        const _refreshDoc = await db.collection('rotation_plans').doc(`rotation_${y}_${m}`).get({ source: 'server' });
+        if (_refreshDoc.exists) {
+          const _rd = _refreshDoc.data();
+          if (_rd.vacations) originalSetItem.call(localStorage, "rotation_vac_ranges_v2", JSON.stringify(_rd.vacations));
+          if (_rd.trainers) originalSetItem.call(localStorage, "rotation_training_v2", JSON.stringify(_rd.trainers));
+        }
+      } catch (_e) { console.warn("Could not refresh vacation/training data before re-randomize:", _e); }
       _lastRandomizeFn(y, m);
       updateViolationDisplay();
       const viol = window.lastRandomizeStats?.totalViolations || 0;
@@ -12694,6 +14144,7 @@ function boot() {
     // Try to load rotation plan from Firebase
     const firebaseLoaded = await loadRotationFromFirebase(year, month);
     await loadCrossMonthData(year, month);
+    await loadMirrorTrainers();
 
     if (firebaseLoaded) {
       setSyncStatus("SYNCED", "good");
