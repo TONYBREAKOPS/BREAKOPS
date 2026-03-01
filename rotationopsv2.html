@@ -530,6 +530,7 @@
     const plan = JSON.parse(localStorage.getItem("rotation_plan_v2") || "null");
     const vac = JSON.parse(localStorage.getItem("rotation_vac_ranges_v2") || "[]");
     const training = JSON.parse(localStorage.getItem("rotation_training_v2") || "[]");
+    const extOverrides = JSON.parse(localStorage.getItem("rotation_ext_training_overrides_v2") || "{}");
 
     if (!plan || !plan.meta) { console.error("SAVE: No plan or plan.meta"); return false; }
 
@@ -541,6 +542,7 @@
         plan: plan,
         vacations: vac,
         trainers: training,
+        extTrainingOverrides: extOverrides,
         savedAt: new Date().toISOString()
       }, { merge: true });
       console.log("SAVE: SUCCESS for", docId);
@@ -574,6 +576,7 @@
         if (data.plan) localStorage.setItem("rotation_plan_v2", JSON.stringify(data.plan));
         if (data.vacations) localStorage.setItem("rotation_vac_ranges_v2", JSON.stringify(data.vacations));
         if (data.trainers) localStorage.setItem("rotation_training_v2", JSON.stringify(data.trainers));
+        if (data.extTrainingOverrides) localStorage.setItem("rotation_ext_training_overrides_v2", JSON.stringify(data.extTrainingOverrides));
         return true;
       }
       console.log("LOAD: Doc does not exist for", docId);
@@ -587,6 +590,7 @@
           if (data.plan) localStorage.setItem("rotation_plan_v2", JSON.stringify(data.plan));
           if (data.vacations) localStorage.setItem("rotation_vac_ranges_v2", JSON.stringify(data.vacations));
           if (data.trainers) localStorage.setItem("rotation_training_v2", JSON.stringify(data.trainers));
+          if (data.extTrainingOverrides) localStorage.setItem("rotation_ext_training_overrides_v2", JSON.stringify(data.extTrainingOverrides));
           return true;
         }
       } catch (_) {}
@@ -684,6 +688,7 @@
       }
       if (data.vacations) localStorage.setItem("rotation_vac_ranges_v2", JSON.stringify(data.vacations));
       if (data.trainers) localStorage.setItem("rotation_training_v2", JSON.stringify(data.trainers));
+      if (data.extTrainingOverrides) localStorage.setItem("rotation_ext_training_overrides_v2", JSON.stringify(data.extTrainingOverrides));
 
       // Refresh views
       const dayKey = document.getElementById("dayPick")?.value;
@@ -1220,6 +1225,7 @@ const STORAGE = {
   vac: "rotation_vac_ranges_v2",
   hires: "rotation_new_hires_v2",
   training: "rotation_training_v2",
+  extTrainingOverrides: "rotation_ext_training_overrides_v2",
   ui: "rotation_ui_v2",
   employees: "rotation_employees_v2",
   swapHistory: "rotation_swap_history_v2",
@@ -1284,6 +1290,7 @@ function getNewHires() {
 }
 let _crossMonthVac = [];
 let _crossMonthTraining = [];
+let _mirrorTrainers = []; // Dispatchers who are training someone via schedule mirroring
 
 function getVacRanges() {
   const v = loadJSON(STORAGE.vac, []);
@@ -1292,8 +1299,61 @@ function getVacRanges() {
 function getVacRangesWithCrossMonth() {
   return getVacRanges().concat(_crossMonthVac);
 }
+function _applyExtOverrides(entries) {
+  // Apply saved block overrides to cross-month / mirror trainer entries
+  const overrides = loadJSON(STORAGE.extTrainingOverrides, {});
+  return entries.map(r => {
+    const key = (r.name||'').toUpperCase() + '|' + (r.from||'') + '|' + (r.to||'');
+    const ov = overrides[key];
+    if (ov) {
+      return Object.assign({}, r, {
+        blocks: Array.isArray(ov.blocks) ? ov.blocks : r.blocks,
+        dayBlocks: (ov.dayBlocks && typeof ov.dayBlocks === 'object') ? ov.dayBlocks : r.dayBlocks || {}
+      });
+    }
+    return r;
+  });
+}
 function getTrainerRangesWithCrossMonth() {
-  return getTrainerRanges().concat(_crossMonthTraining);
+  return getTrainerRanges().concat(_applyExtOverrides(_crossMonthTraining)).concat(_applyExtOverrides(_mirrorTrainers));
+}
+
+// Load active mirrors from Firestore scheduledChanges and build trainer entries for the dispatchers
+async function loadMirrorTrainers() {
+  _mirrorTrainers = [];
+  try {
+    const snap = await db.collection('scheduledChanges').where('type', '==', 'mirror').get();
+    snap.docs.forEach(doc => {
+      const d = doc.data();
+      if (!d.trainerName || !d.effectiveDate) return;
+      // Only include active or pending mirrors (not expired/reverted)
+      const status = String(d.status || '').toLowerCase();
+      if (status === 'expired' || status === 'reverted') return;
+      const trainerName = String(d.trainerName).trim().toUpperCase();
+      if (!trainerName) return;
+      // Don't add if this dispatcher is already manually in the training list
+      const existing = getTrainerRanges().concat(_crossMonthTraining);
+      const from = d.effectiveDate || '';
+      const to = d.endDate || '';
+      const alreadyExists = existing.some(r =>
+        r.name.toUpperCase() === trainerName &&
+        r.from === from && r.to === to
+      );
+      if (alreadyExists) return;
+      _mirrorTrainers.push({
+        name: trainerName,
+        from: from,
+        to: to,
+        blocks: [], // all blocks (trainee mirrors full schedule)
+        dayBlocks: {},
+        _mirror: true, // flag so we can identify these in the UI
+        _traineeName: String(d.employee || '').trim().toUpperCase()
+      });
+    });
+    console.log('Mirror trainers loaded: ' + _mirrorTrainers.length);
+  } catch (e) {
+    console.warn('loadMirrorTrainers error:', e);
+  }
 }
 
 async function loadCrossMonthData(year, monthIndex) {
@@ -1323,7 +1383,7 @@ async function loadCrossMonthData(year, monthIndex) {
         const arr = data.trainers || data.training || [];
         for (const t of arr) {
           if (t.to && t.to >= firstISO && t.from && t.from < firstISO) {
-            _crossMonthTraining.push({ name: t.name, from: t.from, to: t.to, blocks: t.blocks || [], _crossMonth: monthName(prevMo) + ' ' + prevYear });
+            _crossMonthTraining.push({ name: t.name, from: t.from, to: t.to, blocks: t.blocks || [], dayBlocks: (t.dayBlocks && typeof t.dayBlocks === 'object') ? t.dayBlocks : {}, _crossMonth: monthName(prevMo) + ' ' + prevYear });
           }
         }
       }
@@ -1363,7 +1423,7 @@ function getTrainerRanges() {
   // Support old format (plain strings) and new format (objects with name, from, to, blocks)
   return t.map(item => {
     if (typeof item === 'string') return { name: item.trim().toUpperCase(), from: '', to: '', blocks: [] };
-    return { name: String(item.name||'').trim().toUpperCase(), from: item.from||'', to: item.to||'', blocks: Array.isArray(item.blocks) ? item.blocks : [] };
+    return { name: String(item.name||'').trim().toUpperCase(), from: item.from||'', to: item.to||'', blocks: Array.isArray(item.blocks) ? item.blocks : [], dayBlocks: (item.dayBlocks && typeof item.dayBlocks === 'object') ? item.dayBlocks : {} };
   }).filter(r => r.name);
 }
 function getTrainees() {
@@ -1385,6 +1445,12 @@ function isTrainee(name, dayKey, blockKey) {
       const fromT = r.from ? new Date(r.from + "T00:00:00").getTime() : -Infinity;
       const toT = r.to ? new Date(r.to + "T23:59:59").getTime() : Infinity;
       if (dt < fromT || dt > toT) return false;
+    }
+    // Per-day block check: if dayBlocks has an entry for this day, use it
+    if (blockKey && dayKey && r.dayBlocks && r.dayBlocks[dayKey] !== undefined) {
+      const dayArr = r.dayBlocks[dayKey];
+      if (!Array.isArray(dayArr) || dayArr.length === 0) return false; // empty = no training that day
+      return dayArr.includes(blockKey);
     }
     // Block check: if trainer has specific blocks and blockKey is provided, must match
     if (blockKey && r.blocks && r.blocks.length > 0) {
@@ -1526,6 +1592,52 @@ function buildEmptyPlan(year, monthIndex) {
 
 function randomizeMonth(year, monthIndex) {
   const plan = buildEmptyPlan(year, monthIndex);
+
+  // Trainee sticky channel: each trainee stays on the same E/S/W/C channel for ALL blocks within a single day
+  const traineeStickyChannel = new Map(); // dayKey -> Map(name -> channelName e.g. "East")
+  const traineeChannelHistory = new Map(); // name -> string[] of channels used on previous days
+  const _STICKY_OPTS = ["East","South","West","Central"];
+  function _precomputeStickyChannels(dayKey, dateObj, poolAll, day) {
+    const _todayTrainees = poolAll.filter(d => {
+      for (const blk of BLOCKS) {
+        if (worksBlock(d, dateObj, blk) && isTrainee(d.name, dayKey, blk.key)) return true;
+      }
+      return false;
+    });
+    const _usedChannels = new Set();
+    const _dayMap = new Map();
+    _todayTrainees.sort((a, b2) => {
+      const ha = (traineeChannelHistory.get(a.name) || []).length;
+      const hb = (traineeChannelHistory.get(b2.name) || []).length;
+      return hb - ha;
+    });
+    for (const tr of _todayTrainees) {
+      const history = traineeChannelHistory.get(tr.name) || [];
+      let best = null;
+      for (const ch of _STICKY_OPTS) {
+        if (_usedChannels.has(ch)) continue;
+        if (!history.includes(ch)) { best = ch; break; }
+      }
+      if (!best) {
+        for (const ch of _STICKY_OPTS) {
+          if (_usedChannels.has(ch)) continue;
+          if (!best || history.lastIndexOf(ch) < history.lastIndexOf(best)) best = ch;
+        }
+      }
+      if (!best) {
+        for (const ch of _STICKY_OPTS) {
+          if (!history.includes(ch)) { best = ch; break; }
+        }
+        if (!best) best = _STICKY_OPTS[day % _STICKY_OPTS.length];
+      }
+      _dayMap.set(tr.name, best);
+      _usedChannels.add(best);
+      const hist = traineeChannelHistory.get(tr.name) || [];
+      hist.push(best);
+      traineeChannelHistory.set(tr.name, hist);
+    }
+    traineeStickyChannel.set(dayKey, _dayMap);
+  }
 
   // Track last channel (prevents immediate back-to-back repeats)
   const lastAssign = new Map();
@@ -1749,6 +1861,7 @@ function updateStreaks(name, assignedChannel){
     const todayChannels = dayChannelsWorked.get(dayKey); // Map(name -> Set of channels)
 
 const poolAll = buildDispatcherPoolForDate(dateObj);
+    _precomputeStickyChannels(dayKey, dateObj, poolAll, day);
 
     for (let bi=0; bi<BLOCKS.length; bi++) {
       const b = BLOCKS[bi];
@@ -1822,11 +1935,18 @@ const poolAll = buildDispatcherPoolForDate(dateObj);
         return SD_ELIGIBLE.has(nm) && (sdRemainingMap.get(nm) || 0) > 0 && !usedNames.has(nm);
       }
 
-      // Training restriction: trainees can only be assigned to E, S, W, C
+      // Training restriction: trainees can only be assigned to E, S, W, C + sticky channel enforcement
       const TRAINEE_ALLOWED_CHANNELS = new Set(["EAST","SOUTH","WEST","CENTRAL"]);
       function canTraineeWork(candName, channelUpper, blockKey) {
         if (!isTrainee(candName, dayKey, blockKey)) return true; // Only restrict during training blocks
-        return TRAINEE_ALLOWED_CHANNELS.has(channelUpper);
+        if (!TRAINEE_ALLOWED_CHANNELS.has(channelUpper)) return false;
+        // Sticky channel: if trainee has a pre-assigned channel today, only allow that one
+        const stickyMap = traineeStickyChannel.get(dayKey);
+        if (stickyMap) {
+          const sticky = stickyMap.get(candName);
+          if (sticky && channelUpper !== sticky.toUpperCase()) return false;
+        }
+        return true;
       }
 
       // ========== B2B PRE-ASSIGNMENT ==========
@@ -2882,7 +3002,13 @@ for (const u of unassigned) {
 // TRAINEE RESCUE: Get unassigned trainees into allowed channels (E/S/W/C) via swap
 const traineeUnassigned = available.filter(d => !usedNames.has(d.name) && !ct.includes(d.name) && !sd.includes(d.name) && isTrainee(d.name, dayKey, b.key));
 for (const u of traineeUnassigned) {
-  const _traineeAllowed = ["East","South","West","Central"];
+  let _traineeAllowed = ["East","South","West","Central"];
+  // Reorder to put sticky channel first for this trainee
+  const _stickyMapR = traineeStickyChannel.get(dayKey);
+  if (_stickyMapR) {
+    const _stickyR = _stickyMapR.get(u.name);
+    if (_stickyR) _traineeAllowed = [_stickyR, ..._traineeAllowed.filter(c => c !== _stickyR)];
+  }
   let placed = false;
   // Try empty allowed channel first
   for (const ch of _traineeAllowed) {
@@ -2932,7 +3058,9 @@ const finalUnassigned = available.filter(d => !usedNames.has(d.name) && !ct.incl
 for (const u of finalUnassigned) {
   // Trainee restriction: never push trainee to CT — try allowed channel or leave unassigned
   if (isTrainee(u.name, dayKey, b.key)) {
-    const _tOk = ["East","South","West","Central"];
+    let _tOk = ["East","South","West","Central"];
+    const _stickyMapF = traineeStickyChannel.get(dayKey);
+    if (_stickyMapF) { const _sF = _stickyMapF.get(u.name); if (_sF) _tOk = [_sF, ..._tOk.filter(c => c !== _sF)]; }
     let _tPlaced = false;
     // Try empty allowed channel
     for (const _tCh of _tOk) {
@@ -3104,6 +3232,8 @@ for (const u of finalUnassigned) {
           const underOtherChs = _rebalDayChannels(under, dk, bk);
           if (underOtherChs.has(ch.toUpperCase())) continue; // 'under' already has ch elsewhere today
 
+          // Trainee sticky: never swap a trainee during rebalancing (preserves sticky channel)
+          if (isTrainee(under, dk, bk) || isTrainee(over, dk, bk)) continue;
           // Trainee restriction: don't swap trainee into restricted channel
           if (traineeBlocked(under, dk, bk, ch.toUpperCase())) continue;
           if (traineeBlocked(over, dk, bk, underCh.toUpperCase())) continue;
@@ -3208,6 +3338,8 @@ for (const u of finalUnassigned) {
           const underOtherChs = _rebalDayChannels(under, dk, bk);
           if (underOtherChs.has(ch.toUpperCase())) continue;
 
+          // Trainee sticky: never swap a trainee during rebalancing (preserves sticky channel)
+          if (isTrainee(under, dk, bk) || isTrainee(over, dk, bk)) continue;
           // Trainee restriction
           if (traineeBlocked(under, dk, bk, ch.toUpperCase())) continue;
           if (traineeBlocked(over, dk, bk, underCh.toUpperCase())) continue;
@@ -3312,6 +3444,8 @@ for (const u of finalUnassigned) {
           const underOtherChs = _rebalDayChannels(under, dk, bk);
           if (underOtherChs.has(ch.toUpperCase())) continue;
 
+          // Trainee sticky: never swap a trainee during rebalancing (preserves sticky channel)
+          if (isTrainee(under, dk, bk) || isTrainee(donor, dk, bk)) continue;
           // Trainee restriction
           if (traineeBlocked(under, dk, bk, ch.toUpperCase())) continue;
           if (traineeBlocked(donor, dk, bk, underCh.toUpperCase())) continue;
@@ -3397,6 +3531,8 @@ for (const u of finalUnassigned) {
           const underOtherChs = _rebalDayChannels(under, dk, bk);
           if (underOtherChs.has(ch.toUpperCase())) continue;
 
+          // Trainee sticky: never swap a trainee during rebalancing (preserves sticky channel)
+          if (isTrainee(under, dk, bk) || isTrainee(donor, dk, bk)) continue;
           // Trainee restriction
           if (traineeBlocked(under, dk, bk, ch.toUpperCase())) continue;
           if (traineeBlocked(donor, dk, bk, underCh.toUpperCase())) continue;
@@ -3520,6 +3656,8 @@ for (const u of finalUnassigned) {
           const otherCounts = finalCounts.get(otherName);
           if (otherCounts && (otherCounts.get(needCh) || 0) <= 2) continue;
 
+          // Trainee sticky: never swap a trainee during rebalancing (preserves sticky channel)
+          if (isTrainee(sdName, dk, bk) || isTrainee(otherName, dk, bk)) continue;
           // Trainee restriction
           if (traineeBlocked(sdName, dk, bk, needCh.toUpperCase())) continue;
           if (traineeBlocked(otherName, dk, bk, currentCh.toUpperCase())) continue;
@@ -6965,7 +7103,9 @@ function renderDay(dayKey) {
       const abbr = chAbbrev[ch] || ch;
       const isOT = nm && (entry.ot || []).some(n => String(n).toUpperCase() === nm.toUpperCase());
       const otTag = isOT ? `<span style="background:#ef4444; color:#fff; font-size:9px; font-weight:900; padding:1px 4px; border-radius:3px; margin-left:4px; letter-spacing:0.5px;">OT</span>` : '';
-      html += `<td>${ nm ? `<span class="assign-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" style="background:${bg}; cursor:pointer;"><b>${abbr}</b> ${escapeHtml(nm.toUpperCase())}${otTag}</span>` : `<span class="assign-cell needed-badge clickable-needed" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-type="channel" style="cursor:pointer;"><b>${abbr}</b> NEEDED</span>` }</td>`;
+      const isTrn = nm && isTrainee(nm, dayKey, b.key);
+      const trnTag = isTrn ? `<span style="position:absolute; left:3px; top:50%; transform:translateY(-50%); background:#a855f7; color:#fff; font-size:8px; font-weight:900; padding:1px 3px; border-radius:3px; letter-spacing:0.5px; line-height:1;">TR</span>` : '';
+      html += `<td>${ nm ? `<span class="assign-cell clickable-assign${isViolation ? ' violation' : ''}" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-name="${escapeHtml(nm.toUpperCase())}" data-type="channel" style="background:${bg}; cursor:pointer;${isTrn ? ' position:relative;' : ''}">${trnTag}<b>${abbr}</b> ${escapeHtml(nm.toUpperCase())}${otTag}</span>` : `<span class="assign-cell needed-badge clickable-needed" data-day="${dayKey}" data-block="${b.key}" data-channel="${ch}" data-type="channel" style="cursor:pointer;"><b>${abbr}</b> NEEDED</span>` }</td>`;
     }
     html += "</tr>";
   }
@@ -8644,29 +8784,163 @@ function renderExceptions() {
   }
 
   html += '<table style="width:100%; table-layout:fixed;"><thead><tr><th style="text-align:left; width:22%;">NAME</th><th style="width:14%;">FROM</th><th style="width:14%;">TO</th><th style="width:34%;">BLOCKS</th><th style="width:16%;"></th></tr></thead><tbody>';
-  // Show cross-month trainers first, then current month trainers
-  if (_crossMonthTraining.length) {
-    _crossMonthTraining.forEach((r) => {
-      const blocksLabel = (r.blocks && r.blocks.length > 0) ? r.blocks.map(k => { const m2 = _blockOpts.find(o=>o.key===k); return m2 ? m2.label : k; }).join(', ') : 'ALL';
-      const nameHtml = escapeHtml((r.name||"").toUpperCase()) + ' <span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(125,211,252,.12);color:#7dd3fc;border:1px solid rgba(125,211,252,.25);margin-left:4px;font-weight:800;">FROM ' + escapeHtml(r._crossMonth).toUpperCase() + '</span>';
-      html += `<tr style="opacity:.7;"><td style="text-align:left; font-weight:700;">${nameHtml}</td><td>${r.from||"—"}</td><td>${r.to||"rest of month"}</td><td style="font-size:10px;">${blocksLabel}</td><td></td></tr>`;
+  // Show cross-month + mirror trainers (with EDIT support via overrides)
+  const _base = normalizeBase();
+  const _extTrainers = _applyExtOverrides(_crossMonthTraining).concat(_applyExtOverrides(_mirrorTrainers));
+  if (_extTrainers.length) {
+    _extTrainers.forEach((r, ei) => {
+      const eid = 'ext-' + ei;
+      const _dayBlockKeys = r.dayBlocks ? Object.keys(r.dayBlocks) : [];
+      const blocksLabel = _dayBlockKeys.length > 0
+        ? `<span style="color:#fbbf24;">CUSTOM (${_dayBlockKeys.length} day${_dayBlockKeys.length>1?'s':''})</span>`
+        : (r.blocks && r.blocks.length > 0) ? r.blocks.map(k => { const m2 = _blockOpts.find(o=>o.key===k); return m2 ? m2.label : k; }).join(', ') : 'ALL';
+      let badge = '';
+      if (r._crossMonth) badge = ' <span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(125,211,252,.12);color:#7dd3fc;border:1px solid rgba(125,211,252,.25);margin-left:4px;font-weight:800;">FROM ' + escapeHtml(r._crossMonth).toUpperCase() + '</span>';
+      else if (r._mirror) badge = ' <span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(168,85,247,.15);color:#c084fc;border:1px solid rgba(168,85,247,.3);margin-left:4px;font-weight:800;">MIRROR \u2192 ' + escapeHtml(r._traineeName || '') + '</span>';
+      const nameHtml = escapeHtml((r.name||"").toUpperCase()) + badge;
+      html += `<tr id="tr-row-${eid}" style="opacity:.7;"><td style="text-align:left; font-weight:700;">${nameHtml}</td><td>${r.from||"—"}</td><td>${r.to||"rest of month"}</td><td style="font-size:10px;">${blocksLabel}</td><td style="white-space:nowrap;"><button class="btn secondary exc-edit-ext" data-eid="${ei}" style="font-size:10px; padding:3px 8px;">EDIT</button></td></tr>`;
+      // Calendar grid for external trainer
+      {
+        const _curYear = Number(document.getElementById("yearSel").value);
+        const _curMo = Number(document.getElementById("monthSel").value);
+        const _rangeFrom = r.from ? parseYMD(r.from) : new Date(_curYear, _curMo, 1, 12,0,0,0);
+        const _rangeTo = r.to ? parseYMD(r.to) : new Date(_curYear, _curMo + 1, 0, 12,0,0,0);
+        // Clamp to current month
+        const _moStart = new Date(_curYear, _curMo, 1, 12,0,0,0);
+        const _moEnd = new Date(_curYear, _curMo + 1, 0, 12,0,0,0);
+        const _clampFrom = _rangeFrom < _moStart ? _moStart : _rangeFrom;
+        const _clampTo = _rangeTo > _moEnd ? _moEnd : _rangeTo;
+        const _dates = [];
+        if (_clampFrom && _clampTo) {
+          const _d = new Date(_clampFrom);
+          while (_d <= _clampTo) { _dates.push(new Date(_d)); _d.setDate(_d.getDate() + 1); }
+        }
+        const _empName = r.name;
+        const _empRow = _base.find(rr => String(rr.Employee||"").trim().toUpperCase() === _empName.toUpperCase());
+        function _blocksForDateExt(dateObj) {
+          if (!_empRow) return new Set(BLOCKS.map(bb=>bb.key));
+          const dn = dayName(dateObj);
+          const shift = String(_empRow[dn]||"").trim().toUpperCase();
+          if (!shift || shift === "OFF") return new Set();
+          const rng = _shiftMap[shift];
+          if (!rng) return new Set();
+          const [s2, e2] = rng;
+          const out = new Set();
+          for (const blk of BLOCKS) { if (blk.start >= s2 && blk.end <= e2) out.add(blk.key); }
+          return out;
+        }
+        let gridHtml = '<div style="max-height:220px; overflow-y:auto; border:1px solid var(--line); border-radius:6px; padding:4px;">';
+        gridHtml += '<div style="display:flex; align-items:center; gap:4px; padding:3px 4px; background:rgba(251,191,36,.08); border-radius:4px; margin-bottom:4px;">';
+        gridHtml += '<span style="font-size:9px; font-weight:800; min-width:72px; color:#fbbf24;">APPLY TO ALL</span>';
+        _blockOpts.forEach(bo => {
+          const allBlocks = _getEmployeeBlocks(_empName);
+          const vis = allBlocks.has(bo.key) ? '' : 'display:none;';
+          gridHtml += `<label style="display:inline-flex; align-items:center; gap:2px; font-size:9px; padding:1px 4px; border-radius:3px; border:1px solid var(--line); cursor:pointer; user-select:none; ${vis}"><input type="checkbox" class="applyall-ext-cb-${ei}" value="${bo.key}" style="margin:0;" />${bo.label}</label>`;
+        });
+        gridHtml += `<button class="btn secondary apply-all-ext-btn-${ei}" style="font-size:9px; padding:2px 8px; margin-left:4px;">APPLY</button>`;
+        gridHtml += '</div>';
+        const _dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+        _dates.forEach(dateObj => {
+          const dk = ymd(dateObj);
+          const dayLabel = _dayNames[dateObj.getDay()] + ' ' + dk;
+          const avail = _blocksForDateExt(dateObj);
+          const isOff = avail.size === 0;
+          const dayArr = (r.dayBlocks && r.dayBlocks[dk] !== undefined) ? r.dayBlocks[dk] : null;
+          gridHtml += `<div style="display:flex; align-items:center; gap:4px; padding:2px 4px; border-bottom:1px solid rgba(255,255,255,.04); ${isOff ? 'opacity:.35;' : ''}">`;
+          gridHtml += `<span style="font-size:9px; min-width:110px; font-family:monospace; color:${isOff ? 'var(--muted)' : 'var(--text)'};">${dayLabel}${isOff ? ' <i>OFF</i>' : ''}</span>`;
+          _blockOpts.forEach(bo => {
+            const isAvail = avail.has(bo.key);
+            let chk = '';
+            if (isAvail) {
+              if (dayArr !== null) { chk = Array.isArray(dayArr) && dayArr.includes(bo.key) ? 'checked' : ''; }
+              else if (r.blocks && r.blocks.length > 0) { chk = r.blocks.includes(bo.key) ? 'checked' : ''; }
+              else { chk = 'checked'; }
+            }
+            const vis = isAvail ? '' : 'display:none;';
+            gridHtml += `<label style="display:inline-flex; align-items:center; gap:2px; font-size:9px; padding:1px 4px; border-radius:3px; border:1px solid var(--line); cursor:pointer; user-select:none; ${vis}"><input type="checkbox" class="daygrid-ext-cb-${ei}" data-day="${dk}" value="${bo.key}" ${chk} ${isOff || !isAvail ? 'disabled' : ''} style="margin:0;" />${bo.label}</label>`;
+          });
+          gridHtml += '</div>';
+        });
+        gridHtml += '</div>';
+        html += `<tr id="tr-edit-${eid}" style="display:none;"><td colspan="5" style="padding:6px 0;"><div style="font-size:9px; color:var(--muted); margin-bottom:4px;">EDITING BLOCKS FOR <b>${escapeHtml(_empName)}</b> — check blocks per day</div>${gridHtml}<div style="margin-top:4px; display:flex; gap:4px;"><button class="btn secondary exc-save-ext" data-eid="${ei}" style="font-size:10px; padding:3px 8px;">SAVE</button><button class="btn secondary exc-cancel-ext" data-eid="${ei}" style="font-size:10px; padding:3px 8px;">CANCEL</button></div></td></tr>`;
+      }
     });
   }
   if (trainerRanges.length) {
     trainerRanges.forEach((r, idx) => {
-      const blocksLabel = (r.blocks && r.blocks.length > 0) ? r.blocks.map(k => { const m = _blockOpts.find(o=>o.key===k); return m ? m.label : k; }).join(', ') : 'ALL';
+      const _dayBlockKeys = r.dayBlocks ? Object.keys(r.dayBlocks) : [];
+      const blocksLabel = _dayBlockKeys.length > 0
+        ? `<span style="color:#fbbf24;">CUSTOM (${_dayBlockKeys.length} day${_dayBlockKeys.length>1?'s':''})</span>`
+        : (r.blocks && r.blocks.length > 0) ? r.blocks.map(k => { const m = _blockOpts.find(o=>o.key===k); return m ? m.label : k; }).join(', ') : 'ALL';
       // Normal display row
       html += `<tr id="tr-row-${idx}"><td style="text-align:left; font-weight:700;">${escapeHtml((r.name||"").toUpperCase())}</td><td>${r.from||"—"}</td><td>${r.to||"rest of month"}</td><td style="font-size:10px;">${blocksLabel}</td><td style="white-space:nowrap;"><button class="btn secondary exc-edit-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px; margin-right:2px;">EDIT</button><button class="btn danger exc-del-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px;">X</button></td></tr>`;
-      // Inline edit row — all 6 checkboxes rendered; filtered at click time via data-emp
-      let editCbs = '';
-      _blockOpts.forEach(bo => {
-        const chk = (r.blocks && r.blocks.includes(bo.key)) ? 'checked' : '';
-        editCbs += `<label data-block-key="${bo.key}" style="display:inline-flex; align-items:center; gap:2px; font-size:10px; padding:2px 5px; border-radius:4px; border:1px solid var(--line); cursor:pointer; user-select:none;"><input type="checkbox" class="edit-block-cb-${idx}" value="${bo.key}" ${chk} style="margin:0;" />${bo.label}</label> `;
-      });
-      html += `<tr id="tr-edit-${idx}" style="display:none;"><td colspan="3" style="text-align:left; font-size:9px; color:var(--muted); padding:6px 0;">EDITING BLOCKS FOR <b>${escapeHtml((r.name||"").toUpperCase())}</b></td><td style="padding:6px 0;"><div style="display:flex; gap:3px; flex-wrap:wrap;">${editCbs}</div></td><td style="white-space:nowrap; padding:6px 0;"><button class="btn secondary exc-save-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px; margin-right:2px;">SAVE</button><button class="btn secondary exc-cancel-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px;">CANCEL</button></td></tr>`;
+      // Calendar grid edit row — one row per date in from/to range
+      {
+        const _curYear = Number(document.getElementById("yearSel").value);
+        const _curMo = Number(document.getElementById("monthSel").value);
+        const _rangeFrom = r.from ? parseYMD(r.from) : new Date(_curYear, _curMo, 1, 12,0,0,0);
+        const _rangeTo = r.to ? parseYMD(r.to) : new Date(_curYear, _curMo + 1, 0, 12,0,0,0);
+        const _dates = [];
+        if (_rangeFrom && _rangeTo) {
+          const _d = new Date(_rangeFrom);
+          while (_d <= _rangeTo) { _dates.push(new Date(_d)); _d.setDate(_d.getDate() + 1); }
+        }
+        // Build employee block availability per day-of-week
+        const _empName = r.name;
+        const _empRow = _base.find(rr => String(rr.Employee||"").trim().toUpperCase() === _empName.toUpperCase());
+        function _blocksForDate(dateObj) {
+          if (!_empRow) return new Set(BLOCKS.map(bb=>bb.key));
+          const dn = dayName(dateObj);
+          const shift = String(_empRow[dn]||"").trim().toUpperCase();
+          if (!shift || shift === "OFF") return new Set();
+          const rng = _shiftMap[shift];
+          if (!rng) return new Set();
+          const [s2, e2] = rng;
+          const out = new Set();
+          for (const blk of BLOCKS) { if (blk.start >= s2 && blk.end <= e2) out.add(blk.key); }
+          return out;
+        }
+        // "APPLY TO ALL" row
+        let gridHtml = '<div style="max-height:220px; overflow-y:auto; border:1px solid var(--line); border-radius:6px; padding:4px;">';
+        gridHtml += '<div style="display:flex; align-items:center; gap:4px; padding:3px 4px; background:rgba(251,191,36,.08); border-radius:4px; margin-bottom:4px;">';
+        gridHtml += '<span style="font-size:9px; font-weight:800; min-width:72px; color:#fbbf24;">APPLY TO ALL</span>';
+        _blockOpts.forEach(bo => {
+          const allBlocks = _getEmployeeBlocks(_empName);
+          const vis = allBlocks.has(bo.key) ? '' : 'display:none;';
+          gridHtml += `<label style="display:inline-flex; align-items:center; gap:2px; font-size:9px; padding:1px 4px; border-radius:3px; border:1px solid var(--line); cursor:pointer; user-select:none; ${vis}"><input type="checkbox" class="applyall-cb-${idx}" value="${bo.key}" style="margin:0;" />${bo.label}</label>`;
+        });
+        gridHtml += `<button class="btn secondary apply-all-btn-${idx}" style="font-size:9px; padding:2px 8px; margin-left:4px;">APPLY</button>`;
+        gridHtml += '</div>';
+        // Per-day rows
+        const _dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+        _dates.forEach(dateObj => {
+          const dk = ymd(dateObj);
+          const dayLabel = _dayNames[dateObj.getDay()] + ' ' + dk;
+          const avail = _blocksForDate(dateObj);
+          const isOff = avail.size === 0;
+          // Determine checked state: dayBlocks[dk] if present, else r.blocks, else all available
+          const dayArr = (r.dayBlocks && r.dayBlocks[dk] !== undefined) ? r.dayBlocks[dk] : null;
+          gridHtml += `<div style="display:flex; align-items:center; gap:4px; padding:2px 4px; border-bottom:1px solid rgba(255,255,255,.04); ${isOff ? 'opacity:.35;' : ''}">`;
+          gridHtml += `<span style="font-size:9px; min-width:110px; font-family:monospace; color:${isOff ? 'var(--muted)' : 'var(--text)'};">${dayLabel}${isOff ? ' <i>OFF</i>' : ''}</span>`;
+          _blockOpts.forEach(bo => {
+            const isAvail = avail.has(bo.key);
+            let chk = '';
+            if (isAvail) {
+              if (dayArr !== null) { chk = Array.isArray(dayArr) && dayArr.includes(bo.key) ? 'checked' : ''; }
+              else if (r.blocks && r.blocks.length > 0) { chk = r.blocks.includes(bo.key) ? 'checked' : ''; }
+              else { chk = 'checked'; } // "ALL" = check all available
+            }
+            const vis = isAvail ? '' : 'display:none;';
+            gridHtml += `<label style="display:inline-flex; align-items:center; gap:2px; font-size:9px; padding:1px 4px; border-radius:3px; border:1px solid var(--line); cursor:pointer; user-select:none; ${vis}"><input type="checkbox" class="daygrid-cb-${idx}" data-day="${dk}" value="${bo.key}" ${chk} ${isOff || !isAvail ? 'disabled' : ''} style="margin:0;" />${bo.label}</label>`;
+          });
+          gridHtml += '</div>';
+        });
+        gridHtml += '</div>';
+        html += `<tr id="tr-edit-${idx}" style="display:none;"><td colspan="5" style="padding:6px 0;"><div style="font-size:9px; color:var(--muted); margin-bottom:4px;">EDITING BLOCKS FOR <b>${escapeHtml(_empName)}</b> — check blocks per day</div>${gridHtml}<div style="margin-top:4px; display:flex; gap:4px;"><button class="btn secondary exc-save-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px;">SAVE</button><button class="btn secondary exc-cancel-tr" data-ti="${idx}" style="font-size:10px; padding:3px 8px;">CANCEL</button></div></td></tr>`;
+      }
     });
   }
-  if (!trainerRanges.length && !_crossMonthTraining.length) {
+  if (!trainerRanges.length && !_extTrainers.length) {
     html += '<tr><td colspan="5" style="color:var(--muted); font-size:11px;">No trainers.</td></tr>';
   }
   html += '</tbody></table></div>';
@@ -8716,29 +8990,14 @@ function renderExceptions() {
       renderExceptions(); renderInfoStats();
     });
   });
-  // Wire edit buttons for trainers — toggles inline edit row, filters blocks at click time
+  // Wire edit buttons for trainers — just toggle row visibility (grid already built)
   wrap.querySelectorAll(".exc-edit-tr").forEach(btn => {
     btn.addEventListener("click", () => {
       const i = btn.getAttribute("data-ti");
       const row = document.getElementById("tr-row-" + i);
       const edit = document.getElementById("tr-edit-" + i);
       if (row) row.style.display = "none";
-      if (edit) {
-        edit.style.display = "";
-        // Filter checkboxes to only blocks this employee actually works
-        const empName = trainerRanges[Number(i)] ? trainerRanges[Number(i)].name : "";
-        const empBlocks = _getEmployeeBlocks(empName);
-        edit.querySelectorAll("label[data-block-key]").forEach(lbl => {
-          const bk = lbl.getAttribute("data-block-key");
-          if (empBlocks.has(bk)) {
-            lbl.style.display = "";
-          } else {
-            lbl.style.display = "none";
-            const cb = lbl.querySelector("input[type=checkbox]");
-            if (cb) cb.checked = false;
-          }
-        });
-      }
+      if (edit) edit.style.display = "";
     });
   });
   // Wire cancel buttons — hides edit row, shows normal row
@@ -8751,17 +9010,118 @@ function renderExceptions() {
       if (edit) edit.style.display = "none";
     });
   });
-  // Wire save buttons — reads checkboxes, updates trainer entry, re-renders
+  // Wire save buttons — reads calendar grid checkboxes, updates trainer entry
   wrap.querySelectorAll(".exc-save-tr").forEach(btn => {
     btn.addEventListener("click", () => {
       const i = Number(btn.getAttribute("data-ti"));
-      const cbs = document.querySelectorAll(".edit-block-cb-" + i + ":checked");
-      const blocks = Array.from(cbs).map(cb => cb.value);
+      // Read all daygrid checkboxes grouped by day
+      const allCbs = document.querySelectorAll(".daygrid-cb-" + i);
+      const dayMap = {}; // dayKey -> [checked block keys]
+      allCbs.forEach(cb => {
+        const dk = cb.getAttribute("data-day");
+        if (!dayMap[dk]) dayMap[dk] = [];
+        if (cb.checked && !cb.disabled) dayMap[dk].push(cb.value);
+      });
+      const dayKeys = Object.keys(dayMap);
+      // Check if all days have identical blocks
+      let allSame = true;
+      if (dayKeys.length > 1) {
+        const first = dayMap[dayKeys[0]].slice().sort().join(",");
+        for (let di = 1; di < dayKeys.length; di++) {
+          if (dayMap[dayKeys[di]].slice().sort().join(",") !== first) { allSame = false; break; }
+        }
+      }
       const t = getTrainerRanges();
-      if (t[i]) { t[i].blocks = blocks; saveJSON(STORAGE.training, t); }
+      if (t[i]) {
+        if (allSame && dayKeys.length > 0) {
+          // All days identical — store as simple blocks, clear dayBlocks
+          t[i].blocks = dayMap[dayKeys[0]];
+          t[i].dayBlocks = {};
+        } else {
+          // Per-day overrides
+          t[i].blocks = []; // clear uniform blocks
+          t[i].dayBlocks = dayMap;
+        }
+        saveJSON(STORAGE.training, t);
+      }
       renderExceptions(); renderInfoStats();
       showToast("Updated training blocks.");
     });
+  });
+  // Wire "Apply to All" buttons for calendar grid
+  trainerRanges.forEach((r, idx) => {
+    const applyBtn = wrap.querySelector(".apply-all-btn-" + idx);
+    if (applyBtn) {
+      applyBtn.addEventListener("click", () => {
+        const applyChecked = new Set(Array.from(document.querySelectorAll(".applyall-cb-" + idx + ":checked")).map(cb => cb.value));
+        document.querySelectorAll(".daygrid-cb-" + idx).forEach(cb => {
+          if (!cb.disabled) cb.checked = applyChecked.has(cb.value);
+        });
+      });
+    }
+  });
+  // Wire EDIT/CANCEL/SAVE/APPLY for external trainers (cross-month + mirror)
+  wrap.querySelectorAll(".exc-edit-ext").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const ei = btn.getAttribute("data-eid");
+      const row = document.getElementById("tr-row-ext-" + ei);
+      const edit = document.getElementById("tr-edit-ext-" + ei);
+      if (row) row.style.display = "none";
+      if (edit) edit.style.display = "";
+    });
+  });
+  wrap.querySelectorAll(".exc-cancel-ext").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const ei = btn.getAttribute("data-eid");
+      const row = document.getElementById("tr-row-ext-" + ei);
+      const edit = document.getElementById("tr-edit-ext-" + ei);
+      if (row) row.style.display = "";
+      if (edit) edit.style.display = "none";
+    });
+  });
+  wrap.querySelectorAll(".exc-save-ext").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const ei = Number(btn.getAttribute("data-eid"));
+      const r = _extTrainers[ei];
+      if (!r) return;
+      const allCbs = document.querySelectorAll(".daygrid-ext-cb-" + ei);
+      const dayMap = {};
+      allCbs.forEach(cb => {
+        const dk = cb.getAttribute("data-day");
+        if (!dayMap[dk]) dayMap[dk] = [];
+        if (cb.checked && !cb.disabled) dayMap[dk].push(cb.value);
+      });
+      const dayKeys = Object.keys(dayMap);
+      let allSame = true;
+      if (dayKeys.length > 1) {
+        const first = dayMap[dayKeys[0]].slice().sort().join(",");
+        for (let di = 1; di < dayKeys.length; di++) {
+          if (dayMap[dayKeys[di]].slice().sort().join(",") !== first) { allSame = false; break; }
+        }
+      }
+      // Save override to localStorage
+      const overrides = loadJSON(STORAGE.extTrainingOverrides, {});
+      const key = (r.name||'').toUpperCase() + '|' + (r.from||'') + '|' + (r.to||'');
+      if (allSame && dayKeys.length > 0) {
+        overrides[key] = { blocks: dayMap[dayKeys[0]], dayBlocks: {} };
+      } else {
+        overrides[key] = { blocks: [], dayBlocks: dayMap };
+      }
+      saveJSON(STORAGE.extTrainingOverrides, overrides);
+      renderExceptions(); renderInfoStats();
+      showToast("Updated training blocks.");
+    });
+  });
+  _extTrainers.forEach((r, ei) => {
+    const applyBtn = wrap.querySelector(".apply-all-ext-btn-" + ei);
+    if (applyBtn) {
+      applyBtn.addEventListener("click", () => {
+        const applyChecked = new Set(Array.from(document.querySelectorAll(".applyall-ext-cb-" + ei + ":checked")).map(cb => cb.value));
+        document.querySelectorAll(".daygrid-ext-cb-" + ei).forEach(cb => {
+          if (!cb.disabled) cb.checked = applyChecked.has(cb.value);
+        });
+      });
+    }
   });
   // Wire trainee employee dropdown to filter ADD form block picker
   const _traineeNameSel = document.getElementById("traineeName");
@@ -9297,7 +9657,8 @@ function buildMonthRosterHTML(mode) {
           } else {
             const ch = (assignMap[dk] && assignMap[dk][bk]) ? (assignMap[dk][bk].get(p.name.toUpperCase()) || "") : "";
             const ab = ch ? (chAbbrMap[ch] || ch) : "?";
-            lines.push('<span class="ch-' + ab.replace(/\s/g,'').toLowerCase() + '">' + ab + '</span>');
+            const _trn = isTrainee(p.name, dk, bk);
+            lines.push('<span class="ch-' + ab.replace(/\s/g,'').toLowerCase() + '">' + (_trn ? '<b style="color:#a855f7;">TR</b>' : '') + ab + '</span>');
           }
         }
         tbl += '<td class="assign' + (isWkend ? ' wkend' : '') + '">' + lines.join('<br>') + '</td>';
@@ -9827,7 +10188,8 @@ function boot() {
               const ab = ch ? (chAbbrMap[ch] || ch) : "?";
               const otEntry = plan.days[dk] && plan.days[dk][bk];
               const isOT = ch && otEntry && (otEntry.ot || []).some(n => String(n).toUpperCase() === p.name.toUpperCase());
-              lines.push(ab + (isOT ? ' OT' : ''));
+              const _trn2 = isTrainee(p.name, dk, bk);
+              lines.push((_trn2 ? 'TR·' : '') + ab + (isOT ? ' OT' : ''));
             }
             // Color based on first non-dash assignment
             const firstCh = lines.find(l => l !== '-' && l !== '?') || '';
@@ -10310,7 +10672,7 @@ function boot() {
       if (!name) return showToast("Select a trainer first.");
       const blocks = Array.from(document.querySelectorAll('.trainee-block-cb:checked')).map(cb => cb.value);
       const ranges = getTrainerRanges();
-      ranges.push({name, from, to, blocks});
+      ranges.push({name, from, to, blocks, dayBlocks: {}});
       saveJSON(STORAGE.training, ranges);
       sel.selectedIndex = 0;
       document.getElementById("traineeFrom").value = "";
@@ -11524,6 +11886,8 @@ function boot() {
               if (gain <= bestGain) continue;
               if (wouldViolate(a.nm, dk, bk.key, b.ch)) continue;
               if (wouldViolate(b.nm, dk, bk.key, a.ch)) continue;
+              // Trainee sticky: never swap a trainee during balance (preserves sticky channel)
+              if (isTrainee(a.nm, dk, bk.key) || isTrainee(b.nm, dk, bk.key)) continue;
               if (traineeBlocked(a.nm, dk, bk.key, b.ch.toUpperCase())) continue;
               if (traineeBlocked(b.nm, dk, bk.key, a.ch.toUpperCase())) continue;
               // Primary channel weekly cap: don't swap if it would push either person over 2 for that channel
@@ -11581,6 +11945,8 @@ function boot() {
 
               if (wouldViolate(ctPerson, dk, bk.key, ch)) continue;
               if (wouldViolate(chPerson, dk, bk.key, "CT")) continue;
+              // Trainee sticky: also skip if ctPerson is a trainee (preserves their sticky channel)
+              if (isTrainee(ctPerson, dk, bk.key)) continue;
               if (traineeBlocked(ctPerson, dk, bk.key, ch.toUpperCase())) continue;
               if (isTrainee(chPerson, dk, bk.key)) continue; // Trainee can't go to CT during training blocks
               // Weekly CT cap: don't move chPerson into CT if they're already at cap this week
@@ -11824,6 +12190,9 @@ function boot() {
     if (pwd !== "911911") { showToast("INCORRECT PASSWORD."); return; }
     const m = Number(document.getElementById("monthSel").value);
     const y = Number(document.getElementById("yearSel").value);
+
+    // Re-fetch employee schedules from Firestore so changes are picked up
+    await loadEmployeesFromFirestore();
 
     // Ask how long to search
     const minutesInput = prompt("How many MINUTES should the optimizer run?\n\n• 1 = quick (~200 attempts)\n• 5 = solid (~1000 attempts)\n• 30 = thorough\n• 480 = overnight (8 hours)\n\nEnter minutes (or blank for 1):", "1");
@@ -12424,6 +12793,7 @@ function boot() {
     setSyncStatus("LOADING...", "pending");
     const loaded = await loadRotationFromFirebase(y, m);
     await loadCrossMonthData(y, m);
+    await loadMirrorTrainers();
     if (loaded) {
       setSyncStatus("SYNCED", "good");
       const plan = loadPlan();
@@ -12444,9 +12814,10 @@ function boot() {
 
   const btnRandomizeAgain = document.getElementById("btnRandomizeAgain");
   if (btnRandomizeAgain) {
-    btnRandomizeAgain.addEventListener("click", ()=>{
+    btnRandomizeAgain.addEventListener("click", async ()=>{
       const m = Number(document.getElementById("monthSel").value);
       const y = Number(document.getElementById("yearSel").value);
+      await loadEmployeesFromFirestore();
       _lastRandomizeFn(y, m);
       updateViolationDisplay();
       const viol = window.lastRandomizeStats?.totalViolations || 0;
@@ -12694,6 +13065,7 @@ function boot() {
     // Try to load rotation plan from Firebase
     const firebaseLoaded = await loadRotationFromFirebase(year, month);
     await loadCrossMonthData(year, month);
+    await loadMirrorTrainers();
 
     if (firebaseLoaded) {
       setSyncStatus("SYNCED", "good");
