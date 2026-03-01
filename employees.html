@@ -529,6 +529,7 @@ td input.sched-input { min-width: 70px; text-align: center; font-size: 11px; }
     <option value="DISPATCHER">Dispatcher</option>
     <option value="PIC">PIC</option>
     <option value="SUPERVISOR">Supervisor</option>
+    <option value="_TRAINING">Training (Mirror)</option>
   </select>
 </div>
 
@@ -971,13 +972,30 @@ function exportSchedules(){
   });
 }
 
+// Returns a Set of employee names that are active mirror trainees (shadowing, not independently filling the role)
+function getActiveMirrorTrainees() {
+  const s = new Set();
+  for (const c of scheduledChanges) {
+    if (c.data.type === 'mirror' && c.data.status === 'active' && c.data.employee) {
+      s.add(c.data.employee);
+    }
+  }
+  return s;
+}
+
 function renderStats(){
+  const mirrorTrainees = getActiveMirrorTrainees();
   const counts = {CALLTAKER:0, DISPATCHER:0, PIC:0, SUPERVISOR:0, OTHER:0};
   let dirty = 0;
+  let trainingCount = 0;
   for(const e of employees){
     const p = e.data.POSITION;
-    if(counts[p] !== undefined) counts[p]++;
-    else counts.OTHER++;
+    if(mirrorTrainees.has(e.data.Employee)){
+      trainingCount++;
+    } else {
+      if(counts[p] !== undefined) counts[p]++;
+      else counts.OTHER++;
+    }
     if(e.dirty) dirty++;
   }
   document.getElementById("empCount").textContent = employees.length;
@@ -987,6 +1005,7 @@ function renderStats(){
   html += `<span>PIC: <b>${counts.PIC}</b></span>`;
   html += `<span>SUP: <b>${counts.SUPERVISOR}</b></span>`;
   if(counts.OTHER) html += `<span>Other: <b>${counts.OTHER}</b></span>`;
+  if(trainingCount) html += `<span style="color:#fbbf24">Training: <b>${trainingCount}</b></span>`;
   if(dirty) html += `<span style="color:var(--warn)">Unsaved: <b>${dirty}</b></span>`;
   document.getElementById("statsBar").innerHTML = html;
 }
@@ -994,8 +1013,10 @@ function renderStats(){
 function getFilteredSorted(){
   const q = document.getElementById("searchInput").value.trim().toLowerCase();
   const pos = document.getElementById("filterPos").value;
+  const _mirrorSet = pos === '_TRAINING' ? getActiveMirrorTrainees() : null;
   let list = employees.filter(e => {
     if(q && !e.data.Employee.toLowerCase().includes(q)) return false;
+    if(pos === '_TRAINING') { return _mirrorSet.has(e.data.Employee); }
     if(pos && e.data.POSITION !== pos) return false;
     return true;
   });
@@ -1019,13 +1040,23 @@ function renderTable(){
   const list = getFilteredSorted();
   const tbody = document.getElementById("tbody");
   const posOpts = POSITIONS.map(p => `<option value="${p}">${p}</option>`).join("");
+  const mirrorTrainees = getActiveMirrorTrainees();
+  // Build trainee->trainer map for badge tooltip
+  const mirrorTrainerMap = {};
+  for (const c of scheduledChanges) {
+    if (c.data.type === 'mirror' && c.data.status === 'active' && c.data.employee) {
+      mirrorTrainerMap[c.data.employee] = c.data.trainerName || '';
+    }
+  }
 
   tbody.innerHTML = list.map((e, idx) => {
     const d = e.data;
     const cls = e.isNew ? "new-row" : (e.dirty ? "dirty" : "");
     const origIdx = employees.indexOf(e);
+    const isMirror = mirrorTrainees.has(d.Employee);
+    const mirrorBadge = isMirror ? ` <span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3);font-weight:800;vertical-align:middle;" title="Mirroring ${esc(mirrorTrainerMap[d.Employee] || '')}">TRAINING</span>` : '';
     return `<tr class="${cls}" data-idx="${origIdx}">
-      <td><input class="name-input" value="${esc(d.Employee)}" data-field="Employee"/></td>
+      <td><input class="name-input" value="${esc(d.Employee)}" data-field="Employee"/>${mirrorBadge}</td>
       <td><input class="sen-input" type="number" value="${esc(String(d.SENIORITY))}" data-field="SENIORITY"/></td>
       <td><select class="pos-select" data-field="POSITION">${posOpts.replace(`value="${esc(d.POSITION)}"`, `value="${esc(d.POSITION)}" selected`)}</select></td>
       <td><input class="sched-input" value="${esc(d.MONDAY)}" data-field="MONDAY" placeholder="OFF"/></td>
