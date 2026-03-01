@@ -12194,6 +12194,17 @@ function boot() {
     // Re-fetch employee schedules from Firestore so changes are picked up
     await loadEmployeesFromFirestore();
 
+    // Force-reload vacation/training data from Firestore so external changes (AttendanceOps) are picked up
+    // Uses originalSetItem to avoid triggering auto-save
+    try {
+      const _refreshDoc = await db.collection('rotation_plans').doc(`rotation_${y}_${m}`).get({ source: 'server' });
+      if (_refreshDoc.exists) {
+        const _rd = _refreshDoc.data();
+        if (_rd.vacations) originalSetItem.call(localStorage, "rotation_vac_ranges_v2", JSON.stringify(_rd.vacations));
+        if (_rd.trainers) originalSetItem.call(localStorage, "rotation_training_v2", JSON.stringify(_rd.trainers));
+      }
+    } catch (_e) { console.warn("Could not refresh vacation/training data before randomize:", _e); }
+
     // Ask how long to search
     const minutesInput = prompt("How many MINUTES should the optimizer run?\n\n• 1 = quick (~200 attempts)\n• 5 = solid (~1000 attempts)\n• 30 = thorough\n• 480 = overnight (8 hours)\n\nEnter minutes (or blank for 1):", "1");
     if (minutesInput === null) return; // cancelled
@@ -12818,6 +12829,15 @@ function boot() {
       const m = Number(document.getElementById("monthSel").value);
       const y = Number(document.getElementById("yearSel").value);
       await loadEmployeesFromFirestore();
+      // Force-reload vacation/training data from Firestore so external changes are picked up
+      try {
+        const _refreshDoc = await db.collection('rotation_plans').doc(`rotation_${y}_${m}`).get({ source: 'server' });
+        if (_refreshDoc.exists) {
+          const _rd = _refreshDoc.data();
+          if (_rd.vacations) originalSetItem.call(localStorage, "rotation_vac_ranges_v2", JSON.stringify(_rd.vacations));
+          if (_rd.trainers) originalSetItem.call(localStorage, "rotation_training_v2", JSON.stringify(_rd.trainers));
+        }
+      } catch (_e) { console.warn("Could not refresh vacation/training data before re-randomize:", _e); }
       _lastRandomizeFn(y, m);
       updateViolationDisplay();
       const viol = window.lastRandomizeStats?.totalViolations || 0;
