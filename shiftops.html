@@ -752,11 +752,11 @@ main{
 
 /* Row comments */
 .cmt-btn{
-  background:none;border:none;padding:0;margin:0;cursor:pointer;
+  background:none;border:none;padding:8px;margin:-8px;cursor:pointer;
   font-size:10px;opacity:.35;transition:opacity .15s;line-height:1;
   color:var(--muted);vertical-align:middle;
   width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;
-  position:relative;z-index:5;
+  position:relative;z-index:9500;
 }
 .cmt-btn:hover{opacity:.7}
 .cmt-btn.has-cmt{opacity:1;color:#fbbf24;text-shadow:0 0 6px rgba(251,191,36,.5)}
@@ -1339,7 +1339,7 @@ body.light .customSelOpt.kbHL{
 .rosterTbl th.workedCol, .rosterTbl td.workedCol{ width:100px; }
 .rosterTbl th.hrsCol, .rosterTbl td.hrsCol{ width:32px; max-width:32px; padding:0 !important; }
 .rosterTbl th.presCol, .rosterTbl td.presCol{ width:34px !important; min-width:34px !important; padding:0 !important; }
-.rosterTbl th.cmtCol, .rosterTbl td.cmtCol{ width:18px !important; max-width:18px !important; padding:0 !important; text-align:center; overflow:visible !important; position:relative; z-index:5; }
+.rosterTbl th.cmtCol, .rosterTbl td.cmtCol{ width:18px !important; max-width:18px !important; padding:0 !important; text-align:center; overflow:visible !important; position:relative; z-index:9500; }
 
 /* control cells must allow popups/inputs to be visible and clickable */
 .rosterTbl td.ctrlCell, .rosterTbl th.ctrlCol{
@@ -4679,33 +4679,12 @@ function computeRowsForBlock(iso, shift, block){
     const row={emp:ot.emp, sen:"", shiftStr:"OT", role, present, hours, assignment:(ed.Assignment||""), workedStart:workedStartOT, workedEnd:workedEndOT, isOT:true};
     if(present==="NO") res.ABSENT.push(row);
     else if(present==="PARTIAL"){
+      // OT partial: just show in their role table, no absence event
       if(res[role]) res[role].push(row);
-      const schedStartOT = Math.max(bw.startMin, ot.ws);
-      const schedEndOT = Math.min(bw.endMin, ot.we);
-      const schedHrsOT = roundQuarterHours(overlapMinutes(schedStartOT, schedEndOT, bw.startMin, bw.endMin));
-      const actStartOT = minutesOf(workedStartOT);
-      const actEndOT = minutesOf(workedEndOT);
-      const missedHrsOT = Math.max(0, schedHrsOT - hours);
-      let mStartOT, mEndOT;
-      if(actStartOT > schedStartOT && actEndOT < schedEndOT){
-        mStartOT = minToHHMM(schedStartOT%1440); mEndOT = minToHHMM(actStartOT%1440);
-      } else if(actEndOT < schedEndOT){
-        mStartOT = minToHHMM(actEndOT%1440); mEndOT = minToHHMM(schedEndOT%1440);
-      } else if(actStartOT > schedStartOT){
-        mStartOT = minToHHMM(schedStartOT%1440); mEndOT = minToHHMM(actStartOT%1440);
-      } else { mStartOT = ""; mEndOT = ""; }
-      res.ABSENT.push({emp:ot.emp, sen:"", shiftStr:"OT", role, present:"PARTIAL", hours:missedHrsOT, assignment:"", workedStart:mStartOT, workedEnd:mEndOT, isOT:true, isPartial:true});
     }
     else if(present==="TARDY"){
+      // OT tardy: just show in their role table, no absence event
       if(res[role]) res[role].push(row);
-      const schedStartOT = Math.max(bw.startMin, ot.ws);
-      const schedEndOT = Math.min(bw.endMin, ot.we);
-      const schedHrsOT = roundQuarterHours(overlapMinutes(schedStartOT, schedEndOT, bw.startMin, bw.endMin));
-      const actStartOT = minutesOf(workedStartOT);
-      const missedHrsOT = Math.max(0, schedHrsOT - hours);
-      const mStartOT = minToHHMM(schedStartOT%1440);
-      const mEndOT = minToHHMM(actStartOT%1440);
-      res.ABSENT.push({emp:ot.emp, sen:"", shiftStr:"OT", role, present:"TARDY", hours:missedHrsOT, assignment:"", workedStart:mStartOT, workedEnd:mEndOT, isOT:true, isPartial:true, isTardy:true});
     }
     else if(res[role]) res[role].push(row);
   }

@@ -848,6 +848,7 @@
       <button class="btn" id="btnRandomizeA">RANDOMIZE</button>
       <button class="btn" id="btnBalance" style="background:#f59e0b; box-shadow:0 6px 18px rgba(245,158,11,.22);">BALANCE</button>
       <button class="btn" id="btnCheckViol" style="background:#8b5cf6; box-shadow:0 6px 18px rgba(139,92,246,.22);">CHECK VIOLATIONS</button>
+      <button class="btn danger" id="btnClearAssignments">CLEAR ASSIGNMENTS</button>
     </div>
 
     <div class="layout">
@@ -1517,8 +1518,12 @@ function isTrainee(name, dayKey, blockKey) {
   const dt = dateObj ? dateObj.getTime() : null;
   return ranges.some(r => {
     if (!r || !r.name) return false;
-    if (r._mirror) return false; // Mirror entries are trainers, not trainees
-    if (r.name.toUpperCase() !== nm) return false;
+    // Mirror entries: the trainee is stored in _traineeName, not name
+    if (r._mirror) {
+      if (!r._traineeName || r._traineeName.toUpperCase() !== nm) return false;
+    } else {
+      if (r.name.toUpperCase() !== nm) return false;
+    }
     // If no dates specified, always applies
     if (!r.from && !r.to) { /* date matches */ }
     else if (!dt) { /* no date to check, matches */ }
@@ -1549,7 +1554,16 @@ function getTrainingStatus(name, dayKey, blockKey) {
   const dt = dateObj ? dateObj.getTime() : null;
   for (const r of ranges) {
     if (!r || !r.name) continue;
-    if (r.name.toUpperCase() !== nm) continue;
+    // Mirror entries: name = trainer, _traineeName = trainee
+    let matchRole = null;
+    if (r._mirror) {
+      if (r.name.toUpperCase() === nm) matchRole = "TRAINER";
+      else if (r._traineeName && r._traineeName.toUpperCase() === nm) matchRole = "TRAINEE";
+      else continue;
+    } else {
+      if (r.name.toUpperCase() !== nm) continue;
+      matchRole = "TRAINEE";
+    }
     if (r.from || r.to) {
       if (!dt) continue;
       const fromT = r.from ? new Date(r.from + "T00:00:00").getTime() : -Infinity;
@@ -1565,7 +1579,7 @@ function getTrainingStatus(name, dayKey, blockKey) {
         if (!r.blocks.includes(blockKey)) continue;
       }
     }
-    return r._mirror ? "TRAINER" : "TRAINEE";
+    return matchRole;
   }
   return null;
 }
@@ -1757,7 +1771,9 @@ function randomizeMonth(year, monthIndex) {
     for (const tr of _todayTrainees) {
       const nm = tr.name.toUpperCase();
       const entry = _allTrainerRanges.find(r => {
-        if (r.name.toUpperCase() !== nm) return false;
+        // Normal entries: name = trainee. Mirror entries: _traineeName = trainee.
+        const matchName = r._mirror ? (r._traineeName || '').toUpperCase() : r.name.toUpperCase();
+        if (matchName !== nm) return false;
         if (!r.from && !r.to) return true;
         const dt = dateObj.getTime();
         const fromT = r.from ? new Date(r.from + "T00:00:00").getTime() : -Infinity;
@@ -1829,7 +1845,44 @@ function randomizeMonth(year, monthIndex) {
     });
     const _trainerUsedCh = new Set(_usedChannels); // don't collide with trainee sticky channels
     const _trainerDayMap = new Map();
+    // First pass: assign manually-picked channels (dayChannels / channel overrides)
+    const _manualTrainers = [];
+    const _autoTrainers = [];
     for (const tr of _todayTrainers) {
+      const nm = tr.name.toUpperCase();
+      const entry = _allTrainerRanges.find(r => {
+        if (!r._mirror) return false; // only mirror entries are trainers
+        if (r.name.toUpperCase() !== nm) return false;
+        if (!r.from && !r.to) return true;
+        const dt = dateObj.getTime();
+        const fromT = r.from ? new Date(r.from + "T00:00:00").getTime() : -Infinity;
+        const toT = r.to ? new Date(r.to + "T23:59:59").getTime() : Infinity;
+        return dt >= fromT && dt <= toT;
+      });
+      let manualCh = null;
+      if (entry) {
+        if (entry.dayChannels && entry.dayChannels[dayKey] && entry.dayChannels[dayKey] !== 'Auto') {
+          manualCh = entry.dayChannels[dayKey];
+        } else if (entry.channel && entry.channel !== 'Auto') {
+          manualCh = entry.channel;
+        }
+      }
+      if (manualCh && _STICKY_OPTS.includes(manualCh)) {
+        _manualTrainers.push({ tr, ch: manualCh });
+      } else {
+        _autoTrainers.push(tr);
+      }
+    }
+    // Assign manual channels first
+    for (const { tr, ch } of _manualTrainers) {
+      _trainerDayMap.set(tr.name, ch);
+      _trainerUsedCh.add(ch);
+      const hist = trainerChannelHistory.get(tr.name) || [];
+      hist.push(ch);
+      trainerChannelHistory.set(tr.name, hist);
+    }
+    // Second pass: auto-assign remaining trainers using rotation logic
+    for (const tr of _autoTrainers) {
       const history = trainerChannelHistory.get(tr.name) || [];
       let best = null;
       // Pick unused channel the trainer hasn't been on recently
@@ -8154,12 +8207,38 @@ function renderStatsHtml(plan) {
     }
   }
 
-  // Split into 4 groups: SD-eligible get their own table
+  // Detect vacation & training names (same logic as calculateFairnessStats)
+  const _vacSetP = new Set();
+  const _trnSetP = new Set();
+  try {
+    const _vacRangesP = getVacRangesWithCrossMonth();
+    for (const dayKey of Object.keys(plan.days)) {
+      const dateObj = parseYMD(dayKey);
+      if (!dateObj) continue;
+      for (const r of _vacRangesP) {
+        if (!r || !r.name) continue;
+        const nm = String(r.name).trim().toUpperCase();
+        if (isExcluded(nm, dateObj)) _vacSetP.add(nm);
+      }
+    }
+    for (const dayKey of Object.keys(plan.days)) {
+      for (const [nm] of allTotals) {
+        if (isTrainee(nm, dayKey, null)) _trnSetP.add(nm);
+        if (getTrainingStatus(nm, dayKey, null) === "TRAINER") _trnSetP.add(nm);
+      }
+    }
+  } catch(e) { console.error("[CH-TOTALS-POPUP] detection error:", e); }
+
+  // Split into groups: SD-eligible, day, night, split, vacation, training
   const sdGroup = new Map();
   const dayOnly = new Map();
   const nightOnly = new Map();
   const splitShift = new Map();
+  const vacGroup = new Map();
+  const trnGroup = new Map();
   for (const [name, row] of allTotals) {
+    if (_trnSetP.has(name)) { trnGroup.set(name, row); continue; }
+    if (_vacSetP.has(name)) { vacGroup.set(name, row); continue; }
     if (SD_ELIGIBLE.has(name)) { sdGroup.set(name, row); continue; }
     const s = personShifts.get(name);
     if (s.day && s.night) splitShift.set(name, row);
@@ -8199,7 +8278,9 @@ function renderStatsHtml(plan) {
     for (const name of names) {
       const g = totalsMap.get(name);
       const b2b = b2bCounts.get(name) || 0;
-      h += `<tr><td style="text-align:left; padding:2px 4px; font-weight:600; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(name)}</td>`;
+      const _vL = _vacSetP.has(name) ? ' <span style="color:#f59e0b; font-size:9px; font-weight:700;">VAC</span>' : '';
+      const _tL = _trnSetP.has(name) ? ' <span style="color:#38bdf8; font-size:9px; font-weight:700;">TRN</span>' : '';
+      h += `<tr><td style="text-align:left; padding:2px 4px; font-weight:600; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(name)}${_vL}${_tL}</td>`;
       for (const ch of PRIMARY) h += `<td style="text-align:center; padding:2px; ${_cs(g[ch], avg[ch])}">${g[ch]}</td>`;
       h += `<td style="text-align:center; padding:2px; ${_cs(g.relief, avg.relief)}">${g.relief}</td>`;
       h += `<td style="text-align:center; padding:2px; ${_cs(g.ct, avg.ct)}">${g.ct}</td>`;
@@ -8254,7 +8335,9 @@ function renderStatsHtml(plan) {
       const g = totalsMap.get(name);
       const chTotal = g.total + g.sd; // total includes channels+CT, add SD
       const b2b = b2bCounts.get(name) || 0;
-      h += `<tr><td style="text-align:left; padding:2px 4px; font-weight:600; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(name)}</td>`;
+      const _vL2 = _vacSetP.has(name) ? ' <span style="color:#f59e0b; font-size:9px; font-weight:700;">VAC</span>' : '';
+      const _tL2 = _trnSetP.has(name) ? ' <span style="color:#38bdf8; font-size:9px; font-weight:700;">TRN</span>' : '';
+      h += `<tr><td style="text-align:left; padding:2px 4px; font-weight:600; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(name)}${_vL2}${_tL2}</td>`;
       for (const ch of PRIMARY) h += `<td style="text-align:center; padding:2px; ${_cs(g[ch], avg[ch])}">${g[ch]}</td>`;
       h += `<td style="text-align:center; padding:2px; ${_cs(g.relief, avg.relief)}">${g.relief}</td>`;
       h += `<td style="text-align:center; padding:2px; ${_cs(g.ct, avg.ct)}">${g.ct}</td>`;
@@ -8277,10 +8360,19 @@ function renderStatsHtml(plan) {
     return h;
   }
 
-  return _buildSDTable("SD ELIGIBLE (Special Detail)", sdGroup)
+  let out = _buildSDTable("SD ELIGIBLE (Special Detail)", sdGroup)
        + _buildTable("DAY SHIFT (6A – 6P)", dayOnly)
        + _buildTable("NIGHT SHIFT (6P – 6A)", nightOnly)
        + _buildTable("SPLIT SHIFT (Day + Night)", splitShift);
+  if (vacGroup.size > 0) {
+    out += `<div style="margin-top:22px; padding-top:10px; border-top:2px dashed rgba(202,138,4,.4);"><span style="font-size:11px; font-weight:700; color:#ca8a04;">VACATION / EXCLUSION (excluded from score)</span></div>`;
+    out += _buildTable("", vacGroup);
+  }
+  if (trnGroup.size > 0) {
+    out += `<div style="margin-top:22px; padding-top:10px; border-top:2px dashed rgba(56,189,248,.4);"><span style="font-size:11px; font-weight:700; color:#38bdf8;">TRAINING (excluded from score)</span></div>`;
+    out += _buildTable("", trnGroup);
+  }
+  return out;
 }
 
 
@@ -9132,12 +9224,36 @@ function renderMonth(year, monthIndex) {
       }
     }
 
-    // Split into 4 groups: SD-eligible get their own table
+    // Detect vacation & training names (same logic as calculateFairnessStats)
+    const _vacRanges = getVacRangesWithCrossMonth();
+    const _vacNamesSet = new Set();
+    for (const dayKey of Object.keys(plan.days)) {
+      const dateObj = parseYMD(dayKey);
+      if (!dateObj) continue;
+      for (const r of _vacRanges) {
+        if (!r || !r.name) continue;
+        const nm = String(r.name).trim().toUpperCase();
+        if (isExcluded(nm, dateObj)) _vacNamesSet.add(nm);
+      }
+    }
+    const _trnNamesSet = new Set();
+    for (const dayKey of Object.keys(plan.days)) {
+      for (const [nm] of allTotals) {
+        if (isTrainee(nm, dayKey, null)) _trnNamesSet.add(nm);
+        if (getTrainingStatus(nm, dayKey, null) === "TRAINER") _trnNamesSet.add(nm);
+      }
+    }
+
+    // Split into groups: SD-eligible, day, night, split, vacation, training
     const sdGroup = new Map();
     const dayOnly = new Map();
     const nightOnly = new Map();
     const splitShift = new Map();
+    const vacGroup = new Map();
+    const trnGroup = new Map();
     for (const [name, row] of allTotals) {
+      if (_trnNamesSet.has(name)) { trnGroup.set(name, row); continue; }
+      if (_vacNamesSet.has(name)) { vacGroup.set(name, row); continue; }
       if (SD_ELIGIBLE.has(name)) { sdGroup.set(name, row); continue; }
       const s = personShifts.get(name);
       if (s && s.day && s.night) splitShift.set(name, row);
@@ -9186,7 +9302,9 @@ function renderMonth(year, monthIndex) {
       for (const name of sortedNames) {
         const row = totalsMap.get(name);
         const b2b = b2bCounts.get(name) || 0;
-        t += `<tr><td style="text-align:left; padding:2px 4px; font-weight:600; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(name)}</td>`;
+        const _vLbl = _vacNamesSet.has(name) ? ' <span style="color:#f59e0b; font-size:9px; font-weight:700;">VAC</span>' : '';
+        const _tLbl = _trnNamesSet.has(name) ? ' <span style="color:#38bdf8; font-size:9px; font-weight:700;">TRN</span>' : '';
+        t += `<tr><td style="text-align:left; padding:2px 4px; font-weight:600; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(name)}${_vLbl}${_tLbl}</td>`;
         for (const ch of PRIMARY_CHS) t += `<td style="text-align:center; padding:2px; ${_cellStyle(row[ch], avgRow[ch])}">${row[ch]}</td>`;
         t += `<td style="text-align:center; padding:2px; ${_cellStyle(row.relief, avgRow.relief)}">${row.relief}</td>`;
         t += `<td style="text-align:center; padding:2px; ${_cellStyle(row.ct, avgRow.ct)}">${row.ct}</td>`;
@@ -9243,7 +9361,9 @@ function renderMonth(year, monthIndex) {
         const row = totalsMap.get(name);
         const chTotal = row.total + row.sd;
         const b2b = b2bCounts.get(name) || 0;
-        t += `<tr><td style="text-align:left; padding:2px 4px; font-weight:600; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(name)}</td>`;
+        const _vLbl2 = _vacNamesSet.has(name) ? ' <span style="color:#f59e0b; font-size:9px; font-weight:700;">VAC</span>' : '';
+        const _tLbl2 = _trnNamesSet.has(name) ? ' <span style="color:#38bdf8; font-size:9px; font-weight:700;">TRN</span>' : '';
+        t += `<tr><td style="text-align:left; padding:2px 4px; font-weight:600; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(name)}${_vLbl2}${_tLbl2}</td>`;
         for (const ch of PRIMARY_CHS) t += `<td style="text-align:center; padding:2px; ${_cellStyle(row[ch], avgRow[ch])}">${row[ch]}</td>`;
         t += `<td style="text-align:center; padding:2px; ${_cellStyle(row.relief, avgRow.relief)}">${row.relief}</td>`;
         t += `<td style="text-align:center; padding:2px; ${_cellStyle(row.ct, avgRow.ct)}">${row.ct}</td>`;
@@ -9271,6 +9391,14 @@ function renderMonth(year, monthIndex) {
     html += _buildShiftTable("DAY SHIFT TOTALS (6A – 6P)", dayOnly);
     html += _buildShiftTable("NIGHT SHIFT TOTALS (6P – 6A)", nightOnly);
     html += _buildShiftTable("SPLIT SHIFT TOTALS (Day + Night)", splitShift);
+    if (vacGroup.size > 0) {
+      html += `<div style="margin-top:22px; padding-top:10px; border-top:2px dashed rgba(202,138,4,.4);"><span style="font-size:11px; font-weight:700; color:#ca8a04;">VACATION / EXCLUSION (excluded from score)</span></div>`;
+      html += _buildShiftTable("", vacGroup);
+    }
+    if (trnGroup.size > 0) {
+      html += `<div style="margin-top:22px; padding-top:10px; border-top:2px dashed rgba(56,189,248,.4);"><span style="font-size:11px; font-weight:700; color:#38bdf8;">TRAINING (excluded from score)</span></div>`;
+      html += _buildShiftTable("", trnGroup);
+    }
   }
   // ========== END CHANNEL TOTALS TABLE ==========
 
@@ -9988,7 +10116,8 @@ function calculateFairnessStats() {
   }
 
   // Identify vacation employees — anyone with at least one vacation day this month
-  const vacRanges = getVacRanges();
+  // Uses cross-month vacations too so people excluded from adjacent months are detected
+  const vacRanges = getVacRangesWithCrossMonth();
   const vacNames = new Set();
   for (const dayKey of Object.keys(plan.days)) {
     const dateObj = parseYMD(dayKey);
@@ -10000,23 +10129,45 @@ function calculateFairnessStats() {
     }
   }
 
-  // Identify trainees — anyone who is a trainee on any day this month
+  // Identify trainees AND trainers — anyone involved in training on any day this month
+  // Includes normal trainees, mirror trainees (excluded from pool so rarely in empStats),
+  // and mirror trainers (dispatchers training someone via schedule mirroring)
   const traineeNames = new Set();
   for (const dayKey of Object.keys(plan.days)) {
     for (const [nm] of empStats) {
       if (isTrainee(nm, dayKey, null)) traineeNames.add(nm);
+      // Also flag mirror trainers — they're channel-restricted during training blocks
+      if (getTrainingStatus(nm, dayKey, null) === "TRAINER") traineeNames.add(nm);
     }
   }
 
-  // Compute expected assignments per person proportional to their eligible blocks
-  const totalEligible = Array.from(eligibleBlocks.values()).reduce((a, b) => a + b, 0);
-  // Store expected on each empStats entry
+  // Tag vacation/trainee status first so we can use it for expected calculation
   for (const [nm, s] of empStats) {
-    const eb = eligibleBlocks.get(nm) || 0;
-    s.eligibleBlocks = eb;
-    s.expected = totalEligible > 0 ? totalAssignments * (eb / totalEligible) : 0;
+    s.eligibleBlocks = eligibleBlocks.get(nm) || 0;
     s.isVacation = vacNames.has(nm);
     s.isTrainee = traineeNames.has(nm);
+  }
+
+  // Compute expected assignments — use separate pools for regular vs excluded employees
+  // so training/vacation employees don't skew the fairness calculation
+  const totalEligible = Array.from(eligibleBlocks.values()).reduce((a, b) => a + b, 0);
+  let regularEligible = 0;
+  let regularAssignments = 0;
+  for (const [nm, s] of empStats) {
+    if (!s.isVacation && !s.isTrainee) {
+      regularEligible += s.eligibleBlocks;
+      regularAssignments += s.total;
+    }
+  }
+  for (const [nm, s] of empStats) {
+    const eb = s.eligibleBlocks;
+    if (!s.isVacation && !s.isTrainee) {
+      // Regular employees: expected based on regular pool only
+      s.expected = regularEligible > 0 ? regularAssignments * (eb / regularEligible) : 0;
+    } else {
+      // Excluded employees: expected based on full pool (for display only)
+      s.expected = totalEligible > 0 ? totalAssignments * (eb / totalEligible) : 0;
+    }
   }
 
   const totals = Array.from(empStats.values()).map(s => s.total);
@@ -10073,10 +10224,15 @@ function printHowItWorks() {
       return "DAY";
     }
 
-    const groups = { DAY: [], NIGHT: [], SPLIT: [], SD: [] };
+    const groups = { DAY: [], NIGHT: [], SPLIT: [], SD: [], VAC: [], TRN: [] };
     for (const [name, s] of stats.empStats.entries()) {
-      const grp = getShiftGroup(name);
-      groups[grp].push([name, s]);
+      // Training and vacation people go into their own groups at the bottom
+      if (s.isTrainee) { groups.TRN.push([name, s]); }
+      else if (s.isVacation) { groups.VAC.push([name, s]); }
+      else {
+        const grp = getShiftGroup(name);
+        groups[grp].push([name, s]);
+      }
     }
     // Sort each group by total descending
     for (const g of Object.values(groups)) g.sort((a,b) => b[1].total - a[1].total);
@@ -10087,9 +10243,9 @@ function printHowItWorks() {
         const fairPct = s.expected > 0 ? Math.round(100 - (Math.abs(s.total - s.expected) / s.expected) * 100) : 100;
         const clamped = Math.max(0, Math.min(100, fairPct));
         const color = clamped >= 90 ? '#16a34a' : clamped >= 80 ? '#ca8a04' : '#dc2626';
-        const vacTag = s.isVacation ? ' <span style="color:#ca8a04; font-size:6px; font-weight:700;">VAC</span>' : '';
-        const trnTag = s.isTrainee ? ' <span style="color:#38bdf8; font-size:6px; font-weight:700;">TRN</span>' : '';
-        const rowOpacity = (s.isVacation || s.isTrainee) ? ' opacity:0.6;' : '';
+        const vacTag = s.isVacation ? ' <span style="color:#ca8a04; font-size:7px; font-weight:700;">VAC</span>' : '';
+        const trnTag = s.isTrainee ? ' <span style="color:#38bdf8; font-size:7px; font-weight:700;">TRN</span>' : '';
+        const rowOpacity = (s.isVacation || s.isTrainee) ? ' opacity:0.7;' : '';
         rows += '<tr style="' + rowOpacity + '"><td style="text-align:left; font-weight:600; padding:2px 6px;">' + name + vacTag + trnTag + '</td><td style="padding:2px 6px; text-align:center;">' + s.total + '</td><td style="padding:2px 6px; text-align:center;">' + s.ct + '</td><td style="padding:2px 6px; text-align:center; color:' + color + '; font-weight:700;">' + clamped + '%</td></tr>';
       }
       return rows;
@@ -10113,7 +10269,9 @@ function printHowItWorks() {
     fairnessTable = buildGroupTable("Day Shift (6A\u20136P)", groups.DAY, "#2563eb")
                   + buildGroupTable("Night Shift (6P\u20136A)", groups.NIGHT, "#1e293b")
                   + buildGroupTable("Split Shift", groups.SPLIT, "#d97706")
-                  + buildGroupTable("Shift Differential (SD)", groups.SD, "#7c3aed");
+                  + buildGroupTable("Shift Differential (SD)", groups.SD, "#7c3aed")
+                  + buildGroupTable("Vacation / Exclusion (excluded from score)", groups.VAC, "#ca8a04")
+                  + buildGroupTable("Training (excluded from score)", groups.TRN, "#38bdf8");
   } else {
     fairnessTable = '<div style="color:#999; text-align:center; padding:12px;">No data \u2014 randomize a month first.</div>';
   }
@@ -10497,17 +10655,19 @@ function renderInfoStats() {
       </div>
     </div>`;
 
-    fairHtml += '<div style="overflow:auto; max-height:360px;">';
-    fairHtml += '<table style="width:100%; font-size:11px;"><thead><tr><th>NAME</th><th>TOTAL</th><th>EXPECTED</th><th>7TH</th><th>CT</th><th>FAIRNESS %</th></tr></thead><tbody>';
-    sorted.forEach(([name, s]) => {
+    // Separate regular, vacation, and training employees
+    const regularSorted = sorted.filter(([n, s]) => !s.isVacation && !s.isTrainee);
+    const vacSorted = sorted.filter(([n, s]) => s.isVacation && !s.isTrainee);
+    const trnSorted = sorted.filter(([n, s]) => s.isTrainee);
+
+    function _fairRow(name, s, dim) {
       const fairPct = s.expected > 0 ? Math.round(100 - (Math.abs(s.total - s.expected) / s.expected) * 100) : 100;
       const clampedPct = Math.max(0, Math.min(100, fairPct));
       const pctClass = clampedPct >= 90 ? 'color:#22c55e' : clampedPct >= 80 ? 'color:#f59e0b' : 'color:#ef4444';
       const seventh = s.channels[SEVENTH_CHANNEL] || 0;
       const vacLabel = s.isVacation ? ' <span style="color:#f59e0b; font-size:9px; font-weight:700;">VAC</span>' : '';
       const trnLabel = s.isTrainee ? ' <span style="color:#38bdf8; font-size:9px; font-weight:700;">TRN</span>' : '';
-      const dimRow = s.isVacation || s.isTrainee;
-      fairHtml += `<tr style="${dimRow ? 'opacity:0.6;' : ''}">
+      return `<tr style="${dim ? 'opacity:0.7;' : ''}">
         <td style="text-align:left; font-weight:600;">${escapeHtml(name)}${vacLabel}${trnLabel}</td>
         <td>${s.total}</td>
         <td>${s.expected.toFixed(1)}</td>
@@ -10515,7 +10675,19 @@ function renderInfoStats() {
         <td>${s.ct}</td>
         <td style="${pctClass}; font-weight:700;">${clampedPct}%</td>
       </tr>`;
-    });
+    }
+
+    fairHtml += '<div style="overflow:auto; max-height:360px;">';
+    fairHtml += '<table style="width:100%; font-size:11px;"><thead><tr><th>NAME</th><th>TOTAL</th><th>EXPECTED</th><th>7TH</th><th>CT</th><th>FAIRNESS %</th></tr></thead><tbody>';
+    regularSorted.forEach(([name, s]) => { fairHtml += _fairRow(name, s, false); });
+    if (vacSorted.length) {
+      fairHtml += `<tr><td colspan="6" style="text-align:left; font-weight:800; font-size:10px; color:#ca8a04; padding:8px 6px 4px; border-top:1px solid rgba(202,138,4,.3);">VACATION / EXCLUSION (${vacSorted.length}) — excluded from score</td></tr>`;
+      vacSorted.forEach(([name, s]) => { fairHtml += _fairRow(name, s, true); });
+    }
+    if (trnSorted.length) {
+      fairHtml += `<tr><td colspan="6" style="text-align:left; font-weight:800; font-size:10px; color:#38bdf8; padding:8px 6px 4px; border-top:1px solid rgba(56,189,248,.3);">TRAINING (${trnSorted.length}) — excluded from score</td></tr>`;
+      trnSorted.forEach(([name, s]) => { fairHtml += _fairRow(name, s, true); });
+    }
     fairHtml += '</tbody></table></div>';
   } else {
     fairHtml = '<div style="text-align:center; color:var(--muted); padding:20px;">NO DATA — RANDOMIZE A MONTH FIRST</div>';
@@ -11261,6 +11433,45 @@ function boot() {
       const otEntries = [];
       let hasAny = false;
 
+      // Read existing ShiftOps edits so we can preserve manual changes
+      const docId = iso + "_" + shiftTarget;
+      const docRef = db.collection('daily_edits').doc(docId);
+      let existingEdits = {};
+      try {
+        const existingDoc = await docRef.get();
+        if (existingDoc.exists && existingDoc.data().edits) {
+          existingEdits = existingDoc.data().edits;
+        }
+      } catch (e) {
+        console.warn("Could not read existing ShiftOps edits:", e);
+      }
+
+      // Helper: merge RotationOps role/seat into existing edit, preserving manual fields
+      function mergeEdit(emp, bk, newRole, newAssignment, newPresent, newOthType) {
+        if (!edits[emp]) edits[emp] = {};
+        const prev = (existingEdits[emp] && existingEdits[emp][bk]) || null;
+        if (prev) {
+          // Preserve manual edits, only overwrite role + assignment
+          edits[emp][bk] = {
+            Present: prev.Present || newPresent,
+            Hours: prev.Hours || "",
+            Role: newRole,
+            Assignment: newAssignment,
+            AbsenceReason: prev.AbsenceReason || "",
+            PartialReason: prev.PartialReason || "",
+            WorkedStart: prev.WorkedStart || "",
+            WorkedEnd: prev.WorkedEnd || "",
+            OthType: newOthType
+          };
+        } else {
+          edits[emp][bk] = {
+            Present: newPresent, Hours: "", Role: newRole,
+            Assignment: newAssignment, AbsenceReason: "",
+            PartialReason: "", WorkedStart: "", WorkedEnd: "", OthType: newOthType
+          };
+        }
+      }
+
       for (const bk of targetBlocks) {
         const entry = dayBlocks[bk];
         if (!entry) continue;
@@ -11273,12 +11484,7 @@ function boot() {
             const role = channelToRole(ch);
             const tStatus = getTrainingStatus(nm, iso, bk);
             const present = tStatus || "YES";
-            if (!edits[emp]) edits[emp] = {};
-            edits[emp][bk] = {
-              Present: present, Hours: "", Role: role,
-              Assignment: channelToSeat(ch), AbsenceReason: "",
-              PartialReason: "", WorkedStart: "", WorkedEnd: "", OthType: ""
-            };
+            mergeEdit(emp, bk, role, channelToSeat(ch), present, "");
             hasAny = true; assignCount++;
             if (otSet.has(String(nm).toUpperCase())) {
               const { ws, we } = blockToMinutes(bk, shiftTarget === "NIGHT");
@@ -11293,12 +11499,7 @@ function boot() {
             const emp = toShiftOpsName(nm);
             const tStatus = getTrainingStatus(nm, iso, bk);
             const present = tStatus || "YES";
-            if (!edits[emp]) edits[emp] = {};
-            edits[emp][bk] = {
-              Present: present, Hours: "", Role: "CALLTAKER",
-              Assignment: "", AbsenceReason: "",
-              PartialReason: "", WorkedStart: "", WorkedEnd: "", OthType: ""
-            };
+            mergeEdit(emp, bk, "CALLTAKER", "", present, "");
             hasAny = true; assignCount++;
             if (otSet.has(String(nm).toUpperCase())) {
               const { ws, we } = blockToMinutes(bk, shiftTarget === "NIGHT");
@@ -11313,12 +11514,7 @@ function boot() {
             const emp = toShiftOpsName(nm);
             const tStatus = getTrainingStatus(nm, iso, bk);
             const present = tStatus || "YES";
-            if (!edits[emp]) edits[emp] = {};
-            edits[emp][bk] = {
-              Present: present, Hours: "", Role: "OTH",
-              Assignment: "", AbsenceReason: "",
-              PartialReason: "", WorkedStart: "", WorkedEnd: "", OthType: "SD"
-            };
+            mergeEdit(emp, bk, "OTH", "", present, "SD");
             hasAny = true; assignCount++;
             if (otSet.has(String(nm).toUpperCase())) {
               const { ws, we } = blockToMinutes(bk, shiftTarget === "NIGHT");
@@ -11327,18 +11523,23 @@ function boot() {
           }
         }
 
-        // Push absent people as Present:"NO"
+        // Push absent people as Present:"NO" (only if no existing manual edit)
         if (entry.absent && entry.absent.length) {
           for (const nm of entry.absent) {
             if (!nm) continue;
             const emp = toShiftOpsName(nm);
             if (!edits[emp]) edits[emp] = {};
             if (!edits[emp][bk]) {
-              edits[emp][bk] = {
-                Present: "NO", Hours: "0", Role: "",
-                Assignment: "", AbsenceReason: "",
-                PartialReason: "", WorkedStart: "", WorkedEnd: "", OthType: ""
-              };
+              const prev = (existingEdits[emp] && existingEdits[emp][bk]) || null;
+              if (prev) {
+                edits[emp][bk] = Object.assign({}, prev, { Present: "NO", Hours: "0" });
+              } else {
+                edits[emp][bk] = {
+                  Present: "NO", Hours: "0", Role: "",
+                  Assignment: "", AbsenceReason: "",
+                  PartialReason: "", WorkedStart: "", WorkedEnd: "", OthType: ""
+                };
+              }
               hasAny = true;
             }
           }
@@ -11346,15 +11547,12 @@ function boot() {
       }
 
       if (hasAny) {
-        const docId = iso + "_" + shiftTarget;
-        const docRef = db.collection('daily_edits').doc(docId);
-
         // Merge OT: read existing entries, keep non-duplicates, add/update from RotationOps
         let mergedOT = otEntries;
         try {
-          const existing = await docRef.get();
-          if (existing.exists && Array.isArray(existing.data().ot)) {
-            const existingOT = existing.data().ot;
+          const existingDoc2 = await docRef.get();
+          if (existingDoc2.exists && Array.isArray(existingDoc2.data().ot)) {
+            const existingOT = existingDoc2.data().ot;
             // Build set of new OT keys (emp+blockId) for dedup
             const newKeys = new Set(otEntries.map(o => o.emp.toUpperCase() + "|" + o.blockId));
             // Keep existing entries that don't collide, then append new ones
@@ -13856,6 +14054,72 @@ function boot() {
     }, 50);
   });
 
+  // Clear Assignments — wipe plan from localStorage + Firebase for selected month
+  document.getElementById("btnClearAssignments").addEventListener("click", async () => {
+    const m = Number(document.getElementById("monthSel").value);
+    const y = Number(document.getElementById("yearSel").value);
+    const label = monthName(m) + " " + y;
+
+    if (!confirm("CLEAR ALL ASSIGNMENTS for " + label + "?\n\nThis will delete the entire rotation plan from Firebase and local storage. You will need to re-randomize.\n\nThis cannot be undone.")) return;
+
+    const pwd = prompt("ENTER PASSWORD TO CLEAR:");
+    if (pwd !== "911911") { showToast("INCORRECT PASSWORD."); return; }
+
+    const btn = document.getElementById("btnClearAssignments");
+    btn.disabled = true;
+    btn.textContent = "CLEARING...";
+
+    try {
+      // 1. Unsubscribe realtime listener so stale snapshots can't arrive
+      if (realtimeUnsubscribe) { realtimeUnsubscribe(); realtimeUnsubscribe = null; }
+
+      // 2. Cancel any pending auto-save
+      if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null; }
+
+      // 3. Clear only the plan (assignments) from Firebase — preserve vacations/training
+      const docId = `rotation_${y}_${m}`;
+      await authReady;
+      if (auth.currentUser) {
+        try {
+          await db.collection('rotation_plans').doc(docId).set({
+            plan: null,
+            savedAt: new Date().toISOString()
+          }, { merge: true });
+          console.log("CLEAR: Cleared plan in Firebase doc:", docId);
+        } catch (err) {
+          console.error("CLEAR: Firebase update failed:", err);
+          alert("Failed to clear assignments in Firebase. Check your internet connection.");
+          btn.disabled = false;
+          btn.textContent = "CLEAR ASSIGNMENTS";
+          return;
+        }
+      }
+
+      // 4. Clear only the plan from localStorage — keep vacations/training intact
+      originalSetItem.call(localStorage, STORAGE.plan, "null");
+
+      // 5. Reset sticky channel maps
+      traineeStickyChannel = new Map();
+      trainerStickyChannel = new Map();
+
+      // 6. Refresh the UI to show empty state
+      const dk = ymd(new Date(y, m, 1, 12, 0, 0, 0));
+      document.getElementById("dayPick").value = dk;
+      renderDay(dk);
+      renderWeek(dk);
+      renderMonth(y, m);
+
+      setSyncStatus("CLEARED", null);
+      showToast("Cleared all assignments for " + label + ". Ready to re-randomize.");
+    } catch (err) {
+      console.error("CLEAR: Unexpected error:", err);
+      alert("Error clearing assignments: " + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "CLEAR ASSIGNMENTS";
+    }
+  });
+
   // When month/year changes, try to load from Firebase
   const monthYearChanged = async () => {
     const m = Number(document.getElementById("monthSel").value);
@@ -14205,7 +14469,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 </script>
 
 <div style="text-align:center; padding:20px 10px; margin-top:20px; border-top:1px solid var(--line); color:var(--muted); font-size:11px; letter-spacing:.5px;">
-  Built and Maintained by T. Martinez &middot; Version 1.0
+  Built and Maintained by T. Martinez &middot; Version 3.0
 </div>
 
 </body>
