@@ -3162,6 +3162,7 @@ body.light .customSelBtn.typing-mode {
           <button id="btnPrintDaily" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Print Daily</button>
           <button id="btnPrintWeeklyD" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Print Weekly</button>
           <button id="btnDownloadWeeklyXlsx" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#4ade80;cursor:pointer;border-bottom:1px solid #334155;">Download Weekly Excel</button>
+          <button id="btnPrintLegend" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#a78bfa;cursor:pointer;border-bottom:1px solid #334155;">Print Excel Legend</button>
           <button id="btnShiftSwap" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#a3d4ff;cursor:pointer;border-bottom:1px solid #334155;">Shift Swap</button>
           <button id="btnBreakOPS" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:700;text-align:left;background:none;border:none;color:#f59e0b;cursor:pointer;">Push to BreakOPS</button>
         </div>
@@ -4429,9 +4430,13 @@ async function importTeamsWeek(file){
   const weekEnd=new Date(weekStart.getTime()+6*86400000);
   // Extend by 1 day to catch post-midnight OT (e.g., Mar 1 02:00 belongs to Feb 28 NIGHT)
   const weekEndExtended=new Date(weekStart.getTime()+7*86400000);
-  // Merge: don't clear OT_BY_CTX so multiple week imports accumulate.
-  // Cross-week night shift OT (e.g., 1/31 02:00 → 1/30 NIGHT) survives.
-  // Page reload resets everything if a fresh start is needed.
+  // Clear OT for today and future dates so traded OT gets replaced.
+  // Past dates are preserved (never touch history).
+  const todayISO=toISODate(new Date());
+  for(const [k] of OT_BY_CTX.entries()){
+    const kISO=k.split("|")[0];
+    if(kISO>=todayISO) OT_BY_CTX.delete(k);
+  }
 
   let text=null, wb=null;
   if(file.name.toLowerCase().endsWith(".csv")) text = await file.text();
@@ -7625,6 +7630,29 @@ async function downloadWeeklyXlsx(){
       loadShiftSwaps(wd.iso)
     ]));
 
+    // Load SD rotation data from RotationOps Firestore
+    const sdByDayBlock={}; // "YYYY-MM-DD|blockId" -> Set of employee names
+    try{
+      const rotMonthKeys=new Set();
+      for(const wd of weekDates){ const d=parseISO(wd.iso); rotMonthKeys.add(d.getFullYear()+"_"+d.getMonth()); }
+      await Promise.all([...rotMonthKeys].map(async mk=>{
+        const docId="rotation_"+mk;
+        const doc=await db.collection("rotation_plans").doc(docId).get();
+        if(doc.exists&&doc.data().plan&&doc.data().plan.days){
+          const days=doc.data().plan.days;
+          for(const [dayKey,blocks] of Object.entries(days)){
+            for(const [blockId,blockData] of Object.entries(blocks)){
+              if(blockData.sd&&blockData.sd.length){
+                const key=dayKey+"|"+blockId;
+                if(!sdByDayBlock[key]) sdByDayBlock[key]=new Set();
+                for(const nm of blockData.sd) sdByDayBlock[key].add(nm.toUpperCase());
+              }
+            }
+          }
+        }
+      }));
+    }catch(e){ console.warn("SD rotation load failed:",e); }
+
     const roleOrder=["CALLTAKER","DISPATCHER","PIC","SUPERVISOR"];
     const blocksDayDef=BLOCKS_DAY;
     const blocksNightDef=BLOCKS_NIGHT;
@@ -7721,41 +7749,43 @@ async function downloadWeeklyXlsx(){
 
     const wb=XLSX.utils.book_new();
 
-    function buildSheet(shiftLabel, grouped, blockDefs){
+    function buildSheet(shiftLabel, grouped, blockDefs, sdData){
       const aoa=[];
       const rType=[]; // row type for styling: title|daynames|blocktimes|rolehdr|reg|ot|blank
 
       // Row 0: Title bar
-      const r0=[shiftLabel+" \u2014 "+weekDates[0].label+" to "+weekDates[6].label];
-      for(let i=0;i<21;i++) r0.push("");
+      const r0=["SHIFTOPS \u2014 "+shiftLabel+" \u2014 "+weekDates[0].label+" to "+weekDates[6].label];
+      for(let i=0;i<22;i++) r0.push("");
       aoa.push(r0); rType.push("title");
 
       // Row 1: Day names merged across 3 cols each
-      const r1=[""];
+      // Get pay period + week from dropdowns
+      const _ppSelEl=document.getElementById("ppSel");
+      const _wkSelEl=document.getElementById("weekSel");
+      let ppLabel="";
+      if(_ppSelEl&&_ppSelEl.selectedOptions.length) ppLabel=_ppSelEl.selectedOptions[0].textContent.split(":")[0].trim();
+      const wkNum=_wkSelEl?_wkSelEl.value:"";
+      const r1=[ppLabel+(wkNum?" WK"+wkNum:"")];
       for(const wd of weekDates){
         const dn=["SUN","MON","TUE","WED","THU","FRI","SAT"][parseISO(wd.iso).getDay()];
         r1.push(dn,"","");
       }
+      r1.push("TOTAL");
       aoa.push(r1); rType.push("daynames");
-
-      // Row 2: Block times
-      const r2=[""];
-      for(let di=0;di<7;di++){
-        for(const b of blockDefs) r2.push(b.start.replace(":","").slice(0,4)+"-"+b.end.replace(":","").slice(0,4));
-      }
-      aoa.push(r2); rType.push("blocktimes");
 
       // Interleaved: CT reg, CT OT, DISP reg, DISP OT, then others
       const xlOrder=["CALLTAKER","DISPATCHER","PIC","SUPERVISOR","OTH"];
-      const roleLabel={CALLTAKER:"CALL TAKERS",DISPATCHER:"DISPATCHERS",PIC:"PIC",SUPERVISOR:"SUPERVISORS",OTH:"OTHER"};
+      const roleReg={CALLTAKER:"CALLTAKERS",DISPATCHER:"DISPATCHERS",PIC:"PIC",SUPERVISOR:"SUPERVISORS",OTH:"OTHER"};
+      const roleOT={CALLTAKER:"CALLTAKER OT",DISPATCHER:"DISPATCH OT",PIC:"PIC OT",SUPERVISOR:"SUPERVISOR OT",OTH:"OTHER OT"};
       for(const role of xlOrder){
         const regs=grouped[role]?grouped[role].regulars:[];
         const ots=grouped[role]?grouped[role].ot:[];
         if(!regs.length&&!ots.length) continue;
 
         if(regs.length){
-          const hdr=[(roleLabel[role]||role)+" \u2014 REGULARS"];
-          for(let i=0;i<21;i++) hdr.push("");
+          const hdr=[roleReg[role]||role];
+          for(let di=0;di<7;di++){ for(const b of blockDefs) hdr.push(b.start.replace(":","").slice(0,4)); }
+          hdr.push("TOTAL");
           aoa.push(hdr); rType.push("rolehdr");
           for(const e of regs){
             const doff=_xlDaysOff[e.emp]||"";
@@ -7767,19 +7797,28 @@ async function downloadWeeklyXlsx(){
                 const cell=e.blocks[bKey];
                 if(!cell||cell.status==="OFF") row.push("DO");
                 else if(cell.status==="VAC") row.push("VAC");
-                else row.push("");
+                else{
+                  // Check if employee is SD for this day/block
+                  const sdSet=sdData[bKey];
+                  if(sdSet&&sdSet.has(e.emp.toUpperCase())) row.push("SD");
+                  else row.push("");
+                }
               }
             }
+            row.push(""); // total placeholder
             aoa.push(row); rType.push("reg");
           }
         }
 
         if(ots.length){
-          const hdr=[(roleLabel[role]||role)+" \u2014 OVERTIME"];
-          for(let i=0;i<21;i++) hdr.push("");
+          const hdr=[roleOT[role]||role+" OT"];
+          for(let di=0;di<7;di++){ for(const b of blockDefs) hdr.push(b.start.replace(":","").slice(0,4)); }
+          hdr.push("TOTAL");
           aoa.push(hdr); rType.push("rolehdr");
+          const _roleAbbr={CALLTAKER:"CT",DISPATCHER:"D",PIC:"P",SUPERVISOR:"SUP",OTH:""};
           for(const e of ots){
             const row=[e.emp.toUpperCase()];
+            const rAbbr=_roleAbbr[e.role]||"";
             for(let di=0;di<7;di++){
               for(const b of blockDefs){
                 const bKey=weekDates[di].iso+"|"+b.id;
@@ -7788,25 +7827,83 @@ async function downloadWeeklyXlsx(){
                 else if(cell.status==="OFF") row.push("DO");
                 else{
                   const hrs=Math.round((cell.hours||0)*10)/10;
-                  row.push(hrs>0?hrs:"");
+                  let asgn=cell.assignment||"";
+                  asgn=asgn.replace(/RELIEF\s*2/i,"R2").replace(/RELIEF\s*1/i,"R1")
+                    .replace(/\bNORTHWEST\b/i,"NW").replace(/\bNORTHEAST\b/i,"NE")
+                    .replace(/\bSOUTHWEST\b/i,"SW").replace(/\bSOUTHEAST\b/i,"SE")
+                    .replace(/\bNORTH\b/i,"N").replace(/\bSOUTH\b/i,"S")
+                    .replace(/\bEAST\b/i,"E").replace(/\bWEST\b/i,"W");
+                  if(hrs>0){
+                    let val=rAbbr+hrs;
+                    if(asgn) val+="/"+asgn;
+                    row.push(val);
+                  } else row.push("");
                 }
               }
             }
+            row.push(""); // total placeholder
             aoa.push(row); rType.push("ot");
           }
           for(let i=0;i<5;i++){
             const row=[""];
-            for(let c=0;c<21;c++) row.push("");
+            for(let c=0;c<22;c++) row.push("");
             aoa.push(row); rType.push("blank");
           }
         }
       }
 
+      // Add legend at the bottom
+      aoa.push([]); rType.push("blank");
+      // Legend header row
+      const legendHdr=[]; for(let i=0;i<23;i++) legendHdr.push(""); legendHdr[0]="LEGEND"; aoa.push(legendHdr); rType.push("legendhdr");
+      // Legend entries: [swatchText, description, bgColor, fontColor]
+      // 3 columns of swatch+desc pairs: cols 0-1, 4-5, 8-9 (with gap cols 2-3, 6-7)
+      // Row 1: Light Pink / White / Grey
+      // Row 2: SICK Red / Family Orange / Tardy Light Red
+      // Row 3: SZ Dark Purple / FZ Light Purple / NCNS Yellow
+      // Row 4: VAC Blue / SD Purple / DO Grey
+      // Row 5: OT format / Block = 4hrs / Tab navigation
+      const legendGrid=[
+        [
+          {sw:"",desc:"Empty cell (unfilled)",bg:"FFE0E0",fc:"000000"},
+          {sw:"Filled",desc:"Assigned cell (white)",bg:"FFFFFF",fc:"000000"},
+          {sw:"DO",desc:"Day Off (locked)",bg:"808080",fc:"000000"}
+        ],[
+          {sw:"S2.5",desc:"Sick \u2014 4 minus hrs",bg:"CC0000",fc:"FFFFFF"},
+          {sw:"F4",desc:"Family \u2014 4 minus hrs",bg:"FF9900",fc:"000000"},
+          {sw:"T.25",desc:"Tardy \u2014 4 minus hrs",bg:"FF6666",fc:"000000"}
+        ],[
+          {sw:"SZ2",desc:"SZ absence \u2014 4 minus hrs",bg:"5B21B6",fc:"FFFFFF"},
+          {sw:"FZ1.5",desc:"FZ absence \u2014 4 minus hrs",bg:"A78BFA",fc:"FFFFFF"},
+          {sw:"NCNS",desc:"No Call No Show \u2014 0 hrs",bg:"FDE047",fc:"000000"}
+        ],[
+          {sw:"VAC",desc:"Vacation \u2014 0 hrs",bg:"1E50B4",fc:"FFFFFF"},
+          {sw:"SD",desc:"Shift Director (RotationOps)",bg:"7C3AED",fc:"FFFFFF"},
+          {sw:"CT4/16",desc:"OT: Role+Hrs / Seat",bg:"FFFFFF",fc:"CC0000"}
+        ],[
+          {sw:"\u2022",desc:"Each block = 4 hours",bg:null,fc:"333333"},
+          {sw:"\u2022",desc:"Total col sums hours worked",bg:null,fc:"333333"},
+          {sw:"\u2022",desc:"Tab key skips locked cells",bg:null,fc:"333333"}
+        ]
+      ];
+      // Build legend rows centered: cols 4-17 (14 cols content, ~37ch left margin, ~36ch right margin)
+      // Pair 1: col4=swatch, 5-7=desc | gap col8 | Pair 2: col9=swatch, 10-12=desc | gap col13 | Pair 3: col14=swatch, 15-17=desc
+      for(let li=0;li<legendGrid.length;li++){
+        const row=[]; for(let i=0;i<23;i++) row.push("");
+        const items=legendGrid[li];
+        row[4]=items[0].sw;  row[5]=items[0].desc;
+        row[9]=items[1].sw;  row[10]=items[1].desc;
+        row[14]=items[2].sw; row[15]=items[2].desc;
+        aoa.push(row);
+        rType.push("legendrow|"+li);
+      }
+
       const ws=XLSX.utils.aoa_to_sheet(aoa,{sheetStubs:true});
 
       // Column widths: name col wide, block cols narrow
-      const colW=[{wch:22}];
+      const colW=[{wch:16}];
       for(let i=0;i<21;i++) colW.push({wch:7});
+      colW.push({wch:8}); // TOTAL column
       ws['!cols']=colW;
 
       // Row heights
@@ -7816,19 +7913,45 @@ async function downloadWeeklyXlsx(){
         else if(rType[R]==="daynames") ws['!rows'][R]={hpt:18};
         else if(rType[R]==="blocktimes") ws['!rows'][R]={hpt:26};
         else if(rType[R]==="rolehdr") ws['!rows'][R]={hpt:18};
+        else if(rType[R]==="legendhdr") ws['!rows'][R]={hpt:22};
+        else if(rType[R].startsWith("legendrow")) ws['!rows'][R]={hpt:20};
         else ws['!rows'][R]={hpt:16};
       }
 
       // Merge day-name headers (row 1)
       const merges=[];
+      // Merge title row across all columns
+      merges.push({s:{r:0,c:0},e:{r:0,c:22}});
+      // Merge day name headers across 3 cols each
       for(let di=0;di<7;di++){
         const s=1+di*3, e_=3+di*3;
         merges.push({s:{r:1,c:s},e:{r:1,c:e_}});
       }
+      // Merge legend rows
+      for(let R=0;R<aoa.length;R++){
+        if(rType[R]==="legendhdr"){
+          merges.push({s:{r:R,c:0},e:{r:R,c:22}});
+        }
+        if(rType[R].startsWith("legendrow")){
+          // Centered layout: leading cols 0-3, then 3 pairs, trailing cols 18-22
+          // Leading blank merge
+          merges.push({s:{r:R,c:0},e:{r:R,c:3}});
+          // Pair 1: col4=swatch, 5-7=desc
+          merges.push({s:{r:R,c:5},e:{r:R,c:7}});
+          // Gap col 8
+          // Pair 2: col9=swatch, 10-12=desc
+          merges.push({s:{r:R,c:10},e:{r:R,c:12}});
+          // Gap col 13
+          // Pair 3: col14=swatch, 15-17=desc
+          merges.push({s:{r:R,c:15},e:{r:R,c:17}});
+          // Trailing blank merge
+          merges.push({s:{r:R,c:18},e:{r:R,c:22}});
+        }
+      }
       ws['!merges']=merges;
 
       // Day-group boundary columns (thick left border)
-      const dgStart=new Set([1,4,7,10,13,16,19]);
+      const dgStart=new Set([1,4,7,10,13,16,19,22]);
       const range=XLSX.utils.decode_range(ws['!ref']);
       const maxC=range.e.c, maxR=range.e.r;
 
@@ -7879,43 +8002,284 @@ async function downloadWeeklyXlsx(){
           }else if(meta==="rolehdr"){
             cl.s.font={bold:true,sz:10,color:{rgb:"FFFFFF"}};
             cl.s.fill={fgColor:{rgb:"2D3748"}};
+          }else if(meta==="legendhdr"){
+            cl.s.font={bold:true,sz:11,color:{rgb:"FFFFFF"}};
+            cl.s.fill={fgColor:{rgb:"2D3748"}};
+            cl.s.alignment={horizontal:"center",vertical:"center"};
+            cl.s.border={top:{style:"medium",color:{rgb:"000000"}},bottom:{style:"medium",color:{rgb:"000000"}},left:{style:"thin",color:{rgb:"AAAAAA"}},right:{style:"thin",color:{rgb:"AAAAAA"}}};
+          }else if(meta.startsWith("legendrow|")){
+            const li=parseInt(meta.split("|")[1]);
+            const gridRow=legendGrid[li];
+            // Centered layout: Pair1 cols 4-7, Pair2 cols 9-12, Pair3 cols 14-17
+            let pairIdx=-1,isSwatch=false,isDesc=false;
+            if(C===4){pairIdx=0;isSwatch=true;}
+            else if(C>=5&&C<=7){pairIdx=0;isDesc=true;}
+            else if(C===9){pairIdx=1;isSwatch=true;}
+            else if(C>=10&&C<=12){pairIdx=1;isDesc=true;}
+            else if(C===14){pairIdx=2;isSwatch=true;}
+            else if(C>=15&&C<=17){pairIdx=2;isDesc=true;}
+            if(pairIdx>=0&&gridRow[pairIdx]){
+              const item=gridRow[pairIdx];
+              if(isSwatch){
+                if(item.bg){
+                  cl.s.fill={fgColor:{rgb:item.bg}};
+                  cl.s.font={bold:true,sz:10,color:{rgb:item.fc||"000000"}};
+                } else {
+                  cl.s.font={bold:true,sz:10,color:{rgb:item.fc||"333333"}};
+                }
+                cl.s.alignment={horizontal:"center",vertical:"center"};
+                cl.s.border={top:{style:"thin",color:{rgb:"666666"}},bottom:{style:"thin",color:{rgb:"666666"}},left:{style:"thin",color:{rgb:"666666"}},right:{style:"thin",color:{rgb:"666666"}}};
+              } else if(isDesc){
+                cl.s.font={sz:9,color:{rgb:"333333"}};
+                cl.s.fill={fgColor:{rgb:"F7F7F7"}};
+                cl.s.alignment={horizontal:"left",vertical:"center"};
+                cl.s.border={top:{style:"thin",color:{rgb:"CCCCCC"}},bottom:{style:"thin",color:{rgb:"CCCCCC"}},left:{style:"thin",color:{rgb:"CCCCCC"}},right:{style:"thin",color:{rgb:"CCCCCC"}}};
+              }
+            } else {
+              // Gap or trailing cols — no fill, no border
+              cl.s.font={sz:9,color:{rgb:"FFFFFF"}};
+              cl.s.border={};
+            }
           }else{
             // Data rows
-            cl.s.font={sz:9,color:{rgb:"000000"}};
-            if(C===0) cl.s.font={bold:true,sz:9,color:{rgb:"000000"}};
-            // DO cells — black fill
+            cl.s.font={bold:true,sz:11,color:{rgb:"000000"}};
+            if(C===0) cl.s.font={bold:true,sz:11,color:{rgb:"000000"}};
+            // DO cells — dark grey fill
             if(typeof cl.v==="string"&&cl.v==="DO"&&C>0){
-              cl.s.font={bold:true,sz:9,color:{rgb:"FFFFFF"}};
-              cl.s.fill={fgColor:{rgb:"000000"}};
+              cl.s.font={bold:true,sz:11,color:{rgb:"000000"}};
+              cl.s.fill={fgColor:{rgb:"808080"}};
             }
             // VAC cells — blue fill
             if(typeof cl.v==="string"&&cl.v==="VAC"){
-              cl.s.font={bold:true,sz:9,color:{rgb:"FFFFFF"}};
+              cl.s.font={bold:true,sz:11,color:{rgb:"FFFFFF"}};
               cl.s.fill={fgColor:{rgb:"1E50B4"}};
             }
-            // Alternating row tint for regulars
-            if(meta==="reg"&&C>0&&!(typeof cl.v==="string"&&(cl.v==="DO"||cl.v==="VAC"))){
-              const ri=aoa.slice(0,R).filter((_,i)=>rType[i]==="reg").length;
-              if(ri%2===1) cl.s.fill={fgColor:{rgb:"F0F0F0"}};
+            // SD cells — bright purple fill
+            if(typeof cl.v==="string"&&cl.v==="SD"&&C>0){
+              cl.s.font={bold:true,sz:11,color:{rgb:"FFFFFF"}};
+              cl.s.fill={fgColor:{rgb:"7C3AED"}};
+            }
+            // OT prefilled cells — role+hours red, assignment black
+            if(meta==="ot"&&C>0&&typeof cl.v==="string"&&cl.v!==""&&cl.v!=="DO"&&cl.v!=="VAC"){
+              const slashIdx=cl.v.indexOf("/");
+              if(slashIdx>0){
+                // Mark for JSZip rich text post-processing
+                if(!ws._rtCells) ws._rtCells=[];
+                ws._rtCells.push({addr:addr,prefix:cl.v.substring(0,slashIdx),suffix:cl.v.substring(slashIdx)});
+                cl.s.font={bold:true,sz:11,color:{rgb:"CC0000"}}; // fallback
+              } else {
+                cl.s.font={bold:true,sz:11,color:{rgb:"CC0000"}};
+              }
+            }
+            // Light pink fill on empty editable cells
+            if((meta==="reg"||meta==="ot"||meta==="blank")&&C>0&&!(typeof cl.v==="string"&&(cl.v==="DO"||cl.v==="VAC"))&&(cl.v==null||cl.v==="")){
+              cl.s.fill={fgColor:{rgb:"FFE0E0"}};
             }
           }
 
           // --- Mark unlocked cells (post-processed via JSZip) ---
           if(meta==="reg"){
-            if(C>0&&!(typeof cl.v==="string"&&(cl.v==="DO"||cl.v==="VAC"))) cl._u=1;
-          }else if((meta==="ot"||meta==="blank")&&C>0){
+            if(C>0&&C<22&&!(typeof cl.v==="string"&&(cl.v==="DO"||cl.v==="VAC"))) cl._u=1;
+          }else if((meta==="ot"||meta==="blank")&&C>0&&C<22){
             cl._u=1;
           }
+        }
+      }
+
+      // Add TOTAL formulas for data rows (column W = index 22)
+      for(let R=0;R<=maxR;R++){
+        const meta=rType[R]||"";
+        if(meta==="reg"||meta==="ot"){
+          const rowNum=R+1; // 1-based for Excel
+          const addr=XLSX.utils.encode_cell({r:R,c:22});
+          const rng='B'+rowNum+':V'+rowNum;
+          let formula;
+          if(meta==="reg"){
+            // Regular: SUM individual cells — 4hrs each, minus S/F/T/SZ/FZ deduction
+            const regCols="BCDEFGHIJKLMNOPQRSTUV".split("");
+            const rParts=[];
+            for(const col of regCols){
+              const c=col+rowNum;
+              rParts.push('IF(AND('+c+'<>"",'+c+'<>"DO",'+c+'<>"VAC",UPPER('+c+')<>"NCNS"),'
+                +'IF(OR(UPPER(LEFT('+c+',2))="SZ",UPPER(LEFT('+c+',2))="FZ"),'
+                +'4-IFERROR(VALUE(MID('+c+',3,10)),0),'
+                +'IF(OR(UPPER(LEFT('+c+',1))="S",UPPER(LEFT('+c+',1))="F",UPPER(LEFT('+c+',1))="T"),'
+                +'4-IFERROR(VALUE(MID('+c+',2,10)),0),4)),0)');
+            }
+            formula=rParts.join("+");
+          } else {
+            // OT: SUM individual cells — no array issues in Excel 2007
+            // Only count if has "/" with number after it; extract hours before "/"
+            const otCols="BCDEFGHIJKLMNOPQRSTUV".split("");
+            const parts=[];
+            for(const col of otCols){
+              const c=col+rowNum;
+              parts.push('IF(AND('+c+'<>"",'+c+'<>"DO",'+c+'<>"VAC",NOT(ISERROR(FIND("/",'+c+'))),ISNUMBER(VALUE(MID('+c+',FIND("/",'+c+')+1,10)))),'
+                +'IFERROR(VALUE(MID('+c+',1,FIND("/",'+c+')-1)),'
+                +'IFERROR(VALUE(MID('+c+',2,FIND("/",'+c+')-2)),'
+                +'IFERROR(VALUE(MID('+c+',3,FIND("/",'+c+')-3)),'
+                +'IFERROR(VALUE(MID('+c+',4,FIND("/",'+c+')-4)),0)))),0)');
+            }
+            formula=parts.join("+");
+          }
+          ws[addr]={
+            t:"n",
+            z:"0.##",
+            f:formula,
+            s:{
+              font:{bold:true,sz:11,color:{rgb:"000000"}},
+              fill:{fgColor:{rgb:"E2E8F0"}},
+              alignment:{horizontal:"center",vertical:"center"},
+              border:{
+                top:{style:"thin",color:{rgb:"AAAAAA"}},
+                bottom:{style:"thin",color:{rgb:"AAAAAA"}},
+                left:{style:"medium",color:{rgb:"333333"}},
+                right:{style:"medium",color:{rgb:"000000"}}
+              }
+            }
+          };
         }
       }
 
       return ws;
     }
 
-    const dayWs=buildSheet("DAY SHIFT",dayGrouped,blocksDayDef);
-    const nightWs=buildSheet("NIGHT SHIFT",nightGrouped,blocksNightDef);
+    const dayWs=buildSheet("DAY SHIFT",dayGrouped,blocksDayDef,sdByDayBlock);
+    const nightWs=buildSheet("NIGHT SHIFT",nightGrouped,blocksNightDef,sdByDayBlock);
     XLSX.utils.book_append_sheet(wb,dayWs,"Day Shift");
     XLSX.utils.book_append_sheet(wb,nightWs,"Night Shift");
+
+    // --- Build Legend sheet ---
+    (function(){
+      const L=[];
+      const lt=[];
+      // Title
+      L.push(["SHIFTOPS - Weekly Excel Reference Guide"]); lt.push("ltitle");
+      L.push([""]); lt.push("lspace");
+
+      // Color Legend header
+      L.push(["Color Legend"]); lt.push("lsechdr");
+      L.push(["Color","Code","Meaning"]); lt.push("ltblhdr");
+      const colors=[
+        ["Light Pink","-","Empty cell (needs assignment)","FFE0E0"],
+        ["White","Any text","Filled/assigned cell","FFFFFF"],
+        ["Grey","DO","Day Off (locked)","808080"],
+        ["Blue","VAC","Vacation (locked or typed)","1E50B4"],
+        ["Purple","SD","Shift Director (from RotationOps)","7C3AED"],
+        ["Red","S + hours","Sick (e.g. S2.5 = 2.5 hrs sick)","CC0000"],
+        ["Orange","F + hours","Family leave (e.g. F4)","FF9900"],
+        ["Light Red","T + hours","Tardy (e.g. T.25)","FF6666"],
+        ["Dark Purple","SZ + hours","SZ absence (e.g. SZ2)","5B21B6"],
+        ["Light Purple","FZ + hours","FZ absence (e.g. FZ1.5)","A78BFA"],
+        ["Yellow","NCNS","No Call No Show (0 hours)","FDE047"]
+      ];
+      for(const c of colors){ L.push([c[0],c[1],c[2]]); lt.push("lcolor|"+c[3]); }
+      L.push([""]); lt.push("lspace");
+
+      // Absence Codes
+      L.push(["Absence Codes"]); lt.push("lsechdr");
+      L.push(["Code","Format","Example","Hours Counted"]); lt.push("ltblhdr");
+      const abs=[
+        ["Sick","S + decimal hours","S2.5","4 - 2.5 = 1.5 hrs"],
+        ["Family","F + decimal hours","F4","4 - 4 = 0 hrs"],
+        ["Tardy","T + decimal hours","T.25","4 - 0.25 = 3.75 hrs"],
+        ["SZ","SZ + decimal hours","SZ2","4 - 2 = 2 hrs"],
+        ["FZ","FZ + decimal hours","FZ1.5","4 - 1.5 = 2.5 hrs"],
+        ["NCNS","NCNS","NCNS","0 hrs"],
+        ["Vacation","VAC","VAC","0 hrs"]
+      ];
+      for(const a of abs){ L.push(a); lt.push("ltblrow"); }
+      L.push([""]); lt.push("lspace");
+
+      // OT Format
+      L.push(["OT Format"]); lt.push("lsechdr");
+      L.push(["Overtime entries use:  Role + Hours / Seat"]); lt.push("linfo");
+      L.push(["Role","Abbreviation","Example"]); lt.push("ltblhdr");
+      const ots=[["Calltaker","CT","CT4/16"],["Dispatcher","D","D8/NW"],["PIC","P","P4/R2"],["Supervisor","SUP","SUP4/5"]];
+      for(const o of ots){ L.push(o); lt.push("ltblrow"); }
+      L.push(["OT total only counts hours when a seat is assigned (number after the slash)."]); lt.push("linfo");
+      L.push([""]); lt.push("lspace");
+
+      // Total Column
+      L.push(["Total Column"]); lt.push("lsechdr");
+      const totals=["Each filled block = 4 hours","Absence codes subtract from 4 (e.g. S2.5 = 1.5 hrs)","DO, VAC, NCNS = 0 hours","SD = 4 hours (working)","OT hours are read from the entry (e.g. CT4/16 = 4 hrs)"];
+      for(const t of totals){ L.push(["  \u2022  "+t]); lt.push("linfo"); }
+      L.push([""]); lt.push("lspace");
+
+      // Navigation
+      L.push(["Navigation"]); lt.push("lsechdr");
+      const navs=["Use Tab to jump between editable cells (skips locked DO/VAC cells)","DO and VAC cells are locked and cannot be edited","SD cells are editable \u2014 you can overwrite with an assignment"];
+      for(const n of navs){ L.push(["  \u2022  "+n]); lt.push("linfo"); }
+
+      const lws=XLSX.utils.aoa_to_sheet(L,{sheetStubs:true});
+      lws['!cols']=[{wch:18},{wch:22},{wch:30},{wch:22}];
+      lws['!rows']=[];
+      // Merges for single-cell-span rows
+      const lMerges=[];
+      for(let R=0;R<L.length;R++){
+        const m=lt[R]||"";
+        if(m==="ltitle"){ lws['!rows'][R]={hpt:28}; lMerges.push({s:{r:R,c:0},e:{r:R,c:3}}); }
+        else if(m==="lsechdr"){ lws['!rows'][R]={hpt:22}; lMerges.push({s:{r:R,c:0},e:{r:R,c:3}}); }
+        else if(m==="linfo"){ lws['!rows'][R]={hpt:18}; lMerges.push({s:{r:R,c:0},e:{r:R,c:3}}); }
+        else if(m==="lspace"){ lws['!rows'][R]={hpt:10}; }
+        else lws['!rows'][R]={hpt:18};
+      }
+      lws['!merges']=lMerges;
+      // Style
+      const lRange=XLSX.utils.decode_range(lws['!ref']);
+      for(let R=0;R<=lRange.e.r;R++){
+        const m=lt[R]||"";
+        for(let C=0;C<=lRange.e.c;C++){
+          const addr=XLSX.utils.encode_cell({r:R,c:C});
+          if(!lws[addr]) lws[addr]={v:"",t:"s"};
+          const cl=lws[addr];
+          if(!cl.t||cl.t==="z"){cl.t="s";if(cl.v==null)cl.v="";}
+          if(!cl.s) cl.s={};
+          cl.s.border={
+            top:{style:"thin",color:{rgb:"DDDDDD"}},
+            bottom:{style:"thin",color:{rgb:"DDDDDD"}},
+            left:{style:"thin",color:{rgb:"DDDDDD"}},
+            right:{style:"thin",color:{rgb:"DDDDDD"}}
+          };
+          if(m==="ltitle"){
+            cl.s.font={bold:true,sz:14,color:{rgb:"FFFFFF"}};
+            cl.s.fill={fgColor:{rgb:"000000"}};
+            cl.s.alignment={horizontal:"center",vertical:"center"};
+          }else if(m==="lsechdr"){
+            cl.s.font={bold:true,sz:12,color:{rgb:"FFFFFF"}};
+            cl.s.fill={fgColor:{rgb:"2D3748"}};
+            cl.s.alignment={horizontal:"left",vertical:"center"};
+            cl.s.border={top:{style:"medium",color:{rgb:"000000"}},bottom:{style:"medium",color:{rgb:"000000"}},left:{style:"thin",color:{rgb:"DDDDDD"}},right:{style:"thin",color:{rgb:"DDDDDD"}}};
+          }else if(m==="ltblhdr"){
+            cl.s.font={bold:true,sz:10,color:{rgb:"FFFFFF"}};
+            cl.s.fill={fgColor:{rgb:"4A5568"}};
+            cl.s.alignment={horizontal:"left",vertical:"center"};
+          }else if(m.startsWith("lcolor|")){
+            const hex=m.split("|")[1];
+            cl.s.font={sz:10,color:{rgb:"222222"}};
+            cl.s.fill={fgColor:{rgb:"F7FAFC"}};
+            cl.s.alignment={horizontal:"left",vertical:"center"};
+            if(C===0){
+              // Color swatch column — use the actual color as fill
+              cl.s.fill={fgColor:{rgb:hex}};
+              const dark=["808080","CC0000","1E50B4","7C3AED","5B21B6"].includes(hex);
+              cl.s.font={bold:true,sz:10,color:{rgb:dark?"FFFFFF":"000000"}};
+              cl.s.alignment={horizontal:"center",vertical:"center"};
+            }
+          }else if(m==="ltblrow"){
+            cl.s.font={sz:10,color:{rgb:"222222"}};
+            cl.s.fill={fgColor:{rgb:"F7FAFC"}};
+            cl.s.alignment={horizontal:"left",vertical:"center"};
+          }else if(m==="linfo"){
+            cl.s.font={sz:10,color:{rgb:"333333"}};
+            cl.s.alignment={horizontal:"left",vertical:"center"};
+          }else{
+            cl.s.font={sz:10,color:{rgb:"333333"}};
+          }
+        }
+      }
+      XLSX.utils.book_append_sheet(wb,lws,"Legend");
+    })();
 
     // --- Post-process xlsx to inject cell protection (xlsx-js-style doesn't support it) ---
     const allSheets=[{ws:dayWs,name:"sheet1"},{ws:nightWs,name:"sheet2"}];
@@ -7935,28 +8299,101 @@ async function downloadWeeklyXlsx(){
 
         const cellRe=/<c r="([A-Z]+\d+)" s="(\d+)"/g;
         let cm;
+        const editableCells=[];
         while((cm=cellRe.exec(sheetXml))!==null){
-          if(wsObj[cm[1]]&&wsObj[cm[1]]._u) unlockIds[cm[2]]=true;
+          if(wsObj[cm[1]]&&wsObj[cm[1]]._u){
+            unlockIds[cm[2]]=true;
+            editableCells.push(cm[1]);
+          }
         }
 
-        // Add sheetProtection to each sheet
+        // Get unique data rows that have editable cells, build B{row}:V{row} ranges
+        const dataRowNums=[...new Set(editableCells.map(a=>a.match(/\d+$/)[0]))];
+        dataRowNums.sort((a,b)=>Number(a)-Number(b));
+        const cfRange=dataRowNums.map(r=>"B"+r+":V"+r).join(" ");
+
+        // Add sheetProtection (before mergeCells) + conditional formatting (after mergeCells)
         if(sheetXml.indexOf("<sheetProtection")===-1){
-          sheetXml=sheetXml.replace("</sheetData>","</sheetData><sheetProtection sheet=\"1\"/>");
+          sheetXml=sheetXml.replace("</sheetData>","</sheetData>"+'<sheetProtection sheet="1"/>');
+          if(dataRowNums.length){
+            const fc="B"+dataRowNums[0];
+            const cfTag='<conditionalFormatting sqref="'+cfRange+'">'
+              +'<cfRule type="expression" priority="1" dxfId="5"><formula>AND(UPPER(LEFT('+fc+',2))="SZ",OR(LEN('+fc+')=2,ISNUMBER(VALUE(MID('+fc+',3,1))),MID('+fc+',3,1)="."))</formula></cfRule>'
+              +'<cfRule type="expression" priority="2" dxfId="6"><formula>AND(UPPER(LEFT('+fc+',2))="FZ",OR(LEN('+fc+')=2,ISNUMBER(VALUE(MID('+fc+',3,1))),MID('+fc+',3,1)="."))</formula></cfRule>'
+              +'<cfRule type="expression" priority="3" dxfId="0"><formula>AND(UPPER(LEFT('+fc+',1))="S",OR(ISNUMBER(VALUE(MID('+fc+',2,1))),MID('+fc+',2,1)="."))</formula></cfRule>'
+              +'<cfRule type="expression" priority="4" dxfId="2"><formula>AND(UPPER(LEFT('+fc+',1))="F",OR(ISNUMBER(VALUE(MID('+fc+',2,1))),MID('+fc+',2,1)="."))</formula></cfRule>'
+              +'<cfRule type="expression" priority="5" dxfId="3"><formula>AND(UPPER(LEFT('+fc+',1))="T",OR(ISNUMBER(VALUE(MID('+fc+',2,1))),MID('+fc+',2,1)="."))</formula></cfRule>'
+              +'<cfRule type="expression" priority="6" dxfId="7"><formula>UPPER(TRIM('+fc+'))="NCNS"</formula></cfRule>'
+              +'<cfRule type="expression" priority="7" dxfId="4"><formula>UPPER(TRIM('+fc+'))="VAC"</formula></cfRule>'
+              +'<cfRule type="expression" priority="8" dxfId="1"><formula>AND(LEN(TRIM('+fc+'))>0,UPPER(TRIM('+fc+'))&lt;&gt;"DO",UPPER(TRIM('+fc+'))&lt;&gt;"VAC",UPPER(TRIM('+fc+'))&lt;&gt;"NCNS",UPPER(TRIM('+fc+'))&lt;&gt;"SD")</formula></cfRule>'
+              +'</conditionalFormatting>';
+            if(sheetXml.indexOf("</mergeCells>")!==-1){
+              sheetXml=sheetXml.replace("</mergeCells>","</mergeCells>"+cfTag);
+            } else {
+              sheetXml=sheetXml.replace("</sheetData>","</sheetData>"+cfTag);
+            }
+          }
+          // Convert OT cells with "/" to inline rich text (red prefix, black suffix)
+          if(wsObj._rtCells&&wsObj._rtCells.length){
+            for(const rt of wsObj._rtCells){
+              const cellRe2=new RegExp('<c r="'+rt.addr+'"([^>]*)>[\\s\\S]*?</c>');
+              const m2=sheetXml.match(cellRe2);
+              if(m2){
+                // Keep style attribute, change to inlineStr
+                let attrs=m2[1].replace(/\s*t="[^"]*"/,'');
+                const inlineCell='<c r="'+rt.addr+'"'+attrs+' t="inlineStr">'
+                  +'<is>'
+                  +'<r><rPr><b/><sz val="11"/><color rgb="FFCC0000"/><rFont val="Calibri"/></rPr><t>'+rt.prefix+'</t></r>'
+                  +'<r><rPr><b/><sz val="11"/><color rgb="FF000000"/><rFont val="Calibri"/></rPr><t>'+rt.suffix+'</t></r>'
+                  +'</is></c>';
+                sheetXml=sheetXml.replace(m2[0],inlineCell);
+              }
+            }
+          }
+
           zip.file(sheetFile,sheetXml);
         }
       }
 
-      // Patch styles.xml once with all unlocked indices
-      if(Object.keys(unlockIds).length){
+      // Patch styles.xml: unlocked cells + dxf for conditional formatting
+      {
         let stylesXml=await zip.file("xl/styles.xml").async("string");
+        // dxf: 0=SICK red, 1=filled white, 2=FAMILY orange, 3=TARDY light red, 4=VAC blue, 5=SZ dark purple, 6=FZ light purple, 7=NCNS yellow
+        stylesXml=stylesXml.replace(/<dxfs count="0"\/>/,
+          '<dxfs count="8"><dxf>'
+          +'<font><b/><color rgb="FFFFFFFF"/></font>'
+          +'<fill><patternFill patternType="solid"><fgColor rgb="FFCC0000"/><bgColor rgb="FFCC0000"/></patternFill></fill>'
+          +'</dxf><dxf>'
+          +'<fill><patternFill patternType="solid"><fgColor rgb="FFFFFFFF"/><bgColor rgb="FFFFFFFF"/></patternFill></fill>'
+          +'</dxf><dxf>'
+          +'<font><b/></font>'
+          +'<fill><patternFill patternType="solid"><fgColor rgb="FFFF9900"/><bgColor rgb="FFFF9900"/></patternFill></fill>'
+          +'</dxf><dxf>'
+          +'<font><b/></font>'
+          +'<fill><patternFill patternType="solid"><fgColor rgb="FFFF6666"/><bgColor rgb="FFFF6666"/></patternFill></fill>'
+          +'</dxf><dxf>'
+          +'<font><b/><color rgb="FFFFFFFF"/></font>'
+          +'<fill><patternFill patternType="solid"><fgColor rgb="FF1E50B4"/><bgColor rgb="FF1E50B4"/></patternFill></fill>'
+          +'</dxf><dxf>'
+          +'<font><b/><color rgb="FFFFFFFF"/></font>'
+          +'<fill><patternFill patternType="solid"><fgColor rgb="FF5B21B6"/><bgColor rgb="FF5B21B6"/></patternFill></fill>'
+          +'</dxf><dxf>'
+          +'<font><b/><color rgb="FFFFFFFF"/></font>'
+          +'<fill><patternFill patternType="solid"><fgColor rgb="FFA78BFA"/><bgColor rgb="FFA78BFA"/></patternFill></fill>'
+          +'</dxf><dxf>'
+          +'<font><b/><color rgb="FF000000"/></font>'
+          +'<fill><patternFill patternType="solid"><fgColor rgb="FFFDE047"/><bgColor rgb="FFFDE047"/></patternFill></fill>'
+          +'</dxf></dxfs>');
         stylesXml=stylesXml.replace(/<cellXfs[^>]*>([\s\S]*?)<\/cellXfs>/,function(full,inner){
           let idx=0;
-          const patched=inner.replace(/<xf ([^/]*?)\/>/g,function(xf,attrs){
+          // Match both self-closing <xf .../> and <xf ...>children</xf>
+          const patched=inner.replace(/<xf ([^>]*?)(?:\/>|>([\s\S]*?)<\/xf>)/g,function(match,attrs,children){
             const i=idx++;
             if(unlockIds[String(i)]){
-              return '<xf '+attrs+' applyProtection="1"><protection locked="0"/></xf>';
+              const kids=children||"";
+              return '<xf '+attrs+' applyProtection="1">'+kids+'<protection locked="0"/></xf>';
             }
-            return xf;
+            return match;
           });
           return full.replace(inner,patched);
         });
@@ -7987,6 +8424,85 @@ async function downloadWeeklyXlsx(){
   }
 }
 document.getElementById("btnDownloadWeeklyXlsx").addEventListener("click", downloadWeeklyXlsx);
+
+document.getElementById("btnPrintLegend").addEventListener("click", function(){
+  const w=window.open("","_blank","width=700,height=900");
+  w.document.write(`<!DOCTYPE html><html><head><title>ShiftOps Excel Legend</title>
+<style>
+body{font-family:Calibri,Arial,sans-serif;margin:40px;color:#222}
+h1{font-size:22px;margin-bottom:4px}
+h2{font-size:15px;margin:18px 0 8px;border-bottom:2px solid #333;padding-bottom:4px}
+table{border-collapse:collapse;width:100%;margin-bottom:12px}
+td,th{border:1px solid #999;padding:6px 10px;font-size:13px}
+th{background:#2D3748;color:#fff;text-align:left}
+.swatch{display:inline-block;width:40px;height:18px;border:1px solid #666;vertical-align:middle;margin-right:8px;border-radius:2px}
+p{font-size:13px;line-height:1.5;margin:6px 0}
+ul{font-size:13px;margin:4px 0 10px 18px}
+li{margin:3px 0}
+</style></head><body>
+<h1>SHIFTOPS - Weekly Excel Reference Guide</h1>
+<p style="color:#666;font-size:12px">Print this page for a quick desk reference.</p>
+
+<h2>Color Legend</h2>
+<table>
+<tr><th>Color</th><th>Code</th><th>Meaning</th></tr>
+<tr><td><span class="swatch" style="background:#FFE0E0"></span>Light Pink</td><td>-</td><td>Empty cell (needs assignment)</td></tr>
+<tr><td><span class="swatch" style="background:#fff;border:1px solid #ccc"></span>White</td><td>Any text</td><td>Filled/assigned cell</td></tr>
+<tr><td><span class="swatch" style="background:#808080"></span>Grey</td><td>DO</td><td>Day Off (locked)</td></tr>
+<tr><td><span class="swatch" style="background:#1E50B4"></span>Blue</td><td>VAC</td><td>Vacation (locked or typed)</td></tr>
+<tr><td><span class="swatch" style="background:#7C3AED"></span>Purple</td><td>SD</td><td>Shift Director (from RotationOps)</td></tr>
+<tr><td><span class="swatch" style="background:#CC0000"></span>Red</td><td>S + hours</td><td>Sick (e.g. S2.5 = 2.5 hrs sick)</td></tr>
+<tr><td><span class="swatch" style="background:#FF9900"></span>Orange</td><td>F + hours</td><td>Family leave (e.g. F4)</td></tr>
+<tr><td><span class="swatch" style="background:#FF6666"></span>Light Red</td><td>T + hours</td><td>Tardy (e.g. T.25)</td></tr>
+<tr><td><span class="swatch" style="background:#5B21B6"></span>Dark Purple</td><td>SZ + hours</td><td>SZ absence (e.g. SZ2)</td></tr>
+<tr><td><span class="swatch" style="background:#A78BFA"></span>Light Purple</td><td>FZ + hours</td><td>FZ absence (e.g. FZ1.5)</td></tr>
+<tr><td><span class="swatch" style="background:#FDE047"></span>Yellow</td><td>NCNS</td><td>No Call No Show (0 hours)</td></tr>
+</table>
+
+<h2>Absence Codes</h2>
+<table>
+<tr><th>Code</th><th>Format</th><th>Example</th><th>Hours Counted</th></tr>
+<tr><td>Sick</td><td>S + decimal hours</td><td>S2.5</td><td>4 - 2.5 = 1.5 hrs</td></tr>
+<tr><td>Family</td><td>F + decimal hours</td><td>F4</td><td>4 - 4 = 0 hrs</td></tr>
+<tr><td>Tardy</td><td>T + decimal hours</td><td>T.25</td><td>4 - 0.25 = 3.75 hrs</td></tr>
+<tr><td>SZ</td><td>SZ + decimal hours</td><td>SZ2</td><td>4 - 2 = 2 hrs</td></tr>
+<tr><td>FZ</td><td>FZ + decimal hours</td><td>FZ1.5</td><td>4 - 1.5 = 2.5 hrs</td></tr>
+<tr><td>NCNS</td><td>NCNS</td><td>NCNS</td><td>0 hrs</td></tr>
+<tr><td>Vacation</td><td>VAC</td><td>VAC</td><td>0 hrs</td></tr>
+</table>
+
+<h2>OT Format</h2>
+<p>Overtime entries use: <b>Role + Hours / Seat</b></p>
+<table>
+<tr><th>Role</th><th>Abbreviation</th><th>Example</th></tr>
+<tr><td>Calltaker</td><td>CT</td><td>CT4/16</td></tr>
+<tr><td>Dispatcher</td><td>D</td><td>D8/NW</td></tr>
+<tr><td>PIC</td><td>P</td><td>P4/R2</td></tr>
+<tr><td>Supervisor</td><td>SUP</td><td>SUP4/5</td></tr>
+</table>
+<p>OT total only counts hours when a seat is assigned (number after the slash).</p>
+
+<h2>Total Column</h2>
+<ul>
+<li>Each filled block = <b>4 hours</b></li>
+<li>Absence codes subtract from 4 (e.g. S2.5 = 1.5 hrs)</li>
+<li>DO, VAC, NCNS = <b>0 hours</b></li>
+<li>SD = <b>4 hours</b> (working)</li>
+<li>OT hours are read from the entry (e.g. CT4/16 = 4 hrs)</li>
+</ul>
+
+<h2>Navigation</h2>
+<ul>
+<li>Use <b>Tab</b> to jump between editable cells (skips locked DO/VAC cells)</li>
+<li>DO and VAC cells are <b>locked</b> and cannot be edited</li>
+<li>SD cells are editable — you can overwrite with an assignment</li>
+</ul>
+
+<p style="text-align:center;color:#999;margin-top:30px;font-size:11px">ShiftOps Weekly Excel Reference</p>
+</body></html>`);
+  w.document.close();
+  w.print();
+});
 
 // Shift Swap button + modal backdrop close
 document.getElementById("btnShiftSwap").addEventListener("click", openSwapModal);
