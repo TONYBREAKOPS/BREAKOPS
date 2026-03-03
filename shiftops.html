@@ -3161,6 +3161,7 @@ body.light .customSelBtn.typing-mode {
           <button id="btnTimesheet" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Timesheet</button>
           <button id="btnPrintDaily" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Print Daily</button>
           <button id="btnPrintWeeklyD" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Print Weekly</button>
+          <button id="btnDownloadWeeklyXlsx" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#4ade80;cursor:pointer;border-bottom:1px solid #334155;">Download Weekly Excel</button>
           <button id="btnShiftSwap" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#a3d4ff;cursor:pointer;border-bottom:1px solid #334155;">Shift Swap</button>
           <button id="btnBreakOPS" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:700;text-align:left;background:none;border:none;color:#f59e0b;cursor:pointer;">Push to BreakOPS</button>
         </div>
@@ -3247,6 +3248,10 @@ function clearErr(){
   s.onload=()=>{ pill.textContent="XLSX: ready"; pill.classList.add("good"); };
   s.onerror=tryLocal;
   document.head.appendChild(s);
+  // Load JSZip for post-processing xlsx protection
+  const jz=document.createElement("script");
+  jz.src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
+  document.head.appendChild(jz);
   setTimeout(tryLocal, 1500);
 })();
 
@@ -7586,6 +7591,402 @@ async function printWeeklyD(){
   }
 }
 document.getElementById("btnPrintWeeklyD").addEventListener("click", printWeeklyD);
+
+// ===== Download Weekly Excel =====
+async function downloadWeeklyXlsx(){
+  try{
+    if(!window.XLSX){ setErr("XLSX library not loaded."); return; }
+    const weekDates=_swapWeekDates();
+    if(!weekDates.length){ setErr("No week dates — pick a date first."); return; }
+
+    const origShift=document.getElementById("shiftSel").value||"DAY";
+    const origISO=document.getElementById("workDate").value;
+    const origVac=JSON.parse(JSON.stringify(_vacations));
+    const origTrain=JSON.parse(JSON.stringify(_trainingList));
+
+    // Load vacations/training for all months in the week
+    const monthKeys=new Set();
+    for(const wd of weekDates){ const d=parseISO(wd.iso); monthKeys.add(d.getFullYear()+"-"+d.getMonth()); }
+    const vacByMonth={},trainByMonth={};
+    await Promise.all([...monthKeys].map(mk=>{
+      const [yr,mo]=mk.split("-").map(Number);
+      const isoM=yr+"-"+String(mo+1).padStart(2,"0")+"-01";
+      return getVacDocRef(isoM).get().then(doc=>{
+        if(doc.exists){
+          vacByMonth[mk]=Array.isArray(doc.data().vacations)?doc.data().vacations:[];
+          trainByMonth[mk]=Array.isArray(doc.data().training)?doc.data().training:[];
+        }else{vacByMonth[mk]=[];trainByMonth[mk]=[];}
+      }).catch(()=>{vacByMonth[mk]=[];trainByMonth[mk]=[];});
+    }));
+
+    await Promise.all(weekDates.flatMap(wd=>[
+      loadEditsFromFirebase(wd.iso,"DAY"),
+      loadEditsFromFirebase(wd.iso,"NIGHT"),
+      loadShiftSwaps(wd.iso)
+    ]));
+
+    const roleOrder=["CALLTAKER","DISPATCHER","PIC","SUPERVISOR"];
+    const blocksDayDef=BLOCKS_DAY;
+    const blocksNightDef=BLOCKS_NIGHT;
+
+    // Reuse collectData from printWeeklyD
+    function collectDataXL(shift,blockDefs){
+      document.getElementById("shiftSel").value=shift;
+      const regulars=new Map();
+      const effEmps=getEffectiveEmpList(weekDates[0].iso);
+      for(const emp of effEmps){
+        const role=normalizeRole(emp.POSITION);
+        if(!roleOrder.includes(role)) continue;
+        const rec={role,isOT:false,blocks:{}};
+        for(const wd of weekDates){
+          const iso=wd.iso,d=parseISO(iso),mk=d.getFullYear()+"-"+d.getMonth();
+          _vacations=vacByMonth[mk]||[];
+          const dname=dayNameFromISO(iso);
+          const shStr=shiftForDay(emp,dname,iso);
+          const sh=parseShiftString(shStr);
+          const isVac=isOnVacationDate(emp.Employee,iso);
+          for(const block of blockDefs){
+            const bKey=iso+"|"+block.id;
+            const bw=blockWindowMinutes(block);
+            if(!sh){ rec.blocks[bKey]={status:"OFF",assignment:"",hours:0}; }
+            else if(sh.start<=bw.startMin && sh.end>=bw.endMin){
+              if(isVac){ rec.blocks[bKey]={status:"VAC",assignment:"",hours:0}; }
+              else { rec.blocks[bKey]={status:"WORK",assignment:"",hours:0}; }
+            } else { rec.blocks[bKey]={status:"OFF",assignment:"",hours:0}; }
+          }
+        }
+        regulars.set(emp.Employee,rec);
+      }
+      const otEmps=new Map();
+      for(const wd of weekDates){
+        const iso=wd.iso,d=parseISO(iso),mk=d.getFullYear()+"-"+d.getMonth();
+        _vacations=vacByMonth[mk]||[];
+        _trainingList=trainByMonth[mk]||[];
+        for(const block of blockDefs){
+          const rows=computeRowsForBlock(iso,shift,block);
+          const bKey=iso+"|"+block.id;
+          for(const role of roleOrder){
+            for(const row of(rows[role]||[])){
+              if(!row.isOT) continue;
+              if(!otEmps.has(row.emp))otEmps.set(row.emp,{role,isOT:true,blocks:{}});
+              const rec=otEmps.get(row.emp);
+              const hrs=typeof row.hours==="number"?row.hours:Number(row.hours)||0;
+              const ctx=ctxKey(iso,shift,block.id);
+              const ed=ensureEdit(ctx,row.emp);
+              rec.blocks[bKey]={assignment:ed.Assignment||row.assignment||"",hours:hrs,status:"WORK"};
+            }
+          }
+          for(const row of(rows.OTH||[])){
+            if(!row.isOT) continue;
+            if(!otEmps.has(row.emp))otEmps.set(row.emp,{role:"OTH",isOT:true,blocks:{}});
+            const rec=otEmps.get(row.emp);
+            const hrs=typeof row.hours==="number"?row.hours:Number(row.hours)||0;
+            rec.blocks[bKey]={assignment:row.assignment||"",hours:hrs,status:"WORK"};
+          }
+        }
+      }
+      // Fix OT roles
+      const effAll=getEffectiveEmpList(weekDates[0].iso);
+      for(const [emp,rec] of otEmps){
+        const e=effAll.find(x=>x.Employee===emp);
+        if(e){ const dr=normalizeRole(e.POSITION); if(roleOrder.includes(dr)) rec.role=dr; }
+      }
+      // Group
+      const grouped={};
+      for(const r of roleOrder) grouped[r]={regulars:[],ot:[]};
+      grouped["OTH"]={regulars:[],ot:[]};
+      for(const [emp,rec] of regulars){
+        if(!Object.values(rec.blocks).some(b=>b.status!=="OFF")) continue;
+        const r=roleOrder.includes(rec.role)?rec.role:"OTH";
+        grouped[r].regulars.push({emp,...rec});
+      }
+      for(const [emp,rec] of otEmps){
+        const r=roleOrder.includes(rec.role)?rec.role:"OTH";
+        grouped[r].ot.push({emp,...rec});
+      }
+      for(const r of Object.keys(grouped)){
+        grouped[r].regulars.sort((a,b)=>a.emp.localeCompare(b.emp));
+        grouped[r].ot.sort((a,b)=>a.emp.localeCompare(b.emp));
+      }
+      return grouped;
+    }
+
+    const dayGrouped=collectDataXL("DAY",blocksDayDef);
+    const nightGrouped=collectDataXL("NIGHT",blocksNightDef);
+
+    // Employee days-off lookup for name labels
+    const _xlEmpAll=getEffectiveEmpList(weekDates[0].iso);
+    const _xlDaysOff={};
+    for(const emp of _xlEmpAll) _xlDaysOff[emp.Employee]=emp.DaysOff||"";
+
+    const wb=XLSX.utils.book_new();
+
+    function buildSheet(shiftLabel, grouped, blockDefs){
+      const aoa=[];
+      const rType=[]; // row type for styling: title|daynames|blocktimes|rolehdr|reg|ot|blank
+
+      // Row 0: Title bar
+      const r0=[shiftLabel+" \u2014 "+weekDates[0].label+" to "+weekDates[6].label];
+      for(let i=0;i<21;i++) r0.push("");
+      aoa.push(r0); rType.push("title");
+
+      // Row 1: Day names merged across 3 cols each
+      const r1=[""];
+      for(const wd of weekDates){
+        const dn=["SUN","MON","TUE","WED","THU","FRI","SAT"][parseISO(wd.iso).getDay()];
+        r1.push(dn,"","");
+      }
+      aoa.push(r1); rType.push("daynames");
+
+      // Row 2: Block times
+      const r2=[""];
+      for(let di=0;di<7;di++){
+        for(const b of blockDefs) r2.push(b.start.replace(":","").slice(0,4)+"-"+b.end.replace(":","").slice(0,4));
+      }
+      aoa.push(r2); rType.push("blocktimes");
+
+      // Interleaved: CT reg, CT OT, DISP reg, DISP OT, then others
+      const xlOrder=["CALLTAKER","DISPATCHER","PIC","SUPERVISOR","OTH"];
+      const roleLabel={CALLTAKER:"CALL TAKERS",DISPATCHER:"DISPATCHERS",PIC:"PIC",SUPERVISOR:"SUPERVISORS",OTH:"OTHER"};
+      for(const role of xlOrder){
+        const regs=grouped[role]?grouped[role].regulars:[];
+        const ots=grouped[role]?grouped[role].ot:[];
+        if(!regs.length&&!ots.length) continue;
+
+        if(regs.length){
+          const hdr=[(roleLabel[role]||role)+" \u2014 REGULARS"];
+          for(let i=0;i<21;i++) hdr.push("");
+          aoa.push(hdr); rType.push("rolehdr");
+          for(const e of regs){
+            const doff=_xlDaysOff[e.emp]||"";
+            const nm=e.emp.toUpperCase()+(doff?" ("+doff+")":"");
+            const row=[nm];
+            for(let di=0;di<7;di++){
+              for(const b of blockDefs){
+                const bKey=weekDates[di].iso+"|"+b.id;
+                const cell=e.blocks[bKey];
+                if(!cell||cell.status==="OFF") row.push("DO");
+                else if(cell.status==="VAC") row.push("VAC");
+                else row.push("");
+              }
+            }
+            aoa.push(row); rType.push("reg");
+          }
+        }
+
+        if(ots.length){
+          const hdr=[(roleLabel[role]||role)+" \u2014 OVERTIME"];
+          for(let i=0;i<21;i++) hdr.push("");
+          aoa.push(hdr); rType.push("rolehdr");
+          for(const e of ots){
+            const row=[e.emp.toUpperCase()];
+            for(let di=0;di<7;di++){
+              for(const b of blockDefs){
+                const bKey=weekDates[di].iso+"|"+b.id;
+                const cell=e.blocks[bKey];
+                if(!cell) row.push("");
+                else if(cell.status==="OFF") row.push("DO");
+                else{
+                  const hrs=Math.round((cell.hours||0)*10)/10;
+                  row.push(hrs>0?hrs:"");
+                }
+              }
+            }
+            aoa.push(row); rType.push("ot");
+          }
+          for(let i=0;i<5;i++){
+            const row=[""];
+            for(let c=0;c<21;c++) row.push("");
+            aoa.push(row); rType.push("blank");
+          }
+        }
+      }
+
+      const ws=XLSX.utils.aoa_to_sheet(aoa,{sheetStubs:true});
+
+      // Column widths: name col wide, block cols narrow
+      const colW=[{wch:22}];
+      for(let i=0;i<21;i++) colW.push({wch:7});
+      ws['!cols']=colW;
+
+      // Row heights
+      ws['!rows']=[];
+      for(let R=0;R<aoa.length;R++){
+        if(rType[R]==="title") ws['!rows'][R]={hpt:22};
+        else if(rType[R]==="daynames") ws['!rows'][R]={hpt:18};
+        else if(rType[R]==="blocktimes") ws['!rows'][R]={hpt:26};
+        else if(rType[R]==="rolehdr") ws['!rows'][R]={hpt:18};
+        else ws['!rows'][R]={hpt:16};
+      }
+
+      // Merge day-name headers (row 1)
+      const merges=[];
+      for(let di=0;di<7;di++){
+        const s=1+di*3, e_=3+di*3;
+        merges.push({s:{r:1,c:s},e:{r:1,c:e_}});
+      }
+      ws['!merges']=merges;
+
+      // Day-group boundary columns (thick left border)
+      const dgStart=new Set([1,4,7,10,13,16,19]);
+      const range=XLSX.utils.decode_range(ws['!ref']);
+      const maxC=range.e.c, maxR=range.e.r;
+
+      for(let R=0;R<=maxR;R++){
+        const meta=rType[R]||"";
+        for(let C=0;C<=maxC;C++){
+          const addr=XLSX.utils.encode_cell({r:R,c:C});
+          if(!ws[addr]) ws[addr]={v:"",t:"s"};
+          const cl=ws[addr];
+          if(!cl.t||cl.t==="z"){cl.t="s";if(cl.v==null)cl.v="";}
+          if(!cl.s) cl.s={};
+
+          // --- Borders ---
+          const bdr={
+            top:{style:"thin",color:{rgb:"AAAAAA"}},
+            bottom:{style:"thin",color:{rgb:"AAAAAA"}},
+            left:{style:"thin",color:{rgb:"AAAAAA"}},
+            right:{style:"thin",color:{rgb:"AAAAAA"}}
+          };
+          // Day group thick dividers
+          if(C>0&&dgStart.has(C)) bdr.left={style:"medium",color:{rgb:"333333"}};
+          if(C>0&&dgStart.has(C+1)) bdr.right={style:"medium",color:{rgb:"333333"}};
+          // Name col borders
+          if(C===0){ bdr.left={style:"medium",color:{rgb:"000000"}}; bdr.right={style:"medium",color:{rgb:"333333"}}; }
+          // Right edge
+          if(C===maxC) bdr.right={style:"medium",color:{rgb:"000000"}};
+          // Top/bottom outer
+          if(R===0) bdr.top={style:"medium",color:{rgb:"000000"}};
+          if(R===maxR) bdr.bottom={style:"medium",color:{rgb:"000000"}};
+          // Role header section dividers
+          if(meta==="rolehdr"){ bdr.top={style:"medium",color:{rgb:"000000"}}; bdr.bottom={style:"medium",color:{rgb:"000000"}}; }
+          cl.s.border=bdr;
+
+          // --- Alignment ---
+          cl.s.alignment={horizontal:"center",vertical:"center",wrapText:true};
+          if(C===0&&(meta==="reg"||meta==="ot"||meta==="blank")) cl.s.alignment={horizontal:"left",vertical:"center"};
+
+          // --- Font & Fill by row type ---
+          if(meta==="title"){
+            cl.s.font={bold:true,sz:12,color:{rgb:"FFFFFF"}};
+            cl.s.fill={fgColor:{rgb:"000000"}};
+          }else if(meta==="daynames"){
+            cl.s.font={bold:true,sz:10,color:{rgb:"FFFFFF"}};
+            cl.s.fill={fgColor:{rgb:"000000"}};
+          }else if(meta==="blocktimes"){
+            cl.s.font={bold:true,sz:8,color:{rgb:"FFFFFF"}};
+            cl.s.fill={fgColor:{rgb:"1E1E1E"}};
+          }else if(meta==="rolehdr"){
+            cl.s.font={bold:true,sz:10,color:{rgb:"FFFFFF"}};
+            cl.s.fill={fgColor:{rgb:"2D3748"}};
+          }else{
+            // Data rows
+            cl.s.font={sz:9,color:{rgb:"000000"}};
+            if(C===0) cl.s.font={bold:true,sz:9,color:{rgb:"000000"}};
+            // DO cells — black fill
+            if(typeof cl.v==="string"&&cl.v==="DO"&&C>0){
+              cl.s.font={bold:true,sz:9,color:{rgb:"FFFFFF"}};
+              cl.s.fill={fgColor:{rgb:"000000"}};
+            }
+            // VAC cells — blue fill
+            if(typeof cl.v==="string"&&cl.v==="VAC"){
+              cl.s.font={bold:true,sz:9,color:{rgb:"FFFFFF"}};
+              cl.s.fill={fgColor:{rgb:"1E50B4"}};
+            }
+            // Alternating row tint for regulars
+            if(meta==="reg"&&C>0&&!(typeof cl.v==="string"&&(cl.v==="DO"||cl.v==="VAC"))){
+              const ri=aoa.slice(0,R).filter((_,i)=>rType[i]==="reg").length;
+              if(ri%2===1) cl.s.fill={fgColor:{rgb:"F0F0F0"}};
+            }
+          }
+
+          // --- Mark unlocked cells (post-processed via JSZip) ---
+          if(meta==="reg"){
+            if(C>0&&!(typeof cl.v==="string"&&(cl.v==="DO"||cl.v==="VAC"))) cl._u=1;
+          }else if((meta==="ot"||meta==="blank")&&C>0){
+            cl._u=1;
+          }
+        }
+      }
+
+      return ws;
+    }
+
+    const dayWs=buildSheet("DAY SHIFT",dayGrouped,blocksDayDef);
+    const nightWs=buildSheet("NIGHT SHIFT",nightGrouped,blocksNightDef);
+    XLSX.utils.book_append_sheet(wb,dayWs,"Day Shift");
+    XLSX.utils.book_append_sheet(wb,nightWs,"Night Shift");
+
+    // --- Post-process xlsx to inject cell protection (xlsx-js-style doesn't support it) ---
+    const allSheets=[{ws:dayWs,name:"sheet1"},{ws:nightWs,name:"sheet2"}];
+    const xlBuf=XLSX.write(wb,{type:"array",bookType:"xlsx"});
+
+    if(typeof JSZip==="undefined"){
+      XLSX.writeFile(wb,"ShiftOps_Weekly_"+weekDates[0].iso+".xlsx");
+    } else {
+      const zip=await JSZip.loadAsync(xlBuf);
+
+      // Collect ALL unlocked style indices across both sheets
+      const unlockIds={};
+      for(let si=0;si<allSheets.length;si++){
+        const sheetFile="xl/worksheets/sheet"+(si+1)+".xml";
+        const wsObj=allSheets[si].ws;
+        let sheetXml=await zip.file(sheetFile).async("string");
+
+        const cellRe=/<c r="([A-Z]+\d+)" s="(\d+)"/g;
+        let cm;
+        while((cm=cellRe.exec(sheetXml))!==null){
+          if(wsObj[cm[1]]&&wsObj[cm[1]]._u) unlockIds[cm[2]]=true;
+        }
+
+        // Add sheetProtection to each sheet
+        if(sheetXml.indexOf("<sheetProtection")===-1){
+          sheetXml=sheetXml.replace("</sheetData>","</sheetData><sheetProtection sheet=\"1\"/>");
+          zip.file(sheetFile,sheetXml);
+        }
+      }
+
+      // Patch styles.xml once with all unlocked indices
+      if(Object.keys(unlockIds).length){
+        let stylesXml=await zip.file("xl/styles.xml").async("string");
+        stylesXml=stylesXml.replace(/<cellXfs[^>]*>([\s\S]*?)<\/cellXfs>/,function(full,inner){
+          let idx=0;
+          const patched=inner.replace(/<xf ([^/]*?)\/>/g,function(xf,attrs){
+            const i=idx++;
+            if(unlockIds[String(i)]){
+              return '<xf '+attrs+' applyProtection="1"><protection locked="0"/></xf>';
+            }
+            return xf;
+          });
+          return full.replace(inner,patched);
+        });
+        zip.file("xl/styles.xml",stylesXml);
+      }
+
+      const blob=await zip.generateAsync({type:"blob",mimeType:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url;
+      a.download="ShiftOps_Weekly_"+weekDates[0].iso+".xlsx";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // Restore original state
+    document.getElementById("shiftSel").value=origShift;
+    _vacations=origVac;
+    _trainingList=origTrain;
+    await loadEditsFromFirebase(origISO,origShift);
+    await loadShiftSwaps(origISO);
+    clearErr();
+  }catch(err){
+    console.error("downloadWeeklyXlsx error:",err);
+    setErr("Download Weekly Excel failed: "+(err&&err.message?err.message:err));
+  }
+}
+document.getElementById("btnDownloadWeeklyXlsx").addEventListener("click", downloadWeeklyXlsx);
 
 // Shift Swap button + modal backdrop close
 document.getElementById("btnShiftSwap").addEventListener("click", openSwapModal);
