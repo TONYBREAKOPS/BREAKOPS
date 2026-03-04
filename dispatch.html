@@ -416,8 +416,8 @@
 <div class="board-wrapper">
   <div class="readonly-shield" id="readonlyShield"></div>
   <svg id="trailSvg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:15;overflow:visible"></svg>
-  <div class="board-container">
-    <div class="board-grid" id="boardGrid"></div>
+  <div class="board-container" autocomplete="off">
+    <div class="board-grid" id="boardGrid" autocomplete="off"></div>
   </div>
 </div>
 <div class="status-bar" id="statusBar">⏳ Connecting...</div>
@@ -1120,6 +1120,10 @@ function renderBoard() {
       for (let s = 0; s < (ch.slots||3); s++) {
         const inp = document.createElement('input');
         inp.className = 'ct-badge'; inp.type = 'text'; inp.maxLength = 40;
+        inp.autocomplete = 'off';
+        inp.setAttribute('autocomplete', 'off');
+        inp.setAttribute('data-lpignore', 'true');
+        inp.setAttribute('data-form-type', 'other');
         inp.value = arr[s]||''; inp.placeholder = 'Name '+(s+1);
         inp.dataset.day=currentDay; inp.dataset.ch=ch.key;
         inp.dataset.block=b; inp.dataset.slot=s;
@@ -1137,6 +1141,9 @@ function renderBoard() {
     } else {
       const inp = document.createElement('input');
       inp.className = 'assignment-badge '+ch.color; inp.type = 'text'; inp.maxLength = 40;
+      inp.setAttribute('autocomplete', 'off');
+      inp.setAttribute('data-lpignore', 'true');
+      inp.setAttribute('data-form-type', 'other');
       inp.value = data[currentDay][ch.key][b]||''; inp.placeholder = ch.label;
       inp.dataset.day=currentDay; inp.dataset.ch=ch.key; inp.dataset.block=b;
       inp.addEventListener('input', onBadgeInput);
