@@ -307,7 +307,16 @@
     .assignment-badge{font-size:9px;padding:3px 3px;letter-spacing:.5px}
     .ct-badge{font-size:9px;padding:3px 4px;letter-spacing:.5px}
     .pending-cell{font-size:8px;padding:3px 4px}
-    .paste-col-btn{display:none}
+    /* On mobile locked inputs never capture touch — parent cell handles it */
+    .assignment-badge, .ct-badge {
+      pointer-events: none;
+    }
+    body:not(.locked) .assignment-badge,
+    body:not(.locked) .ct-badge {
+      pointer-events: auto;
+    }
+    .assignment-cell { cursor: pointer; }
+    body:not(.locked) .assignment-cell { cursor: text; }
 
     /* Modals */
     .modal{padding:18px 16px;width:calc(100vw - 32px)}
@@ -1027,9 +1036,30 @@ function _handleMobileTrailTap(inp, b, chKey) {
     drawTrail(inp, inp.value, b, chKey);
   }
 }
-// Tap anywhere else clears the trail
+
+// Delegated touch on board — handles trail taps without focusing inputs
+// (attached after init so boardGrid exists)
+function initMobileTouchTrail() {
+  document.getElementById('boardGrid').addEventListener('touchstart', e => {
+    if (!_unlocked) {
+      e.preventDefault();
+      const cell = e.target.closest('.assignment-cell');
+      const inp = cell
+        ? cell.querySelector('[data-trail-ch]')
+        : null;
+      if (inp) {
+        _handleMobileTrailTap(inp, inp.dataset.trailBlock, inp.dataset.trailCh);
+      } else {
+        clearTrail();
+        _mobileTrailActive = null;
+      }
+    }
+  }, {passive: false});
+}
+
+// Tap outside board clears trail
 document.addEventListener('touchstart', e => {
-  if (_mobileTrailActive && !e.target.classList.contains('assignment-badge') && !e.target.classList.contains('ct-badge')) {
+  if (_mobileTrailActive && !e.target.closest('#boardGrid')) {
     clearTrail();
     _mobileTrailActive = null;
   }
@@ -1083,14 +1113,7 @@ function renderBoard() {
         inp.dataset.block=b; inp.dataset.slot=s;
         inp.addEventListener('input', onCTInput);
         inp.addEventListener('blur', saveData);
-        if (isMobile) {
-          inp.addEventListener('touchstart', e => {
-            if (!_unlocked) {
-              e.preventDefault();
-              _handleMobileTrailTap(inp, b, ch.key);
-            }
-          }, {passive: false});
-        } else {
+        if (!isMobile) {
           inp.addEventListener('mouseenter', () => drawTrail(inp, inp.value, b, ch.key));
           inp.addEventListener('mouseleave', clearTrail);
         }
@@ -1106,19 +1129,15 @@ function renderBoard() {
       inp.dataset.day=currentDay; inp.dataset.ch=ch.key; inp.dataset.block=b;
       inp.addEventListener('input', onBadgeInput);
       inp.addEventListener('blur', saveData);
-      if (isMobile) {
-        inp.addEventListener('touchstart', e => {
-          if (!_unlocked) {
-            e.preventDefault();
-            _handleMobileTrailTap(inp, b, ch.key);
-          }
-        }, {passive: false});
-      } else {
+      if (!isMobile) {
         inp.addEventListener('mouseenter', () => drawTrail(inp, inp.value, b, ch.key));
         inp.addEventListener('mouseleave', clearTrail);
       }
       inp.addEventListener('click', e => { if (!_unlocked) e.preventDefault(); });
       inp.addEventListener('keydown', e => { if (!_unlocked) e.preventDefault(); });
+      // Store ref for mobile trail tap on cell
+      inp.dataset.trailBlock = b;
+      inp.dataset.trailCh = ch.key;
 
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;gap:0;width:100%';
@@ -1397,6 +1416,7 @@ _pb.className   = _powered ? 'power-btn on' : 'power-btn';
 renderBoard();
 setLocked(true);
 initFirebase();
+if (window.innerWidth <= 768) initMobileTouchTrail();
 </script>
 </body>
 </html>
