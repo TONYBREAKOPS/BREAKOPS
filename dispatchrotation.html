@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://www.gstatic.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com; img-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://www.gstatic.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com https://www.gstatic.com; img-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none';">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
-<meta http-equiv="X-Frame-Options" content="DENY">
 <meta http-equiv="Referrer-Policy" content="no-referrer">
 <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()">
 <meta name="robots" content="noindex, nofollow">
 <title>Dispatch Rotation Board</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 
 <!-- Firebase SDK — loads when online, board still works offline without it -->
@@ -70,10 +70,10 @@
   .board-grid{display:grid;grid-template-columns:110px repeat(3,1fr);gap:0}
 
   .grid-header{background:var(--bg3);padding:9px 10px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;text-align:center;border-right:1px solid var(--border);border-bottom:1px solid var(--border2);color:var(--text2)}
-  .grid-header.shift-title{color:var(--text);font-size:12px;letter-spacing:2px;grid-column:1/-1;text-align:center;background:var(--bg3);padding:8px 14px;border-bottom:1px solid var(--border2);display:block}
+  .grid-header.shift-title{color:var(--text);font-size:15px;letter-spacing:2px;grid-column:1/-1;text-align:center;background:var(--bg3);padding:12px 14px;border-bottom:1px solid var(--border2);display:block}
   .grid-header.channel-label{color:var(--muted);font-size:10px;background:var(--bg2)}
 
-  .channel-label-cell{background:#171717;display:flex;align-items:center;justify-content:flex-start;padding:10px 14px;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#666;border-right:1px solid var(--border);border-bottom:1px solid var(--border);white-space:nowrap}
+  .channel-label-cell{background:#171717;display:flex;align-items:center;justify-content:flex-start;padding:10px 14px;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#bbb;border-right:1px solid var(--border);border-bottom:1px solid var(--border);white-space:nowrap}
   .assignment-cell{padding:8px 10px;border-right:1px solid #1e1e1e;border-bottom:1px solid #1e1e1e;background:#111;display:flex;flex-direction:column;gap:5px;min-height:54px;align-items:stretch;justify-content:center}
   .assignment-cell:nth-child(even){background:#131313}
 
@@ -368,7 +368,7 @@
 
 <div class="page-header">
   <div style="display:flex;flex-direction:column;gap:2px">
-    <div class="page-title">⚡ Dispatch Rotation Board</div>
+    <div class="page-title"><span style="color:#fff">⚡</span> Dispatch Rotation Board</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
     <div id="liveClock" style="font-family:'Share Tech Mono',monospace;font-size:22px;color:#4a9eff;letter-spacing:4px;background:#0a0a0a;border:1px solid #2a2a2a;border-radius:4px;padding:8px 18px;box-shadow:inset 0 0 12px rgba(74,158,255,0.08);min-width:130px;text-align:center">00:00:00</div>
@@ -1137,6 +1137,7 @@ function applyBlockPaste() {
 // ── Wire buttons ──────────────────────────────────────────────
 document.getElementById('tabDay').addEventListener('click', () => {
   currentShift='day';
+  _shiftManual = true; // user chose — stop auto-switching
   document.getElementById('tabDay').classList.add('active');
   document.getElementById('tabNight').classList.remove('active');
   renderBoard();
@@ -1144,6 +1145,7 @@ document.getElementById('tabDay').addEventListener('click', () => {
 });
 document.getElementById('tabNight').addEventListener('click', () => {
   currentShift='night';
+  _shiftManual = true; // user chose — stop auto-switching
   document.getElementById('tabNight').classList.add('active');
   document.getElementById('tabDay').classList.remove('active');
   renderBoard();
@@ -1212,9 +1214,10 @@ document.getElementById('blockPasteModal').addEventListener('click', e => {
 // ── Live clock + auto shift switch ────────────────────────────
 // Day shift:   0600–1759  → switches to Night at 1700 (1 hr early)
 // Night shift: 1800–0559  → switches to Day  at 0500 (1 hr early)
+let _shiftManual = false; // true = user manually picked a shift, stop auto-switching
+
 function getAutoShift() {
   const h = new Date().getHours();
-  // Night shift pre-warning starts at 17:00, day shift pre-warning at 05:00
   return (h >= 17 || h < 5) ? 'night' : 'day';
 }
 
@@ -1225,14 +1228,16 @@ function tickClock() {
   const ss  = String(now.getSeconds()).padStart(2,'0');
   document.getElementById('liveClock').textContent = hh + ':' + mm + ':' + ss;
 
-  // Auto-switch shift if user hasn't manually overridden
-  const auto = getAutoShift();
-  if (auto !== currentShift) {
-    currentShift = auto;
-    document.getElementById('tabDay').classList.toggle('active', auto === 'day');
-    document.getElementById('tabNight').classList.toggle('active', auto === 'night');
-    renderBoard();
-    if (_unlocked) document.querySelectorAll('.assignment-badge,.ct-badge').forEach(i=>i.readOnly=false);
+  // Only auto-switch if user hasn't manually chosen a shift
+  if (!_shiftManual) {
+    const auto = getAutoShift();
+    if (auto !== currentShift) {
+      currentShift = auto;
+      document.getElementById('tabDay').classList.toggle('active', auto === 'day');
+      document.getElementById('tabNight').classList.toggle('active', auto === 'night');
+      renderBoard();
+      if (_unlocked) document.querySelectorAll('.assignment-badge,.ct-badge').forEach(i=>i.readOnly=false);
+    }
   }
 }
 
