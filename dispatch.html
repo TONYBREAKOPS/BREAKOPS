@@ -255,10 +255,10 @@
     /* Header */
     .page-header{padding:8px 10px;gap:8px;flex-direction:column;align-items:stretch}
     .page-title{font-size:13px;letter-spacing:.5px;text-align:center}
-    .page-header > div:last-child{justify-content:center}
+    .page-header > div:last-child{justify-content:center;flex-wrap:wrap;gap:8px}
 
     /* Clock */
-    #liveClock{font-size:16px;padding:6px 12px;min-width:100px;letter-spacing:3px}
+    #liveClock{font-size:15px;padding:6px 10px;min-width:90px;letter-spacing:2px}
 
     /* Power + Lock buttons */
     .power-btn,.lock-btn{font-size:10px;padding:6px 10px;letter-spacing:.5px}
@@ -266,32 +266,50 @@
     /* Shift tabs */
     .shift-tab{font-size:11px;padding:8px 6px}
 
-    /* Toolbar */
-    .toolbar{padding:6px 10px;gap:6px}
-    .toolbar-label{font-size:10px}
+    /* Buttons */
     .btn{font-size:10px;padding:5px 10px}
 
-    /* Board — horizontal scroll on small screens */
-    .board-wrapper{overflow-x:auto;-webkit-overflow-scrolling:touch}
-    .board-container{min-width:520px}
-    .board-grid{grid-template-columns:72px repeat(3,1fr)}
+    /* Board — switch to card layout, no horizontal scroll */
+    .board-wrapper{overflow-x:visible}
+    .board-container{width:100%;overflow:hidden}
 
-    /* Grid headers */
-    .grid-header{padding:6px 4px;font-size:9px;letter-spacing:.5px}
-    .grid-header.shift-title{font-size:10px;padding:7px 8px}
-    .paste-col-btn{font-size:9px;padding:2px 5px;letter-spacing:0}
+    /* Hide the column header row on mobile — replaced by inline labels */
+    .board-grid{display:block;width:100%}
+    .grid-header.channel-label{display:none}
+    .grid-header:not(.shift-title):not(.channel-label){display:none}
+    .grid-header.shift-title{display:block;font-size:11px;padding:8px 10px;margin-bottom:6px;border-radius:4px 4px 0 0}
 
-    /* Channel labels */
-    .channel-label-cell{padding:8px 6px;font-size:9px;letter-spacing:1px}
+    /* Each channel becomes a card */
+    .channel-row-mobile{
+      display:flex;flex-direction:column;
+      background:#111;border:1px solid #222;border-radius:4px;
+      margin-bottom:6px;overflow:hidden;
+    }
+    .channel-row-mobile .channel-label-cell{
+      padding:7px 12px;font-size:10px;letter-spacing:2px;
+      border-right:none;border-bottom:1px solid #222;
+      background:#171717;width:100%;
+    }
+    .channel-row-mobile .time-blocks{
+      display:grid;grid-template-columns:repeat(3,1fr);gap:0;
+    }
+    .channel-row-mobile .assignment-cell{
+      padding:6px 6px;min-height:44px;border-right:1px solid #1a1a1a;border-bottom:none;
+    }
+    .channel-row-mobile .assignment-cell:last-child{border-right:none}
 
-    /* Assignment cells */
-    .assignment-cell{padding:5px 4px;min-height:40px;gap:3px}
+    /* Time block label above each cell */
+    .mobile-block-label{
+      font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+      color:#555;margin-bottom:4px;font-family:'Share Tech Mono',monospace;
+    }
 
-    /* Name badges */
-    .ch-initial{min-width:26px;padding:5px 4px;font-size:9px}
-    .assignment-badge{font-size:10px;padding:5px 6px;letter-spacing:1px}
-    .ct-badge{font-size:10px;padding:4px 6px;letter-spacing:1px}
+    /* Name badges on mobile */
+    .ch-initial{min-width:22px;padding:5px 3px;font-size:8px}
+    .assignment-badge{font-size:10px;padding:5px 4px;letter-spacing:1px}
+    .ct-badge{font-size:10px;padding:4px 5px;letter-spacing:1px}
     .pending-cell{font-size:9px;padding:4px 5px}
+    .paste-col-btn{display:none} /* hide paste buttons on mobile */
 
     /* Modals */
     .modal{padding:18px 16px;width:calc(100vw - 32px)}
@@ -307,14 +325,6 @@
 
     /* Page gate */
     #pageGate > div{padding:28px 20px;width:calc(100vw - 32px)}
-  }
-
-  @media(max-width:400px){
-    .board-grid{grid-template-columns:60px repeat(3,1fr)}
-    .channel-label-cell{padding:6px 4px;font-size:8px;letter-spacing:0}
-    .ch-initial{min-width:22px;padding:5px 3px;font-size:8px}
-    .assignment-badge{font-size:9px;padding:4px 4px;letter-spacing:.5px}
-    .grid-header{font-size:8px;padding:5px 3px}
   }
 </style>
 </head>
@@ -1016,7 +1026,86 @@ function renderBoard() {
   const grid = document.getElementById('boardGrid');
   grid.innerHTML = '';
   const blocks = getBlocks(), labels = getBlockLabels();
+  const isMobile = window.innerWidth <= 768;
 
+  // ── Helper: build a single input cell ────────────────────────
+  function buildCell(ch, b, labelText) {
+    const cell = document.createElement('div');
+    cell.className = 'assignment-cell';
+
+    if (isMobile && labelText) {
+      const lbl = document.createElement('div');
+      lbl.className = 'mobile-block-label';
+      lbl.textContent = labelText;
+      cell.appendChild(lbl);
+    }
+
+    if (!_powered && !_unlocked) {
+      const slots = ch.multiline ? (ch.slots || 3) : 1;
+      const wrap = ch.multiline ? document.createElement('div') : null;
+      if (wrap) wrap.className = 'badge-wrapper';
+      for (let s = 0; s < slots; s++) {
+        const p = document.createElement('div');
+        p.className = 'pending-cell';
+        p.textContent = 'PENDING';
+        if (wrap) wrap.appendChild(p); else cell.appendChild(p);
+      }
+      if (wrap) cell.appendChild(wrap);
+      return cell;
+    }
+
+    if (ch.multiline) {
+      const wrap = document.createElement('div');
+      wrap.className = 'badge-wrapper';
+      const arr = data[currentDay][ch.key][b];
+      for (let s = 0; s < (ch.slots||3); s++) {
+        const inp = document.createElement('input');
+        inp.className = 'ct-badge'; inp.type = 'text'; inp.maxLength = 40;
+        inp.value = arr[s]||''; inp.placeholder = 'Name '+(s+1);
+        inp.dataset.day=currentDay; inp.dataset.ch=ch.key;
+        inp.dataset.block=b; inp.dataset.slot=s;
+        inp.addEventListener('input', onCTInput);
+        inp.addEventListener('blur', saveData);
+        inp.addEventListener('mouseenter', e => drawTrail(inp, inp.value, b, ch.key));
+        inp.addEventListener('mouseleave', clearTrail);
+        inp.addEventListener('click', e => { if (!_unlocked) e.preventDefault(); });
+        inp.addEventListener('keydown', e => { if (!_unlocked) e.preventDefault(); });
+        wrap.appendChild(inp);
+      }
+      cell.appendChild(wrap);
+    } else {
+      const inp = document.createElement('input');
+      inp.className = 'assignment-badge '+ch.color; inp.type = 'text'; inp.maxLength = 40;
+      inp.value = data[currentDay][ch.key][b]||''; inp.placeholder = ch.label;
+      inp.dataset.day=currentDay; inp.dataset.ch=ch.key; inp.dataset.block=b;
+      inp.addEventListener('input', onBadgeInput);
+      inp.addEventListener('blur', saveData);
+      inp.addEventListener('mouseenter', e => drawTrail(inp, inp.value, b, ch.key));
+      inp.addEventListener('mouseleave', clearTrail);
+      inp.addEventListener('click', e => { if (!_unlocked) e.preventDefault(); });
+      inp.addEventListener('keydown', e => { if (!_unlocked) e.preventDefault(); });
+
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:0;width:100%';
+      const prefix = document.createElement('span');
+      const initial = ch.key === 'NORTHWEST' ? 'NW'
+                    : ch.key === 'RELIEF1'   ? 'R1'
+                    : ch.key === 'RELIEF2'   ? 'R2'
+                    : ch.key === 'DC1'       ? 'DC1'
+                    : ch.key === 'DC2'       ? 'DC2'
+                    : ch.key[0];
+      const chClass = ch.key.toLowerCase().replace('relief','r').replace('northwest','nw');
+      prefix.textContent = initial;
+      prefix.className = 'ch-initial ' + chClass;
+      inp.style.flex = '1';
+      row.appendChild(prefix);
+      row.appendChild(inp);
+      cell.appendChild(row);
+    }
+    return cell;
+  }
+
+  // ── Shift title (always shown) ────────────────────────────────
   const title = document.createElement('div');
   title.className = 'grid-header shift-title';
   const today = new Date();
@@ -1027,106 +1116,61 @@ function renderBoard() {
   title.appendChild(titleSpan);
   grid.appendChild(title);
 
-  const chHead = document.createElement('div');
-  chHead.className = 'grid-header channel-label';
-  chHead.textContent = 'CHANNEL';
-  grid.appendChild(chHead);
+  if (isMobile) {
+    // ── MOBILE: card per channel ──────────────────────────────
+    CHANNELS.forEach(ch => {
+      const card = document.createElement('div');
+      card.className = 'channel-row-mobile';
 
-  labels.forEach((lbl,i) => {
-    const b = blocks[i];
-    const h = document.createElement('div');
-    h.className = 'grid-header';
-    h.style.cssText = 'display:flex;flex-direction:column;gap:6px;align-items:center;padding:10px 8px';
-    const span = document.createElement('span');
-    span.style.cssText = 'letter-spacing:2px;font-size:11px';
-    span.textContent = lbl;
-    const pbtn = document.createElement('button');
-    pbtn.className = 'paste-col-btn';
-    pbtn.textContent = '📋 PASTE BLOCK';
-    pbtn.addEventListener('click', () => openBlockPaste(b));
-    h.appendChild(span); h.appendChild(pbtn);
-    grid.appendChild(h);
-  });
+      const labelCell = document.createElement('div');
+      labelCell.className = 'channel-label-cell';
+      labelCell.textContent = ch.label;
+      card.appendChild(labelCell);
 
-  CHANNELS.forEach(ch => {
-    const lc = document.createElement('div');
-    lc.className = 'channel-label-cell';
-    lc.textContent = ch.label;
-    grid.appendChild(lc);
-
-    blocks.forEach(b => {
-      const cell = document.createElement('div');
-      cell.className = 'assignment-cell';
-
-      // Powered off AND locked — show PENDING to viewers
-      // If unlocked (supervisor editing), always show real data
-      if (!_powered && !_unlocked) {
-        const slots = ch.multiline ? (ch.slots || 3) : 1;
-        const wrap = ch.multiline ? document.createElement('div') : null;
-        if (wrap) wrap.className = 'badge-wrapper';
-        for (let s = 0; s < slots; s++) {
-          const p = document.createElement('div');
-          p.className = 'pending-cell';
-          p.textContent = 'PENDING';
-          if (wrap) wrap.appendChild(p); else cell.appendChild(p);
-        }
-        if (wrap) cell.appendChild(wrap);
-        grid.appendChild(cell);
-        return;
-      }
-
-      if (ch.multiline) {
-        const wrap = document.createElement('div');
-        wrap.className = 'badge-wrapper';
-        const arr = data[currentDay][ch.key][b];
-        for (let s = 0; s < (ch.slots||3); s++) {
-          const inp = document.createElement('input');
-          inp.className = 'ct-badge'; inp.type = 'text'; inp.maxLength = 40;
-          inp.value = arr[s]||''; inp.placeholder = 'Name '+(s+1);
-          inp.dataset.day=currentDay; inp.dataset.ch=ch.key;
-          inp.dataset.block=b; inp.dataset.slot=s;
-          inp.addEventListener('input', onCTInput);
-          inp.addEventListener('blur', saveData);
-          inp.addEventListener('mouseenter', e => drawTrail(inp, inp.value, b, ch.key));
-          inp.addEventListener('mouseleave', clearTrail);
-          inp.addEventListener('click', e => { if (!_unlocked) e.preventDefault(); });
-          inp.addEventListener('keydown', e => { if (!_unlocked) e.preventDefault(); });
-          wrap.appendChild(inp);
-        }
-        cell.appendChild(wrap);
-      } else {
-        const inp = document.createElement('input');
-        inp.className = 'assignment-badge '+ch.color; inp.type = 'text'; inp.maxLength = 40;
-        inp.value = data[currentDay][ch.key][b]||''; inp.placeholder = ch.label;
-        inp.dataset.day=currentDay; inp.dataset.ch=ch.key; inp.dataset.block=b;
-        inp.addEventListener('input', onBadgeInput);
-        inp.addEventListener('blur', saveData);
-        inp.addEventListener('mouseenter', e => drawTrail(inp, inp.value, b, ch.key));
-        inp.addEventListener('mouseleave', clearTrail);
-        inp.addEventListener('click', e => { if (!_unlocked) e.preventDefault(); });
-        inp.addEventListener('keydown', e => { if (!_unlocked) e.preventDefault(); });
-
-        // Wrap with initial prefix
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:0;width:100%';
-        const prefix = document.createElement('span');
-        const initial = ch.key === 'NORTHWEST' ? 'NW'
-                      : ch.key === 'RELIEF1'   ? 'R1'
-                      : ch.key === 'RELIEF2'   ? 'R2'
-                      : ch.key === 'DC1'       ? 'DC1'
-                      : ch.key === 'DC2'       ? 'DC2'
-                      : ch.key[0];
-        const chClass = ch.key.toLowerCase().replace('relief','r').replace('northwest','nw').replace('central','central').replace('north','north').replace('east','east').replace('south','south').replace('west','west').replace('dc1','dc1').replace('dc2','dc2');
-        prefix.textContent = initial;
-        prefix.className = 'ch-initial ' + chClass;
-        inp.style.flex = '1';
-        row.appendChild(prefix);
-        row.appendChild(inp);
-        cell.appendChild(row);
-      }
-      grid.appendChild(cell);
+      const timeRow = document.createElement('div');
+      timeRow.className = 'time-blocks';
+      blocks.forEach((b, i) => {
+        const cell = buildCell(ch, b, labels[i]);
+        timeRow.appendChild(cell);
+      });
+      card.appendChild(timeRow);
+      grid.appendChild(card);
     });
-  });
+
+  } else {
+    // ── DESKTOP: standard grid ────────────────────────────────
+    const chHead = document.createElement('div');
+    chHead.className = 'grid-header channel-label';
+    chHead.textContent = 'CHANNEL';
+    grid.appendChild(chHead);
+
+    labels.forEach((lbl, i) => {
+      const b = blocks[i];
+      const h = document.createElement('div');
+      h.className = 'grid-header';
+      h.style.cssText = 'display:flex;flex-direction:column;gap:6px;align-items:center;padding:10px 8px';
+      const span = document.createElement('span');
+      span.style.cssText = 'letter-spacing:2px;font-size:11px';
+      span.textContent = lbl;
+      const pbtn = document.createElement('button');
+      pbtn.className = 'paste-col-btn';
+      pbtn.textContent = '📋 PASTE BLOCK';
+      pbtn.addEventListener('click', () => openBlockPaste(b));
+      h.appendChild(span); h.appendChild(pbtn);
+      grid.appendChild(h);
+    });
+
+    CHANNELS.forEach(ch => {
+      const lc = document.createElement('div');
+      lc.className = 'channel-label-cell';
+      lc.textContent = ch.label;
+      grid.appendChild(lc);
+
+      blocks.forEach(b => {
+        grid.appendChild(buildCell(ch, b, null));
+      });
+    });
+  }
 }
 
 function onBadgeInput(e) {
@@ -1293,7 +1337,14 @@ function tickClock() {
 }
 
 setInterval(tickClock, 1000);
-tickClock(); // run immediately
+tickClock();
+
+// Re-render on resize/orientation change
+let _resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(renderBoard, 150);
+});
 
 document.getElementById('announcementBox').addEventListener('blur', () => {
   if (_unlocked) saveData();
