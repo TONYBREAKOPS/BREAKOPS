@@ -662,9 +662,9 @@ function initFirebase() {
       messagingSenderId: '1097431114529',
       appId:             '1:1097431114529:web:2adfdae7838b4840f0d460'
     });
-    // App Check — reCAPTCHA v3
+    // App Check — reCAPTCHA Enterprise
     const appCheck = firebase.appCheck();
-    appCheck.activate('6LeH6GMsAAAAAIjV9DPRrmSKfvNeNHVS9LI8JQVU', true);
+    appCheck.activate(new firebase.appCheck.ReCaptchaEnterpriseProvider('6LeH6GMsAAAAAIjV9DPRrmSKfvNeNHVS9LI8JQVU'), true);
     db      = firebase.firestore();
     DOC_REF = db.collection('appState').doc('rotationBoard');
     setStatus('⏳ Connecting...');
