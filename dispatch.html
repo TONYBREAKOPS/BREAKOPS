@@ -250,65 +250,76 @@
 
   /* ── Mobile & Responsive ───────────────────────────────────── */
   @media(max-width:768px){
-    body{padding:4px;font-size:11px}
+    body{padding:3px;font-size:11px}
 
-    /* Header */
-    .page-header{padding:5px 8px;gap:4px;flex-direction:column;align-items:stretch}
-    .page-title{font-size:11px;letter-spacing:.5px;text-align:center}
-    .page-header > div:last-child{justify-content:center;flex-wrap:wrap;gap:5px}
-    #liveClock{font-size:13px;padding:4px 7px;min-width:75px;letter-spacing:2px}
-    .power-btn,.lock-btn{font-size:9px;padding:4px 7px;letter-spacing:.3px}
-    .shift-tab{font-size:10px;padding:5px 4px}
-    .btn{font-size:9px;padding:4px 8px}
-    .status-bar{font-size:8px;padding:3px 8px}
-    #pageGate > div{padding:24px 16px;width:calc(100vw - 32px)}
-    #announcementBox{font-size:11px;padding:8px 10px}
-    .modal{padding:16px 14px;width:calc(100vw - 24px)}
-    .modal-title{font-size:12px}
-    .modal-desc{font-size:10px}
-    .modal-textarea{height:140px;font-size:10px}
+    /* Header — single compact row */
+    .page-header{
+      padding:4px 6px;gap:4px;
+      flex-direction:row;align-items:center;
+      flex-wrap:nowrap;margin-bottom:4px;
+    }
+    .page-title{font-size:10px;letter-spacing:.3px;white-space:nowrap;flex:1}
+    .page-header > div:last-child{
+      display:flex;align-items:center;gap:4px;flex-wrap:nowrap;flex-shrink:0;
+    }
+    #liveClock{font-size:11px;padding:3px 5px;min-width:60px;letter-spacing:1px}
+    .power-btn,.lock-btn{font-size:8px;padding:3px 6px;letter-spacing:0}
+    .btn{font-size:8px;padding:3px 6px}
+
+    /* Shift tabs — short */
+    .shift-tab{font-size:9px;padding:4px 2px;letter-spacing:.5px}
 
     /* Board */
     .board-wrapper{overflow-x:visible}
-    .board-container{width:100%;overflow:hidden;border-radius:0 0 4px 4px}
+    .board-container{width:100%;overflow:hidden;border-radius:0 0 3px 3px}
     .board-grid{display:block;width:100%}
-    .grid-header.channel-label{display:none}
-    .grid-header:not(.shift-title):not(.channel-label){display:none}
-    .grid-header.shift-title{display:block;font-size:9px;padding:4px 8px;margin-bottom:0;border-radius:0}
+    .grid-header.channel-label,.grid-header:not(.shift-title):not(.channel-label){display:none}
+    .grid-header.shift-title{display:block;font-size:8px;padding:3px 6px;margin-bottom:0;border-radius:0}
 
-    /* Ultra-compact: each channel = one row with 4 columns (label + 3 blocks) */
+    /* One row per channel: label col + 3 block cols */
     .channel-row-mobile{
       display:grid;
-      grid-template-columns:50px 1fr 1fr 1fr;
+      grid-template-columns:28px 1fr 1fr 1fr;
       border-bottom:1px solid #1a1a1a;
-      min-height:26px;
+      min-height:0;
     }
     .channel-row-mobile:last-child{border-bottom:none}
     .channel-row-mobile .channel-label-cell{
-      padding:0 4px;font-size:7px;letter-spacing:1px;
+      padding:0 2px;font-size:12px;letter-spacing:0;font-weight:900;color:#fff;
       border-right:1px solid #242424;border-bottom:none;
-      background:#141414;display:flex;align-items:center;justify-content:flex-start;
-      white-space:nowrap;overflow:hidden;
+      background:#141414;display:flex;align-items:center;justify-content:center;
+      white-space:nowrap;overflow:hidden;line-height:1;text-align:center;
     }
     .channel-row-mobile .time-blocks{display:contents}
     .channel-row-mobile .assignment-cell{
-      padding:2px 3px;min-height:26px;
+      padding:2px 3px;
       border-right:1px solid #1a1a1a;border-bottom:none;
       gap:1px;display:flex;flex-direction:column;justify-content:center;
     }
     .channel-row-mobile .assignment-cell:last-child{border-right:none}
-
-    /* Hide time labels — no room */
     .mobile-block-label{display:none}
 
-    /* Tiny name badges */
-    .ch-initial{min-width:13px;padding:2px 1px;font-size:5.5px;letter-spacing:0;flex-shrink:0}
-    .assignment-badge{font-size:7.5px;padding:2px 2px;letter-spacing:0;line-height:1.2;border-left-width:2px!important}
-    .ct-badge{font-size:7px;padding:1px 2px;letter-spacing:0;line-height:1.2;border-left-width:1px!important}
-    .pending-cell{font-size:6px;padding:1px 2px;letter-spacing:.5px}
+    /* Name badges — maximize text size */
+    .ch-initial{min-width:12px;padding:1px 1px;font-size:5px;letter-spacing:0;flex-shrink:0;line-height:1}
+    .assignment-badge{font-size:12px;padding:3px 3px;letter-spacing:0;line-height:1.2;border-left-width:2px!important;color:#fff!important}
+    .ct-badge{font-size:11px;padding:2px 3px;letter-spacing:0;line-height:1.2;border-left-width:1px!important;color:#ddd!important}
+    .pending-cell{font-size:7px;padding:2px 3px;letter-spacing:.5px}
     .paste-col-btn{display:none}
 
-    /* Inputs non-interactive when locked on mobile */
+    /* Status + announcement compact */
+    .status-bar{font-size:8px;padding:2px 6px}
+    #announcementBox{font-size:10px;padding:6px 8px;min-height:50px}
+
+    /* Page gate */
+    #pageGate > div{padding:20px 14px;width:calc(100vw - 24px)}
+
+    /* Modals */
+    .modal{padding:14px 12px;width:calc(100vw - 20px)}
+    .modal-title{font-size:12px}
+    .modal-desc{font-size:10px}
+    .modal-textarea{height:130px;font-size:10px}
+
+    /* Inputs non-interactive when locked */
     .assignment-badge,.ct-badge{pointer-events:none}
     body:not(.locked) .assignment-badge,
     body:not(.locked) .ct-badge{pointer-events:auto}
@@ -1151,14 +1162,19 @@ function renderBoard() {
   grid.appendChild(title);
 
   if (isMobile) {
-    // ── MOBILE: card per channel ──────────────────────────────
+    // ── MOBILE: compact single-line per channel ───────────────
+    const mobileLabels = {
+      'NORTH':'N','EAST':'E','SOUTH':'S','WEST':'W',
+      'NORTHWEST':'NW','CENTRAL':'C','DC1':'DC1',
+      'DC2':'DC2','RELIEF1':'R1','RELIEF2':'R2','CT':'CT'
+    };
     CHANNELS.forEach(ch => {
       const card = document.createElement('div');
       card.className = 'channel-row-mobile';
 
       const labelCell = document.createElement('div');
       labelCell.className = 'channel-label-cell';
-      labelCell.textContent = ch.label;
+      labelCell.textContent = mobileLabels[ch.key] || ch.label;
       card.appendChild(labelCell);
 
       const timeRow = document.createElement('div');
