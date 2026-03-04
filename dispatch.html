@@ -683,19 +683,22 @@ function initFirebase() {
 // ── Firestore sync ────────────────────────────────────────────
 function saveData() {
   const announcement = sanitizeAnnouncement(document.getElementById('announcementBox').value);
-  document.getElementById('announcementBox').value = announcement; // reflect cleaned value
+  document.getElementById('announcementBox').value = announcement;
   saveLocal();
   if (!DOC_REF) {
-    setStatus('💾 Saved locally (offline)');
+    setStatus('💾 Saved locally (offline — no Firebase connection)');
     return;
   }
-  DOC_REF.set({board: JSON.stringify(data), announcement: announcement})
+  setStatus('⏳ Saving...');
+  DOC_REF.set({board: JSON.stringify(data), announcement: announcement}, {merge: true})
     .then(() => {
       const t = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
       setStatus('🟢 Saved & synced — ' + t);
+      console.log('Firebase save success at', t);
     })
     .catch(e => {
-      setStatus('🔴 Sync failed: ' + e.message);
+      setStatus('🔴 Save failed: ' + e.code + ' — ' + e.message);
+      console.error('Firebase save error:', e.code, e.message, e);
     });
 }
 
