@@ -691,15 +691,16 @@ function saveData() {
     setStatus('💾 Saved locally (offline — no Firebase connection)');
     return;
   }
+  if (!_powered) {
+    setStatus('💾 Saved locally — board is OFFLINE');
+    return;
+  }
   setStatus('⏳ Saving...');
   const boardJson = JSON.stringify(data);
-  console.log('Saving board data, size:', boardJson.length, 'chars');
-  console.log('Today data:', JSON.stringify(data[currentDay]));
-  DOC_REF.set({board: boardJson, announcement: announcement}, {merge: true})
+  DOC_REF.set({board: boardJson, announcement: announcement, powered: true}, {merge: true})
     .then(() => {
       const t = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
       setStatus('🟢 Saved & synced — ' + t);
-      console.log('Firebase save success at', t);
     })
     .catch(e => {
       setStatus('🔴 Save failed: ' + e.code + ' — ' + e.message);
@@ -710,8 +711,17 @@ function saveData() {
 function startLiveSync() {
   DOC_REF.onSnapshot(snap => {
     if (snap.exists) {
+      const snapData = snap.data();
+      // Sync powered state from Firestore to all devices
+      if (snapData.powered !== undefined) {
+        const wasOff = !_powered;
+        _powered = snapData.powered;
+        const btn = document.getElementById('powerBtn');
+        btn.textContent = _powered ? '⏻ ONLINE' : '⏻ OFFLINE';
+        btn.className   = _powered ? 'power-btn on' : 'power-btn';
+      }
       try {
-        const saved = JSON.parse(snap.data().board);
+        const saved = JSON.parse(snapData.board);
         Object.keys(saved).forEach(d => {
           if (!data[d]) return;
           Object.keys(saved[d]).forEach(ch => {
@@ -727,9 +737,9 @@ function startLiveSync() {
           });
         });
       } catch(e) {}
-      if (snap.data().announcement !== undefined)
+      if (snapData.announcement !== undefined)
         document.getElementById('announcementBox').value =
-          sanitizeAnnouncement(String(snap.data().announcement||''));
+          sanitizeAnnouncement(String(snapData.announcement||''));
       saveLocal();
     }
     renderBoard();
@@ -923,6 +933,22 @@ function setPower(on) {
   btn.textContent = on ? '⏻ ONLINE' : '⏻ OFFLINE';
   btn.className   = on ? 'power-btn on' : 'power-btn';
   saveLocal();
+  // When turning ON — immediately push current data to Firebase so all devices get it
+  // When turning OFF — push powered:false so all devices show PENDING
+  if (DOC_REF) {
+    const announcement = sanitizeAnnouncement(document.getElementById('announcementBox').value);
+    if (on) {
+      setStatus('⏳ Going online...');
+      DOC_REF.set({board: JSON.stringify(data), announcement: announcement, powered: true}, {merge: true})
+        .then(() => setStatus('🟢 Online — synced to all devices'))
+        .catch(e => setStatus('🔴 Sync failed: ' + e.message));
+    } else {
+      setStatus('⏳ Going offline...');
+      DOC_REF.set({powered: false}, {merge: true})
+        .then(() => setStatus('📴 Offline — all devices show PENDING'))
+        .catch(e => setStatus('🔴 ' + e.message));
+    }
+  }
   renderBoard();
   if (!_unlocked) {
     document.querySelectorAll('.assignment-badge, .ct-badge').forEach(inp => { inp.readOnly = true; });
