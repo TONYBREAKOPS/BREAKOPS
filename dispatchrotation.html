@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://www.gstatic.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com; img-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none';">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="X-Frame-Options" content="DENY">
+<meta http-equiv="Referrer-Policy" content="no-referrer">
+<meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()">
+<meta name="robots" content="noindex, nofollow">
+<title>Dispatch Rotation Board</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+<!-- Firebase SDK — loads when online, board still works offline without it -->
+<script>window._firebaseLoadError = false;</script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"
+  crossorigin="anonymous"
+  onerror="window._firebaseLoadError=true"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"
+  crossorigin="anonymous"
+  onerror="window._firebaseLoadError=true"></script>
+
+<style>
+  :root {
+    --bg:#141414;
+    --bg2:#1c1c1c;
+    --bg3:#222222;
+    --bg4:#2a2a2a;
+    --header-bg:#111111;
+    --border:#333333;
+    --border2:#3a3a3a;
+    --text:#e8e8e8;
+    --text2:#aaaaaa;
+    --muted:#666666;
+    --accent:#4a9eff;
+    --accent2:#2563eb;
+    --green:#22c55e;
+    --red:#ef4444;
+    --col-north:#1e3a5f;
+    --col-east:#1a4a2e;
+    --col-south:#3a2a1a;
+    --col-west:#3a1a2a;
+    --col-nw:#2a1a4a;
+    --col-central:#1a3a3a;
+    --col-dc1:#3a1a1a;
+    --col-dc2:#1a3a1a;
+    --col-r1:#3a3a1a;
+    --col-r2:#1a2a3a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Inter','Segoe UI',system-ui,sans-serif;min-height:100vh;padding:16px;font-size:13px}
+
+  /* Header */
+  .page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:10px 18px;background:var(--header-bg);border:1px solid var(--border);border-radius:4px;flex-wrap:wrap;gap:10px}
+  .page-title{font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text)}
+  .day-selector{display:flex;gap:4px;align-items:center;flex-wrap:wrap;position:relative;z-index:20}
+  .day-btn{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-family:inherit;font-size:11px;font-weight:600;letter-spacing:1px;padding:5px 11px;cursor:pointer;border-radius:3px;text-transform:uppercase;transition:all .1s;position:relative;z-index:20;pointer-events:auto}
+  .day-btn:hover{background:var(--bg4);color:var(--text);border-color:#555}
+  .day-btn.active{background:var(--accent2);color:#fff;border-color:var(--accent)}
+
+  /* Shift tabs and day selector always interactive */
+  .shift-tabs{display:flex;gap:2px;margin-bottom:0;position:relative;z-index:20}
+  .shift-tab{flex:1;padding:8px 12px;text-align:center;background:var(--bg2);border:1px solid var(--border);border-bottom:none;border-radius:4px 4px 0 0;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text2);transition:all .1s;position:relative;z-index:20;user-select:none}
+  .shift-tab:hover{color:var(--text);background:var(--bg3)}
+  .shift-tab.active{background:var(--bg3);color:var(--accent);border-color:var(--border2)}
+
+  /* Board */
+  .board-container{background:var(--bg2);border:1px solid var(--border);border-radius:0 4px 4px 4px;overflow:hidden}
+  .board-grid{display:grid;grid-template-columns:110px repeat(3,1fr);gap:0}
+
+  .grid-header{background:var(--bg3);padding:9px 10px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;text-align:center;border-right:1px solid var(--border);border-bottom:1px solid var(--border2);color:var(--text2)}
+  .grid-header.shift-title{color:var(--text);font-size:12px;letter-spacing:2px;grid-column:1/-1;text-align:center;background:var(--bg3);padding:8px 14px;border-bottom:1px solid var(--border2);display:block}
+  .grid-header.channel-label{color:var(--muted);font-size:10px;background:var(--bg2)}
+
+  .channel-label-cell{background:#171717;display:flex;align-items:center;justify-content:flex-start;padding:10px 14px;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#666;border-right:1px solid var(--border);border-bottom:1px solid var(--border);white-space:nowrap}
+  .assignment-cell{padding:8px 10px;border-right:1px solid #1e1e1e;border-bottom:1px solid #1e1e1e;background:#111;display:flex;flex-direction:column;gap:5px;min-height:54px;align-items:stretch;justify-content:center}
+  .assignment-cell:nth-child(even){background:#131313}
+
+  /* Name blocks */
+  .badge-wrapper{width:100%;display:flex;flex-direction:column;gap:4px}
+  .assignment-badge{
+    display:block;width:100%;
+    padding:7px 12px;
+    border-radius:2px;
+    font-family:'Share Tech Mono',monospace;
+    font-size:13px;font-weight:400;
+    letter-spacing:2px;text-transform:uppercase;text-align:left;
+    border:none;border-left:4px solid transparent;
+    outline:none;
+    color:#c8c8c8;
+    background:#1a1a1a;
+    transition:background .1s,color .1s;
+    caret-color:var(--accent)
+  }
+  .assignment-badge:not(:placeholder-shown){
+    color:#f0f0f0;
+  }
+  .assignment-badge:focus{
+    color:#fff;
+    outline:none;
+  }
+  .assignment-badge::placeholder{
+    opacity:.18;font-size:10px;letter-spacing:1px;font-family:inherit
+  }
+
+  .ct-badge{
+    display:block;width:100%;
+    padding:5px 10px;
+    border-radius:2px;
+    background:#181818;
+    border:none;border-left:2px solid #2a2a2a;
+    font-family:'Share Tech Mono',monospace;
+    font-size:12px;font-weight:400;
+    letter-spacing:1.5px;text-transform:uppercase;text-align:left;
+    outline:none;color:#888;
+    transition:background .1s,color .1s;
+    caret-color:var(--accent)
+  }
+  .ct-badge:not([value=""]):not(:placeholder-shown){color:#bbb;background:#1c1c1c}
+  .ct-badge:focus{border-left-color:var(--accent);color:#e8e8e8;background:#1a2030}
+  .ct-badge::placeholder{opacity:.2;font-size:10px}
+
+  /* Channel colors — strong left border, clean uniform background */
+  .c-north,.c-east,.c-south,.c-west,.c-nw,.c-central,.c-dc1,.c-dc2,.c-r1,.c-r2{
+    background:#1a1a1a !important;
+  }
+  .c-north{border-left-color:#e8820c !important}
+  .c-east{ border-left-color:#2ecc71 !important}
+  .c-south{border-left-color:#3498db !important}
+  .c-west{ border-left-color:#e74c3c !important}
+  .c-nw{   border-left-color:#9b59b6 !important}
+  .c-central{border-left-color:#1abc9c !important}
+  .c-dc1{  border-left-color:#f1c40f !important}
+  .c-dc2{  border-left-color:#e67e22 !important}
+  .c-r1{   border-left-color:#95a5a6 !important}
+  .c-r2{   border-left-color:#5b8dd9 !important}
+
+  /* On focus — darken the bg slightly, keep border bright */
+  .c-north:focus{background:#201a12 !important}
+  .c-east:focus{ background:#122018 !important}
+  .c-south:focus{background:#12192a !important}
+  .c-west:focus{ background:#221212 !important}
+  .c-nw:focus{   background:#1b1222 !important}
+  .c-central:focus{background:#112220 !important}
+  .c-dc1:focus{  background:#221f10 !important}
+  .c-dc2:focus{  background:#221812 !important}
+  .c-r1:focus{   background:#191b1b !important}
+  .c-r2:focus{   background:#12182a !important}
+
+  /* Channel initial prefix */
+  .ch-initial{
+    display:inline-flex;align-items:center;justify-content:center;
+    min-width:36px;padding:7px 8px;
+    font-family:'Share Tech Mono',monospace;font-size:11px;font-weight:900;
+    letter-spacing:1px;text-transform:uppercase;
+    border-left:3px solid #444;
+    border-right:1px solid #252525;
+    background:#1e1e1e;color:#fff;
+    flex-shrink:0;user-select:none;
+  }
+  .c-north .ch-initial, .ch-initial.north{border-left-color:#b36a00;color:#fff;background:#1d1710}
+  .c-east  .ch-initial, .ch-initial.east {border-left-color:#1e7a45;color:#fff;background:#101a13}
+  .c-south .ch-initial, .ch-initial.south{border-left-color:#1a5f8a;color:#fff;background:#10161d}
+  .c-west  .ch-initial, .ch-initial.west {border-left-color:#8a2a22;color:#fff;background:#1d1010}
+  .c-nw    .ch-initial, .ch-initial.nw   {border-left-color:#5a3278;color:#fff;background:#160f1c}
+  .c-central .ch-initial,.ch-initial.central{border-left-color:#147a6a;color:#fff;background:#0f1c19}
+  .c-dc1   .ch-initial, .ch-initial.dc1  {border-left-color:#8a7a00;color:#fff;background:#1a1900}
+  .c-dc2   .ch-initial, .ch-initial.dc2  {border-left-color:#8a4a00;color:#fff;background:#1a1400}
+  .c-r1    .ch-initial, .ch-initial.r1   {border-left-color:#4a5a5c;color:#fff;background:#121717}
+  .c-r2    .ch-initial, .ch-initial.r2   {border-left-color:#2a4a7a;color:#fff;background:#101420}
+
+  /* Match badge left border to channel */
+  .c-north{border-left:4px solid #b36a00 !important}
+  .c-east{ border-left:4px solid #1e7a45 !important}
+  .c-south{border-left:4px solid #1a5f8a !important}
+  .c-west{ border-left:4px solid #8a2a22 !important}
+  .c-nw{   border-left:4px solid #5a3278 !important}
+  .c-central{border-left:4px solid #147a6a !important}
+  .c-dc1{  border-left:4px solid #8a7a00 !important}
+  .c-dc2{  border-left:4px solid #8a4a00 !important}
+  .c-r1{   border-left:4px solid #4a5a5c !important}
+  .c-r2{   border-left:4px solid #2a4a7a !important}
+
+  /* Remove left border from badge itself — prefix carries it */
+  .assignment-badge{border-left:none !important}
+
+  /* Paste button */
+  .paste-col-btn{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);font-family:inherit;font-size:10px;font-weight:600;letter-spacing:.5px;padding:3px 9px;border-radius:3px;cursor:pointer;text-transform:uppercase;transition:all .1s;white-space:nowrap}
+  .paste-col-btn:hover{background:var(--accent2);border-color:var(--accent);color:#fff}
+
+  /* Toolbar */
+  .toolbar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--header-bg);border:1px solid var(--border);border-radius:4px;margin-bottom:10px;flex-wrap:wrap}
+  .toolbar-label{font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--text2)}
+
+  /* Buttons */
+  .btn{background:var(--accent2);color:#fff;border:1px solid var(--accent);font-family:inherit;font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;padding:6px 14px;border-radius:3px;cursor:pointer;transition:all .1s}
+  .btn:hover{background:#1d4ed8}
+  .btn-secondary{background:var(--bg3);color:var(--text2);border:1px solid var(--border2)}
+  .btn-secondary:hover{color:var(--text);background:var(--bg4);border-color:#555}
+  .btn-danger{background:#7f1d1d;color:#fca5a5;border:1px solid #991b1b}
+  .btn-danger:hover{background:#991b1b}
+
+  /* Status bar */
+  .status-bar{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);padding:6px 14px;text-align:right;letter-spacing:.5px;border-top:1px solid var(--border)}
+
+  /* Power button */
+  .power-btn{background:#1a1a1a;border:1px solid #444;color:#666;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:1px;padding:6px 14px;border-radius:3px;cursor:pointer;text-transform:uppercase;transition:all .1s;white-space:nowrap}
+  .power-btn:hover{border-color:#666;color:#aaa}
+  .power-btn.on{background:#14532d;border-color:#16a34a;color:#22c55e}
+  .power-btn.on:hover{background:#166534}
+
+  /* Powered-off cell */
+  .pending-cell{display:flex;align-items:center;justify-content:center;width:100%;padding:5px 8px;border-radius:3px;background:#1a1a1a;border:1px solid #2a2a2a;font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#444;font-family:'Share Tech Mono',monospace}
+
+  /* Lock button */
+  .lock-btn{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-family:inherit;font-size:11px;font-weight:700;letter-spacing:1px;padding:6px 14px;border-radius:3px;cursor:pointer;text-transform:uppercase;transition:all .1s;white-space:nowrap}
+  .lock-btn:hover{border-color:#555;color:var(--text)}
+  .lock-btn.unlocked{background:#14532d;border-color:#16a34a;color:var(--green)}
+  .lock-btn.unlocked:hover{background:#166534}
+
+  .board-wrapper{position:relative}
+  .readonly-shield{display:block;position:absolute;inset:0;z-index:10;cursor:default;pointer-events:none}
+  .readonly-shield.hidden{display:none}
+
+  body.locked .assignment-badge,
+  body.locked .ct-badge{opacity:.7;cursor:default}
+  body.locked .paste-col-btn{opacity:.3;pointer-events:none}
+  /* Never lock these — always interactive */
+  body.locked .day-btn,
+  body.locked .shift-tab,
+  body.locked .lock-btn{pointer-events:auto;cursor:pointer;opacity:1}
+
+  /* Modal */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:100;align-items:center;justify-content:center}
+  .modal-overlay.open{display:flex}
+  .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:24px 28px;width:420px;max-width:95vw}
+  .modal-title{font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text);margin-bottom:6px}
+  .modal-desc{font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6}
+  .modal-textarea{width:100%;height:220px;background:var(--bg);border:1px solid var(--border2);border-radius:3px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;padding:10px;resize:vertical;outline:none;margin-bottom:12px;display:block}
+  .modal-textarea:focus{border-color:var(--accent)}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end}
+
+  @media(max-width:700px){
+    .board-grid{grid-template-columns:70px repeat(3,1fr)}
+    .assignment-badge{font-size:11px;padding:4px 6px}
+    .channel-label-cell{font-size:9px;padding:6px 4px}
+  }
+</style>
+</head>
+<body>
+
+<!-- Password Modal -->
+<!-- Page Entry Gate -->
+<div id="pageGate" style="position:fixed;inset:0;background:#0d0d0d;z-index:9999;display:flex;align-items:center;justify-content:center">
+  <div style="background:#1c1c1c;border:1px solid #333;border-radius:6px;padding:40px 48px;width:360px;max-width:95vw;text-align:center">
+    <div style="font-size:28px;margin-bottom:12px">⚡</div>
+    <div style="font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#e8e8e8;margin-bottom:6px">Dispatch Rotation Board</div>
+    <div style="font-size:11px;color:#555;letter-spacing:1px;text-transform:uppercase;margin-bottom:28px">Restricted Access</div>
+    <input type="password" id="gateInput" maxlength="20" autocomplete="off"
+      style="width:100%;background:#111;border:1px solid #333;border-radius:3px;color:#e8e8e8;font-size:22px;letter-spacing:8px;text-align:center;padding:10px 12px;outline:none;font-family:inherit;margin-bottom:10px;display:block"
+      placeholder="••••••••••" />
+    <div id="gateError" style="display:none;color:#f05050;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-weight:700">⚠ Access Denied</div>
+    <button id="gateBtn"
+      style="width:100%;background:#2563eb;border:1px solid #4a9eff;color:#fff;font-family:inherit;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:9px 18px;border-radius:3px;cursor:pointer">
+      Enter
+    </button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="pwModal">
+  <div class="modal" style="width:360px">
+    <div class="modal-title">🔒 Supervisor Access</div>
+    <div class="modal-desc">Enter the supervisor password to continue.</div>
+    <input type="password" id="pwInput" class="modal-textarea" maxlength="20" autocomplete="off"
+      style="height:46px;font-size:22px;letter-spacing:6px;text-align:center;padding:8px 12px" placeholder="••••"/>
+    <div id="pwError" style="display:none;color:#f05050;font-size:12px;letter-spacing:2px;text-align:center;margin-bottom:10px;font-weight:700">⚠ INCORRECT PASSWORD</div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="pwCancelBtn">Cancel</button>
+      <button class="btn" id="pwSubmitBtn">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<!-- Block Paste Modal -->
+<div class="modal-overlay" id="blockPasteModal">
+  <div class="modal" style="width:400px">
+    <div class="modal-title" id="blockPasteTitle">📋 Paste Block</div>
+    <div class="modal-desc">
+      One name per line — in this order:<br>
+      <span style="color:var(--accent);font-family:'Share Tech Mono',monospace;font-size:11px;line-height:2.2;display:block;margin-top:6px">
+        1. NORTH &nbsp; 2. EAST &nbsp; 3. SOUTH &nbsp; 4. WEST<br>
+        5. NORTHWEST &nbsp; 6. CENTRAL &nbsp; 7. DC1 &nbsp; 8. DC2<br>
+        9. RELIEF 1 &nbsp; 10. RELIEF 2
+      </span>
+    </div>
+    <textarea class="modal-textarea" id="blockPasteInput" maxlength="500"
+      placeholder="One name per line..."></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="pasteCloseBtn">Cancel</button>
+      <button class="btn" id="pasteApplyBtn">✓ Apply</button>
+    </div>
+  </div>
+</div>
+
+<div class="page-header">
+  <div style="display:flex;flex-direction:column;gap:2px">
+    <div class="page-title">⚡ Dispatch Rotation Board</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div id="liveClock" style="font-family:'Share Tech Mono',monospace;font-size:22px;color:#4a9eff;letter-spacing:4px;background:#0a0a0a;border:1px solid #2a2a2a;border-radius:4px;padding:8px 18px;box-shadow:inset 0 0 12px rgba(74,158,255,0.08);min-width:130px;text-align:center">00:00:00</div>
+    <button class="power-btn" id="powerBtn" title="Toggle board power">⏻ OFFLINE</button>
+    <button class="lock-btn" id="lockBtn" title="Unlock to edit">🔒 LOCKED</button>
+  </div>
+</div>
+
+<div class="shift-tabs">
+  <div class="shift-tab active" id="tabDay">☀ Day Shift</div>
+  <div class="shift-tab" id="tabNight">🌙 Night Shift</div>
+</div>
+
+<div class="toolbar" id="toolbar">
+  <span class="toolbar-label" id="toolbarStatus">🔒 View only — unlock to edit</span>
+  <button class="btn btn-danger" id="clearAllBtn" style="display:none">Reset Block</button>
+  <button class="btn" id="saveBtn" style="display:none">Save</button>
+</div>
+
+<div class="board-wrapper">
+  <div class="readonly-shield" id="readonlyShield"></div>
+  <svg id="trailSvg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:15;overflow:visible"></svg>
+  <div class="board-container">
+    <div class="board-grid" id="boardGrid"></div>
+  </div>
+</div>
+<div class="status-bar" id="statusBar">⏳ Connecting...</div>
+
+<!-- Announcement Box -->
+<div style="margin-top:14px;background:#111;border:1px solid #2a2a2a;border-radius:4px;overflow:hidden">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:#1a1a1a;border-bottom:1px solid #2a2a2a">
+    <span style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#aaa">📢 Announcements</span>
+    <span id="announcementStatus" style="font-size:10px;color:#555;letter-spacing:1px;font-family:'Share Tech Mono',monospace">LOCKED</span>
+  </div>
+  <div style="position:relative">
+    <textarea id="announcementBox" maxlength="1000"
+      style="width:100%;min-height:90px;background:transparent;border:none;outline:none;color:#e8e8e8;font-family:'Share Tech Mono',monospace;font-size:13px;padding:14px 16px;resize:vertical;line-height:1.6;letter-spacing:.3px"
+      placeholder="No announcements." readonly></textarea>
+    <div id="announcementShield" style="position:absolute;inset:0;cursor:default"></div>
+  </div>
+</div>
+
+<script>
+// ── Security helpers ──────────────────────────────────────────
+function sanitize(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/[<>"'`&;(){}[\]\\\/]/g, '')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+\s*=/gi, '')
+    .replace(/data:/gi, '')
+    .replace(/vbscript:/gi, '')
+    .trim()
+    .substring(0, 40);
+}
+
+function sanitizeAnnouncement(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+\s*=/gi, '')
+    .replace(/data:/gi, '')
+    .substring(0, 1000);
+}
+
+// Constant-time string compare — prevents timing attacks
+function safeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const la = a.length, lb = b.length;
+  let diff = la ^ lb;
+  const len = Math.max(la, lb);
+  for (let i = 0; i < len; i++) {
+    diff |= (a.charCodeAt(i % la) || 0) ^ (b.charCodeAt(i % lb) || 0);
+  }
+  return diff === 0;
+}
+
+// Password storage — split + rotated so plain source doesn't reveal them
+// PAGE_PASSWORD  = '3000'   stored as char codes XOR'd with key 7
+// BOARD_PASSWORD = '0911'   stored as char codes XOR'd with key 7
+const _PK = 7;
+const _PP = [51^_PK, 48^_PK, 48^_PK, 48^_PK];         // '3000'
+const _BP = [48^_PK, 57^_PK, 49^_PK, 49^_PK];         // '0911'
+const _getP  = () => _PP.map(c => String.fromCharCode(c ^ _PK)).join('');
+const _getB  = () => _BP.map(c => String.fromCharCode(c ^ _PK)).join('');
+
+// ── Brute-force lockout (persisted in sessionStorage) ─────────
+const _LOCK_KEY = '_drb_lk';
+let _pwFailCount = 0;
+const MAX_PW_FAILS  = 5;
+const PW_LOCKOUT_MS = 2 * 60 * 1000; // 2 minutes
+
+function _loadLockout() {
+  try {
+    const raw = sessionStorage.getItem(_LOCK_KEY);
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (d.until && Date.now() < d.until) _pwLockUntil = d.until;
+    _pwFailCount = d.fails || 0;
+  } catch(e) {}
+}
+let _pwLockUntil = 0;
+_loadLockout();
+
+function _saveLockout() {
+  try { sessionStorage.setItem(_LOCK_KEY, JSON.stringify({until: _pwLockUntil, fails: _pwFailCount})); } catch(e) {}
+}
+
+function isLockedOut() { return _pwLockUntil > 0 && Date.now() < _pwLockUntil; }
+
+function recordPwFail() {
+  _pwFailCount++;
+  if (_pwFailCount >= MAX_PW_FAILS) {
+    _pwLockUntil = Date.now() + PW_LOCKOUT_MS;
+    _pwFailCount = 0;
+  }
+  _saveLockout();
+}
+
+function resetPwFails() {
+  _pwFailCount = 0; _pwLockUntil = 0;
+  try { sessionStorage.removeItem(_LOCK_KEY); } catch(e) {}
+}
+
+// ── Gate session (sessionStorage — clears on tab close) ───────
+const _GATE_KEY = '_drb_g';
+function isGateOpen() {
+  try { return sessionStorage.getItem(_GATE_KEY) === '1'; } catch(e) { return false; }
+}
+function setGateOpen() {
+  try { sessionStorage.setItem(_GATE_KEY, '1'); } catch(e) {}
+}
+
+// ── Idle session timeout — auto-lock gate after 30 min ────────
+const GATE_IDLE_MS = 30 * 60 * 1000;
+let _gateIdleTimer = null;
+function resetGateIdle() {
+  clearTimeout(_gateIdleTimer);
+  _gateIdleTimer = setTimeout(() => {
+    try { sessionStorage.removeItem(_GATE_KEY); } catch(e) {}
+    location.reload(); // force re-auth
+  }, GATE_IDLE_MS);
+}
+document.addEventListener('click',   resetGateIdle);
+document.addEventListener('keydown', resetGateIdle);
+document.addEventListener('touchstart', resetGateIdle);
+
+// ── Page entry gate ───────────────────────────────────────────
+function submitGate() {
+  if (isLockedOut()) {
+    const secs = Math.ceil((_pwLockUntil - Date.now()) / 1000);
+    document.getElementById('gateError').textContent = `Too many attempts. Wait ${secs}s.`;
+    document.getElementById('gateError').style.display = 'block';
+    return;
+  }
+  if (safeEqual(document.getElementById('gateInput').value, _getP())) {
+    resetPwFails();
+    setGateOpen();
+    resetGateIdle();
+    document.getElementById('pageGate').style.display = 'none';
+  } else {
+    recordPwFail();
+    document.getElementById('gateError').textContent = isLockedOut()
+      ? `⚠ Too many attempts. Locked for ${Math.ceil(PW_LOCKOUT_MS/1000)}s.`
+      : '⚠ Access Denied';
+    document.getElementById('gateError').style.display = 'block';
+    const inp = document.getElementById('gateInput');
+    inp.value = ''; inp.focus();
+    inp.style.animation = 'none'; inp.offsetHeight;
+    inp.style.animation = 'shake .4s ease';
+  }
+}
+document.getElementById('gateBtn').addEventListener('click', submitGate);
+document.getElementById('gateInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitGate();
+});
+// Skip gate if already authenticated this session
+if (isGateOpen()) {
+  document.getElementById('pageGate').style.display = 'none';
+  resetGateIdle();
+} else {
+  setTimeout(() => document.getElementById('gateInput').focus(), 100);
+}
+
+// ── Config ────────────────────────────────────────────────────
+const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const CHANNELS = [
+  {key:'NORTH',     label:'NORTH',     color:'c-north',   multiline:false},
+  {key:'EAST',      label:'EAST',      color:'c-east',    multiline:false},
+  {key:'SOUTH',     label:'SOUTH',     color:'c-south',   multiline:false},
+  {key:'WEST',      label:'WEST',      color:'c-west',    multiline:false},
+  {key:'NORTHWEST', label:'NORTHWEST', color:'c-nw',      multiline:false},
+  {key:'CENTRAL',   label:'CENTRAL',   color:'c-central', multiline:false},
+  {key:'DC1',       label:'DC1',       color:'c-dc1',     multiline:false},
+  {key:'DC2',       label:'DC2',       color:'c-dc2',     multiline:false},
+  {key:'RELIEF1',   label:'RELIEF 1',  color:'c-r1',      multiline:false},
+  {key:'RELIEF2',   label:'RELIEF 2',  color:'c-r2',      multiline:false},
+  {key:'CT',        label:'CT',        color:null,        multiline:true, slots:3},
+];
+const DAY_BLOCKS   = ['6 AM — 10 AM','10 AM — 2 PM','2 PM — 6 PM'];
+const NIGHT_BLOCKS = ['6 PM — 10 PM','10 PM — 2 AM','2 AM — 6 AM'];
+const DAY_KEYS     = [1,2,3];
+const NIGHT_KEYS   = [4,5,6];
+
+// ── State ─────────────────────────────────────────────────────
+let currentDay         = new Date().getDay();
+let currentShift       = 'day';
+let data               = {};
+let _unlocked          = false;
+let _unlockTimer       = null;
+let _pendingAction     = null;
+let _pendingPasteBlock = null;
+let _powered           = false; // board starts offline
+let _pendingPowerOn    = false;
+let db                 = null;
+let DOC_REF            = null;
+
+// ── Local storage cache (works offline) ───────────────────────
+const LS_KEY = 'dispatchBoard_v2';
+
+const SAMPLE_NAMES = new Set(['SIERRA','LORONA','DILLARD','QUINONES','JONES','SIGALA','LEATHAM','GRAVES','BRYAN','SMOTHERS']);
+
+function saveLocal() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      board: data,
+      announcement: document.getElementById('announcementBox').value,
+      powered: _powered
+    }));
+  } catch(e) {}
+}
+
+function loadLocal() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    if (saved.board) {
+      Object.keys(saved.board).forEach(d => {
+        if (!data[d]) return;
+        Object.keys(saved.board[d]).forEach(ch => {
+          if (!data[d][ch]) return;
+          Object.keys(saved.board[d][ch]).forEach(b => {
+            const v = saved.board[d][ch][b];
+            if (Array.isArray(v)) {
+              data[d][ch][b] = v.map(n => (typeof n === 'string' && SAMPLE_NAMES.has(n.trim().toUpperCase())) ? '' : sanitize(String(n||'')));
+            } else {
+              const s = String(v||'');
+              data[d][ch][b] = SAMPLE_NAMES.has(s.trim().toUpperCase()) ? '' : sanitize(s);
+            }
+          });
+        });
+      });
+    }
+    if (saved.announcement !== undefined)
+      document.getElementById('announcementBox').value = sanitizeAnnouncement(String(saved.announcement||''));
+    if (saved.powered !== undefined) _powered = saved.powered;
+    return true;
+  } catch(e) { return false; }
+}
+
+// ── Firebase init ─────────────────────────────────────────────
+function initFirebase() {
+  if (window._firebaseLoadError || typeof firebase === 'undefined') {
+    // Offline mode — load from localStorage and show offline status
+    if (loadLocal()) {
+      renderBoard();
+      setStatus('📴 Offline — showing local data');
+    } else {
+      setStatus('📴 Offline — no local data yet');
+    }
+    return;
+  }
+  try {
+    firebase.initializeApp({
+      apiKey:            'AIzaSyCnabvDHyrEYPjtGikTSC6eIQL2VEPWnn4',
+      authDomain:        'legitimous-2f2d2.firebaseapp.com',
+      projectId:         'legitimous-2f2d2',
+      storageBucket:     'legitimous-2f2d2.firebasestorage.app',
+      messagingSenderId: '1097431114529',
+      appId:             '1:1097431114529:web:2adfdae7838b4840f0d460'
+    });
+    db      = firebase.firestore();
+    DOC_REF = db.collection('appState').doc('rotationBoard');
+    setStatus('⏳ Connecting...');
+    startLiveSync();
+  } catch(e) {
+    // Firebase failed after SDK loaded — fall back to local
+    if (loadLocal()) {
+      renderBoard();
+      setStatus('📴 Offline — showing local data');
+    } else {
+      setStatus('🔴 Error: ' + e.message);
+    }
+  }
+}
+
+// ── Firestore sync ────────────────────────────────────────────
+function saveData() {
+  const announcement = sanitizeAnnouncement(document.getElementById('announcementBox').value);
+  document.getElementById('announcementBox').value = announcement; // reflect cleaned value
+  saveLocal();
+  if (!DOC_REF) {
+    setStatus('💾 Saved locally (offline)');
+    return;
+  }
+  DOC_REF.set({board: JSON.stringify(data), announcement: announcement})
+    .then(() => {
+      const t = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+      setStatus('🟢 Saved & synced — ' + t);
+    })
+    .catch(e => {
+      setStatus('💾 Saved locally — sync failed');
+    });
+}
+
+function startLiveSync() {
+  DOC_REF.onSnapshot(snap => {
+    if (snap.exists) {
+      try {
+        const saved = JSON.parse(snap.data().board);
+        Object.keys(saved).forEach(d => {
+          if (!data[d]) return;
+          Object.keys(saved[d]).forEach(ch => {
+            if (!data[d][ch]) return;
+            Object.keys(saved[d][ch]).forEach(b => {
+              const v = saved[d][ch][b];
+              if (Array.isArray(v)) {
+                data[d][ch][b] = v.map(n => sanitize(String(n||'')));
+              } else {
+                data[d][ch][b] = sanitize(String(v||''));
+              }
+            });
+          });
+        });
+      } catch(e) {}
+      if (snap.data().announcement !== undefined)
+        document.getElementById('announcementBox').value =
+          sanitizeAnnouncement(String(snap.data().announcement||''));
+      saveLocal();
+    }
+    renderBoard();
+    setStatus('🟢 Live — connected');
+  }, e => {
+    if (loadLocal()) {
+      renderBoard();
+      setStatus('📴 Offline — showing last known data');
+    } else {
+      setStatus('🔴 Sync error');
+    }
+  });
+}
+
+function setStatus(msg) { document.getElementById('statusBar').textContent = msg; }
+
+// ── Name hover trail ──────────────────────────────────────────
+const trailSvg = document.getElementById('trailSvg');
+
+function clearTrail() {
+  trailSvg.innerHTML = '';
+  document.querySelectorAll('.trail-highlight').forEach(el => {
+    el.classList.remove('trail-highlight', 'trail-highlight-hover');
+  });
+}
+
+function drawTrail(hoveredInp, name, currentBlock, currentCh) {
+  clearTrail();
+  if (!name || !name.trim()) return;
+  const n = name.trim().toUpperCase();
+  const blocks = getBlocks();
+  const labels = getBlockLabels();
+
+  // Find all inputs whose value matches this name in current shift
+  const matches = [];
+  document.querySelectorAll('.assignment-badge, .ct-badge').forEach(inp => {
+    if (!inp.value || inp.value.trim().toUpperCase() !== n) return;
+    const b = Number(inp.dataset.block);
+    if (!blocks.includes(b)) return;
+    matches.push(inp);
+  });
+
+  if (matches.length < 2) return;
+
+  // Sort by block order
+  matches.sort((a, b) => blocks.indexOf(Number(a.dataset.block)) - blocks.indexOf(Number(b.dataset.block)));
+
+  // Highlight all matches
+  matches.forEach(inp => {
+    inp.classList.add('trail-highlight');
+    if (inp === hoveredInp) inp.classList.add('trail-highlight-hover');
+  });
+
+  const wrapperRect = document.getElementById('boardGrid').closest('.board-wrapper').getBoundingClientRect();
+
+  function drawLine(x1, y1, x2, y2, idx, showLabel, labelText, isChannel) {
+    const cx = (x1 + x2) / 2;
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', `M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}`);
+    path.setAttribute('stroke', isChannel ? '#6ab0ff' : '#4a9eff');
+    path.setAttribute('stroke-width', isChannel ? '1.5' : '2');
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke-dasharray', isChannel ? '3,4' : '5,3');
+    path.setAttribute('opacity', isChannel ? '0.5' : '0.85');
+    path.style.animation = 'dashMove 1s linear infinite';
+
+    const mid = `arrow-${idx}`;
+    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+    marker.setAttribute('id', mid);
+    marker.setAttribute('markerWidth', '8'); marker.setAttribute('markerHeight', '8');
+    marker.setAttribute('refX', '6'); marker.setAttribute('refY', '3');
+    marker.setAttribute('orient', 'auto');
+    const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    arrow.setAttribute('d', 'M0,0 L0,6 L8,3 z');
+    arrow.setAttribute('fill', isChannel ? '#6ab0ff' : '#4a9eff');
+    marker.appendChild(arrow);
+    let defs = trailSvg.querySelector('defs');
+    if (!defs) { defs = document.createElementNS('http://www.w3.org/2000/svg','defs'); trailSvg.appendChild(defs); }
+    defs.appendChild(marker);
+    path.setAttribute('marker-end', `url(#${mid})`);
+    trailSvg.appendChild(path);
+
+    if (showLabel && labelText) {
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', cx);
+      text.setAttribute('y', (y1 + y2) / 2 - 8);
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('fill', '#4a9eff');
+      text.setAttribute('font-size', '10');
+      text.setAttribute('font-family', 'Inter, system-ui, sans-serif');
+      text.setAttribute('font-weight', '600');
+      text.setAttribute('opacity', '0.9');
+      text.textContent = '→ ' + labelText;
+      trailSvg.appendChild(text);
+    }
+  }
+
+  let arrowIdx = 0;
+
+  // For each match, also draw a line from the channel label cell to the badge
+  matches.forEach(inp => {
+    const chKey = inp.dataset.ch;
+    // Find the channel label cell for this channel
+    const allLabelCells = document.querySelectorAll('.channel-label-cell');
+    let chLabelCell = null;
+    allLabelCells.forEach(cell => {
+      if (cell.textContent.trim().replace(' ','') === chKey.replace('RELIEF1','RELIEF 1').replace('RELIEF2','RELIEF 2').replace(' ','') ||
+          cell.textContent.trim() === (CHANNELS.find(c=>c.key===chKey)||{}).label) {
+        chLabelCell = cell;
+      }
+    });
+
+    if (chLabelCell) {
+      const rl = chLabelCell.getBoundingClientRect();
+      const ri = inp.getBoundingClientRect();
+      const x1 = rl.right - wrapperRect.left;
+      const y1 = rl.top + rl.height / 2 - wrapperRect.top;
+      const x2 = ri.left - wrapperRect.left;
+      const y2 = ri.top + ri.height / 2 - wrapperRect.top;
+      drawLine(x1, y1, x2, y2, arrowIdx++, false, null, true);
+      // Highlight channel label too
+      chLabelCell.classList.add('trail-highlight');
+    }
+  });
+
+  // Draw lines between consecutive badge matches
+  for (let i = 0; i < matches.length - 1; i++) {
+    const a = matches[i];
+    const b = matches[i + 1];
+    const ra = a.getBoundingClientRect();
+    const rb = b.getBoundingClientRect();
+    const x1 = ra.right - wrapperRect.left;
+    const y1 = ra.top + ra.height / 2 - wrapperRect.top;
+    const x2 = rb.left - wrapperRect.left;
+    const y2 = rb.top + rb.height / 2 - wrapperRect.top;
+    const lbl = labels[blocks.indexOf(Number(b.dataset.block))];
+    drawLine(x1, y1, x2, y2, arrowIdx++, true, lbl, false);
+  }
+}
+
+// CSS for trail highlights + dash animation injected once
+const trailStyle = document.createElement('style');
+trailStyle.textContent = `
+  .trail-highlight { outline: 2px solid #4a9eff !important; outline-offset: 1px; background: rgba(74,158,255,0.12) !important; }
+  .trail-highlight-hover { outline: 2px solid #fff !important; background: rgba(74,158,255,0.22) !important; }
+  .channel-label-cell.trail-highlight { outline: 2px solid #6ab0ff !important; color: #6ab0ff !important; background: rgba(74,158,255,0.08) !important; }
+  @keyframes dashMove { to { stroke-dashoffset: -16; } }
+`;
+document.head.appendChild(trailStyle);
+function initData() {
+  for (let d = 0; d < 7; d++) {
+    data[d] = {};
+    CHANNELS.forEach(ch => {
+      data[d][ch.key] = {};
+      [...DAY_KEYS,...NIGHT_KEYS].forEach(b => {
+        data[d][ch.key][b] = ch.multiline ? ['','',''] : '';
+      });
+    });
+  }
+}
+
+// ── Lock / Unlock ─────────────────────────────────────────────
+function setLocked(locked) {
+  _unlocked = !locked;
+  document.body.classList.toggle('locked', locked);
+  document.getElementById('readonlyShield').classList.toggle('hidden', !locked);
+  document.getElementById('lockBtn').textContent  = locked ? '🔒 LOCKED' : '🔓 UNLOCKED';
+  document.getElementById('lockBtn').className     = locked ? 'lock-btn' : 'lock-btn unlocked';
+  document.getElementById('toolbarStatus').textContent = locked
+    ? '🔒 View only — unlock to edit'
+    : '🔓 Edit mode active — changes save automatically';
+  document.getElementById('clearAllBtn').style.display = locked ? 'none' : '';
+  document.getElementById('saveBtn').style.display     = locked ? 'none' : '';
+  // Announcement box
+  const ann = document.getElementById('announcementBox');
+  const annShield = document.getElementById('announcementShield');
+  const annStatus = document.getElementById('announcementStatus');
+  ann.readOnly = locked;
+  ann.style.color = locked ? '#e8e8e8' : '#fff';
+  ann.style.background = locked ? 'transparent' : 'rgba(74,158,255,0.04)';
+  annShield.style.display = locked ? 'block' : 'none';
+  annStatus.textContent = locked ? 'LOCKED' : 'EDITING';
+  annStatus.style.color = locked ? '#555' : '#22c55e';
+  // Make all inputs readonly when locked
+  document.querySelectorAll('.assignment-badge, .ct-badge').forEach(inp => {
+    inp.readOnly = locked;
+  });
+}
+
+function setPower(on) {
+  _powered = on;
+  const btn = document.getElementById('powerBtn');
+  btn.textContent = on ? '⏻ ONLINE' : '⏻ OFFLINE';
+  btn.className   = on ? 'power-btn on' : 'power-btn';
+  saveLocal();
+  renderBoard();
+  if (!_unlocked) {
+    document.querySelectorAll('.assignment-badge, .ct-badge').forEach(inp => { inp.readOnly = true; });
+  }
+}
+
+function requirePassword(action) {
+  if (_unlocked) { action(); return; }
+  // Already locked — shouldn't reach here for board inputs (shield blocks them)
+  // but keep for programmatic calls
+  _pendingAction = action;
+  document.getElementById('pwInput').value = '';
+  document.getElementById('pwError').style.display = 'none';
+  document.getElementById('pwModal').classList.add('open');
+  setTimeout(() => document.getElementById('pwInput').focus(), 60);
+}
+
+function submitPassword() {
+  if (isLockedOut()) {
+    const secs = Math.ceil((_pwLockUntil - Date.now()) / 1000);
+    document.getElementById('pwError').textContent = `Too many attempts. Wait ${secs}s.`;
+    document.getElementById('pwError').style.display = 'block';
+    return;
+  }
+  if (safeEqual(document.getElementById('pwInput').value, _getB())) {
+    resetPwFails();
+    document.getElementById('pwModal').classList.remove('open');
+    setLocked(false);
+    resetAutoLock();
+    if (_pendingAction) { _pendingAction(); _pendingAction = null; }
+  } else {
+    recordPwFail();
+    document.getElementById('pwError').textContent = isLockedOut()
+      ? `⚠ Too many attempts. Locked for ${Math.ceil(PW_LOCKOUT_MS/1000)}s.`
+      : '⚠ INCORRECT PASSWORD';
+    document.getElementById('pwError').style.display = 'block';
+    const inp = document.getElementById('pwInput');
+    inp.value = ''; inp.focus();
+    inp.classList.add('shake');
+    setTimeout(() => inp.classList.remove('shake'), 400);
+  }
+}
+
+function resetAutoLock() {
+  clearTimeout(_unlockTimer);
+  _unlockTimer = setTimeout(() => setLocked(true), 3 * 60 * 1000); // 3 min
+}
+
+// Reset auto-lock timer on any interaction while unlocked
+document.addEventListener('click', () => { if (_unlocked) resetAutoLock(); });
+document.addEventListener('keydown', () => { if (_unlocked) resetAutoLock(); });
+
+// ── Render ────────────────────────────────────────────────────
+function getBlocks()      { return currentShift==='day' ? DAY_KEYS   : NIGHT_KEYS;   }
+function getBlockLabels() { return currentShift==='day' ? DAY_BLOCKS : NIGHT_BLOCKS; }
+
+function renderBoard() {
+  const grid = document.getElementById('boardGrid');
+  grid.innerHTML = '';
+  const blocks = getBlocks(), labels = getBlockLabels();
+
+  const title = document.createElement('div');
+  title.className = 'grid-header shift-title';
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('en-US', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+  const titleSpan = document.createElement('span');
+  titleSpan.style.cssText = 'font-weight:700;color:var(--text);width:100%;text-align:center;display:block';
+  titleSpan.textContent = (currentShift==='day' ? '☀ Day Shift' : '🌙 Night Shift') + ' · ' + dateStr;
+  title.appendChild(titleSpan);
+  grid.appendChild(title);
+
+  const chHead = document.createElement('div');
+  chHead.className = 'grid-header channel-label';
+  chHead.textContent = 'CHANNEL';
+  grid.appendChild(chHead);
+
+  labels.forEach((lbl,i) => {
+    const b = blocks[i];
+    const h = document.createElement('div');
+    h.className = 'grid-header';
+    h.style.cssText = 'display:flex;flex-direction:column;gap:6px;align-items:center;padding:10px 8px';
+    const span = document.createElement('span');
+    span.style.cssText = 'letter-spacing:2px;font-size:11px';
+    span.textContent = lbl;
+    const pbtn = document.createElement('button');
+    pbtn.className = 'paste-col-btn';
+    pbtn.textContent = '📋 PASTE BLOCK';
+    pbtn.addEventListener('click', () => openBlockPaste(b));
+    h.appendChild(span); h.appendChild(pbtn);
+    grid.appendChild(h);
+  });
+
+  CHANNELS.forEach(ch => {
+    const lc = document.createElement('div');
+    lc.className = 'channel-label-cell';
+    lc.textContent = ch.label;
+    grid.appendChild(lc);
+
+    blocks.forEach(b => {
+      const cell = document.createElement('div');
+      cell.className = 'assignment-cell';
+
+      // Powered off AND locked — show PENDING to viewers
+      // If unlocked (supervisor editing), always show real data
+      if (!_powered && !_unlocked) {
+        const slots = ch.multiline ? (ch.slots || 3) : 1;
+        const wrap = ch.multiline ? document.createElement('div') : null;
+        if (wrap) wrap.className = 'badge-wrapper';
+        for (let s = 0; s < slots; s++) {
+          const p = document.createElement('div');
+          p.className = 'pending-cell';
+          p.textContent = 'PENDING';
+          if (wrap) wrap.appendChild(p); else cell.appendChild(p);
+        }
+        if (wrap) cell.appendChild(wrap);
+        grid.appendChild(cell);
+        return;
+      }
+
+      if (ch.multiline) {
+        const wrap = document.createElement('div');
+        wrap.className = 'badge-wrapper';
+        const arr = data[currentDay][ch.key][b];
+        for (let s = 0; s < (ch.slots||3); s++) {
+          const inp = document.createElement('input');
+          inp.className = 'ct-badge'; inp.type = 'text'; inp.maxLength = 40;
+          inp.value = arr[s]||''; inp.placeholder = 'Name '+(s+1);
+          inp.dataset.day=currentDay; inp.dataset.ch=ch.key;
+          inp.dataset.block=b; inp.dataset.slot=s;
+          inp.addEventListener('input', onCTInput);
+          inp.addEventListener('blur', saveData);
+          inp.addEventListener('mouseenter', e => drawTrail(inp, inp.value, b, ch.key));
+          inp.addEventListener('mouseleave', clearTrail);
+          inp.addEventListener('click', e => { if (!_unlocked) e.preventDefault(); });
+          inp.addEventListener('keydown', e => { if (!_unlocked) e.preventDefault(); });
+          wrap.appendChild(inp);
+        }
+        cell.appendChild(wrap);
+      } else {
+        const inp = document.createElement('input');
+        inp.className = 'assignment-badge '+ch.color; inp.type = 'text'; inp.maxLength = 40;
+        inp.value = data[currentDay][ch.key][b]||''; inp.placeholder = ch.label;
+        inp.dataset.day=currentDay; inp.dataset.ch=ch.key; inp.dataset.block=b;
+        inp.addEventListener('input', onBadgeInput);
+        inp.addEventListener('blur', saveData);
+        inp.addEventListener('mouseenter', e => drawTrail(inp, inp.value, b, ch.key));
+        inp.addEventListener('mouseleave', clearTrail);
+        inp.addEventListener('click', e => { if (!_unlocked) e.preventDefault(); });
+        inp.addEventListener('keydown', e => { if (!_unlocked) e.preventDefault(); });
+
+        // Wrap with initial prefix
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:0;width:100%';
+        const prefix = document.createElement('span');
+        const initial = ch.key === 'NORTHWEST' ? 'NW'
+                      : ch.key === 'RELIEF1'   ? 'R1'
+                      : ch.key === 'RELIEF2'   ? 'R2'
+                      : ch.key === 'DC1'       ? 'DC1'
+                      : ch.key === 'DC2'       ? 'DC2'
+                      : ch.key[0];
+        const chClass = ch.key.toLowerCase().replace('relief','r').replace('northwest','nw').replace('central','central').replace('north','north').replace('east','east').replace('south','south').replace('west','west').replace('dc1','dc1').replace('dc2','dc2');
+        prefix.textContent = initial;
+        prefix.className = 'ch-initial ' + chClass;
+        inp.style.flex = '1';
+        row.appendChild(prefix);
+        row.appendChild(inp);
+        cell.appendChild(row);
+      }
+      grid.appendChild(cell);
+    });
+  });
+}
+
+function onBadgeInput(e) {
+  const {day,ch,block} = e.target.dataset;
+  const clean = sanitize(e.target.value);
+  data[day][ch][block] = clean;
+}
+function onCTInput(e) {
+  const {day,ch,block,slot} = e.target.dataset;
+  if (!Array.isArray(data[day][ch][block])) data[day][ch][block] = ['','',''];
+  data[day][ch][block][slot] = sanitize(e.target.value);
+}
+
+// ── Day selector ──────────────────────────────────────────────
+function buildDaySelector() {
+  const c = document.getElementById('daySelector');
+  c.innerHTML = '';
+  DAYS.forEach((d,i) => {
+    const btn = document.createElement('button');
+    btn.className = 'day-btn'+(i===currentDay?' active':'');
+    btn.textContent = d.substring(0,3).toUpperCase(); btn.title = d;
+    btn.addEventListener('click', () => {
+      currentDay = i;
+      document.querySelectorAll('.day-btn').forEach((b,j) => b.classList.toggle('active',j===i));
+      renderBoard();
+    });
+    c.appendChild(btn);
+  });
+}
+
+// ── Block paste ───────────────────────────────────────────────
+function openBlockPaste(blockNum) {
+  if (!_unlocked) return;
+  _pendingPasteBlock = blockNum;
+  const idx = getBlocks().indexOf(blockNum);
+  document.getElementById('blockPasteTitle').textContent =
+    '📋 Paste — '+(idx>=0?getBlockLabels()[idx]:'Block '+blockNum);
+  document.getElementById('blockPasteInput').value = '';
+  document.getElementById('blockPasteModal').classList.add('open');
+  setTimeout(() => document.getElementById('blockPasteInput').focus(), 60);
+}
+
+function applyBlockPaste() {
+  if (_pendingPasteBlock===null) return;
+  const mainCh = CHANNELS.filter(c => !c.multiline);
+  const names  = document.getElementById('blockPasteInput').value
+    .split('\n').map(l => sanitize(l)).filter(l => l);
+  names.forEach((name,i) => {
+    if (i < mainCh.length) data[currentDay][mainCh[i].key][_pendingPasteBlock] = name;
+  });
+  renderBoard(); saveData();
+  document.getElementById('blockPasteModal').classList.remove('open');
+  _pendingPasteBlock = null;
+}
+
+// ── Wire buttons ──────────────────────────────────────────────
+document.getElementById('tabDay').addEventListener('click', () => {
+  currentShift='day';
+  document.getElementById('tabDay').classList.add('active');
+  document.getElementById('tabNight').classList.remove('active');
+  renderBoard();
+  if (_unlocked) { document.querySelectorAll('.assignment-badge,.ct-badge').forEach(i=>i.readOnly=false); }
+});
+document.getElementById('tabNight').addEventListener('click', () => {
+  currentShift='night';
+  document.getElementById('tabNight').classList.add('active');
+  document.getElementById('tabDay').classList.remove('active');
+  renderBoard();
+  if (_unlocked) { document.querySelectorAll('.assignment-badge,.ct-badge').forEach(i=>i.readOnly=false); }
+});
+
+document.getElementById('powerBtn').addEventListener('click', () => {
+  const turningOn = !_powered;
+  if (_unlocked) {
+    setPower(turningOn);
+  } else {
+    _pendingPowerOn = turningOn;
+    _pendingAction = () => { setPower(_pendingPowerOn); };
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwError').style.display = 'none';
+    document.getElementById('pwModal').classList.add('open');
+    setTimeout(() => document.getElementById('pwInput').focus(), 60);
+  }
+});
+
+
+document.getElementById('lockBtn').addEventListener('click', () => {
+  if (_unlocked) {
+    setLocked(true);
+  } else {
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwError').style.display = 'none';
+    document.getElementById('pwModal').classList.add('open');
+    setTimeout(() => document.getElementById('pwInput').focus(), 60);
+  }
+});
+
+document.getElementById('clearAllBtn').addEventListener('click', () => {
+  if (!confirm('Clear ALL assignments for today\'s '+currentShift+' shift?')) return;
+  [...DAY_KEYS,...NIGHT_KEYS].forEach(b => {
+    CHANNELS.forEach(ch => { data[currentDay][ch.key][b] = ch.multiline?['','','']:''; });
+  });
+  renderBoard();
+  document.querySelectorAll('.assignment-badge,.ct-badge').forEach(i=>i.readOnly=false);
+  saveData();
+});
+document.getElementById('saveBtn').addEventListener('click', saveData);
+
+document.getElementById('pwSubmitBtn').addEventListener('click', submitPassword);
+document.getElementById('pwCancelBtn').addEventListener('click', () => {
+  document.getElementById('pwModal').classList.remove('open'); _pendingAction=null;
+});
+document.getElementById('pwInput').addEventListener('keydown', e => {
+  if (e.key==='Enter') submitPassword();
+  if (e.key==='Escape') { document.getElementById('pwModal').classList.remove('open'); _pendingAction=null; }
+});
+document.getElementById('pwModal').addEventListener('click', e => {
+  if (e.target.id==='pwModal') { document.getElementById('pwModal').classList.remove('open'); _pendingAction=null; }
+});
+document.getElementById('pasteApplyBtn').addEventListener('click', applyBlockPaste);
+document.getElementById('pasteCloseBtn').addEventListener('click', () => {
+  document.getElementById('blockPasteModal').classList.remove('open'); _pendingPasteBlock=null;
+});
+document.getElementById('blockPasteInput').addEventListener('keydown', e => {
+  if (e.key==='Escape') { document.getElementById('blockPasteModal').classList.remove('open'); _pendingPasteBlock=null; }
+});
+document.getElementById('blockPasteModal').addEventListener('click', e => {
+  if (e.target.id==='blockPasteModal') { document.getElementById('blockPasteModal').classList.remove('open'); _pendingPasteBlock=null; }
+});
+
+// ── Live clock + auto shift switch ────────────────────────────
+// Day shift:   0600–1759  → switches to Night at 1700 (1 hr early)
+// Night shift: 1800–0559  → switches to Day  at 0500 (1 hr early)
+function getAutoShift() {
+  const h = new Date().getHours();
+  // Night shift pre-warning starts at 17:00, day shift pre-warning at 05:00
+  return (h >= 17 || h < 5) ? 'night' : 'day';
+}
+
+function tickClock() {
+  const now = new Date();
+  const hh  = String(now.getHours()).padStart(2,'0');
+  const mm  = String(now.getMinutes()).padStart(2,'0');
+  const ss  = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('liveClock').textContent = hh + ':' + mm + ':' + ss;
+
+  // Auto-switch shift if user hasn't manually overridden
+  const auto = getAutoShift();
+  if (auto !== currentShift) {
+    currentShift = auto;
+    document.getElementById('tabDay').classList.toggle('active', auto === 'day');
+    document.getElementById('tabNight').classList.toggle('active', auto === 'night');
+    renderBoard();
+    if (_unlocked) document.querySelectorAll('.assignment-badge,.ct-badge').forEach(i=>i.readOnly=false);
+  }
+}
+
+setInterval(tickClock, 1000);
+tickClock(); // run immediately
+
+document.getElementById('announcementBox').addEventListener('blur', () => {
+  if (_unlocked) saveData();
+});
+
+currentShift = getAutoShift();
+document.getElementById('tabDay').classList.toggle('active', currentShift === 'day');
+document.getElementById('tabNight').classList.toggle('active', currentShift === 'night');
+initData();
+loadLocal(); // load cached data instantly — Firebase will overwrite if online
+// Sync power button UI to restored state
+const _pb = document.getElementById('powerBtn');
+_pb.textContent = _powered ? '⏻ ONLINE' : '⏻ OFFLINE';
+_pb.className   = _powered ? 'power-btn on' : 'power-btn';
+renderBoard();
+setLocked(true);
+initFirebase();
+</script>
+</body>
+</html>
