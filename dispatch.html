@@ -252,19 +252,36 @@
   @media(max-width:768px){
     body{padding:3px;font-size:11px}
 
-    /* Header — single compact row */
+    /* Header — two rows on mobile */
     .page-header{
-      padding:4px 6px;gap:4px;
-      flex-direction:row;align-items:center;
-      flex-wrap:nowrap;margin-bottom:4px;
+      padding:4px 6px;gap:3px;
+      flex-direction:column;align-items:stretch;margin-bottom:3px;
     }
-    .page-title{font-size:10px;letter-spacing:.3px;white-space:nowrap;flex:1}
+    .page-title{font-size:10px;letter-spacing:.3px;text-align:center}
     .page-header > div:last-child{
-      display:flex;align-items:center;gap:4px;flex-wrap:nowrap;flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:nowrap;
     }
-    #liveClock{font-size:11px;padding:3px 5px;min-width:60px;letter-spacing:1px}
+    #liveClock{font-size:11px;padding:2px 5px;min-width:60px;letter-spacing:1px}
     .power-btn,.lock-btn{font-size:8px;padding:3px 6px;letter-spacing:0}
     .btn{font-size:8px;padding:3px 6px}
+
+    /* Fill full screen */
+    body{height:100dvh;display:flex;flex-direction:column;overflow:hidden;padding:3px}
+    .page-wrap{flex:1;display:flex;flex-direction:column;min-height:0;max-width:100%;margin:0}
+    .page-header{flex-shrink:0}
+    .shift-tabs{flex-shrink:0}
+    .board-wrapper{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+    .board-container{flex:1;display:flex;flex-direction:column;min-height:0}
+    .board-grid{flex:1;display:flex!important;flex-direction:column;min-height:0;width:100%}
+    .grid-header.shift-title{flex-shrink:0;font-size:8px;padding:3px 6px}
+    /* time header row */
+    .board-grid > div:not(.channel-row-mobile):not(.grid-header){flex-shrink:0}
+    /* each channel row gets equal share */
+    .channel-row-mobile{flex:1;min-height:0;display:grid!important;grid-template-columns:28px 1fr 1fr 1fr}
+    .channel-row-mobile .assignment-cell{justify-content:center}
+    .status-bar{display:none}
+    /* Hide announcement on mobile to save space */
+    .page-wrap > div:last-child{display:none}
 
     /* Shift tabs — short */
     .shift-tab{font-size:9px;padding:4px 2px;letter-spacing:.5px}
@@ -292,16 +309,16 @@
     }
     .channel-row-mobile .time-blocks{display:contents}
     .channel-row-mobile .assignment-cell{
-      padding:2px 3px;
+      padding:2px 3px;min-height:0;
       border-right:1px solid #1a1a1a;border-bottom:none;
-      gap:1px;display:flex;flex-direction:column;justify-content:center;
+      gap:0;display:flex;flex-direction:column;justify-content:center;
     }
     .channel-row-mobile .assignment-cell:last-child{border-right:none}
     .mobile-block-label{display:none}
 
     /* Name badges — maximize text size */
-    .ch-initial{min-width:12px;padding:1px 1px;font-size:5px;letter-spacing:0;flex-shrink:0;line-height:1}
-    .assignment-badge{font-size:12px;padding:3px 3px;letter-spacing:0;line-height:1.2;border-left-width:2px!important;color:#fff!important}
+    .ch-initial{min-width:12px;padding:1px 1px;font-size:5px;letter-spacing:0;flex-shrink:0;line-height:1;display:none}
+    .assignment-badge{font-size:12px;padding:3px 3px;letter-spacing:0;line-height:1.2;border-left-width:3px!important;color:#fff!important}
     .ct-badge{font-size:11px;padding:2px 3px;letter-spacing:0;line-height:1.2;border-left-width:1px!important;color:#ddd!important}
     .pending-cell{font-size:7px;padding:2px 3px;letter-spacing:.5px}
     .paste-col-btn{display:none}
@@ -318,6 +335,18 @@
     .modal-title{font-size:12px}
     .modal-desc{font-size:10px}
     .modal-textarea{height:130px;font-size:10px}
+
+    /* Restore channel color border on badge since prefix is hidden */
+    .c-north.assignment-badge{border-left:3px solid #b36a00!important}
+    .c-east.assignment-badge{ border-left:3px solid #1e7a45!important}
+    .c-south.assignment-badge{border-left:3px solid #1a5f8a!important}
+    .c-west.assignment-badge{ border-left:3px solid #8a2a22!important}
+    .c-nw.assignment-badge{   border-left:3px solid #5a3278!important}
+    .c-central.assignment-badge{border-left:3px solid #147a6a!important}
+    .c-dc1.assignment-badge{  border-left:3px solid #8a7a00!important}
+    .c-dc2.assignment-badge{  border-left:3px solid #8a4a00!important}
+    .c-r1.assignment-badge{   border-left:3px solid #4a5a5c!important}
+    .c-r2.assignment-badge{   border-left:3px solid #2a4a7a!important}
 
     /* Inputs non-interactive when locked */
     .assignment-badge,.ct-badge{pointer-events:none}
@@ -1031,21 +1060,31 @@ function _handleMobileTrailTap(inp, b, chKey) {
 // Delegated touch on board — handles trail taps without focusing inputs
 // (attached after init so boardGrid exists)
 function initMobileTouchTrail() {
+  let _touchStartY = 0;
+  let _touchStartX = 0;
+
   document.getElementById('boardGrid').addEventListener('touchstart', e => {
+    _touchStartY = e.touches[0].clientY;
+    _touchStartX = e.touches[0].clientX;
+  }, {passive: true});
+
+  document.getElementById('boardGrid').addEventListener('touchend', e => {
     if (!_unlocked) {
-      e.preventDefault();
-      const cell = e.target.closest('.assignment-cell');
-      const inp = cell
-        ? cell.querySelector('[data-trail-ch]')
-        : null;
-      if (inp) {
-        _handleMobileTrailTap(inp, inp.dataset.trailBlock, inp.dataset.trailCh);
-      } else {
-        clearTrail();
-        _mobileTrailActive = null;
+      const dy = Math.abs(e.changedTouches[0].clientY - _touchStartY);
+      const dx = Math.abs(e.changedTouches[0].clientX - _touchStartX);
+      // Only treat as a tap if finger barely moved (not a swipe/scroll)
+      if (dy < 10 && dx < 10) {
+        const cell = e.target.closest('.assignment-cell');
+        const inp = cell ? cell.querySelector('[data-trail-ch]') : null;
+        if (inp) {
+          _handleMobileTrailTap(inp, inp.dataset.trailBlock, inp.dataset.trailCh);
+        } else {
+          clearTrail();
+          _mobileTrailActive = null;
+        }
       }
     }
-  }, {passive: false});
+  }, {passive: true});
 }
 
 // Tap outside board clears trail
@@ -1168,6 +1207,22 @@ function renderBoard() {
       'NORTHWEST':'NW','CENTRAL':'C','DC1':'DC1',
       'DC2':'DC2','RELIEF1':'R1','RELIEF2':'R2','CT':'CT'
     };
+
+    // Dedicated header row with time block labels
+    const headerRow = document.createElement('div');
+    headerRow.style.cssText = 'display:grid;grid-template-columns:28px 1fr 1fr 1fr;background:#1a1a1a;border-bottom:1px solid #333;';
+    const emptyCell = document.createElement('div');
+    emptyCell.style.cssText = 'border-right:1px solid #242424;';
+    headerRow.appendChild(emptyCell);
+    labels.forEach(lbl => {
+      const h = document.createElement('div');
+      h.style.cssText = 'font-size:7px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:#aaa;text-align:center;padding:3px 1px;font-family:"Share Tech Mono",monospace;border-right:1px solid #242424;';
+      // Shorten labels for mobile
+      h.textContent = lbl.replace(' AM','A').replace(' PM','P').replace('—','–');
+      headerRow.appendChild(h);
+    });
+    grid.appendChild(headerRow);
+
     CHANNELS.forEach(ch => {
       const card = document.createElement('div');
       card.className = 'channel-row-mobile';
@@ -1180,7 +1235,7 @@ function renderBoard() {
       const timeRow = document.createElement('div');
       timeRow.className = 'time-blocks';
       blocks.forEach((b, i) => {
-        const cell = buildCell(ch, b, labels[i]);
+        const cell = buildCell(ch, b, null);
         timeRow.appendChild(cell);
       });
       card.appendChild(timeRow);
