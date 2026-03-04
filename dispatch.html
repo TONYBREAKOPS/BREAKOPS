@@ -692,7 +692,10 @@ function saveData() {
     return;
   }
   setStatus('⏳ Saving...');
-  DOC_REF.set({board: JSON.stringify(data), announcement: announcement}, {merge: true})
+  const boardJson = JSON.stringify(data);
+  console.log('Saving board data, size:', boardJson.length, 'chars');
+  console.log('Today data:', JSON.stringify(data[currentDay]));
+  DOC_REF.set({board: boardJson, announcement: announcement}, {merge: true})
     .then(() => {
       const t = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
       setStatus('🟢 Saved & synced — ' + t);
@@ -1094,14 +1097,17 @@ function renderBoard() {
 }
 
 function onBadgeInput(e) {
-  const {day,ch,block} = e.target.dataset;
+  const {ch, block} = e.target.dataset;
   const clean = sanitize(e.target.value);
-  data[day][ch][block] = clean;
+  data[currentDay][ch][block] = clean;
+  e.target.dataset.day = currentDay; // keep dataset in sync
 }
+
 function onCTInput(e) {
-  const {day,ch,block,slot} = e.target.dataset;
-  if (!Array.isArray(data[day][ch][block])) data[day][ch][block] = ['','',''];
-  data[day][ch][block][slot] = sanitize(e.target.value);
+  const {ch, block, slot} = e.target.dataset;
+  if (!Array.isArray(data[currentDay][ch][block])) data[currentDay][ch][block] = ['','',''];
+  data[currentDay][ch][block][slot] = sanitize(e.target.value);
+  e.target.dataset.day = currentDay;
 }
 
 // ── Day selector ──────────────────────────────────────────────
