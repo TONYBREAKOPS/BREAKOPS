@@ -688,16 +688,20 @@ function saveData() {
   document.getElementById('announcementBox').value = announcement;
   saveLocal();
   if (!DOC_REF) {
-    setStatus('💾 Saved locally (offline — no Firebase connection)');
+    setStatus('💾 Saved locally (no Firebase connection)');
     return;
   }
   if (!_powered) {
-    setStatus('💾 Saved locally — board is OFFLINE');
+    // Still save board data to Firebase even when offline so supervisor edits persist
+    // but keep powered:false so viewers still see PENDING
+    setStatus('⏳ Saving...');
+    DOC_REF.set({board: JSON.stringify(data), announcement: announcement, powered: false}, {merge: true})
+      .then(() => setStatus('💾 Saved — board is OFFLINE (viewers see PENDING)'))
+      .catch(e => setStatus('🔴 Save failed: ' + e.code + ' — ' + e.message));
     return;
   }
   setStatus('⏳ Saving...');
-  const boardJson = JSON.stringify(data);
-  DOC_REF.set({board: boardJson, announcement: announcement, powered: true}, {merge: true})
+  DOC_REF.set({board: JSON.stringify(data), announcement: announcement, powered: true}, {merge: true})
     .then(() => {
       const t = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
       setStatus('🟢 Saved & synced — ' + t);
@@ -909,6 +913,7 @@ function setLocked(locked) {
   document.getElementById('readonlyShield').classList.toggle('hidden', !locked);
   document.getElementById('lockBtn').textContent  = locked ? '🔒 LOCKED' : '🔓 UNLOCKED';
   document.getElementById('lockBtn').className     = locked ? 'lock-btn' : 'lock-btn unlocked';
+  // Always show edit buttons when unlocked — regardless of power state
   document.getElementById('clearAllBtn').style.display = locked ? 'none' : '';
   document.getElementById('saveBtn').style.display     = locked ? 'none' : '';
   // Announcement box
@@ -925,6 +930,8 @@ function setLocked(locked) {
   document.querySelectorAll('.assignment-badge, .ct-badge').forEach(inp => {
     inp.readOnly = locked;
   });
+  // If unlocked, always re-render so supervisor sees real inputs even when offline
+  if (!locked) renderBoard();
 }
 
 function setPower(on) {
