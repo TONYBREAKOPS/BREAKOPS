@@ -428,7 +428,8 @@ let _allAbsences = [];
 let _absLoading = false;
 let _dismissedAbs = new Set();
 let _recentCallOffs = [];
-const ABS_TRACK_REASONS = new Set(['REASON 1','FAMILY','PERSONAL','REASON 2']);
+// Track all absence reasons (VACATION and TRAINING are filtered out separately in extractAbsencesFromDoc)
+const ABS_TRACK_ALL = true;
 
 function setListType(type){
   _listType = type;
@@ -1186,15 +1187,12 @@ function extractAbsencesFromDoc(data, arr){
       if(reason === 'VACATION' || reason === 'TRAINING') continue;
 
       let type = null;
-      if(present === 'NO' && ABS_TRACK_REASONS.has(reason)){
+      if(present === 'NO'){
         type = 'ABSENT';
       } else if(present === 'TARDY'){
         type = 'TARDY';
       } else if(present === 'PARTIAL'){
-        const partialReason = String(blockData.PartialReason || '').toUpperCase();
-        if(ABS_TRACK_REASONS.has(partialReason)){
-          type = 'PARTIAL';
-        }
+        type = 'PARTIAL';
       }
 
       if(!type) continue;

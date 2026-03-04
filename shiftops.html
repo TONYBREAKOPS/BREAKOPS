@@ -756,7 +756,7 @@ main{
   font-size:10px;opacity:.35;transition:opacity .15s;line-height:1;
   color:var(--muted);vertical-align:middle;
   width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;
-  position:relative;z-index:9500;
+  position:relative;
 }
 .cmt-btn:hover{opacity:.7}
 .cmt-btn.has-cmt{opacity:1;color:#fbbf24;text-shadow:0 0 6px rgba(251,191,36,.5)}
@@ -814,6 +814,35 @@ main{
 #otConfirmPopup .ot-no{background:rgba(255,255,255,.06);border-color:var(--border);color:var(--muted)}
 #otConfirmPopup .ot-no:hover{background:rgba(255,255,255,.12)}
 
+/* Absence reason picker popup */
+#absReasonPopup{
+  display:none;position:fixed;z-index:10001;
+  background:#1a2236;border:1px solid rgba(239,68,68,.4);
+  border-radius:12px;padding:14px 18px;
+  box-shadow:0 8px 32px rgba(0,0,0,.55);
+  text-align:center;font-size:12px;color:var(--text);
+  min-width:220px;max-width:320px;
+  left:50%;top:50%;transform:translate(-50%,-50%);
+}
+#absReasonPopup.open{display:block}
+.abs-reason-title{font-weight:700;font-size:13px;color:#ef4444;margin-bottom:4px;letter-spacing:.5px}
+.abs-reason-name{font-size:11px;color:var(--muted);margin-bottom:10px;font-weight:600}
+.abs-reason-list{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
+.abs-reason-list button{
+  padding:7px 12px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;
+  border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:var(--text);
+  transition:background .15s;text-transform:uppercase;
+}
+.abs-reason-list button:hover{background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.4)}
+.abs-reason-cancel{
+  padding:5px 16px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;
+  border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--muted);
+}
+.abs-reason-cancel:hover{background:rgba(255,255,255,.12)}
+body.light #absReasonPopup{background:#fff;border-color:rgba(239,68,68,.3);box-shadow:0 8px 32px rgba(0,0,0,.15)}
+body.light .abs-reason-list button{background:#f8f8f8;border-color:#ddd;color:#1e293b}
+body.light .abs-reason-list button:hover{background:#fee2e2;border-color:#fca5a5}
+body.light .abs-reason-cancel{background:#f8f8f8;border-color:#ddd;color:#64748b}
 
 /* v118: Single panel (one 4-hr block) view */
 .singlePanel .boardGrid{
@@ -1339,7 +1368,7 @@ body.light .customSelOpt.kbHL{
 .rosterTbl th.workedCol, .rosterTbl td.workedCol{ width:100px; }
 .rosterTbl th.hrsCol, .rosterTbl td.hrsCol{ width:32px; max-width:32px; padding:0 !important; }
 .rosterTbl th.presCol, .rosterTbl td.presCol{ width:34px !important; min-width:34px !important; padding:0 !important; }
-.rosterTbl th.cmtCol, .rosterTbl td.cmtCol{ width:18px !important; max-width:18px !important; padding:0 !important; text-align:center; overflow:visible !important; position:relative; z-index:9500; }
+.rosterTbl th.cmtCol, .rosterTbl td.cmtCol{ width:18px !important; max-width:18px !important; padding:0 !important; text-align:center; overflow:visible !important; position:relative; }
 
 /* control cells must allow popups/inputs to be visible and clickable */
 .rosterTbl td.ctrlCell, .rosterTbl th.ctrlCol{
@@ -3026,6 +3055,14 @@ body.light .customSelBtn.typing-mode {
 
 <!-- Shared comment popup -->
 <div id="cmtPopup"><textarea id="cmtPopupTa" placeholder="Comment..."></textarea></div>
+<!-- Absence reason picker popup -->
+<div id="absReasonPopup">
+  <div class="abs-reason-title">ABSENCE REASON</div>
+  <div class="abs-reason-name" id="absReasonEmpName"></div>
+  <div class="abs-reason-list" id="absReasonList"></div>
+  <button class="abs-reason-cancel" id="absReasonCancel">CANCEL</button>
+</div>
+
 <!-- OT removal confirm popup -->
 <div id="otConfirmPopup">
   <div class="ot-confirm-title">Remove OT?</div>
@@ -4612,13 +4649,16 @@ function computeRowsForBlock(iso, shift, block){
       ed._vacAutoMarked=true;
     }
 
-    // Auto-mark off-site training as absent (only if not already manually edited)
+    // Auto-mark training (only if not already manually edited)
     if(ed.Present==="YES" && !ed._userEdited && !ed._vacAutoMarked){
       const trainSite = isOnTrainingDate(e.Employee, iso);
-      if(trainSite === 'OFF_SITE'){
-        ed.Present="NO";
-        ed.Hours="0";
-        ed.AbsenceReason="TRAINING";
+      if(trainSite === 'ON_SITE'){
+        ed.Present="TRAINEE";
+        ed._vacAutoMarked=true;
+      } else if(trainSite === 'OFF_SITE'){
+        ed.Present="YES";
+        ed.Role="OTH";
+        ed.OthType="TRN";
         ed._vacAutoMarked=true;
       }
     }
@@ -4628,10 +4668,19 @@ function computeRowsForBlock(iso, shift, block){
     const workedStart = ed.WorkedStart || minToHHMM(wStartMin%1440);
     const workedEnd = ed.WorkedEnd || minToHHMM(wEndMin%1440);
     const mins = overlapMinutes(wStartMin,wEndMin,bw.startMin,bw.endMin);
-    const hours = (ed.Hours!=="" ? Number(ed.Hours) : roundQuarterHours(mins));
-
     const role = normalizeRole(ed.Role||e.POSITION);
     const present=(ed.Present||"YES");
+    // When TARDY/PARTIAL and hours not yet manually set, compute from actual worked range
+    let hours;
+    if(ed.Hours!==""){
+      hours = Number(ed.Hours);
+    } else if(present==="TARDY"||present==="PARTIAL"){
+      let aS=minutesOf(workedStart), aE=minutesOf(workedEnd);
+      if(bw.endMin>1440){ if(aS<bw.startMin) aS+=1440; if(aE<bw.startMin) aE+=1440; }
+      hours = roundQuarterHours(overlapMinutes(aS,aE,bw.startMin,bw.endMin));
+    } else {
+      hours = roundQuarterHours(mins);
+    }
     const _isSwapped = isSwapped(e.Employee, iso);
     const _swapPartner = _isSwapped ? getSwappedShift(e.Employee, iso) : null;
     const row={emp:e.Employee, sen:e.SENIORITY, shiftStr:shStr, role, present, hours, assignment:(ed.Assignment||""), workedStart, workedEnd, isOT:false, isSwapped:_isSwapped, swapPartner:_swapPartner};
@@ -4759,7 +4808,7 @@ function renderRoleTable(iso, shift, block, role, rows){
            ${renderSeatOptions(seatOpts, seat)}
          </select>`;
 
-    const swBadge = r.isSwapped ? `<span class="swapBadge" title="Swapped with ${esc(r.swapPartner||'')}">SW</span>` : "";
+    const swBadge = r.isSwapped ? `<span class="swapBadge" title="Swapped with ${esc(r.swapPartner||'')}">SWAP</span>` : "";
     const _bRec = BASE_EMP.find(b => b.Employee === r.emp);
     const dpBadge = (_bRec && normalizeRole(_bRec.POSITION) === "DISPATCHER" && role !== "DISPATCHER") ? `<span class="otBadge" style="background:#4a235a;font-size:9px;padding:1px 5px;margin-left:3px" title="Dispatcher">DP</span>` : "";
     html += `<tr${rowBg}>
@@ -4825,7 +4874,7 @@ function renderOthTable(iso, shift, block, rows){
     const cmtKey = r.isTardy ? key+'|'+r.emp+'|TARDY' : (r.isPartial ? key+'|'+r.emp+'|PARTIAL' : key+'|'+r.emp);
 
     const rowBg = r.isOT ? " style='background:rgba(180,180,200,0.12)'" : "";
-    const swBadgeOth = r.isSwapped ? `<span class="swapBadge" title="Swapped with ${esc(r.swapPartner||'')}">SW</span>` : "";
+    const swBadgeOth = r.isSwapped ? `<span class="swapBadge" title="Swapped with ${esc(r.swapPartner||'')}">SWAP</span>` : "";
 
     html += `<tr${rowBg}>
       <td class="nameCol">${r.isOT?`<span class="otNameWrap"><span class="empName">${esc(r.emp)}</span><span class="otBadge otBadgeTop">OT<button class="ot-edit-icon" onclick="showOTConfirm(event,'${esc(key)}','${esc(r.emp)}')">&#9998;</button></span></span>`:`<span class="empName">${esc(r.emp)}</span>`}${r.isTardy?`<span class="otBadge" style="background:#ef4444">T</span>`:(r.isPartial?`<span class="otBadge" style="background:#d4a017">P</span>`:"")}${swBadgeOth}</td>
@@ -5074,7 +5123,7 @@ function setWorked(key, emp, field, val){
   }
 
   // If became PARTIAL (left early), cascade absent to later blocks
-  if(becameShort && ed.Present==="PARTIAL") _cascadeAbsentForward(key, emp);
+  if(becameShort && ed.Present==="PARTIAL") _cascadeAbsentForward(key, emp, "");
 
   renderAll(); // worked times affect staffing numbers across blocks
   scheduleAutoSave();
@@ -5086,7 +5135,7 @@ function setHours(key, emp, val){
   scheduleAutoSave();
 }
 // Cascade absent to all LATER blocks the employee is scheduled to work today
-function _cascadeAbsentForward(key, emp){
+function _cascadeAbsentForward(key, emp, reason){
   const [iso, shift, blockId] = key.split("|");
   const blocks = shift==="NIGHT" ? BLOCKS_NIGHT : BLOCKS_DAY;
   const curIdx = blocks.findIndex(b => b.id === blockId);
@@ -5112,14 +5161,47 @@ function _cascadeAbsentForward(key, emp){
     if(laterEd.Present === "NO") continue; // already absent
     laterEd.Present = "NO";
     laterEd.Hours = "0";
+    if(reason) laterEd.AbsenceReason = reason;
   }
 }
 
 function setPresent(key, emp, val){
+  // If marking absent, prompt for reason first
+  if(val==="NO"){
+    // Guard against double-fire from custom select (onchange + dispatchEvent)
+    if(document.getElementById("absReasonPopup").classList.contains("open")) return;
+    _showAbsenceReasonPicker(key, emp);
+    return;
+  }
+  _applyPresent(key, emp, val, "");
+}
+function _showAbsenceReasonPicker(key, emp){
+  const popup = document.getElementById("absReasonPopup");
+  const list = document.getElementById("absReasonList");
+  const nameEl = document.getElementById("absReasonEmpName");
+  nameEl.textContent = emp;
+  list.innerHTML = "";
+  for(const reason of ABSENT_REASONS){
+    const btn = document.createElement("button");
+    btn.textContent = reason;
+    btn.onclick = ()=>{ _closeAbsenceReasonPicker(); _applyPresent(key, emp, "NO", reason); };
+    list.appendChild(btn);
+  }
+  popup.classList.add("open");
+  document.getElementById("absReasonCancel").onclick = ()=>{
+    _closeAbsenceReasonPicker();
+    // Revert the dropdown back to previous value
+    renderAll();
+  };
+}
+function _closeAbsenceReasonPicker(){
+  document.getElementById("absReasonPopup").classList.remove("open");
+}
+function _applyPresent(key, emp, val, reason){
   const ed=ensureEdit(key,emp);
   ed.Present=val;
   ed._userEdited=true;
-  if(val==="NO") ed.Hours="0";
+  if(val==="NO"){ ed.Hours="0"; ed.AbsenceReason=reason; }
   if(val==="YES"){ ed.Hours=""; ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
   if(val==="TRAINER"){ ed.Hours=""; ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
   if(val==="TRAINEE"){ ed.Hours=""; ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
@@ -5127,7 +5209,7 @@ function setPresent(key, emp, val){
   if(val==="TARDY"){ ed.Hours=""; ed.AbsenceReason=""; ed.TardyReason="TARDY"; }
 
   // Cascade absence to all LATER blocks this employee works today
-  if(val==="NO") _cascadeAbsentForward(key, emp);
+  if(val==="NO") _cascadeAbsentForward(key, emp, reason);
 
   renderAll(); // employee moves between role card and ABSENT, affects staffing
   scheduleAutoSave();
@@ -6181,6 +6263,12 @@ document.addEventListener("click", function(e){
   }
   if(!e.target.closest("#otConfirmPopup") && !e.target.closest(".ot-edit-icon")){
     closeOTConfirm();
+  }
+  if(!e.target.closest("#absReasonPopup") && !e.target.closest(".presentSel") && !e.target.closest(".customSel--present")){
+    if(document.getElementById("absReasonPopup").classList.contains("open")){
+      _closeAbsenceReasonPicker();
+      renderAll();
+    }
   }
 });
 
@@ -8799,6 +8887,15 @@ async function generateTimesheets(){
     dates.push(toISODate(d));
   }
 
+  // Flush any pending auto-save so local edits reach Firebase before we reload
+  if(autoSaveTimer){
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = null;
+    const curISO = document.getElementById("workDate").value;
+    const curShift = document.getElementById("shiftSel").value;
+    if(curISO && curShift) await saveEditsToFirebase(curISO, curShift);
+  }
+
   // Load edits from Firebase for all 14 days, both shifts (parallel)
   const loadPromises = [];
   for(const iso of dates){
@@ -8862,6 +8959,7 @@ async function generateTimesheets(){
               const isTardy = present==="TARDY";
               const isPartialStatus = present==="PARTIAL";
               const isTrainer = present==="TRAINER";
+              const isTrainee = present==="TRAINEE";
 
               // For absent, compute scheduled hours from shift-block overlap times
               let absentHrs = 0;
@@ -8871,6 +8969,8 @@ async function generateTimesheets(){
                 if(diff <= 0) diff += 1440;
                 absentHrs = diff / 60;
               }
+
+              const rowReason = isAbsent ? (ed.AbsenceReason||"") : (isPartialStatus ? (ed.PartialReason||"") : (isTardy ? "TARDY" : ""));
 
               dayRows.push({
                 inTime: isAbsent ? "" : (ws ? formatTime12(ws) : ""),
@@ -8882,7 +8982,9 @@ async function generateTimesheets(){
                 isTardy: isTardy,
                 isAbsent: isAbsent,
                 isPartial: isPartialStatus,
-                isTrainer: isTrainer
+                isTrainer: isTrainer,
+                isTrainee: isTrainee,
+                reason: rowReason
               });
               if(!isAbsent){
                 dayTotal += hrs;
@@ -8909,6 +9011,7 @@ async function generateTimesheets(){
         const anyTardy = regRows.some(r => r.isTardy);
         const anyPartial = regRows.some(r => r.isPartial);
         const anyTrainer = regRows.some(r => r.isTrainer);
+        const anyTrainee = regRows.some(r => r.isTrainee);
         // Sort by rawIn (HH:MM 24h), then merge contiguous blocks
         const sorted = regRows.filter(r => r.rawIn && r.rawOut).slice().sort((a,b) => a.rawIn < b.rawIn ? -1 : a.rawIn > b.rawIn ? 1 : 0);
         const pairs = [];
@@ -8920,7 +9023,8 @@ async function generateTimesheets(){
           }
         }
         const fmtPairs = pairs.map(p => ({ inTime: formatTime12(p.rawIn), outTime: formatTime12(p.rawOut) }));
-        finalRows.push({ pairs: fmtPairs, total: totalReg, isOT:false, isTardy: anyTardy, isAbsent:false, isPartial: anyPartial, isTrainer: anyTrainer });
+        const regReason = regRows.map(r=>r.reason).find(r=>r) || "";
+        finalRows.push({ pairs: fmtPairs, total: totalReg, isOT:false, isTardy: anyTardy, isAbsent:false, isPartial: anyPartial, isTrainer: anyTrainer, isTrainee: anyTrainee, reason: regReason });
       }
 
       // Consolidate OT rows: detect contiguous stretches, split on gaps
@@ -8936,7 +9040,7 @@ async function generateTimesheets(){
           }
         }
         const fmtOTPairs = otPairs.map(p => ({ inTime: formatTime12(p.rawIn), outTime: formatTime12(p.rawOut) }));
-        finalRows.push({ pairs: fmtOTPairs, total: totalOT, isOT:true, isTardy:false, isAbsent:false, isPartial:false });
+        finalRows.push({ pairs: fmtOTPairs, total: totalOT, isOT:true, isTardy:false, isAbsent:false, isPartial:false, reason:"" });
       }
 
       // Consolidate absent rows into a single entry with missed time range
@@ -8949,7 +9053,10 @@ async function generateTimesheets(){
           if(r.rawOut && (!absLatest || r.rawOut > absLatest)) absLatest = r.rawOut;
         }
         const absPairs = (absEarliest && absLatest) ? [{ inTime: formatTime12(absEarliest), outTime: formatTime12(absLatest) }] : [];
-        finalRows.push({ pairs: absPairs, total: totalAbsentHrs, isOT:false, isTardy:false, isAbsent:true, isPartial:false });
+        // Collect unique absence reasons for this day
+        const absReasons = [...new Set(absentRows.map(r=>r.reason).filter(r=>r))];
+        const absReasonStr = absReasons.join(", ");
+        finalRows.push({ pairs: absPairs, total: totalAbsentHrs, isOT:false, isTardy:false, isAbsent:true, isPartial:false, reason: absReasonStr });
       }
 
       data.days.push({ date: iso, rows: finalRows, dayTotal: dayTotal, dayReg: dayReg, dayOT: dayOT });
@@ -8992,17 +9099,26 @@ th{background:#f0f0f0;font-weight:700}
   <label><b>Employee:</b></label>
   <select id="empPicker" onchange="showEmployee(this.value)" style="padding:6px;font-size:13px">`;
 
-  // Build supervisor groups from SUP_ASSIGNMENTS matched to empMap
+  // Build supervisor groups from SUP_ASSIGNMENTS matched to BASE_EMP (stable counts)
   const supGroups = {};
   const unmatchedNames = [];
   for(const [sup, emps] of Object.entries(SUP_ASSIGNMENTS)){
     const matched = [];
     for(const e of emps){
       const resolved = matchSupEmp(e.last, e.first);
-      if(empMap.has(resolved)){
+      const inDB = BASE_EMP.find(b => b.Employee === resolved);
+      if(inDB){
         matched.push(resolved);
+        // Ensure employee exists in empMap even with no data (so they appear on supervisor timesheet)
+        if(!empMap.has(resolved)){
+          empMap.set(resolved, {
+            info: inDB,
+            days: dates.map(iso => ({date:iso, rows:[], dayTotal:0, dayReg:0, dayOT:0})),
+            grandTotal: 0, grandReg: 0, grandOT: 0
+          });
+        }
       } else {
-        unmatchedNames.push(sup + ": " + e.last + ", " + e.first + " → resolved as '" + resolved + "'" + (BASE_EMP.find(b=>b.Employee===resolved) ? " (in DB but not working today)" : " (NOT FOUND in DB)"));
+        unmatchedNames.push(sup + ": " + e.last + ", " + e.first + " → resolved as '" + resolved + "' (NOT FOUND in DB)");
       }
     }
     if(matched.length > 0) supGroups[sup] = matched;
@@ -9056,8 +9172,9 @@ th{background:#f0f0f0;font-weight:700}
         for(let ri=0; ri<day.rows.length; ri++){
           const r = day.rows[ri];
           const pairs = r.pairs || [];
-          const badge = r.isAbsent ? ` <span style="color:#b91c1c;font-weight:bold;background:#fee2e2;padding:1px 5px;border-radius:3px">ABSENT ${r.total}HRS</span>` : r.isOT ? ' <span style="color:#1d4ed8;font-weight:bold;background:#dbeafe;padding:1px 5px;border-radius:3px">OT</span>' : r.isTardy ? ' <span style="color:#c2410c;font-weight:bold;background:#fff7ed;padding:1px 5px;border-radius:3px">TARDY</span>' : r.isPartial ? ' <span style="color:#a16207;font-weight:bold;background:#fefce8;padding:1px 5px;border-radius:3px">PARTIAL</span>' : '';
-          const trainerBadge = r.isTrainer ? ' <span style="color:#065f46;font-weight:bold;background:#d1fae5;padding:1px 5px;border-radius:3px">TRAINER</span>' : '';
+          const absLabel = r.isAbsent ? ("ABSENT" + (r.reason ? " — " + r.reason : "") + " " + r.total + "HRS") : "";
+          const badge = r.isAbsent ? ` <span style="color:#b91c1c;font-weight:bold;background:#fee2e2;padding:1px 5px;border-radius:3px">${absLabel}</span>` : r.isOT ? ' <span style="color:#1d4ed8;font-weight:bold;background:#dbeafe;padding:1px 5px;border-radius:3px">OT</span>' : r.isTardy ? ' <span style="color:#c2410c;font-weight:bold;background:#fff7ed;padding:1px 5px;border-radius:3px">TARDY</span>' : r.isPartial ? ' <span style="color:#a16207;font-weight:bold;background:#fefce8;padding:1px 5px;border-radius:3px">PARTIAL' + (r.reason ? " — " + r.reason : "") + '</span>' : '';
+          const trainerBadge = r.isTrainer ? ' <span style="color:#065f46;font-weight:bold;background:#d1fae5;padding:1px 5px;border-radius:3px">TRAINER</span>' : r.isTrainee ? ' <span style="color:#065f46;font-weight:bold;background:#d1fae5;padding:1px 5px;border-radius:3px">TRAINEE</span>' : '';
           if(pairs.length <= 1){
             // Single pair or no pairs: In1 = in, Out1 empty, In2 empty, Out2 = out (original style)
             const p = pairs[0] || {};
@@ -9117,6 +9234,48 @@ th{background:#f0f0f0;font-weight:700}
     html += `<table class="hrs-breakdown"><tr><td><b>Regular Hours:</b></td><td>${data.grandReg.toFixed(2)}</td></tr>`;
     html += `<tr><td><b>Overtime Hours:</b></td><td>${data.grandOT.toFixed(2)}</td></tr>`;
     html += `<tr><td><b>Total Hours:</b></td><td>${data.grandTotal.toFixed(2)}</td></tr></table>`;
+
+    // Attendance Summary
+    let attTardy = 0, attPartial = 0, attAbsentDays = 0, attAbsentHrs = 0, attTrainer = 0, attTrainee = 0;
+    const attReasonMap = {};
+    for(const day of data.days){
+      let dayAbsent = false;
+      for(const r of day.rows){
+        if(r.isTardy) attTardy++;
+        if(r.isPartial) attPartial++;
+        if(r.isTrainer) attTrainer++;
+        if(r.isTrainee) attTrainee++;
+        if(r.isAbsent){
+          dayAbsent = true;
+          attAbsentHrs += r.total;
+          if(r.reason){
+            for(const rn of r.reason.split(", ")){
+              if(rn) attReasonMap[rn] = (attReasonMap[rn]||0) + 1;
+            }
+          } else {
+            attReasonMap["UNSPECIFIED"] = (attReasonMap["UNSPECIFIED"]||0) + 1;
+          }
+        }
+      }
+      if(dayAbsent) attAbsentDays++;
+    }
+    const hasAttEvents = attTardy + attPartial + attAbsentDays + attTrainer + attTrainee > 0;
+    if(hasAttEvents){
+      html += `<div style="margin-top:12px"><b>Attendance Summary:</b></div>`;
+      html += `<table style="width:auto;border-collapse:collapse;margin-bottom:12px;font-size:10px">`;
+      if(attAbsentDays > 0){
+        html += `<tr><td style="border:1px solid #000;padding:3px 8px;font-weight:700">Absent Days</td><td style="border:1px solid #000;padding:3px 8px">${attAbsentDays}</td></tr>`;
+        html += `<tr><td style="border:1px solid #000;padding:3px 8px;font-weight:700">Absent Hours</td><td style="border:1px solid #000;padding:3px 8px">${attAbsentHrs.toFixed(2)}</td></tr>`;
+        for(const [rsn, cnt] of Object.entries(attReasonMap)){
+          html += `<tr><td style="border:1px solid #000;padding:3px 8px;padding-left:16px;font-style:italic">${rsn}</td><td style="border:1px solid #000;padding:3px 8px">${cnt} day${cnt>1?"s":""}</td></tr>`;
+        }
+      }
+      if(attTardy > 0) html += `<tr><td style="border:1px solid #000;padding:3px 8px;font-weight:700">Tardy</td><td style="border:1px solid #000;padding:3px 8px">${attTardy} day${attTardy>1?"s":""}</td></tr>`;
+      if(attPartial > 0) html += `<tr><td style="border:1px solid #000;padding:3px 8px;font-weight:700">Partial</td><td style="border:1px solid #000;padding:3px 8px">${attPartial} day${attPartial>1?"s":""}</td></tr>`;
+      if(attTrainer > 0) html += `<tr><td style="border:1px solid #000;padding:3px 8px;font-weight:700">Trainer</td><td style="border:1px solid #000;padding:3px 8px">${attTrainer} day${attTrainer>1?"s":""}</td></tr>`;
+      if(attTrainee > 0) html += `<tr><td style="border:1px solid #000;padding:3px 8px;font-weight:700">Trainee</td><td style="border:1px solid #000;padding:3px 8px">${attTrainee} day${attTrainee>1?"s":""}</td></tr>`;
+      html += `</table>`;
+    }
 
     html += `<div style="margin-top:24px;padding:10px 14px;border:1px solid #999;background:#f9f9f9;font-size:9px;color:#555;line-height:1.5;text-align:justify">
       <b>DISCLAIMER:</b> This document is an unofficial estimate generated for reference purposes only. Miscalculations may occur due to manual data entry errors, system limitations, or incomplete records. The viewer is responsible for independently verifying all hours, dates, and pay-related information before relying on this data. This document is not guaranteed to be 100% accurate and should not be used as an official record of hours worked. Always cross-reference with official timekeeping systems and payroll records.
@@ -9270,8 +9429,9 @@ function printCurrent(){
         for(var ri=0; ri<day.rows.length; ri++){
           var r = day.rows[ri];
           var pairs = r.pairs || [];
-          var badge = r.isAbsent ? " [ABS]" : r.isOT ? " [OT]" : r.isTardy ? " [T]" : r.isPartial ? " [P]" : "";
-          var trBadge = r.isTrainer ? " [TNR]" : "";
+          var absRsnTag = r.isAbsent ? (r.reason ? " [ABS-" + r.reason + "]" : " [ABS]") : "";
+          var badge = r.isAbsent ? absRsnTag : r.isOT ? " [OT]" : r.isTardy ? " [T]" : r.isPartial ? (r.reason ? " [P-" + r.reason + "]" : " [P]") : "";
+          var trBadge = r.isTrainer ? " [TNR]" : r.isTrainee ? " [TNE]" : "";
           if(pairs.length <= 1){
             var p = pairs[0] || {};
             var totalStr = r.isAbsent ? "0.000" : r.total.toFixed(3);
@@ -9346,6 +9506,61 @@ function printCurrent(){
       doc.setFont("helvetica","normal");
       doc.text(vals2[bi], mx+bw*0.6+4, y+11);
       y += bRh;
+    }
+
+    y += 10;
+
+    /* Attendance Summary */
+    var attTardy=0, attPartial=0, attAbsentDays=0, attAbsentHrs=0, attTrainer=0, attTrainee=0;
+    var attReasonMap = {};
+    for(var ai=0; ai<data.days.length; ai++){
+      var dayAbs = false;
+      for(var aj=0; aj<data.days[ai].rows.length; aj++){
+        var ar = data.days[ai].rows[aj];
+        if(ar.isTardy) attTardy++;
+        if(ar.isPartial) attPartial++;
+        if(ar.isTrainer) attTrainer++;
+        if(ar.isAbsent){
+          dayAbs = true;
+          attAbsentHrs += ar.total;
+          if(ar.reason){
+            var parts = ar.reason.split(", ");
+            for(var ak=0; ak<parts.length; ak++){ if(parts[ak]) attReasonMap[parts[ak]] = (attReasonMap[parts[ak]]||0) + 1; }
+          } else {
+            attReasonMap["UNSPECIFIED"] = (attReasonMap["UNSPECIFIED"]||0) + 1;
+          }
+        }
+      }
+      if(dayAbs) attAbsentDays++;
+    }
+    var hasAttEvents = attTardy + attPartial + attAbsentDays + attTrainer + attTrainee > 0;
+    if(hasAttEvents){
+      doc.setFontSize(9); doc.setFont("helvetica","bold"); doc.setTextColor(0,0,0);
+      doc.text("ATTENDANCE SUMMARY:", mx, y+10);
+      y += 16;
+      var aw1 = bw*0.6, aw2 = bw*0.4, aRh = 14;
+      function drawAttRow(label, value){
+        doc.setDrawColor(0,0,0);
+        doc.rect(mx, y, aw1, aRh, "S"); doc.rect(mx+aw1, y, aw2, aRh, "S");
+        doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(0,0,0);
+        doc.text(label, mx+4, y+10);
+        doc.setFont("helvetica","normal");
+        doc.text(String(value), mx+aw1+4, y+10);
+        y += aRh;
+      }
+      if(attAbsentDays > 0){
+        drawAttRow("ABSENT DAYS:", String(attAbsentDays));
+        drawAttRow("ABSENT HOURS:", attAbsentHrs.toFixed(2));
+        var rsnKeys = Object.keys(attReasonMap);
+        for(var ri2=0; ri2<rsnKeys.length; ri2++){
+          var rc = attReasonMap[rsnKeys[ri2]];
+          drawAttRow("  " + rsnKeys[ri2] + ":", rc + " day" + (rc>1?"s":""));
+        }
+      }
+      if(attTardy > 0) drawAttRow("TARDY:", attTardy + " day" + (attTardy>1?"s":""));
+      if(attPartial > 0) drawAttRow("PARTIAL:", attPartial + " day" + (attPartial>1?"s":""));
+      if(attTrainer > 0) drawAttRow("TRAINER:", attTrainer + " day" + (attTrainer>1?"s":""));
+      if(attTrainee > 0) drawAttRow("TRAINEE:", attTrainee + " day" + (attTrainee>1?"s":""));
     }
 
     y += 14;
