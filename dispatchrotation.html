@@ -241,10 +241,73 @@
   .modal-textarea:focus{border-color:var(--accent)}
   .modal-actions{display:flex;gap:8px;justify-content:flex-end}
 
-  @media(max-width:700px){
-    .board-grid{grid-template-columns:70px repeat(3,1fr)}
-    .assignment-badge{font-size:11px;padding:4px 6px}
-    .channel-label-cell{font-size:9px;padding:6px 4px}
+  /* ── Mobile & Responsive ───────────────────────────────────── */
+  @media(max-width:768px){
+    body{padding:8px;font-size:12px}
+
+    /* Header */
+    .page-header{padding:8px 10px;gap:8px;flex-direction:column;align-items:stretch}
+    .page-title{font-size:13px;letter-spacing:.5px;text-align:center}
+    .page-header > div:last-child{justify-content:center}
+
+    /* Clock */
+    #liveClock{font-size:16px;padding:6px 12px;min-width:100px;letter-spacing:3px}
+
+    /* Power + Lock buttons */
+    .power-btn,.lock-btn{font-size:10px;padding:6px 10px;letter-spacing:.5px}
+
+    /* Shift tabs */
+    .shift-tab{font-size:11px;padding:8px 6px}
+
+    /* Toolbar */
+    .toolbar{padding:6px 10px;gap:6px}
+    .toolbar-label{font-size:10px}
+    .btn{font-size:10px;padding:5px 10px}
+
+    /* Board — horizontal scroll on small screens */
+    .board-wrapper{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .board-container{min-width:520px}
+    .board-grid{grid-template-columns:72px repeat(3,1fr)}
+
+    /* Grid headers */
+    .grid-header{padding:6px 4px;font-size:9px;letter-spacing:.5px}
+    .grid-header.shift-title{font-size:10px;padding:7px 8px}
+    .paste-col-btn{font-size:9px;padding:2px 5px;letter-spacing:0}
+
+    /* Channel labels */
+    .channel-label-cell{padding:8px 6px;font-size:9px;letter-spacing:1px}
+
+    /* Assignment cells */
+    .assignment-cell{padding:5px 4px;min-height:40px;gap:3px}
+
+    /* Name badges */
+    .ch-initial{min-width:26px;padding:5px 4px;font-size:9px}
+    .assignment-badge{font-size:10px;padding:5px 6px;letter-spacing:1px}
+    .ct-badge{font-size:10px;padding:4px 6px;letter-spacing:1px}
+    .pending-cell{font-size:9px;padding:4px 5px}
+
+    /* Modals */
+    .modal{padding:18px 16px;width:calc(100vw - 32px)}
+    .modal-title{font-size:13px}
+    .modal-desc{font-size:11px}
+    .modal-textarea{height:160px;font-size:11px}
+
+    /* Announcement box */
+    #announcementBox{font-size:12px;padding:10px 12px}
+
+    /* Status bar */
+    .status-bar{font-size:9px;padding:5px 10px}
+
+    /* Page gate */
+    #pageGate > div{padding:28px 20px;width:calc(100vw - 32px)}
+  }
+
+  @media(max-width:400px){
+    .board-grid{grid-template-columns:60px repeat(3,1fr)}
+    .channel-label-cell{padding:6px 4px;font-size:8px;letter-spacing:0}
+    .ch-initial{min-width:22px;padding:5px 3px;font-size:8px}
+    .assignment-badge{font-size:9px;padding:4px 4px;letter-spacing:.5px}
+    .grid-header{font-size:8px;padding:5px 3px}
   }
 </style>
 </head>
