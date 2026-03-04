@@ -440,15 +440,6 @@ textarea.copyBox,
 
 <div class="wrap">
   <div class="card">
-    <div id="dpDailyAssignmentsCard" style="margin-bottom:12px;">
-      <div class="sectionTitle" style="margin:0 2px 8px;">
-        <h2>Dispatcher channel assignments (visual)</h2>
-        <div class="pill">Pick the date → assigns per 4‑hour block</div>
-      </div>
-      <div id="dpDailyAssignmentsGrid" class="dpDailyGrid"></div>
-      <div class="muted" style="font-size:12px;margin-top:8px;">Visual-only channel assignments (saved per day + block). Not linked to break selections.</div>
-    </div>
-
     <div class="controls">
       <div>
         <label for="dateSel">Date</label>
@@ -2491,7 +2482,12 @@ function render(){
     const custom    = eb[pos].filter(r=>r._custom);
     const extraDayOff = nonCustom.filter(r=>r._dayOff);
     const extraOther  = nonCustom.filter(r=>!r._dayOff);
-    const customSorted = custom.slice().sort((a,b)=>up(a.Employee).localeCompare(up(b.Employee)));
+    const customSorted = custom.slice().sort((a,b)=>{
+      const ra = hoursRank(getHoursSetting(`${a.Employee}||${a.Seniority}`));
+      const rb = hoursRank(getHoursSetting(`${b.Employee}||${b.Seniority}`));
+      if(ra !== rb) return ra - rb;
+      return up(a.Employee).localeCompare(up(b.Employee));
+    });
     return sortPeople(nb[pos], selectedDay)
       .concat(sortExtras(extraDayOff))
       .concat(sortExtras(extraOther))
@@ -3038,7 +3034,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
           </div>
         </div>
         <div style="overflow:auto; position:relative;">
-          ${!started ? `<div style="position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;background:rgba(12,19,32,.75);border-radius:12px;pointer-events:none;"><span style="font-size:28px;font-weight:900;letter-spacing:2px;color:#facc15;text-shadow:0 2px 8px rgba(0,0,0,.6);">BREAKS PENDING</span></div>` : ''}
+          ${!started ? `<div style="position:absolute;top:0;right:0;bottom:0;left:15%;z-index:2;display:flex;align-items:center;justify-content:center;background:rgba(12,19,32,.82);border-radius:0 12px 12px 0;pointer-events:auto;"><span style="font-size:28px;font-weight:900;letter-spacing:2px;color:#facc15;text-shadow:0 2px 8px rgba(0,0,0,.6);">BREAKS PENDING</span></div>` : ''}
           <table>
             <thead>
               <tr>
@@ -3172,7 +3168,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         const t = sel.get(k) || "";
         if(!t) continue;
         const a = (aMap && aMap[k]) ? aMap[k] : "";
-        lines.push({ t, text: `${a}	${up(r.Employee)}	${slotLabelHHMM(t)}`.trim() });
+        lines.push({ t, text: `${slotLabelHHMM(t)}	${up(r.Employee)}	${a}`.trim() });
       }
       // Sort earliest to latest
       lines.sort((a,b) => a.t.localeCompare(b.t));
@@ -3187,19 +3183,17 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
           if(used < cap){
             const left = cap - used;
             const suffix = cap > 1 ? ` (${left} open)` : "";
-            // Put OPEN under NAME column
-            openLines.push(`	OPEN	${slotLabelHHMM(s)}${suffix}`.trimEnd());
+            openLines.push(`${slotLabelHHMM(s)}	OPEN${suffix}`.trimEnd());
           }
         }
       }
 
       if(lines.length || openLines.length){
         out.push(pos);
-        out.push("ASSIGN	NAME	BREAK");
+        out.push("BREAK	NAME	ASSIGN");
         if(lines.length) out.push(...lines.map(l=>l.text));
         if(openLines.length){
           out.push("");
-          out.push("	OPEN	".trim());
           out.push(...openLines);
         }
         out.push("");
@@ -3327,7 +3321,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
           
         </div>
       </div>
-      <textarea id="breakSummary" class="mono" style="width:100%; min-height:140px; background:#0c1320; border:1px solid var(--border); color:var(--text); padding:10px; border-radius:12px; resize:vertical;" readonly></textarea>
+      <textarea id="breakSummary" class="mono" style="width:100%; min-height:720px; background:#0c1320; border:1px solid var(--border); color:var(--text); padding:10px; border-radius:12px; resize:vertical; box-sizing:border-box; word-wrap:break-word; overflow-wrap:break-word;" readonly></textarea>
       <div id="treeSaverInline" style="margin-top:10px; padding:8px 12px; background:#0c1320; border:1px solid var(--border); border-radius:12px; color:#2e7d32; font-size:13px; text-align:center;"></div>
     </div>
   `;
