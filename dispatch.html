@@ -8,6 +8,9 @@
 <meta http-equiv="Referrer-Policy" content="no-referrer">
 <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()">
 <meta name="robots" content="noindex, nofollow">
+<meta name="format-detection" content="telephone=no">
+<!-- Prevent all password manager prompts -->
+<style>input { -webkit-text-security: none; }</style>
 <title>Dispatch Rotation Board</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -338,6 +341,9 @@
 </style>
 </head>
 <body>
+<!-- Hidden decoy inputs stop Chrome's password manager heuristic -->
+<input type="text" style="display:none" autocomplete="off" aria-hidden="true" tabindex="-1">
+<input type="text" style="display:none" autocomplete="off" aria-hidden="true" tabindex="-1">
 
 <!-- Password Modal -->
 <!-- Page Entry Gate -->
@@ -346,8 +352,8 @@
     <div style="font-size:28px;margin-bottom:12px">⚡</div>
     <div style="font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#e8e8e8;margin-bottom:6px">Dispatch Rotation Board</div>
     <div style="font-size:11px;color:#555;letter-spacing:1px;text-transform:uppercase;margin-bottom:28px">Restricted Access</div>
-    <input type="password" id="gateInput" maxlength="20" autocomplete="new-password"
-      style="width:100%;background:#111;border:1px solid #333;border-radius:3px;color:#e8e8e8;font-size:22px;letter-spacing:8px;text-align:center;padding:10px 12px;outline:none;font-family:inherit;margin-bottom:10px;display:block"
+    <input type="text" id="gateInput" maxlength="20" autocomplete="off" data-lpignore="true" data-form-type="other"
+      style="width:100%;background:#111;border:1px solid #333;border-radius:3px;color:#e8e8e8;font-size:22px;letter-spacing:8px;text-align:center;padding:10px 12px;outline:none;font-family:inherit;margin-bottom:10px;display:block;-webkit-text-security:disc;text-security:disc"
       placeholder="••••••••••" />
     <div id="gateError" style="display:none;color:#f05050;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-weight:700">⚠ Access Denied</div>
     <button id="gateBtn"
@@ -361,8 +367,8 @@
   <div class="modal" style="width:360px">
     <div class="modal-title">🔒 Supervisor Access</div>
     <div class="modal-desc">Enter the supervisor password to continue.</div>
-    <input type="password" id="pwInput" class="modal-textarea" maxlength="20" autocomplete="new-password"
-      style="height:46px;font-size:22px;letter-spacing:6px;text-align:center;padding:8px 12px" placeholder="••••"/>
+    <input type="text" id="pwInput" class="modal-textarea" maxlength="20" autocomplete="off" data-lpignore="true" data-form-type="other"
+      style="height:46px;font-size:22px;letter-spacing:6px;text-align:center;padding:8px 12px;-webkit-text-security:disc;text-security:disc" placeholder="••••"/>
     <div id="pwError" style="display:none;color:#f05050;font-size:12px;letter-spacing:2px;text-align:center;margin-bottom:10px;font-weight:700">⚠ INCORRECT PASSWORD</div>
     <div class="modal-actions">
       <button class="btn btn-secondary" id="pwCancelBtn">Cancel</button>
@@ -398,8 +404,8 @@
     <div class="page-title" style="text-align:center;width:100%"><span style="color:#fff">⚡</span> Dispatch Rotation Board</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-left:auto">
-    <button class="btn btn-danger" id="clearAllBtn" style="display:none">Reset Block</button>
-    <button class="btn" id="saveBtn" style="display:none">Save</button>
+    <button class="btn btn-danger" id="clearAllBtn" style="display:none" autocomplete="off">Reset Block</button>
+    <button class="btn" id="saveBtn" style="display:none" autocomplete="off">Save</button>
     <div id="liveClock" style="font-family:'Share Tech Mono',monospace;font-size:28px;color:#4a9eff;letter-spacing:4px;background:#0a0f1a;border:1px solid #2a3a5a;border-radius:4px;padding:10px 22px;box-shadow:inset 0 0 12px rgba(74,158,255,0.08);min-width:163px;text-align:center">00:00:00</div>
     <button class="lock-btn" id="lockBtn" title="Unlock to edit">🔒 LOCKED</button>
     <button class="power-btn" id="powerBtn" title="Toggle board power">⏻ OFFLINE</button>
@@ -1358,6 +1364,7 @@ document.getElementById('powerBtn').addEventListener('click', () => {
 
 document.getElementById('lockBtn').addEventListener('click', () => {
   if (_unlocked) {
+    saveData();        // auto-save before locking
     setLocked(true);
   } else {
     document.getElementById('pwInput').value = '';
