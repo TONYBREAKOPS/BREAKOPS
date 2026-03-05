@@ -9611,19 +9611,31 @@ async function pushToBreakOPS(){
   const blocks = shift === "NIGHT" ? BLOCKS_NIGHT : BLOCKS_DAY;
   const mode = shift === "NIGHT" ? "nights" : "days";
 
-  // Collect all people across all blocks
-  const presentPeople = new Map(); // emp -> {sen, role, isOT, blocks:[]}
+  // Collect all people across all blocks, tracking regular vs OT per block
+  const presentPeople = new Map(); // emp -> {sen, role, regBlocks:[], otBlocks:[], otRole}
   const absentPeople = new Map();  // emp -> {sen}
 
   for(const block of blocks){
     const rows = computeRowsForBlock(iso, shift, block);
-    for(const role of ["CALLTAKER","DISPATCHER","PIC","SUPERVISOR"]){
+    for(const role of ["CALLTAKER","DISPATCHER","PIC"]){
       for(const r of (rows[role]||[])){
+        if(String(r.present||"").toUpperCase() === "TRAINEE") continue;
         if(!presentPeople.has(r.emp)){
-          presentPeople.set(r.emp, {sen: r.sen, role: r.role, isOT: r.isOT, blocks: [block.id]});
+          presentPeople.set(r.emp, {
+            sen: r.sen, role: role,
+            regBlocks: r.isOT ? [] : [block.id],
+            otBlocks: r.isOT ? [block.id] : [],
+            otRole: r.isOT ? role : null
+          });
         } else {
           const p = presentPeople.get(r.emp);
-          if(!p.blocks.includes(block.id)) p.blocks.push(block.id);
+          if(r.isOT){
+            if(!p.otBlocks.includes(block.id)) p.otBlocks.push(block.id);
+            p.otRole = role;
+          } else {
+            if(!p.regBlocks.includes(block.id)) p.regBlocks.push(block.id);
+            p.role = role; // update to assigned role (where they sit in ShiftOps)
+          }
         }
       }
     }
@@ -9636,7 +9648,7 @@ async function pushToBreakOPS(){
 
   // Build posOverrides map
   // Map ShiftOps roles to BreakOPS positions
-  const roleMap = {CALLTAKER:"CALLTAKER", DISPATCHER:"DISPATCHER", PIC:"PIC", SUPERVISOR:"PIC"};
+  const roleMap = {CALLTAKER:"CALLTAKER", DISPATCHER:"DISPATCHER", PIC:"PIC"};
 
   // Lookup for employee data from ShiftOps
   const empLookup = new Map();
@@ -9644,14 +9656,14 @@ async function pushToBreakOPS(){
 
   try {
     // Read existing posOverrides to merge (preserve overrides for other shifts)
-    // Uses breakDb (legitimous-2f2d2) — BreakOPS's Firestore, NOT shiftops
-    const rosterRef = breakDb.collection("rosterConfig").doc("global");
+    // Uses db (commandops-93846) — admin2's Firestore
+    const rosterRef = db.collection("rosterConfig").doc("global");
     const rosterSnap = await rosterRef.get();
     const existing = rosterSnap.exists ? ((rosterSnap.data()||{}).posOverrides || {}) : {};
 
-    // Update present people's positions
+    // Update present people's positions (only those with regular blocks)
     for(const [emp, info] of presentPeople){
-      if(info.isOT) continue; // OT people go as extras, not posOverrides
+      if(!info.regBlocks.length) continue; // Pure OT — handled as extras only
       const empData = empLookup.get(emp);
       if(!empData) continue;
       const key = emp + "||" + empData.SENIORITY;
@@ -9669,37 +9681,36 @@ async function pushToBreakOPS(){
     // Write merged posOverrides to Firestore
     await rosterRef.set({ posOverrides: existing }, { merge: true });
 
-    // Write OT people as extras to each breakScope
-    const otPeople = [...presentPeople.entries()].filter(([,info]) => info.isOT);
+    // Write OT people as extras to each breakScope (only for their OT blocks)
+    const otPeople = [...presentPeople.entries()].filter(([,info]) => info.otBlocks.length > 0);
+    console.log("OT people for extras:", otPeople.map(([emp,info])=>({emp, otRole:info.otRole, otBlocks:info.otBlocks, regBlocks:info.regBlocks})));
 
     for(const block of blocks){
       const scopeKey = mode + "|" + iso + "|" + block.id;
       const extras = [];
 
       for(const [emp, info] of otPeople){
-        if(!info.blocks.includes(block.id)) continue;
+        if(!info.otBlocks.includes(block.id)) continue; // Only add to blocks where they're actually OT
         const empData = empLookup.get(emp);
         extras.push({
           Employee: emp,
           Seniority: empData ? empData.SENIORITY : 0,
           DaysOff: "OT",
-          Position: roleMap[info.role] || info.role || "CALLTAKER"
+          Position: roleMap[info.otRole] || info.otRole || "CALLTAKER"
         });
       }
 
       // Write extras to breakScope (merge to preserve break selections)
-      // Uses breakDb (legitimous-2f2d2) — BreakOPS's Firestore
-      const scopeRef = breakDb.collection("breakScopes").doc(scopeKey);
+      // Uses db (commandops-93846) — admin2's Firestore
+      console.log("Writing extras to", scopeKey, ":", JSON.stringify(extras));
+      const scopeRef = db.collection("breakScopes").doc(scopeKey);
       await scopeRef.set({ extras: extras }, { merge: true });
     }
 
-    const totalPresent = [...presentPeople.values()].filter(p => !p.isOT).length;
+    const totalPresent = [...presentPeople.values()].filter(p => p.regBlocks.length > 0).length;
     const totalOT = otPeople.length;
     const totalAbsent = absentPeople.size;
-    alert("BreakOPS updated!\n\n" + totalPresent + " present, " + totalOT + " OT, " + totalAbsent + " absent.\n\nOpening BreakOPS...");
-
-    // Open admin.html in new tab
-    window.open("admin.html", "_blank");
+    alert("BreakOPS updated!\n\n" + totalPresent + " present, " + totalOT + " OT, " + totalAbsent + " absent.");
 
   } catch(e){
     console.error("BreakOPS push failed:", e);

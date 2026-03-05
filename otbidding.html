@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OT Bidding</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23070c16'/%3E%3Ccircle cx='32' cy='32' r='30' fill='none' stroke='%23c0c8d4' stroke-width='2'/%3E%3Ctext x='32' y='40' text-anchor='middle' font-size='28' fill='%23e8ecf0' font-weight='bold'%3EOT%3C/text%3E%3C/svg%3E">
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<style>
+:root{--bg:#0b0f16;--panel:#111826;--panel2:#0f1622;--line:#2a3446;--text:#e6edf7;--muted:#a8b3c7;--btn:#1f6feb;--btn2:#233047;--danger:#d94848;--ok:#22c55e;--warn:#eab308;--short:#dc2626;--prefer:#166534;--prefer-bg:rgba(34,197,94,.28);--prefer-border:rgba(34,197,94,.65);--can:#854d0e;--can-bg:rgba(234,179,8,.25);--can-border:rgba(234,179,8,.6);--cant:#991b1b;--cant-bg:rgba(220,38,38,.25);--cant-border:rgba(220,38,38,.6)}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow-y:auto}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text)}
+
+/* Login */
+.login-overlay{position:fixed;inset:0;background:var(--bg);z-index:100000;display:flex;align-items:center;justify-content:center}
+.login-overlay.hidden{display:none}
+.login-box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:32px;width:340px;text-align:center}
+.login-box h2{font-size:22px;margin-bottom:4px}
+.login-box .sub{color:var(--muted);font-size:12px;margin-bottom:18px}
+.login-box select,.login-box input{width:100%;padding:10px 12px;font-size:13px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--text);margin-bottom:8px;outline:none}
+.login-box select:focus,.login-box input:focus{border-color:var(--btn)}
+.login-box button{width:100%;padding:10px;font-size:13px;font-weight:800;border-radius:8px;border:none;background:var(--btn);color:#fff;cursor:pointer;margin-top:4px}
+.login-box button:hover{opacity:.9}
+.login-box .err{color:var(--short);font-size:11px;margin-top:8px;min-height:16px}
+
+/* Header */
+.header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:8px}
+.header-left{display:flex;align-items:center;gap:12px}
+.header-left h1{font-size:20px;font-weight:800}
+.header-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.emp-name{font-size:13px;font-weight:700;color:#4aa3ff}
+.emp-pos{font-size:11px;color:var(--muted)}
+.deadline-box{padding:5px 12px;border-radius:8px;font-size:12px;font-weight:700;border:1px solid var(--line);background:var(--panel2)}
+.deadline-box.urgent{border-color:rgba(220,38,38,.5);color:#ef4444;background:rgba(220,38,38,.08)}
+.deadline-box.closed{border-color:rgba(220,38,38,.5);color:#ef4444;background:rgba(220,38,38,.15)}
+.btn{padding:6px 14px;font-size:11px;font-weight:700;border-radius:6px;border:1px solid var(--line);background:var(--btn2);color:var(--muted);cursor:pointer;transition:all .15s}
+.btn:hover{border-color:var(--btn);color:var(--btn)}
+.btn.primary{background:var(--btn);color:#fff;border-color:var(--btn)}
+.btn.primary:hover{opacity:.9}
+.btn.primary:disabled{opacity:.4;cursor:not-allowed}
+
+/* How it works modal */
+.hiw-btn{padding:6px 14px;font-size:11px;font-weight:700;border-radius:6px;border:1px solid rgba(74,163,255,.3);background:rgba(74,163,255,.08);color:#4aa3ff;cursor:pointer}
+.hiw-btn:hover{background:rgba(74,163,255,.15)}
+.hiw-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center}
+.hiw-overlay.hidden{display:none}
+.hiw-box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px 32px;max-width:520px;width:90%;max-height:80vh;overflow-y:auto}
+.hiw-box h2{font-size:18px;margin-bottom:16px}
+.hiw-box ol{padding-left:20px;margin:0}
+.hiw-box li{font-size:13px;line-height:1.7;color:var(--text);margin-bottom:8px}
+.hiw-box li strong{color:#4aa3ff}
+.hiw-box .hiw-close{margin-top:18px;width:100%;padding:10px;font-size:13px;font-weight:700;border-radius:8px;border:1px solid var(--line);background:var(--btn2);color:var(--text);cursor:pointer}
+.hiw-box .hiw-close:hover{border-color:var(--btn);color:var(--btn)}
+
+/* Desired hours */
+.desired-hrs{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.desired-hrs label{font-size:13px;font-weight:700;color:var(--text)}
+.desired-hrs input{width:64px;padding:7px 8px;font-size:14px;font-weight:700;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text);text-align:center;outline:none}
+.desired-hrs input:focus{border-color:var(--btn)}
+.desired-hrs span{font-size:12px;color:var(--muted)}
+
+/* Content */
+.content{max-width:1200px;margin:0 auto;padding:16px}
+
+/* Schedule display */
+.schedule-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:16px}
+.schedule-bar .sched-day:nth-child(n+5){grid-row:2}
+.sched-day{background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.18);border-radius:6px;padding:8px 10px;text-align:center}
+.sched-day-label{font-size:10px;font-weight:800;color:#94a3b8;letter-spacing:.5px}
+.sched-day-shift{font-size:14px;font-weight:800;margin-top:2px;color:#cbd5e1}
+.sched-day-shift.off{color:#64748b;font-weight:600}
+
+/* Grid layout with sidebar */
+.grid-layout{display:flex;gap:12px;align-items:flex-start}
+.grid-sidebar{display:flex;flex-direction:column;gap:8px;min-width:140px;max-width:150px;flex-shrink:0}
+
+/* Round tracker */
+.round-tracker{display:flex;flex-direction:column;gap:8px}
+.round-card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.round-card-title{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.5px;margin-bottom:2px}
+.round-card-value{font-size:18px;font-weight:900}
+.round-card-value.ok{color:var(--ok)}
+.round-card-value.partial{color:var(--warn)}
+.round-card-sub{font-size:9px;color:var(--muted);margin-top:1px}
+.cap-info{font-size:10px;color:var(--muted);padding:6px 10px;background:var(--panel);border:1px solid var(--line);border-radius:6px;display:flex;align-items:center;gap:6px;line-height:1.4}
+
+/* Week nav */
+.week-nav{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:12px}
+.week-nav-btn{padding:6px 12px;font-size:14px;min-width:36px;text-align:center}
+.week-nav-label{font-size:13px;font-weight:700;color:var(--text);min-width:200px;text-align:center}
+
+/* Bidding grid */
+.bid-grid-wrap{overflow-x:auto;margin-bottom:16px}
+.bid-grid{border-collapse:separate;border-spacing:2px;width:100%}
+.bid-grid th{background:var(--panel);border:1px solid var(--line);padding:6px 8px;font-size:11px;font-weight:800;color:var(--muted);text-align:center;position:sticky;top:0;z-index:2;white-space:nowrap}
+.bid-grid td{text-align:center;padding:0}
+.bid-grid .date-cell{background:var(--panel);border:1px solid var(--line);padding:8px 6px;font-size:12px;font-weight:700;white-space:nowrap;min-width:90px}
+.bid-grid .date-cell .dow{font-size:10px;color:var(--muted);display:block}
+.bid-cell{min-width:70px;height:44px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;transition:all .12s;font-size:10px;font-weight:800;letter-spacing:.3px;user-select:none;position:relative}
+.bid-cell:hover:not(.scheduled):not(.disabled){border-color:var(--btn);box-shadow:0 0 0 1px var(--btn)}
+.bid-cell.prefer{background:var(--prefer-bg);border-color:var(--prefer-border);color:#4ade80}
+.bid-cell.can{background:var(--can-bg);border-color:var(--can-border);color:#facc15}
+.bid-cell.cant{background:var(--cant-bg);border-color:var(--cant-border);color:#f87171}
+.bid-cell.scheduled{background:rgba(100,116,139,.18);border-color:rgba(100,116,139,.4);color:#94a3b8;cursor:not-allowed;font-size:9px}
+.bid-cell.disabled{opacity:.5;cursor:not-allowed}
+.shift-row td{background:rgba(74,163,255,.1);border:1px solid rgba(74,163,255,.25);color:#4aa3ff;font-size:11px;font-weight:800;padding:4px 8px;text-align:center;letter-spacing:.3px}
+.bid-cell.drag-selected{box-shadow:0 0 0 2px #60a5fa;z-index:1}
+
+/* Bid popup */
+.bid-popup{position:fixed;z-index:10000;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px;display:flex;gap:4px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.bid-popup.hidden{display:none}
+.bid-popup button{padding:8px 14px;font-size:11px;font-weight:800;border-radius:6px;border:1px solid;cursor:pointer;white-space:nowrap}
+.bid-popup .bp-prefer{background:var(--prefer-bg);border-color:var(--prefer-border);color:#4ade80}
+.bid-popup .bp-can{background:var(--can-bg);border-color:var(--can-border);color:#facc15}
+.bid-popup .bp-cant{background:var(--cant-bg);border-color:var(--cant-border);color:#f87171}
+.bid-popup .bp-clear{background:var(--panel2);border-color:var(--line);color:var(--muted)}
+
+/* Legend */
+.legend{display:flex;gap:16px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600}
+.legend-swatch{width:16px;height:16px;border-radius:3px;border:1px solid}
+
+/* Status messages */
+.status-banner{padding:12px 16px;border-radius:8px;font-size:13px;font-weight:700;text-align:center;margin-bottom:16px}
+.status-banner.closed{background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.3);color:#ef4444}
+.status-banner.submitted{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#22c55e}
+.status-banner.assigned{background:rgba(74,163,255,.1);border:1px solid rgba(74,163,255,.3);color:#4aa3ff}
+
+/* Approved results */
+.approved-section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:16px}
+.approved-title{font-size:13px;font-weight:800;margin-bottom:10px;color:#4aa3ff}
+.approved-slot{display:inline-block;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:700;margin:3px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:#22c55e}
+
+/* Footer */
+.footer-bar{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;z-index:50}
+.footer-bar .status{font-size:11px;color:var(--muted)}
+.submit-btn{padding:10px 32px;font-size:13px;font-weight:800;border-radius:8px;border:none;background:var(--btn);color:#fff;cursor:pointer}
+.submit-btn:hover{opacity:.9}
+.submit-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* Toast */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);padding:10px 24px;border-radius:8px;font-size:13px;font-weight:700;z-index:9999;transition:opacity .3s;pointer-events:none}
+.toast.success{background:#166534;color:#22c55e;border:1px solid #22c55e}
+.toast.error{background:#7f1d1d;color:#ef4444;border:1px solid #ef4444}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h2>OT Bidding</h2>
+    <div class="sub">Select your name and enter password</div>
+    <select id="loginName"><option value="">Loading employees...</option></select>
+    <input type="password" id="loginPass" placeholder="Password">
+    <button id="btnLogin">SIGN IN</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="appWrap" style="display:none">
+  <div class="header">
+    <div class="header-left">
+      <h1>OT Bidding</h1>
+      <span class="emp-name" id="empNameDisplay"></span>
+      <span class="emp-pos" id="empPosDisplay"></span>
+    </div>
+    <div class="week-nav" id="weekNav" style="margin-bottom:0">
+      <button class="btn week-nav-btn" id="btnPrevWeek" onclick="prevWeek()">&#9664;</button>
+      <span class="week-nav-label" id="weekLabel">Week 1 of 1</span>
+      <button class="btn week-nav-btn" id="btnNextWeek" onclick="nextWeek()">&#9654;</button>
+    </div>
+    <div class="header-right">
+      <button class="hiw-btn" onclick="document.getElementById('hiwOverlay').classList.remove('hidden')">? HOW IT WORKS</button>
+      <div class="deadline-box" id="deadlineBox">No deadline set</div>
+      <button class="btn" id="btnLogout">SIGN OUT</button>
+    </div>
+  </div>
+
+  <div class="content" id="mainContent">
+    <div id="statusArea"></div>
+    <div id="approvedArea"></div>
+
+    <h3 style="font-size:13px;font-weight:800;color:var(--muted);letter-spacing:.5px;margin-bottom:8px;display:none">YOUR WEEKLY SCHEDULE</h3>
+    <div class="schedule-bar" id="scheduleBar" style="display:none"></div>
+
+    <div style="display:flex;align-items:center;justify-content:center;margin-bottom:10px;position:relative">
+      <h2 style="font-size:16px;font-weight:800;color:#fff;position:absolute;left:50%;transform:translateX(-50%)">OVERTIME AVAILABILITY</h2>
+      <span style="display:flex;gap:12px;align-items:center;margin-left:auto">
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--prefer-bg);border-color:var(--prefer-border)"></span>PREFER</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--can-bg);border-color:var(--can-border)"></span>CAN</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--cant-bg);border-color:var(--cant-border)"></span>CAN'T</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:rgba(100,116,139,.18);border-color:rgba(100,116,139,.4)"></span>SCHED</span>
+      </span>
+    </div>
+    <div class="grid-layout">
+      <div class="grid-sidebar">
+        <div class="round-tracker" id="roundTracker"></div>
+      </div>
+      <div class="bid-grid-wrap" style="flex:1;min-width:0">
+        <table class="bid-grid" id="bidGrid"></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bar" id="footerBar">
+    <div class="cap-info" id="capInfo" style="margin-bottom:0;margin-right:12px"></div>
+    <div class="desired-hrs" id="desiredHrs" style="margin-bottom:0">
+      <label>DESIRED HOURS:</label>
+      <label>Round 1</label>
+      <input type="number" id="desiredR1" value="4" disabled style="opacity:.6">
+      <span>hrs/wk (fixed)</span>
+      <label style="margin-left:8px">Round 2</label>
+      <input type="number" id="desiredR2" min="0" max="168" placeholder="0" onchange="onDesiredHrsChange()">
+      <span>hrs (extra OT)</span>
+    </div>
+    <div class="status" id="footerStatus">No changes</div>
+    <button class="submit-btn" id="btnSubmit" disabled>SUBMIT BIDS</button>
+  </div>
+</div>
+
+<!-- BID POPUP -->
+<div class="bid-popup hidden" id="bidPopup">
+  <button class="bp-prefer" onclick="applyDragSelection('prefer')">PREFER</button>
+  <button class="bp-can" onclick="applyDragSelection('can')">CAN</button>
+  <button class="bp-cant" onclick="applyDragSelection('cant')">CAN'T</button>
+  <button class="bp-clear" onclick="applyDragSelection('')">CLEAR</button>
+</div>
+
+<!-- HOW IT WORKS MODAL -->
+<div class="hiw-overlay hidden" id="hiwOverlay" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="hiw-box">
+    <h2>How OT Bidding Works</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">This chart helps us understand <strong style="color:var(--text)">when works best for you</strong>. The more availability you share, the better we can match your overtime to slots that fit your schedule — so you get hours that work for your life, not just whatever's left.</p>
+    <ol>
+      <li><strong>Go through each week</strong> using the arrows in the header (or ← → keys). Your scheduled shift is in the center of the grid — open slots are above and below it.</li>
+      <li><strong>Click a cell</strong> to mark it. It cycles: PREFER → CAN → CAN'T → empty. You can also <strong>click and drag</strong> across multiple cells to select them all at once.</li>
+      <li><strong>PREFER</strong> — you want to work this slot. <strong>CAN</strong> — you're available if needed. <strong>CAN'T</strong> — you're not available. <strong>Empty</strong> — no preference.</li>
+      <li><strong>Mark as many slots as you can.</strong> The more availability you give, the better chance we can cover every slot and give you the hours you want. The system only assigns OT where there's an actual staffing need — so you won't get assigned to a block that's already full.</li>
+      <li><strong>Round 1 (4 hrs/wk)</strong> — everyone gets up to 4 hours of OT per week. The system fills the hardest-to-cover slots first. If you're the only one available for a scarce slot, you'll get it. If many people are available, the system picks the person whose options are most limited — saving flexible people for other gaps.</li>
+      <li><strong>Round 2 (your choice)</strong> — want more OT? Enter how many extra hours per week you'd like in the <strong>Desired Hours</strong> section at the bottom. The system will assign additional shifts up to your desired amount, again prioritizing hard-to-fill slots and balancing hours evenly.</li>
+      <li><strong>Why mark more?</strong> The system is smart — it won't overload you. But if you only mark one or two slots, you might miss out if those slots have lots of competition. Marking more gives the system flexibility to find you hours.</li>
+      <li><strong>Grey cells</strong> are your regular shift — you can't get OT for blocks you're already working.</li>
+      <li><strong>Cross-position coverage:</strong> OT is assigned by priority — Dispatch first, then PIC, then Calltaking. If you get assigned dispatch or PIC OT, you won't be double-booked for calltaker OT on the same block. The system tracks assignments across all positions.</li>
+      <li>When you're done with all weeks, hit <strong>SUBMIT BIDS</strong>. You can come back and resubmit anytime before the deadline.</li>
+    </ol>
+    <button class="hiw-close" onclick="document.getElementById('hiwOverlay').classList.add('hidden')">GOT IT</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" style="opacity:0"></div>
+
+<script>
+// ========== FIREBASE ==========
+const firebaseConfig = {
+  apiKey: "AIzaSyA6KELmSyotefK0zhahQZ0-mbYur8_nTsg",
+  authDomain: "commandops-93846.firebaseapp.com",
+  databaseURL: "https://commandops-93846-default-rtdb.firebaseio.com",
+  projectId: "commandops-93846",
+  storageBucket: "commandops-93846.firebasestorage.app",
+  messagingSenderId: "262613721964",
+  appId: "1:262613721964:web:478a694d357234e3be4949"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ========== CONSTANTS ==========
+const DAYS = ['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY'];
+const DAY_SHORT = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
+const DOW_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+const SHIFT_CODES = {
+  "6A-2P":[6,14],"6A-6P":[6,18],"10A-6P":[10,18],"10A-10P":[10,22],
+  "2P-10P":[14,22],"6P-2A":[18,26],"6P-6A":[18,30],"10P-6A":[22,30],
+  "2A-2P":[2,14],"2A-10A":[2,10]
+};
+
+const OT_BLOCKS_4HR = [
+  { label:'6A-10A', start:6, end:10 },
+  { label:'10A-2P', start:10, end:14 },
+  { label:'2P-6P', start:14, end:18 },
+  { label:'6P-10P', start:18, end:22 },
+  { label:'10P-2A', start:22, end:26 },
+  { label:'2A-6A', start:26, end:30 }
+];
+
+// Generate 1-hour blocks
+const OT_BLOCKS_1HR = [];
+for (let h = 6; h < 30; h++) {
+  const sh = h % 24;
+  const eh = (h + 1) % 24;
+  const fmt = v => { if (v === 0) return '12A'; if (v === 12) return '12P'; return v < 12 ? v + 'A' : (v - 12) + 'P'; };
+  OT_BLOCKS_1HR.push({ label: fmt(sh) + '-' + fmt(eh), start: h, end: h + 1 });
+}
+
+// ========== STATE ==========
+let _loggedInName = '';
+let _loggedInEmp = null;
+let _allEmployees = [];
+let _bidDoc = null;       // current ot_bids document data
+let _bidDocRef = null;     // Firestore ref
+let _bidUnsub = null;
+let _localSlots = {};      // local bid state: { "YYYY-MM-DD_6A-10A": "prefer"|"can"|"cant" }
+let _dirty = false;
+let _desiredR2 = null;
+let _otBlocks = OT_BLOCKS_4HR;  // default
+let _periodId = '';
+let _weekOffset = 0;
+
+function getWeekCount(settings) {
+  if (!settings.periodStart || !settings.periodEnd) return 1;
+  const startD = parseDateStr(settings.periodStart);
+  const endD = parseDateStr(settings.periodEnd);
+  const totalDays = Math.round((endD - startD) / 86400000) + 1;
+  return Math.max(1, Math.ceil(totalDays / 7));
+}
+
+function getWeekDates(settings) {
+  if (!settings.periodStart || !settings.periodEnd) return [];
+  const startD = parseDateStr(settings.periodStart);
+  const endD = parseDateStr(settings.periodEnd);
+  const weekStart = new Date(startD);
+  weekStart.setDate(weekStart.getDate() + _weekOffset * 7);
+  const dates = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + i);
+    if (d > endD) break;
+    if (d >= startD) dates.push(d);
+  }
+  return dates;
+}
+
+function prevWeek() {
+  if (_weekOffset > 0) { _weekOffset--; renderAll(); }
+}
+function nextWeek() {
+  const settings = _bidDoc?.settings || {};
+  if (_weekOffset < getWeekCount(settings) - 1) { _weekOffset++; renderAll(); }
+}
+
+// ========== HELPERS ==========
+function normalizeShift(s) {
+  if (!s) return '';
+  s = String(s).trim().toUpperCase().replace(/\s+/g, '');
+  if (s === 'OFF' || s === 'RDO' || s === 'DAY OFF') return 'OFF';
+  // Try to match known codes
+  for (const code of Object.keys(SHIFT_CODES)) {
+    if (s === code || s.replace(/-/g, '') === code.replace(/-/g, '')) return code;
+  }
+  return s;
+}
+
+function shiftCoversBlock(shift, block) {
+  shift = normalizeShift(shift);
+  const range = SHIFT_CODES[shift];
+  if (!range) return false;
+  return range[0] <= block.start && range[1] >= block.end;
+}
+
+function getDayName(dateObj) {
+  return DAYS[dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1];
+}
+
+function formatSlotKey(dateStr, blockLabel) {
+  return dateStr + '_' + blockLabel;
+}
+
+function parseDateStr(s) {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function toDateStr(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast ' + (type || 'success');
+  el.style.opacity = '1';
+  setTimeout(() => { el.style.opacity = '0'; }, 3000);
+}
+
+function getWeekNumber(dateObj, periodStart) {
+  const start = parseDateStr(periodStart);
+  const diff = Math.floor((dateObj - start) / (1000 * 60 * 60 * 24));
+  return Math.floor(diff / 7);
+}
+
+// ========== LOAD EMPLOYEES ==========
+async function loadEmployees() {
+  const snap = await db.collection('employees').get();
+  _allEmployees = [];
+  snap.docs.forEach(doc => {
+    const d = doc.data();
+    const name = String(d.Employee || doc.id || '').trim().toUpperCase();
+    if (!name) return;
+    const pos = String(d.POSITION ?? d.Position ?? '').toUpperCase();
+    _allEmployees.push({
+      name,
+      position: pos,
+      seniority: Number(d.SENIORITY ?? d.Seniority ?? 999),
+      schedule: {
+        MONDAY: normalizeShift(d.MONDAY ?? ''),
+        TUESDAY: normalizeShift(d.TUESDAY ?? ''),
+        WEDNESDAY: normalizeShift(d.WEDNESDAY ?? ''),
+        THURSDAY: normalizeShift(d.THURSDAY ?? ''),
+        FRIDAY: normalizeShift(d.FRIDAY ?? ''),
+        SATURDAY: normalizeShift(d.SATURDAY ?? ''),
+        SUNDAY: normalizeShift(d.SUNDAY ?? '')
+      }
+    });
+  });
+  _allEmployees.sort((a, b) => a.name.localeCompare(b.name));
+
+  // Populate login dropdown
+  const sel = document.getElementById('loginName');
+  sel.innerHTML = '<option value="">Select your name...</option>';
+  for (const emp of _allEmployees) {
+    const opt = document.createElement('option');
+    opt.value = emp.name;
+    opt.textContent = emp.name;
+    sel.appendChild(opt);
+  }
+}
+
+// ========== LOGIN ==========
+document.getElementById('btnLogin').addEventListener('click', doLogin);
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+function doLogin() {
+  const name = document.getElementById('loginName').value;
+  const pass = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginErr');
+  if (!name) { errEl.textContent = 'Select your name'; return; }
+  const expected = name.substring(0, 4).toLowerCase();
+  if (pass.toLowerCase() !== expected) { errEl.textContent = 'Incorrect password'; return; }
+
+  _loggedInName = name;
+  _loggedInEmp = _allEmployees.find(e => e.name === name);
+  errEl.textContent = '';
+  document.getElementById('loginOverlay').classList.add('hidden');
+  document.getElementById('appWrap').style.display = '';
+  document.getElementById('empNameDisplay').textContent = name;
+  document.getElementById('empPosDisplay').textContent = _loggedInEmp?.position || '';
+  initApp();
+}
+
+document.getElementById('btnLogout').addEventListener('click', () => {
+  if (_bidUnsub) { _bidUnsub(); _bidUnsub = null; }
+  _loggedInName = '';
+  _loggedInEmp = null;
+  _bidDoc = null;
+  _localSlots = {};
+  _dirty = false;
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  document.getElementById('appWrap').style.display = 'none';
+  document.getElementById('loginPass').value = '';
+});
+
+// ========== FIND CURRENT PERIOD ==========
+function findCurrentPeriodId() {
+  // Default: current month YYYY-MM
+  const now = new Date();
+  return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+}
+
+// ========== INIT APP ==========
+async function initApp() {
+  renderScheduleBar();
+  await listenBids();
+}
+
+// ========== LISTEN TO BIDS DOCUMENT ==========
+async function listenBids() {
+  // Get ALL ot_bids docs and find the one with status "open"
+  let foundRef = null;
+  try {
+    const allSnap = await db.collection('ot_bids').get();
+    const now = new Date();
+    const todayStr = toDateStr(now);
+    let bestRef = null;
+    let bestEnd = null;
+    allSnap.docs.forEach(doc => {
+      const data = doc.data();
+      const status = data?.settings?.status;
+      const periodEnd = data?.settings?.periodEnd;
+      if (status === 'open' && periodEnd && periodEnd >= todayStr) {
+        if (!bestEnd || periodEnd > bestEnd) {
+          bestRef = doc.ref;
+          bestEnd = periodEnd;
+          _periodId = doc.id;
+        }
+      }
+    });
+    foundRef = bestRef;
+  } catch (e) { console.error('Failed to query ot_bids:', e); }
+
+  if (!foundRef) {
+    document.getElementById('mainContent').innerHTML = '<div class="status-banner closed">No OT bidding period is currently active. Check back later.</div>';
+    document.getElementById('footerBar').style.display = 'none';
+    return;
+  }
+
+  _bidDocRef = foundRef;
+  _weekOffset = 0;
+
+  if (_bidUnsub) _bidUnsub();
+  _bidUnsub = _bidDocRef.onSnapshot(snap => {
+    if (!snap.exists) {
+      _bidDoc = null;
+      renderAll();
+      return;
+    }
+    _bidDoc = snap.data();
+
+    // Update block size
+    const bs = _bidDoc.settings?.blockSize;
+    _otBlocks = (bs === 1) ? OT_BLOCKS_1HR : OT_BLOCKS_4HR;
+
+    // Load existing bids if we haven't modified locally
+    if (!_dirty) {
+      // Check nested format (bids.NAME) and legacy flat format (bids.NAME as literal key)
+      let myBid = _bidDoc.bids?.[_loggedInName];
+      if (!myBid) myBid = _bidDoc['bids.' + _loggedInName];
+      _localSlots = myBid?.slots ? { ...myBid.slots } : {};
+      loadDesiredHrs();
+    }
+
+    renderAll();
+  });
+}
+
+// ========== RENDER ALL ==========
+function renderAll() {
+  if (!_bidDoc) {
+    document.getElementById('mainContent').innerHTML = '<div class="status-banner closed">No OT bidding period is currently active.</div>';
+    document.getElementById('footerBar').style.display = 'none';
+    return;
+  }
+  document.getElementById('footerBar').style.display = '';
+
+  const settings = _bidDoc.settings || {};
+  const status = settings.status || 'open';
+  const isClosed = status !== 'open';
+  const isAssigned = status === 'assigned';
+
+  renderDeadline(settings);
+  renderStatus(status);
+  renderApproved();
+  renderRoundTracker(settings);
+  renderCapInfo(settings);
+  renderBidGrid(settings, isClosed);
+  document.getElementById('desiredR2').disabled = isClosed;
+  updateFooter(isClosed);
+}
+
+// ========== DEADLINE ==========
+function renderDeadline(settings) {
+  const el = document.getElementById('deadlineBox');
+  if (!settings.deadline) {
+    el.textContent = 'No deadline set';
+    el.className = 'deadline-box';
+    return;
+  }
+  const dl = settings.deadline.toDate ? settings.deadline.toDate() : new Date(settings.deadline);
+  const now = new Date();
+  const diff = dl - now;
+
+  if (diff <= 0) {
+    el.textContent = 'BIDDING CLOSED';
+    el.className = 'deadline-box closed';
+    return;
+  }
+
+  const days = Math.floor(diff / 86400000);
+  const hrs = Math.floor((diff % 86400000) / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  const secs = Math.floor((diff % 60000) / 1000);
+
+  let text = 'Deadline: ';
+  if (days > 0) text += days + 'd ';
+  text += hrs + 'h ' + mins + 'm ' + secs + 's';
+  el.textContent = text;
+  el.className = diff < 86400000 ? 'deadline-box urgent' : 'deadline-box';
+}
+
+// Update deadline every second
+setInterval(() => {
+  if (_bidDoc?.settings) renderDeadline(_bidDoc.settings);
+}, 1000);
+
+// ========== STATUS BANNERS ==========
+function renderStatus(status) {
+  const area = document.getElementById('statusArea');
+  const myBid = _bidDoc?.bids?.[_loggedInName];
+
+  if (status === 'assigned') {
+    area.innerHTML = '<div class="status-banner assigned">OT assignments have been published. See your approved slots below.</div>';
+  } else if (status === 'closed') {
+    area.innerHTML = '<div class="status-banner closed">Bidding is closed. Your submission is locked.</div>';
+  } else if (myBid) {
+    const ts = myBid.submittedAt?.toDate ? myBid.submittedAt.toDate() : null;
+    const when = ts ? ' on ' + ts.toLocaleDateString() + ' at ' + ts.toLocaleTimeString() : '';
+    area.innerHTML = '<div class="status-banner submitted">Your bids have been submitted' + when + '. You can update them until the deadline.</div>';
+  } else {
+    area.innerHTML = '';
+  }
+}
+
+// ========== APPROVED DISPLAY ==========
+function renderApproved() {
+  const area = document.getElementById('approvedArea');
+  const approved = _bidDoc?.approved?.[_loggedInName];
+  if (!approved || !approved.slots?.length) {
+    area.innerHTML = '';
+    return;
+  }
+
+  let html = '<div class="approved-section"><div class="approved-title">YOUR APPROVED OT SLOTS</div>';
+  for (const slot of approved.slots) {
+    const [dateStr, blockLabel] = slot.split('_');
+    const d = parseDateStr(dateStr);
+    const dow = DOW_NAMES[d.getDay()];
+    html += '<span class="approved-slot">' + dow.substring(0, 3).toUpperCase() + ' ' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + blockLabel + '</span>';
+  }
+  html += '</div>';
+  area.innerHTML = html;
+}
+
+// ========== SCHEDULE BAR ==========
+function renderScheduleBar() {
+  const bar = document.getElementById('scheduleBar');
+  if (!_loggedInEmp) return;
+  let html = '';
+  for (let i = 0; i < 7; i++) {
+    const shift = _loggedInEmp.schedule[DAYS[i]] || 'OFF';
+    const isOff = shift === 'OFF' || shift === '' || shift === 'RDO';
+    html += '<div class="sched-day"><div class="sched-day-label">' + DAY_SHORT[i] + '</div>';
+    html += '<div class="sched-day-shift' + (isOff ? ' off' : '') + '">' + (isOff ? 'OFF' : shift) + '</div></div>';
+  }
+  bar.innerHTML = html;
+}
+
+// ========== ROUND TRACKER ==========
+function renderRoundTracker(settings) {
+  const tracker = document.getElementById('roundTracker');
+  const periodStart = settings.periodStart;
+  const periodEnd = settings.periodEnd;
+  if (!periodStart || !periodEnd) {
+    tracker.innerHTML = '';
+    return;
+  }
+
+  const blockHrs = settings.blockSize === 1 ? 1 : 4;
+
+  // Count slots for the current week only
+  const weekDates = getWeekDates(settings);
+  const weekDateStrs = new Set(weekDates.map(d => toDateStr(d)));
+
+  let preferHrs = 0, canHrs = 0, cantHrs = 0;
+  for (const [key, val] of Object.entries(_localSlots)) {
+    const [dateStr] = key.split('_');
+    if (!weekDateStrs.has(dateStr)) continue;
+    if (val === 'prefer') preferHrs += blockHrs;
+    else if (val === 'can') canHrs += blockHrs;
+    else if (val === 'cant') cantHrs += blockHrs;
+  }
+  const totalAvail = preferHrs + canHrs;
+
+  let html = '<div class="round-card"><div class="round-card-title">PREFER</div>';
+  html += '<div class="round-card-value ok">' + preferHrs + ' hrs</div>';
+  html += '<div class="round-card-sub">This week</div></div>';
+
+  html += '<div class="round-card"><div class="round-card-title">CAN WORK</div>';
+  html += '<div class="round-card-value" style="color:#facc15">' + canHrs + ' hrs</div>';
+  html += '<div class="round-card-sub">This week</div></div>';
+
+  html += '<div class="round-card"><div class="round-card-title">CAN\'T WORK</div>';
+  html += '<div class="round-card-value" style="color:#f87171">' + cantHrs + ' hrs</div>';
+  html += '<div class="round-card-sub">This week</div></div>';
+
+  html += '<div class="round-card"><div class="round-card-title">TOTAL AVAILABLE</div>';
+  html += '<div class="round-card-value">' + totalAvail + ' hrs</div>';
+  html += '<div class="round-card-sub">Prefer + Can</div></div>';
+
+  tracker.innerHTML = html;
+}
+
+// ========== CAP INFO ==========
+function renderCapInfo(settings) {
+  const el = document.getElementById('capInfo');
+  const cap = settings.employeeCaps?.[_loggedInName] ?? settings.defaultMaxOT ?? 36;
+  el.innerHTML = 'Your OT cap: <strong>' + cap + ' hours/week</strong> &nbsp;|&nbsp; Block size: <strong>' + (settings.blockSize === 1 ? '1 hour' : '4 hours') + '</strong>';
+}
+
+// ========== BIDDING GRID (transposed: days = columns, blocks = rows) ==========
+function renderWeekNav(settings) {
+  const nav = document.getElementById('weekNav');
+  if (!settings.periodStart || !settings.periodEnd) { nav.style.display = 'none'; return; }
+  nav.style.display = '';
+  const total = getWeekCount(settings);
+  const dates = getWeekDates(settings);
+  const fmt = d => (d.getMonth() + 1) + '/' + d.getDate();
+  const rangeStr = dates.length ? ' \u2014 ' + fmt(dates[0]) + '\u2013' + fmt(dates[dates.length - 1]) : '';
+  document.getElementById('weekLabel').textContent = 'Week ' + (_weekOffset + 1) + ' of ' + total + rangeStr;
+  document.getElementById('btnPrevWeek').disabled = _weekOffset <= 0;
+  document.getElementById('btnNextWeek').disabled = _weekOffset >= total - 1;
+}
+
+function renderBidGrid(settings, isClosed) {
+  const grid = document.getElementById('bidGrid');
+  renderWeekNav(settings);
+
+  if (!settings.periodStart || !settings.periodEnd) {
+    grid.innerHTML = '<tr><td style="padding:20px;color:var(--muted)">Period dates not configured yet.</td></tr>';
+    return;
+  }
+
+  const dates = getWeekDates(settings);
+  if (!dates.length) {
+    grid.innerHTML = '<tr><td style="padding:20px;color:var(--muted)">No dates in this week.</td></tr>';
+    return;
+  }
+
+  // Header row: TIME | SAT 3/1 | SUN 3/2 | ...
+  let html = '<thead><tr><th>TIME</th>';
+  for (const d of dates) {
+    const dow = DOW_NAMES[d.getDay()].substring(0, 3).toUpperCase();
+    html += '<th>' + dow + ' ' + (d.getMonth() + 1) + '/' + d.getDate() + '</th>';
+  }
+  html += '</tr></thead><tbody>';
+
+  // Determine shifts per day
+  const dayShifts = dates.map(d => {
+    const dayName = getDayName(d);
+    return _loggedInEmp?.schedule?.[dayName] || '';
+  });
+
+  // Find the most common shift to center the grid around
+  let primaryShift = null;
+  const shiftCounts = {};
+  for (const s of dayShifts) {
+    const ns = normalizeShift(s);
+    if (ns && ns !== 'OFF' && ns !== 'RDO' && SHIFT_CODES[ns]) {
+      shiftCounts[ns] = (shiftCounts[ns] || 0) + 1;
+      if (!primaryShift || shiftCounts[ns] > shiftCounts[primaryShift]) primaryShift = ns;
+    }
+  }
+
+  // Reorder blocks so shift is in the center: before-shift → shift → after-shift
+  let orderedBlocks = [..._otBlocks];
+  if (primaryShift) {
+    const range = SHIFT_CODES[primaryShift];
+    const shiftStart = range[0];
+    const shiftEnd = range[1];
+    const startIdx = _otBlocks.findIndex(b => b.start >= shiftStart);
+    let endIdx = _otBlocks.findIndex(b => b.start >= shiftEnd);
+    if (endIdx === -1) endIdx = _otBlocks.length;
+    const shiftBlockCount = endIdx - startIdx;
+    const nonShiftCount = _otBlocks.length - shiftBlockCount;
+    const beforeCount = Math.floor(nonShiftCount / 2);
+    const rotateFrom = startIdx - beforeCount;
+    const n = _otBlocks.length;
+    const offset = ((rotateFrom % n) + n) % n;
+    orderedBlocks = [];
+    for (let i = 0; i < n; i++) {
+      orderedBlocks.push(_otBlocks[(offset + i) % n]);
+    }
+  }
+
+  // Body rows: one per time block
+  for (const block of orderedBlocks) {
+    html += '<tr>';
+    html += '<td class="date-cell">' + block.label + '</td>';
+
+    for (let di = 0; di < dates.length; di++) {
+      const d = dates[di];
+      const dateStr = toDateStr(d);
+      const shift = dayShifts[di];
+      const slotKey = formatSlotKey(dateStr, block.label);
+      const isScheduled = shiftCoversBlock(shift, block);
+      const val = _localSlots[slotKey] || '';
+
+      let cls = 'bid-cell';
+      let label = '';
+
+      if (isScheduled) {
+        cls += ' scheduled';
+        label = 'SCHEDULED SHIFT';
+      } else if (isClosed) {
+        cls += ' disabled';
+        if (val === 'prefer') { cls += ' prefer'; label = 'PREFER'; }
+        else if (val === 'can') { cls += ' can'; label = 'CAN'; }
+        else if (val === 'cant') { cls += ' cant'; label = "CAN'T"; }
+      } else {
+        if (val === 'prefer') { cls += ' prefer'; label = 'PREFER'; }
+        else if (val === 'can') { cls += ' can'; label = 'CAN'; }
+        else if (val === 'cant') { cls += ' cant'; label = "CAN'T"; }
+      }
+
+      const dataAttr = (!isScheduled && !isClosed) ? ' data-slot="' + slotKey + '"' : '';
+      html += '<td class="' + cls + '"' + dataAttr + '>' + label + '</td>';
+    }
+    html += '</tr>';
+  }
+
+  html += '</tbody>';
+  grid.innerHTML = html;
+}
+
+// ========== DRAG SELECT ==========
+let _dragActive = false;
+let _dragSlots = [];
+
+function _getBidCell(e) {
+  const td = e.target.closest('td[data-slot]');
+  return td;
+}
+
+function _clearDragHighlight() {
+  document.querySelectorAll('.bid-cell.drag-selected').forEach(el => el.classList.remove('drag-selected'));
+}
+
+document.addEventListener('mousedown', e => {
+  // Close popup if clicking outside it
+  const popup = document.getElementById('bidPopup');
+  if (!popup.classList.contains('hidden') && !popup.contains(e.target)) {
+    popup.classList.add('hidden');
+    _clearDragHighlight();
+    _dragSlots = [];
+  }
+
+  const td = _getBidCell(e);
+  if (!td) return;
+  e.preventDefault();
+  _dragActive = true;
+  _dragSlots = [td.dataset.slot];
+  _clearDragHighlight();
+  td.classList.add('drag-selected');
+});
+
+document.addEventListener('mouseover', e => {
+  if (!_dragActive) return;
+  const td = _getBidCell(e);
+  if (!td || _dragSlots.includes(td.dataset.slot)) return;
+  _dragSlots.push(td.dataset.slot);
+  td.classList.add('drag-selected');
+});
+
+document.addEventListener('mouseup', e => {
+  if (!_dragActive) return;
+  _dragActive = false;
+  if (!_dragSlots.length) return;
+
+  // Single click = cycle like before
+  if (_dragSlots.length === 1) {
+    const key = _dragSlots[0];
+    const current = _localSlots[key] || '';
+    const cycle = { '': 'prefer', 'prefer': 'can', 'can': 'cant', 'cant': '' };
+    const next = cycle[current] || '';
+    if (next) { _localSlots[key] = next; } else { delete _localSlots[key]; }
+    _dirty = true;
+    _dragSlots = [];
+    renderAll();
+    return;
+  }
+
+  // Multi-select = show popup
+  const popup = document.getElementById('bidPopup');
+  const rect = document.querySelector('.bid-cell.drag-selected:last-of-type')?.getBoundingClientRect();
+  const x = Math.min((rect?.right || e.clientX) + 8, window.innerWidth - 280);
+  const y = Math.min((rect?.top || e.clientY), window.innerHeight - 50);
+  popup.style.left = x + 'px';
+  popup.style.top = y + 'px';
+  popup.classList.remove('hidden');
+});
+
+function applyDragSelection(val) {
+  for (const key of _dragSlots) {
+    if (val) { _localSlots[key] = val; } else { delete _localSlots[key]; }
+  }
+  _dirty = true;
+  _dragSlots = [];
+  document.getElementById('bidPopup').classList.add('hidden');
+  renderAll();
+}
+
+// ========== FOOTER ==========
+function updateFooter(isClosed) {
+  const btn = document.getElementById('btnSubmit');
+  const status = document.getElementById('footerStatus');
+
+  if (isClosed) {
+    btn.style.display = 'none';
+    status.textContent = 'Bidding is closed';
+    return;
+  }
+
+  btn.style.display = '';
+  const slotCount = Object.keys(_localSlots).filter(k => _localSlots[k] && _localSlots[k] !== 'cant').length;
+  const cantCount = Object.keys(_localSlots).filter(k => _localSlots[k] === 'cant').length;
+
+  if (_dirty) {
+    btn.disabled = false;
+    status.textContent = slotCount + ' available slot(s), ' + cantCount + " can't work — UNSAVED";
+    status.style.color = '#eab308';
+  } else {
+    btn.disabled = true;
+    status.textContent = slotCount + ' available slot(s), ' + cantCount + " can't work";
+    status.style.color = '';
+  }
+}
+
+// ========== SUBMIT ==========
+document.getElementById('btnSubmit').addEventListener('click', async () => {
+  if (!_bidDocRef || !_loggedInName) return;
+  const btn = document.getElementById('btnSubmit');
+  btn.disabled = true;
+  btn.textContent = 'SUBMITTING...';
+
+  try {
+    const bidData = {
+      submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      slots: { ..._localSlots },
+      desiredR1: 4
+    };
+    if (_desiredR2 !== null) bidData.desiredR2 = _desiredR2;
+    // Use set with merge and proper nested object (not dot-notation key)
+    await _bidDocRef.set({ bids: { [_loggedInName]: bidData } }, { merge: true });
+
+    _dirty = false;
+    toast('Bids submitted successfully!', 'success');
+  } catch (err) {
+    console.error('Submit error:', err);
+    toast('Error submitting: ' + err.message, 'error');
+  } finally {
+    btn.textContent = 'SUBMIT BIDS';
+  }
+});
+
+// ========== DESIRED HOURS ==========
+function onDesiredHrsChange() {
+  const r2 = document.getElementById('desiredR2').value;
+  _desiredR2 = r2 !== '' ? Number(r2) : null;
+  _dirty = true;
+  renderAll();
+}
+
+function loadDesiredHrs() {
+  const myBid = _bidDoc?.bids?.[_loggedInName];
+  _desiredR2 = myBid?.desiredR2 ?? null;
+  document.getElementById('desiredR2').value = _desiredR2 !== null ? _desiredR2 : '';
+}
+
+// ========== KEYBOARD NAV ==========
+document.addEventListener('keydown', e => {
+  if (!_bidDoc || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prevWeek(); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); nextWeek(); }
+});
+
+// ========== BOOT ==========
+loadEmployees().catch(err => {
+  console.error('Failed to load employees:', err);
+  document.getElementById('loginErr').textContent = 'Error loading employees: ' + err.message;
+});
+</script>
+</body>
+</html>

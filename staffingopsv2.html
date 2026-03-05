@@ -12,7 +12,7 @@
 <style>
 :root{--bg:#0b0f16;--panel:#111826;--panel2:#0f1622;--line:#2a3446;--text:#e6edf7;--muted:#a8b3c7;--btn:#1f6feb;--btn2:#233047;--danger:#d94848;--ok:#22c55e;--warn:#eab308;--short:#dc2626}
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;overflow:hidden}
+html,body{height:100%;overflow-y:auto}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text)}
 body.light{--bg:#f5f7fa;--panel:#ffffff;--panel2:#f0f2f5;--line:#d1d5db;--text:#1f2937;--muted:#6b7280;--btn:#2563eb;--btn2:#e5e7eb;--short:#dc2626;--ok:#16a34a;--warn:#ca8a04}
 
@@ -292,7 +292,8 @@ tr.on-vacation .shift-sel{pointer-events:none}
 .ot-month-summary{font-size:12px;font-weight:700;color:var(--muted);text-align:center;margin-bottom:10px}
 
 /* OT horizontal scroll */
-.ot-scroll-x{overflow-x:auto;overflow-y:hidden;max-width:100%;max-height:100%;flex:1;padding-bottom:6px}
+.ot-scroll-x{overflow-x:auto;overflow-y:visible;max-width:100%;padding-bottom:6px}
+
 
 /* Month roster table */
 .ot-roster-tbl{border-collapse:separate;border-spacing:0;width:max-content;font-size:11px}
@@ -380,6 +381,7 @@ tr.on-vacation .shift-sel{pointer-events:none}
           <div id="howItWorksContent"></div>
         </div>
       </div>
+      <button class="btn" id="btnOTBiddingPanel" style="border-color:rgba(34,197,94,.3);color:#22c55e;background:rgba(34,197,94,.06)">OT BIDDING</button>
       <button class="btn btn-vac-drawer" id="btnVacDrawer">VACATIONS</button>
       <button class="btn btn-hypo-drawer" id="btnHypoDrawer">HYPOTHETICALS</button>
       <button class="btn danger" id="btnReset" style="display:none">RESET ALL</button>
@@ -443,6 +445,72 @@ tr.on-vacation .shift-sel{pointer-events:none}
       </div>
       <!-- OT NEEDS monthly view -->
       <div id="otMonthView" style="display:none"></div>
+
+      <!-- OT BIDDING ADMIN PANEL -->
+      <div id="otBiddingPanel" style="display:none;padding:12px">
+        <div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <h3 style="font-size:15px;font-weight:800">OT BIDDING ADMIN</h3>
+            <button class="btn" onclick="document.getElementById('otBiddingPanel').style.display='none'">CLOSE</button>
+          </div>
+
+          <!-- Period Settings -->
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+            <label style="font-size:11px;font-weight:700;color:var(--muted)">Period Type
+              <select id="otbPeriodType" style="display:block;margin-top:3px;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text)">
+                <option value="weekly">Weekly</option><option value="biweekly">Biweekly</option><option value="3week">3 Week</option><option value="monthly" selected>Monthly</option>
+              </select>
+            </label>
+            <label style="font-size:11px;font-weight:700;color:var(--muted)">Start Date
+              <input type="date" id="otbPeriodStart" style="display:block;margin-top:3px;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text)">
+            </label>
+            <label style="font-size:11px;font-weight:700;color:var(--muted)">End Date
+              <input type="date" id="otbPeriodEnd" style="display:block;margin-top:3px;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text)">
+            </label>
+            <label style="font-size:11px;font-weight:700;color:var(--muted)">Deadline
+              <input type="datetime-local" id="otbDeadline" style="display:block;margin-top:3px;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text)">
+            </label>
+            <label style="font-size:11px;font-weight:700;color:var(--muted)">Block Size
+              <select id="otbBlockSize" style="display:block;margin-top:3px;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text)">
+                <option value="4" selected>4-hour blocks</option><option value="1">1-hour blocks</option>
+              </select>
+            </label>
+            <label style="font-size:11px;font-weight:700;color:var(--muted)">Default Max OT (hrs)
+              <input type="number" id="otbDefaultMax" value="36" min="1" max="80" style="display:block;margin-top:3px;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text);width:80px">
+            </label>
+            <label style="font-size:11px;font-weight:700;color:var(--muted)">Status
+              <select id="otbStatus" style="display:block;margin-top:3px;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text)">
+                <option value="open">Open</option><option value="closed">Closed</option><option value="assigned">Assigned</option>
+              </select>
+            </label>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button class="btn primary" id="btnOtbSaveSettings">SAVE SETTINGS</button>
+            <button class="btn" id="btnOtbCreatePeriod">CREATE / RESET PERIOD</button>
+          </div>
+
+          <!-- Per-employee caps -->
+          <details style="margin-bottom:12px">
+            <summary style="font-size:12px;font-weight:700;cursor:pointer;color:var(--muted)">PER-EMPLOYEE CAPS</summary>
+            <div id="otbCapsTable" style="margin-top:8px;max-height:200px;overflow-y:auto;font-size:11px"></div>
+          </details>
+
+          <!-- Bid Status -->
+          <div style="margin-bottom:12px">
+            <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">BID STATUS: <span id="otbBidCount" style="color:var(--text)">0 / 0 submitted</span></div>
+            <div id="otbBidList" style="font-size:11px;color:var(--muted);max-height:120px;overflow-y:auto"></div>
+          </div>
+
+          <!-- Distribution -->
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button class="btn primary" id="btnOtbRunDist" style="background:#166534;border-color:#22c55e">RUN DISTRIBUTION</button>
+            <button class="btn primary" id="btnOtbPublish" style="display:none">PUBLISH ASSIGNMENTS</button>
+          </div>
+          <div id="otbDistResults" style="display:none;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:8px;max-height:400px;overflow-y:auto;font-size:11px"></div>
+        </div>
+      </div>
+
     </div>
     <div class="roster-panel collapsed" id="rosterPanel">
       <div class="roster-controls">
@@ -656,6 +724,10 @@ let _otAssignments = {}; // key "day-blockIdx" → [names]
 let _ctAssignments = {}; // key "day-blockIdx" → [names]  (from RotationOps CT)
 let _ctUnsub = null; // onSnapshot unsubscribe for rotation_plans
 let _rotationPlanDays = null; // full rotation plan days object for DISPATCHER read-only view
+let _otBidData = null; // current ot_bids document
+let _otWeekOffset = 0; // which week to show in OT monthly view
+let _otBidUnsub = null;
+let _otBidDistResult = null; // pending distribution results before publish
 
 // ========== DUAL HYPO SETS ==========
 let hypoSets = { A: [], B: [] };
@@ -749,6 +821,7 @@ async function loadAllData() {
     listenSettings();
     listenVacations();
     loadRotationCT();
+    listenOTBids();
     toggleRoster(true);
     renderAll();
   } catch (e) {
@@ -1130,7 +1203,6 @@ function renderMonthlyOTView() {
       colorIdx++;
     }
   }
-  // Also assign colors for CT dispatchers and OT assignees
   for (const d of monthly) {
     for (const b of d.blocks) {
       for (const n of (b.ctNames || [])) { if (!nameColorMap[n]) { nameColorMap[n] = NAME_COLORS[colorIdx % NAME_COLORS.length]; colorIdx++; } }
@@ -1138,7 +1210,6 @@ function renderMonthlyOTView() {
     }
   }
 
-  // Day border style — thicker border between every 2 days
   function dayBorder(dateIdx) {
     return dateIdx % 2 === 0 ? 'border-left:3px solid rgba(255,255,255,.2);' : '';
   }
@@ -1162,8 +1233,8 @@ function renderMonthlyOTView() {
     html += '<div class="ot-month-summary" style="color:#22c55e">No overtime needed — adequate staffing all month</div>';
   }
 
-  // Month roster table
-  html += '<div class="ot-scroll-x">';
+  // Scroll wrapper — fills remaining viewport, scrollbar at bottom of screen
+  html += '<div style="overflow:auto;flex:1;min-height:0">';
   html += '<table class="ot-roster-tbl">';
 
   // Row 1: Date headers spanning all 6 blocks each
@@ -1176,7 +1247,7 @@ function renderMonthlyOTView() {
   }
   html += '</tr>';
 
-  // Row 2: Block sub-headers (all 6 per day)
+  // Row 2: Block sub-headers
   html += '<tr>';
   for (let di = 0; di < monthly.length; di++) {
     for (let bi = 0; bi < OT_BLOCKS.length; bi++) {
@@ -1195,19 +1266,16 @@ function renderMonthlyOTView() {
       const db = (bi === 0) ? dayBorder(di) : '';
       html += '<td style="' + db + '">';
       let count = 0;
-      // 1. Regular calltaker names
       for (const p of b.names) {
         count++;
         const bg = nameColorMap[p.name] || 'rgba(255,255,255,.08)';
         html += '<div class="ot-name" style="background:' + bg + '"><span class="ot-num">' + count + '</span>' + esc(p.name) + '</div>';
       }
-      // 2. DISP IN CT names (blue badge)
       for (const cn of (b.ctNames || [])) {
         count++;
         const bg = nameColorMap[cn] || 'rgba(255,255,255,.08)';
         html += '<div class="ot-name" style="background:' + bg + '"><span class="ot-num">' + count + '</span>' + esc(cn) + '<span class="ct-badge">DISP IN CT</span></div>';
       }
-      // 3. OT-assigned names (red badge — click to remove, read-only for DISPATCHER)
       for (const on of (b.otNames || [])) {
         count++;
         const bg = nameColorMap[on] || 'rgba(255,255,255,.08)';
@@ -1217,7 +1285,6 @@ function renderMonthlyOTView() {
           html += '<div class="ot-name" style="background:' + bg + ';cursor:pointer" onclick="removeOTAssign(\'' + esc(on).replace(/'/g, "\\'") + '\',' + d.date + ',' + bi + ')" title="Click to remove"><span class="ot-num">' + count + '</span>' + esc(on) + '<span class="ot-badge">OT</span></div>';
         }
       }
-      // 4. Remaining NEEDED badges (clickable for CT/PIC, read-only for DISPATCHER)
       for (let n = 0; n < b.otNeed; n++) {
         count++;
         if (isDispatcher) {
@@ -1226,7 +1293,6 @@ function renderMonthlyOTView() {
           html += '<div class="ot-name needed" style="cursor:pointer" onclick="openOTAssignBox(' + d.date + ',' + bi + ')"><span class="ot-num">' + count + '</span>' + roleSingular + ' NEEDED</div>';
         }
       }
-      // 5. Block status summary
       const totalFilled = b.names.length + (b.ctNames||[]).length + (b.otNames||[]).length;
       const over = totalFilled - b.needed;
       if (b.otNeed > 0) {
@@ -1241,21 +1307,73 @@ function renderMonthlyOTView() {
   }
   html += '</tr>';
 
-  // VACATION row — spans all 6 sub-columns per day
-  html += '<tr><td class="sticky-col" style="color:#7dd3fc">VACATION</td>';
+  // OT BIDS row — one row, each block column shows who bid prefer/can
+  const _allBids = getOTBids();
+  const _bidBlockSize = _otBidData?.settings?.blockSize || 4;
+  if (Object.keys(_allBids).length) {
+    html += '<tr><td class="sticky-col" style="color:#a78bfa">OT BIDS</td>';
+    for (let di = 0; di < monthly.length; di++) {
+      const d = monthly[di];
+      const slotDateStr = yr + '-' + String(mo).padStart(2,'0') + '-' + String(d.date).padStart(2,'0');
+      for (let bi = 0; bi < OT_BLOCKS.length; bi++) {
+        const db = (bi === 0) ? dayBorder(di) : '';
+        html += '<td style="' + db + 'vertical-align:top;padding:2px 3px">';
+        const preferNames = [], canNames = [];
+        for (const [name, bid] of Object.entries(_allBids)) {
+          if (!bid.slots) continue;
+          let pref = '';
+          if (_bidBlockSize === 1) {
+            const blk = OT_BLOCKS[bi];
+            for (let h = blk.hourStart; h < blk.hourEnd; h++) {
+              const sh = h % 24, eh = (h + 1) % 24;
+              const fmt = v => { if (v === 0) return '12A'; if (v === 12) return '12P'; return v < 12 ? v + 'A' : (v - 12) + 'P'; };
+              const hrKey = slotDateStr + '_' + fmt(sh) + '-' + fmt(eh);
+              const p = bid.slots[hrKey];
+              if (p === 'prefer') pref = 'prefer';
+              else if (p === 'can' && pref !== 'prefer') pref = 'can';
+            }
+          } else {
+            const slotKey = slotDateStr + '_' + OT_BLOCKS[bi].label;
+            pref = bid.slots[slotKey] || '';
+          }
+          if (pref === 'prefer') preferNames.push(name);
+          else if (pref === 'can') canNames.push(name);
+        }
+        for (const n of preferNames) {
+          html += '<div class="ot-name" style="background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#4ade80;font-size:9px">' + esc(n) + '</div>';
+        }
+        for (const n of canNames) {
+          html += '<div class="ot-name" style="background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.4);color:#facc15;font-size:9px">' + esc(n) + '</div>';
+        }
+        if (!preferNames.length && !canNames.length) html += '<span style="color:var(--muted);font-size:8px">&mdash;</span>';
+        html += '</td>';
+      }
+    }
+    html += '</tr>';
+  }
+
+  // Spacer row to push vacation to the bottom
+  html += '<tr><td colspan="' + (1 + monthly.length * colsPerDay) + '" style="height:1px;padding:0;border:none"><div style="min-height:calc(100vh - 400px)"></div></td></tr>';
+
+  // VACATION row — one td per block column, matching staff row structure
+  html += '<tr>';
+  html += '<td class="sticky-col" style="color:#7dd3fc;font-weight:800;font-size:10px;vertical-align:top;padding-top:6px">VACATION</td>';
   for (let di = 0; di < monthly.length; di++) {
     const d = monthly[di];
-    html += '<td colspan="' + colsPerDay + '" style="' + dayBorder(di) + '">';
-    for (const vn of d.vacNames) {
-      html += '<div class="ot-name vac">' + esc(vn) + '</div>';
+    for (let bi = 0; bi < OT_BLOCKS.length; bi++) {
+      const db = (bi === 0) ? dayBorder(di) : '';
+      html += '<td style="' + db + 'vertical-align:top;padding:2px 3px">';
+      for (const vn of d.vacNames) {
+        html += '<div class="ot-name vac">' + esc(vn) + '</div>';
+      }
+      if (!d.vacNames.length) html += '<span style="color:var(--muted);font-size:9px">&mdash;</span>';
+      html += '</td>';
     }
-    if (!d.vacNames.length) html += '<span style="color:var(--muted);font-size:9px">&mdash;</span>';
-    html += '</td>';
   }
   html += '</tr>';
 
   html += '</tbody></table>';
-  html += '</div>';
+  html += '</div>'; // close scroll wrapper
 
   wrap.innerHTML = html;
 
@@ -1732,27 +1850,80 @@ function openOTAssignBox(dayOfMonth, blockIdx) {
   const sel = document.getElementById('otAssignSelect');
   sel.innerHTML = '<option value="">Select person...</option>';
   const groups = getOTAvailable(dayOfMonth, blockIdx);
-  // Show current role first, then others
-  const posOrder = ['CALLTAKER','DISPATCHER','PIC','SUPERVISOR'];
-  const roleLabel = ROLE_CONFIG[currentRole]?.label || currentRole;
-  // Put matching positions first
-  const sorted = Object.keys(groups).sort((a, b) => {
-    const ai = posOrder.indexOf(a), bi2 = posOrder.indexOf(b);
-    return (ai === -1 ? 99 : ai) - (bi2 === -1 ? 99 : bi2);
-  });
-  for (const pos of sorted) {
-    const names = groups[pos];
-    if (!names.length) continue;
-    const grp = document.createElement('optgroup');
-    grp.label = pos + 'S';
-    for (const nm of names) {
-      const opt = document.createElement('option');
-      opt.value = nm;
-      opt.textContent = nm;
-      grp.appendChild(opt);
+
+  // Build bid preference lookup for this slot
+  const slotDateStr = dateObj.getFullYear() + '-' + String(mo).padStart(2,'0') + '-' + String(dayOfMonth).padStart(2,'0');
+  const slotKey = slotDateStr + '_' + OT_BLOCKS[blockIdx].label;
+  const bidPrefs = {}; // name -> "prefer"|"can"|"cant"
+  const _bidPrefsMap = getOTBids();
+  const blockSize = _otBidData?.settings?.blockSize || 4;
+  if (Object.keys(_bidPrefsMap).length) {
+    for (const [name, bid] of Object.entries(_bidPrefsMap)) {
+      if (!bid.slots) continue;
+      if (blockSize === 1) {
+        // 1-hour bids: check all hour slots within this 4-hour block
+        const blk = OT_BLOCKS[blockIdx];
+        let bestPref = '';
+        for (let h = blk.hourStart; h < blk.hourEnd; h++) {
+          const sh = h % 24, eh = (h + 1) % 24;
+          const fmt = v => { if (v === 0) return '12A'; if (v === 12) return '12P'; return v < 12 ? v + 'A' : (v - 12) + 'P'; };
+          const hrKey = slotDateStr + '_' + fmt(sh) + '-' + fmt(eh);
+          const p = bid.slots[hrKey];
+          if (p === 'prefer') bestPref = 'prefer';
+          else if (p === 'can' && bestPref !== 'prefer') bestPref = 'can';
+          else if (p === 'cant' && !bestPref) bestPref = 'cant';
+        }
+        if (bestPref) bidPrefs[name] = bestPref;
+      } else {
+        if (bid.slots[slotKey]) bidPrefs[name] = bid.slots[slotKey];
+      }
     }
-    sel.appendChild(grp);
   }
+
+  // Flatten all candidates with metadata
+  const allCandidates = [];
+  for (const pos of Object.keys(groups)) {
+    for (const nm of groups[pos]) {
+      const pref = bidPrefs[nm] || '';
+      if (pref === 'cant') continue; // Skip can't work
+      if (isAtOTCap(nm)) continue; // Skip at cap
+      if (isRound1Complete(nm)) continue; // Skip round-1-only at limit
+      const emp = _ALL_EMPLOYEES.find(e => e.name === nm);
+      allCandidates.push({
+        name: nm,
+        position: pos,
+        seniority: emp?.seniority ?? 999,
+        pref
+      });
+    }
+  }
+
+  // Sort: PREFER first, then CAN WORK, then no bid; within each group by seniority
+  const prefOrder = { prefer: 0, can: 1, '': 2 };
+  allCandidates.sort((a, b) => {
+    const pa = prefOrder[a.pref] ?? 2, pb = prefOrder[b.pref] ?? 2;
+    if (pa !== pb) return pa - pb;
+    return a.seniority - b.seniority;
+  });
+
+  // Group into preference sections
+  let lastPref = null;
+  for (const c of allCandidates) {
+    if (c.pref !== lastPref) {
+      lastPref = c.pref;
+      const grp = document.createElement('optgroup');
+      grp.label = c.pref === 'prefer' ? '── PREFER ──' : c.pref === 'can' ? '── CAN WORK ──' : '── NO BID ──';
+      sel.appendChild(grp);
+    }
+    const opt = document.createElement('option');
+    opt.value = c.name;
+    const prefTag = c.pref ? ' [' + c.pref.toUpperCase() + ']' : '';
+    opt.textContent = c.name + ' (' + c.position + ', #' + c.seniority + ')' + prefTag;
+    if (c.pref === 'prefer') opt.style.color = '#22c55e';
+    else if (c.pref === 'can') opt.style.color = '#eab308';
+    sel.appendChild(opt);
+  }
+
   document.getElementById('otAssignBackdrop').classList.add('show');
   document.getElementById('otAssignBox').classList.add('show');
 }
@@ -1828,8 +1999,8 @@ function renderAll() {
     if (exportBtn) exportBtn.style.display = 'none';
     if (resetBtn) resetBtn.style.display = 'none';
     gridPanel.style.overflow = 'hidden';
-    gridPanel.style.overflowX = 'hidden';
-    gridPanel.style.overflowY = 'hidden';
+    gridPanel.style.overflowX = '';
+    gridPanel.style.overflowY = '';
     mainLayout.style.height = 'calc(100vh - 52px)';
     mainLayout.style.overflow = 'hidden';
     toggleHypoDrawer(false);
@@ -2780,6 +2951,7 @@ document.getElementById('roleSelector').addEventListener('change', function() {
 async function switchMonth(newMonth) {
   if (newMonth === currentMonth) return;
   currentMonth = newMonth;
+  _otWeekOffset = 0;
   SETTINGS_REF = db.collection('staffingops').doc(getSettingsDocId());
   if (_settingsUnsub) { _settingsUnsub(); _settingsUnsub = null; }
   if (_vacUnsub) { _vacUnsub(); _vacUnsub = null; }
@@ -2801,6 +2973,7 @@ async function switchMonth(newMonth) {
   listenSettings();
   listenVacations();
   loadRotationCT();
+  listenOTBids();
   renderAll();
 }
 
@@ -3907,30 +4080,72 @@ function renderHowItWorks(){
     '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
       '&bull; Each day has <b ' + s + '>6 blocks</b>: 6A-10A, 10A-2P, 2P-6P, 6P-10P, 10P-2A, 2A-6A.<br>' +
       '&bull; <b ' + s + '>Numbered chips</b> = staff scheduled for that block.<br>' +
-      '&bull; <b ' + s + '>Blue "DISP IN CT"</b> badge = a dispatcher assigned to calltaking in RotationOps. They count toward calltaker staffing.<br>' +
-      '&bull; <b ' + s + '>Red "OT"</b> badge = someone you manually assigned as overtime.<br>' +
-      '&bull; <b ' + s + '>Red pulsing "NEEDED"</b> = remaining unfilled slots that still need coverage.' +
+      '&bull; <b ' + s + '>Blue "DISP IN CT"</b> badge = a dispatcher assigned to calltaking in RotationOps.<br>' +
+      '&bull; <b ' + s + '>Red "OT"</b> badge = someone assigned as overtime (manual or via distribution).<br>' +
+      '&bull; <b ' + s + '>Red pulsing "NEEDED"</b> = remaining unfilled slots that still need coverage.<br>' +
+      '&bull; <b ' + s + '>Purple "OT BIDS"</b> row = shows who submitted prefer (green) and can (yellow) bids for each block.<br>' +
+      '&bull; <b ' + s + '>Cyan "VACATION"</b> row = employees on vacation for that day (from AttendanceOps).' +
     '</div>' +
 
-    '<div ' + hdr + '>ASSIGNING OT</div>' +
+    '<div ' + hdr + '>MANUAL OT ASSIGNMENT</div>' +
     '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
-      '&bull; <b ' + s + '>Click a red NEEDED badge</b> &mdash; A popup opens with a dropdown of everyone not scheduled during that block.<br>' +
-      '&bull; The dropdown is <b ' + s + '>grouped by position</b>: Calltakers, Dispatchers, PICs, Supervisors. Anyone from any position can fill the slot as OT.<br>' +
-      '&bull; <b ' + s + '>Pick a name and hit ASSIGN</b> &mdash; They appear with a red OT badge and the NEEDED count goes down.<br>' +
-      '&bull; <b ' + s + '>Click an OT chip to remove</b> &mdash; The assignment is removed and the NEEDED count goes back up.<br>' +
-      '&bull; Assignments <b ' + s + '>save to Firestore</b> and sync across all open sessions in real time.' +
+      '&bull; <b ' + s + '>Click a red NEEDED badge</b> &mdash; A popup opens with a dropdown of available people.<br>' +
+      '&bull; The dropdown is <b ' + s + '>grouped by position</b> and shows bid preferences (prefer/can) if they submitted bids.<br>' +
+      '&bull; <b ' + s + '>Pick a name and hit ASSIGN</b> &mdash; They appear with a red OT badge.<br>' +
+      '&bull; <b ' + s + '>Click an OT chip to remove</b> &mdash; The assignment is removed.' +
+    '</div>' +
+
+    '<div ' + hdr + '>RUN DISTRIBUTION (AUTO-ASSIGN)</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '&bull; <b ' + s + '>Click RUN DISTRIBUTION</b> in the OT Bidding section to auto-assign OT based on employee bids.<br>' +
+      '&bull; The algorithm only fills slots where there is an <b ' + s + '>actual staffing need</b> — fully staffed blocks are skipped.<br>' +
+      '&bull; It respects <b ' + s + '>existing manual OT assignments</b> and won\'t double-assign anyone.<br>' +
+      '&bull; It <b ' + s + '>skips schedule conflicts</b> — no one gets OT for a block they\'re already working.' +
+    '</div>' +
+
+    '<div ' + hdr + '>DISTRIBUTION ALGORITHM</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '<b ' + s + '>Round 1 (4 hrs/week):</b><br>' +
+      '&bull; Fills the <b ' + s + '>scarcest slots first</b> — slots with the fewest candidates get priority so they don\'t go unfilled.<br>' +
+      '&bull; For each slot, picks the person with the <b ' + s + '>fewest other options</b> — saving flexible people for easier-to-fill slots.<br>' +
+      '&bull; If a slot needs 3 people, it assigns up to 3 different people.<br>' +
+      '&bull; Each employee gets up to their Round 1 desired hours per week (default 4).<br>' +
+      '&bull; Tie-breaks: prefer &gt; can, then seniority.<br><br>' +
+      '<b ' + s + '>Round 2 (extra hours):</b><br>' +
+      '&bull; Same scarcity-first logic, but expands each employee\'s weekly cap to R1 + R2 desired hours.<br>' +
+      '&bull; Re-evaluates after <b ' + s + '>every single assignment</b> so the algorithm always has an accurate picture of who\'s available.<br>' +
+      '&bull; Picks candidates with <b ' + s + '>fewest remaining options</b>, then most cap room, then prefer &gt; can, then seniority.<br>' +
+      '&bull; Employees who only set Round 1 (no R2 hours) are identified as <b ' + s + '>[R1 ONLY]</b> in results.' +
+    '</div>' +
+
+    '<div ' + hdr + '>CROSS-POSITION WORKFLOW</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '&bull; OT should be distributed in <b ' + s + '>priority order: Dispatch → PIC → Calltaker</b>.<br>' +
+      '&bull; <b ' + s + '>Dispatch first</b> — only dispatchers and PIC-eligible people can work dispatch, so fill this first while the pool is small.<br>' +
+      '&bull; <b ' + s + '>PIC next</b> — fill remaining PIC gaps. Some people may already have dispatch OT and will be skipped for those blocks.<br>' +
+      '&bull; <b ' + s + '>Calltaker last</b> — everyone from any position can work calltaking, so this has the biggest candidate pool.<br>' +
+      '&bull; The algorithm <b ' + s + '>checks all three roles</b> before assigning — if someone already has OT in another position for that block, they won\'t be double-booked.<br>' +
+      '&bull; <b ' + s + '>Steps:</b> Switch to Dispatch → Run Distribution → Publish. Then switch to PIC → Run → Publish. Then Calltaker → Run → Publish.' +
+    '</div>' +
+
+    '<div ' + hdr + '>DISTRIBUTION RESULTS</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '&bull; Shows <b ' + s + '>fill rate</b>: how many needed slots were filled out of the total.<br>' +
+      '&bull; Each employee shows their assigned slots, total hours vs cap, and R1/R2 desired hours.<br>' +
+      '&bull; <b ' + s + '>Unfilled slots</b> (no candidates available) are highlighted in red so you know where to manually assign.<br>' +
+      '&bull; <b ' + s + '>Review the results</b>, then click PUBLISH to commit the assignments.' +
     '</div>' +
 
     '<div ' + hdr + '>DISP IN CT (AUTOMATIC)</div>' +
     '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
-      '&bull; When dispatchers are assigned to CT in <b ' + s + '>RotationOps</b>, they automatically appear here with a blue badge.<br>' +
+      '&bull; Dispatchers assigned to CT in <b ' + s + '>RotationOps</b> automatically appear with a blue badge.<br>' +
       '&bull; They <b ' + s + '>reduce the NEEDED count</b> just like a regular calltaker or OT assignment.<br>' +
       '&bull; This is <b ' + s + '>read-only</b> &mdash; to change CT assignments, use RotationOps.' +
     '</div>' +
 
     '<div ' + hdr + '>EXPORT</div>' +
     '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
-      '&bull; <b ' + s + '>EXPORT OT NEEDS</b> &mdash; Downloads an XLSX with only the remaining unfilled slots (after CT and OT assignments are subtracted).<br>' +
+      '&bull; <b ' + s + '>EXPORT OT NEEDS</b> &mdash; Downloads an XLSX with only the remaining unfilled slots.<br>' +
       '&bull; Format is ready to upload to Teams Shifts.' +
     '</div>' +
 
@@ -3938,6 +4153,667 @@ function renderHowItWorks(){
       '<button onclick="printHowItWorksStaffing()" style="background:#4aa3ff;color:#fff;border:none;border-radius:8px;padding:8px 22px;font-size:12px;font-weight:700;cursor:pointer">PRINT THIS GUIDE</button>' +
     '</div>';
 }
+
+// ========== OT BIDDING ADMIN ==========
+
+function getOTBidPeriodId() {
+  // Use current month as default period ID
+  return currentMonth;
+}
+
+function getOTBids() {
+  if (!_otBidData) return {};
+  const bids = { ...(_otBidData.bids || {}) };
+  for (const key of Object.keys(_otBidData)) {
+    if (key.startsWith('bids.')) {
+      const name = key.substring(5);
+      if (!bids[name]) bids[name] = _otBidData[key];
+    }
+  }
+  return bids;
+}
+
+function listenOTBids() {
+  if (_otBidUnsub) _otBidUnsub();
+  const pid = getOTBidPeriodId();
+  const ref = db.collection('ot_bids').doc(pid);
+  _otBidUnsub = ref.onSnapshot(snap => {
+    if (!snap.exists) { _otBidData = null; renderOTBidAdmin(); return; }
+    _otBidData = snap.data();
+    renderOTBidAdmin();
+  });
+}
+
+function renderOTBidAdmin() {
+  if (!_otBidData) {
+    document.getElementById('otbBidCount').textContent = 'No period configured';
+    document.getElementById('otbBidList').innerHTML = '';
+    return;
+  }
+  const s = _otBidData.settings || {};
+  // Fill form fields
+  if (s.periodType) document.getElementById('otbPeriodType').value = s.periodType;
+  if (s.periodStart) document.getElementById('otbPeriodStart').value = s.periodStart;
+  if (s.periodEnd) document.getElementById('otbPeriodEnd').value = s.periodEnd;
+  if (s.deadline) {
+    const dl = s.deadline.toDate ? s.deadline.toDate() : new Date(s.deadline);
+    const iso = new Date(dl.getTime() - dl.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    document.getElementById('otbDeadline').value = iso;
+  }
+  if (s.blockSize) document.getElementById('otbBlockSize').value = s.blockSize;
+  if (s.defaultMaxOT) document.getElementById('otbDefaultMax').value = s.defaultMaxOT;
+  if (s.status) document.getElementById('otbStatus').value = s.status;
+
+  // Bid status
+  const bids = getOTBids();
+  const bidNames = Object.keys(bids);
+  const totalEmp = _ALL_EMPLOYEES.length;
+  document.getElementById('otbBidCount').textContent = bidNames.length + ' / ' + totalEmp + ' submitted';
+
+  let listHtml = '';
+  for (const emp of _ALL_EMPLOYEES) {
+    const submitted = !!bids[emp.name];
+    const icon = submitted ? '<span style="color:#22c55e">&#10003;</span>' : '<span style="color:var(--muted)">&#x2013;</span>';
+    listHtml += '<div style="padding:2px 0">' + icon + ' ' + emp.name + ' (' + emp.position + ')';
+    if (submitted) {
+      const slots = bids[emp.name].slots || {};
+      const pref = Object.values(slots).filter(v => v === 'prefer').length;
+      const can = Object.values(slots).filter(v => v === 'can').length;
+      const cant = Object.values(slots).filter(v => v === 'cant').length;
+      listHtml += ' <span style="color:var(--muted)">' + pref + 'P/' + can + 'C/' + cant + 'X</span>';
+    }
+    listHtml += '</div>';
+  }
+  document.getElementById('otbBidList').innerHTML = listHtml;
+
+  // Caps table
+  renderOTBidCaps(s);
+}
+
+function renderOTBidCaps(settings) {
+  const caps = settings.employeeCaps || {};
+  const def = settings.defaultMaxOT || 36;
+  let html = '<table style="width:100%;border-collapse:collapse"><tr><th style="text-align:left;padding:3px 6px;border-bottom:1px solid var(--line)">Employee</th><th style="text-align:left;padding:3px 6px;border-bottom:1px solid var(--line)">Cap (hrs)</th></tr>';
+  for (const emp of _ALL_EMPLOYEES) {
+    const val = caps[emp.name] || '';
+    html += '<tr><td style="padding:3px 6px;border-bottom:1px solid var(--line)">' + emp.name + '</td>';
+    html += '<td style="padding:3px 6px;border-bottom:1px solid var(--line)"><input type="number" data-emp="' + emp.name + '" class="otb-cap-input" value="' + val + '" placeholder="' + def + '" min="0" max="80" style="width:60px;padding:3px;font-size:11px;border-radius:4px;border:1px solid var(--line);background:var(--panel2);color:var(--text)"></td></tr>';
+  }
+  html += '</table>';
+  document.getElementById('otbCapsTable').innerHTML = html;
+}
+
+// Toggle panel
+document.getElementById('btnOTBiddingPanel').addEventListener('click', () => {
+  const panel = document.getElementById('otBiddingPanel');
+  panel.style.display = panel.style.display === 'none' ? '' : 'none';
+});
+
+// Save settings
+document.getElementById('btnOtbSaveSettings').addEventListener('click', async () => {
+  const pid = getOTBidPeriodId();
+  const ref = db.collection('ot_bids').doc(pid);
+  const dlVal = document.getElementById('otbDeadline').value;
+
+  // Gather per-employee caps
+  const caps = {};
+  document.querySelectorAll('.otb-cap-input').forEach(inp => {
+    const v = parseInt(inp.value);
+    if (!isNaN(v) && v > 0) caps[inp.dataset.emp] = v;
+  });
+
+  const settings = {
+    periodType: document.getElementById('otbPeriodType').value,
+    periodStart: document.getElementById('otbPeriodStart').value,
+    periodEnd: document.getElementById('otbPeriodEnd').value,
+    deadline: dlVal ? firebase.firestore.Timestamp.fromDate(new Date(dlVal)) : null,
+    blockSize: parseInt(document.getElementById('otbBlockSize').value),
+    defaultMaxOT: parseInt(document.getElementById('otbDefaultMax').value) || 36,
+    status: document.getElementById('otbStatus').value,
+    employeeCaps: caps
+  };
+
+  try {
+    await ref.set({ settings }, { merge: true });
+    alert('Settings saved!');
+  } catch (err) {
+    alert('Error saving: ' + err.message);
+  }
+});
+
+// Create / Reset period
+document.getElementById('btnOtbCreatePeriod').addEventListener('click', async () => {
+  if (!confirm('This will create (or reset) the OT bid period for ' + getOTBidPeriodId() + '. Continue?')) return;
+  const pid = getOTBidPeriodId();
+  const ref = db.collection('ot_bids').doc(pid);
+  const dlVal = document.getElementById('otbDeadline').value;
+
+  const caps = {};
+  document.querySelectorAll('.otb-cap-input').forEach(inp => {
+    const v = parseInt(inp.value);
+    if (!isNaN(v) && v > 0) caps[inp.dataset.emp] = v;
+  });
+
+  const doc = {
+    settings: {
+      periodType: document.getElementById('otbPeriodType').value,
+      periodStart: document.getElementById('otbPeriodStart').value,
+      periodEnd: document.getElementById('otbPeriodEnd').value,
+      deadline: dlVal ? firebase.firestore.Timestamp.fromDate(new Date(dlVal)) : null,
+      blockSize: parseInt(document.getElementById('otbBlockSize').value),
+      defaultMaxOT: parseInt(document.getElementById('otbDefaultMax').value) || 36,
+      status: 'open',
+      employeeCaps: caps
+    },
+    bids: {},
+    approved: {}
+  };
+
+  try {
+    await ref.set(doc);
+    alert('Period created!');
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+});
+
+// ========== CROSS-QUALIFICATION FILTER ==========
+function isQualifiedForRole(empName, targetRole) {
+  const emp = _ALL_EMPLOYEES.find(e => e.name === empName);
+  if (!emp) return false;
+  const pos = emp.position.toUpperCase();
+  targetRole = targetRole.toUpperCase();
+
+  // Determine employee's capability level
+  let canFill = new Set();
+  if (pos.includes('PIC')) canFill = new Set(['PIC', 'DISPATCHER', 'CALLTAKER']);
+  else if (pos.includes('DISPATCH')) canFill = new Set(['DISPATCHER', 'CALLTAKER']);
+  else if (pos.includes('SUPERVISOR')) canFill = new Set(['DISPATCHER', 'CALLTAKER']);
+  else if (pos.includes('CALL') || pos === 'CT') canFill = new Set(['CALLTAKER']);
+
+  return canFill.has(targetRole);
+}
+
+// ========== HOUR CAP TRACKING ==========
+function getAssignedOTHours(empName) {
+  let hours = 0;
+  for (const key of Object.keys(_otAssignments)) {
+    const names = _otAssignments[key];
+    if (names.includes(empName)) hours += 4; // each OT block is 4hrs
+  }
+  // Also count from approved bids
+  if (_otBidData?.approved?.[empName]?.slots) {
+    hours += _otBidData.approved[empName].slots.length * 4;
+  }
+  return hours;
+}
+
+function getOTCap(empName) {
+  if (!_otBidData?.settings) return 36;
+  return _otBidData.settings.employeeCaps?.[empName] ?? _otBidData.settings.defaultMaxOT ?? 36;
+}
+
+function isAtOTCap(empName) {
+  return getAssignedOTHours(empName) >= getOTCap(empName);
+}
+
+function isRound1Complete(empName) {
+  // Check if the employee only bid round 1 (exactly 4hrs/week) and already has those assigned
+  const _r1bids = getOTBids();
+  if (!_r1bids[empName]) return false;
+  const slots = _r1bids[empName].slots || {};
+  const nonCant = Object.keys(slots).filter(k => slots[k] !== 'cant');
+  const blockHrs = _otBidData.settings?.blockSize === 1 ? 1 : 4;
+  const totalBidHrs = nonCant.length * blockHrs;
+  // If they only bid exactly 4 hrs (round 1 only), and already have 4+ hrs assigned
+  if (totalBidHrs <= 4 && getAssignedOTHours(empName) >= 4) return true;
+  return false;
+}
+
+// ========== DISTRIBUTION ALGORITHM ==========
+document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
+  if (!_otBidData) { alert('No bid data available.'); return; }
+  const bids = getOTBids();
+  const settings = _otBidData.settings || {};
+  const blockHrs = settings.blockSize === 1 ? 1 : 4;
+  const defaultCap = settings.defaultMaxOT || 36;
+  const periodStart = settings.periodStart;
+  const periodEnd = settings.periodEnd;
+
+  if (!periodStart || !periodEnd) { alert('Period dates not set.'); return; }
+
+  // Fetch OT assignments from ALL roles to prevent cross-role double-booking
+  const allRoles = ['DISPATCHER', 'CALLTAKER', 'PIC'];
+  const crossRoleOT = {}; // "day-blockIdx" -> Set of names assigned across all roles
+  for (const role of allRoles) {
+    const docId = ROLE_CONFIG[role].settingsDoc + '-' + currentMonth;
+    try {
+      const doc = await db.collection('staffingops').doc(docId).get();
+      if (doc.exists && doc.data().otAssignments) {
+        const oa = doc.data().otAssignments;
+        for (const key of Object.keys(oa)) {
+          if (!crossRoleOT[key]) crossRoleOT[key] = new Set();
+          for (const n of (oa[key] || [])) crossRoleOT[key].add(n.toUpperCase());
+        }
+      }
+    } catch (e) { console.warn('Failed to load OT for ' + role + ':', e); }
+  }
+
+  // Build set of slot keys where there's an actual OT need from staffing data
+  const neededSlotKeys = new Set();
+  const isDispatcher = currentRole === 'DISPATCHER';
+  const monthly = isDispatcher ? computeMonthlyFromRotation() : computeMonthlyStaffing();
+  const [_yr, _mo] = currentMonth.split('-').map(Number);
+  for (const d of monthly) {
+    const dateStr = _yr + '-' + String(_mo).padStart(2,'0') + '-' + String(d.date).padStart(2,'0');
+    for (let bi = 0; bi < OT_BLOCKS.length; bi++) {
+      if (d.blocks[bi].otNeed > 0) {
+        if (blockHrs === 1) {
+          // 1-hour blocks: add each hour key within this OT block
+          for (let h = OT_BLOCKS[bi].hourStart; h < OT_BLOCKS[bi].hourEnd; h++) {
+            const sh = h % 24, eh = (h + 1) % 24;
+            const fmt = v => { if (v === 0) return '12A'; if (v === 12) return '12P'; return v < 12 ? v + 'A' : (v - 12) + 'P'; };
+            neededSlotKeys.add(dateStr + '_' + fmt(sh) + '-' + fmt(eh));
+          }
+        } else {
+          neededSlotKeys.add(dateStr + '_' + OT_BLOCKS[bi].label);
+        }
+      }
+    }
+  }
+
+  // Collect all slot keys from all bids, filtered to only where there's a need
+  const allSlotKeys = new Set();
+  for (const name of Object.keys(bids)) {
+    const slots = bids[name].slots || {};
+    for (const key of Object.keys(slots)) {
+      if (slots[key] !== 'cant' && neededSlotKeys.has(key)) allSlotKeys.add(key);
+    }
+  }
+
+  // Track assigned hours per person
+  const assigned = {}; // name -> [slotKey, ...]
+  const empCap = (name) => settings.employeeCaps?.[name] ?? defaultCap;
+  const empSeniority = (name) => {
+    const emp = _ALL_EMPLOYEES.find(e => e.name === name);
+    return emp ? emp.seniority : 999;
+  };
+
+  // ---- ROUND 1: Fill scarcest slots first, use each employee's desiredR1 (4hrs/week) ----
+  // Pre-compute per-employee total availability and desired hours
+  const empAvailCount = {};
+  const empDesiredR1 = {}; // per-week cap from bid (always 4)
+  const empDesiredR2 = {}; // extra hours from bid
+  for (const name of Object.keys(bids)) {
+    assigned[name] = [];
+    const slots = bids[name].slots || {};
+    empAvailCount[name] = Object.keys(slots).filter(k => (slots[k] === 'prefer' || slots[k] === 'can') && neededSlotKeys.has(k)).length;
+    empDesiredR1[name] = bids[name].desiredR1 || 4;
+    empDesiredR2[name] = bids[name].desiredR2 || 0;
+  }
+
+  // Track how many people still needed per slot (from otNeed)
+  const slotNeedCount = {}; // slotKey -> how many people needed
+  for (const d of monthly) {
+    const dateStr = _yr + '-' + String(_mo).padStart(2,'0') + '-' + String(d.date).padStart(2,'0');
+    for (let bi = 0; bi < OT_BLOCKS.length; bi++) {
+      if (d.blocks[bi].otNeed > 0) {
+        if (blockHrs === 1) {
+          for (let h = OT_BLOCKS[bi].hourStart; h < OT_BLOCKS[bi].hourEnd; h++) {
+            const sh = h % 24, eh = (h + 1) % 24;
+            const fmt = v => { if (v === 0) return '12A'; if (v === 12) return '12P'; return v < 12 ? v + 'A' : (v - 12) + 'P'; };
+            slotNeedCount[dateStr + '_' + fmt(sh) + '-' + fmt(eh)] = d.blocks[bi].otNeed;
+          }
+        } else {
+          slotNeedCount[dateStr + '_' + OT_BLOCKS[bi].label] = d.blocks[bi].otNeed;
+        }
+      }
+    }
+  }
+
+  // Track remaining need per slot (decremented as people are assigned)
+  const slotRemaining = { ...slotNeedCount };
+
+  // Account for existing OT assignments from current role — reduce remaining need
+  const jsDay2idx = { 0:6, 1:0, 2:1, 3:2, 4:3, 5:4, 6:5 };
+  for (const key of Object.keys(_otAssignments)) {
+    const [dateNum, blockIdx] = key.split('-').map(Number);
+    const dateStr = _yr + '-' + String(_mo).padStart(2,'0') + '-' + String(dateNum).padStart(2,'0');
+    const names = _otAssignments[key] || [];
+    if (blockHrs === 1) {
+      for (let h = OT_BLOCKS[blockIdx].hourStart; h < OT_BLOCKS[blockIdx].hourEnd; h++) {
+        const sh = h % 24, eh = (h + 1) % 24;
+        const fmt = v => { if (v === 0) return '12A'; if (v === 12) return '12P'; return v < 12 ? v + 'A' : (v - 12) + 'P'; };
+        const sk = dateStr + '_' + fmt(sh) + '-' + fmt(eh);
+        if (slotRemaining[sk] !== undefined) slotRemaining[sk] = Math.max(0, slotRemaining[sk] - names.length);
+      }
+    } else {
+      const sk = dateStr + '_' + OT_BLOCKS[blockIdx].label;
+      if (slotRemaining[sk] !== undefined) slotRemaining[sk] = Math.max(0, slotRemaining[sk] - names.length);
+    }
+  }
+
+  // Build cross-role pre-assigned map — tracks who is assigned OT across ALL roles
+  // This prevents double-booking someone for the same block in dispatch + calltaker etc.
+  const preAssigned = {}; // slotKey -> Set of uppercase names
+  for (const key of Object.keys(crossRoleOT)) {
+    const [dateNum, blockIdx] = key.split('-').map(Number);
+    if (isNaN(dateNum) || isNaN(blockIdx)) continue;
+    const dateStr = _yr + '-' + String(_mo).padStart(2,'0') + '-' + String(dateNum).padStart(2,'0');
+    const names = crossRoleOT[key];
+    if (blockHrs === 1) {
+      for (let h = OT_BLOCKS[blockIdx].hourStart; h < OT_BLOCKS[blockIdx].hourEnd; h++) {
+        const sh = h % 24, eh = (h + 1) % 24;
+        const fmt = v => { if (v === 0) return '12A'; if (v === 12) return '12P'; return v < 12 ? v + 'A' : (v - 12) + 'P'; };
+        const sk = dateStr + '_' + fmt(sh) + '-' + fmt(eh);
+        if (!preAssigned[sk]) preAssigned[sk] = new Set();
+        for (const n of names) preAssigned[sk].add(n);
+      }
+    } else {
+      const sk = dateStr + '_' + OT_BLOCKS[blockIdx].label;
+      if (!preAssigned[sk]) preAssigned[sk] = new Set();
+      for (const n of names) preAssigned[sk].add(n);
+    }
+  }
+
+  // Build schedule lookup: which employees work which OT blocks on which dates
+  // empScheduled[NAME_UPPER] = Set of slotKeys where they have their regular shift
+  const empScheduled = {};
+  for (let i = 0; i < ORIG_DISPATCHERS.length; i++) {
+    const emp = ORIG_DISPATCHERS[i];
+    const nameUpper = emp.name.toUpperCase();
+    empScheduled[nameUpper] = new Set();
+    for (const d of monthly) {
+      const dateObj = new Date(_yr, _mo - 1, d.date);
+      const dayIdx = jsDay2idx[dateObj.getDay()];
+      const day = DAYS[dayIdx];
+      const shiftCode = emp.schedule[day];
+      for (let bi = 0; bi < OT_BLOCKS.length; bi++) {
+        // Check if any hour-block within this OT block is covered by the shift
+        let covers = false;
+        for (const hbi of OT_BLOCKS[bi].blockIdxs) {
+          if (shiftCoversBlock(shiftCode, BLOCKS[hbi])) { covers = true; break; }
+        }
+        if (covers) {
+          const dateStr = _yr + '-' + String(_mo).padStart(2,'0') + '-' + String(d.date).padStart(2,'0');
+          if (blockHrs === 1) {
+            for (let h = OT_BLOCKS[bi].hourStart; h < OT_BLOCKS[bi].hourEnd; h++) {
+              const sh = h % 24, eh = (h + 1) % 24;
+              const fmt = v => { if (v === 0) return '12A'; if (v === 12) return '12P'; return v < 12 ? v + 'A' : (v - 12) + 'P'; };
+              empScheduled[nameUpper].add(dateStr + '_' + fmt(sh) + '-' + fmt(eh));
+            }
+          } else {
+            empScheduled[nameUpper].add(dateStr + '_' + OT_BLOCKS[bi].label);
+          }
+        }
+      }
+    }
+  }
+
+  // Helper: check if employee is eligible for a slot (not pre-assigned, not on regular shift)
+  const isEligible = (name, slotKey) => {
+    const nameUpper = name.toUpperCase();
+    // Already manually assigned to this slot
+    if (preAssigned[slotKey]?.has(nameUpper)) return false;
+    // Working their regular shift during this block
+    if (empScheduled[nameUpper]?.has(slotKey)) return false;
+    return true;
+  };
+
+  // Track weekly hours per employee
+  const weekHrs = {}; // name -> { weekNum: hours }
+  const getWeek = (slotKey) => {
+    const dateStr = slotKey.split('_')[0];
+    const d = new Date(dateStr + 'T00:00:00');
+    const start = new Date(periodStart + 'T00:00:00');
+    return Math.floor((d - start) / (7 * 86400000));
+  };
+  const getEmpWeekHrs = (name, wk) => (weekHrs[name]?.[wk]) || 0;
+
+  // Round 1: loop — assign one person at a time to scarcest slot, repeat until no more R1 capacity
+  let r1Made = true;
+  while (r1Made) {
+    r1Made = false;
+
+    // Build slot list with remaining need > 0
+    const r1Open = [];
+    for (const sk of allSlotKeys) {
+      if ((slotRemaining[sk] || 0) <= 0) continue;
+      const candidates = [];
+      for (const name of Object.keys(bids)) {
+        if (assigned[name].includes(sk)) continue; // already assigned to this slot
+        if (!isEligible(name, sk)) continue; // pre-assigned or on regular shift
+        const val = bids[name].slots?.[sk];
+        if (val !== 'prefer' && val !== 'can') continue;
+        const wk = getWeek(sk);
+        if (getEmpWeekHrs(name, wk) >= empDesiredR1[name]) continue; // hit R1 weekly cap
+        candidates.push({ name, pref: val });
+      }
+      if (candidates.length > 0) r1Open.push({ slotKey: sk, candidates });
+    }
+
+    if (r1Open.length === 0) break;
+
+    // Sort by scarcity
+    r1Open.sort((a, b) => a.candidates.length - b.candidates.length);
+
+    const slot = r1Open[0];
+    // Pick winner: fewest availability first, prefer > can, seniority
+    slot.candidates.sort((a, b) => {
+      if (empAvailCount[a.name] !== empAvailCount[b.name]) return empAvailCount[a.name] - empAvailCount[b.name];
+      const pa = a.pref === 'prefer' ? 0 : 1;
+      const pb = b.pref === 'prefer' ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+      return empSeniority(a.name) - empSeniority(b.name);
+    });
+
+    const winner = slot.candidates[0];
+    assigned[winner.name].push(slot.slotKey);
+    const wk = getWeek(slot.slotKey);
+    if (!weekHrs[winner.name]) weekHrs[winner.name] = {};
+    weekHrs[winner.name][wk] = (weekHrs[winner.name][wk] || 0) + blockHrs;
+    slotRemaining[slot.slotKey] = (slotRemaining[slot.slotKey] || 0) - 1;
+    r1Made = true;
+  }
+
+  // ---- ROUND 2: Maximize fill — use desiredR2 extra hours, scarcest first, multi-fill ----
+  // Compute remaining availability per employee (unfilled prefer/can slots not yet assigned to them)
+  const getRemainingAvail = (name) => {
+    const slots = bids[name].slots || {};
+    const assignedSet = new Set(assigned[name] || []);
+    let count = 0;
+    for (const k of Object.keys(slots)) {
+      if ((slots[k] === 'prefer' || slots[k] === 'can') && !assignedSet.has(k) && neededSlotKeys.has(k)) count++;
+    }
+    return count;
+  };
+
+  // R2 weekly cap = desiredR1 + desiredR2 (total desired per week), clamped to overall OT cap
+  const getR2WeeklyCap = (name) => Math.min(empDesiredR1[name] + empDesiredR2[name], empCap(name));
+
+  // Loop: assign one person at a time to scarcest slot with remaining need, repeat
+  let r2Made = true;
+  while (r2Made) {
+    r2Made = false;
+
+    const openSlots = [];
+    for (const sk of allSlotKeys) {
+      if ((slotRemaining[sk] || 0) <= 0) continue; // slot fully filled
+      const candidates = [];
+      for (const name of Object.keys(bids)) {
+        if (assigned[name].includes(sk)) continue; // already assigned here
+        if (!isEligible(name, sk)) continue; // pre-assigned or on regular shift
+        const val = bids[name].slots?.[sk];
+        if (val !== 'prefer' && val !== 'can') continue;
+        // Check total cap
+        const totalHrs = assigned[name].length * blockHrs;
+        if (totalHrs >= empCap(name)) continue;
+        // Check weekly cap (R2 expanded)
+        const wk = getWeek(sk);
+        if (getEmpWeekHrs(name, wk) >= getR2WeeklyCap(name)) continue;
+        candidates.push({ name, pref: val });
+      }
+      if (candidates.length > 0) openSlots.push({ slotKey: sk, candidates });
+    }
+
+    if (openSlots.length === 0) break;
+
+    // Sort by scarcity (fewest candidates first)
+    openSlots.sort((a, b) => a.candidates.length - b.candidates.length);
+
+    const slot = openSlots[0];
+
+    // Pick winner:
+    // 1. Fewest remaining available slots (save flexible people)
+    // 2. Most cap room (can absorb more hours)
+    // 3. prefer > can
+    // 4. Seniority
+    slot.candidates.sort((a, b) => {
+      const ra = getRemainingAvail(a.name);
+      const rb = getRemainingAvail(b.name);
+      if (ra !== rb) return ra - rb;
+      const capRoomA = empCap(a.name) - assigned[a.name].length * blockHrs;
+      const capRoomB = empCap(b.name) - assigned[b.name].length * blockHrs;
+      if (capRoomA !== capRoomB) return capRoomB - capRoomA;
+      const pa = a.pref === 'prefer' ? 0 : 1;
+      const pb = b.pref === 'prefer' ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+      return empSeniority(a.name) - empSeniority(b.name);
+    });
+
+    const winner = slot.candidates[0];
+    assigned[winner.name].push(slot.slotKey);
+    const wk = getWeek(slot.slotKey);
+    if (!weekHrs[winner.name]) weekHrs[winner.name] = {};
+    weekHrs[winner.name][wk] = (weekHrs[winner.name][wk] || 0) + blockHrs;
+    slotRemaining[slot.slotKey] = (slotRemaining[slot.slotKey] || 0) - 1;
+    r2Made = true;
+  }
+
+  // Store results
+  _otBidDistResult = assigned;
+
+  // Display results
+  // Count totals
+  let totalAssigned = 0, totalNeeded = 0;
+  for (const name of Object.keys(assigned)) totalAssigned += assigned[name].length;
+  for (const sk of Object.keys(slotNeedCount)) totalNeeded += slotNeedCount[sk];
+  const totalFilled = totalNeeded - Object.values(slotRemaining).reduce((s, v) => s + Math.max(0, v), 0);
+
+  let html = '<div style="font-size:13px;font-weight:800;margin-bottom:4px">DISTRIBUTION RESULTS (Review before publishing)</div>';
+  html += '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">' + totalFilled + ' of ' + totalNeeded + ' needed slots filled &mdash; ' + totalAssigned + ' total assignments</div>';
+
+  const sortedNames = Object.keys(assigned).sort((a, b) => empSeniority(a) - empSeniority(b));
+  for (const name of sortedNames) {
+    const slots = assigned[name];
+    if (slots.length === 0) continue;
+    const hrs = slots.length * blockHrs;
+    const cap = empCap(name);
+    const r1Hrs = empDesiredR1[name];
+    const r2Hrs = empDesiredR2[name];
+    const isR1Only = r2Hrs === 0;
+    const badge = isR1Only ? ' <span style="color:#facc15;font-size:9px;font-weight:700">[R1 ONLY — ' + r1Hrs + 'hrs/wk]</span>' : ' <span style="color:var(--muted);font-size:9px">R1:' + r1Hrs + ' + R2:' + r2Hrs + '/wk</span>';
+    html += '<div style="padding:6px 0;border-bottom:1px solid var(--line)"><strong>' + name + '</strong> — ' + hrs + '/' + cap + ' hrs (' + slots.length + ' slots)' + badge + '<br>';
+    for (const sk of slots.sort()) {
+      const [dateStr, blockLabel] = sk.split('_');
+      const pref = bids[name]?.slots?.[sk] || '?';
+      const prefColor = pref === 'prefer' ? '#22c55e' : pref === 'can' ? '#eab308' : '#a8b3c7';
+      html += '<span style="display:inline-block;padding:2px 6px;margin:2px;border-radius:3px;background:var(--panel);border:1px solid var(--line);font-size:10px">' + dateStr.slice(5) + ' ' + blockLabel + ' <span style="color:' + prefColor + '">[' + pref.toUpperCase() + ']</span></span>';
+    }
+    html += '</div>';
+  }
+
+  // Show unassigned employees
+  const unassigned = Object.keys(bids).filter(n => !assigned[n] || assigned[n].length === 0);
+  if (unassigned.length) {
+    html += '<div style="margin-top:8px;color:var(--muted)">No slots assigned: ' + unassigned.join(', ') + '</div>';
+  }
+
+  // Show unfilled slots (need > 0 remaining, no candidates)
+  const unfilled = [];
+  for (const sk of Object.keys(slotRemaining)) {
+    if (slotRemaining[sk] > 0) unfilled.push(sk);
+  }
+  if (unfilled.length) {
+    html += '<div style="margin-top:10px;padding:8px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:6px">';
+    html += '<div style="font-weight:800;color:#ef4444;font-size:11px;margin-bottom:4px">UNFILLED — NO CANDIDATES (' + unfilled.length + ' slots)</div>';
+    for (const sk of unfilled.sort()) {
+      const [dateStr, blockLabel] = sk.split('_');
+      const rem = slotRemaining[sk];
+      html += '<span style="display:inline-block;padding:2px 6px;margin:2px;border-radius:3px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);font-size:10px;color:#fca5a5">' + dateStr.slice(5) + ' ' + blockLabel + ' (need ' + rem + ')</span>';
+    }
+    html += '</div>';
+  }
+
+  document.getElementById('otbDistResults').innerHTML = html;
+  document.getElementById('otbDistResults').style.display = '';
+  document.getElementById('btnOtbPublish').style.display = '';
+}); // end distribution
+
+// Publish approved assignments
+document.getElementById('btnOtbPublish').addEventListener('click', async () => {
+  if (!_otBidDistResult || !_otBidData) { alert('No distribution results to publish.'); return; }
+  if (!confirm('Publish these OT assignments? This will update _otAssignments and mark period as assigned.')) return;
+
+  const blockHrs = _otBidData.settings?.blockSize === 1 ? 1 : 4;
+  const approved = {};
+
+  // Build approved map
+  for (const name of Object.keys(_otBidDistResult)) {
+    const slots = _otBidDistResult[name];
+    if (!slots || slots.length === 0) continue;
+    approved[name] = {
+      slots: [...slots],
+      approvedBy: auth.currentUser?.email || 'admin'
+    };
+  }
+
+  // Also push into _otAssignments for staffing grid integration
+  // Convert slot keys (YYYY-MM-DD_6A-10A or YYYY-MM-DD_6A-7A) to staffing format (dayOfMonth-blockIdx)
+  const [yr, mo] = currentMonth.split('-').map(Number);
+  for (const name of Object.keys(_otBidDistResult)) {
+    for (const sk of _otBidDistResult[name]) {
+      const [dateStr, blockLabel] = sk.split('_');
+      const d = new Date(dateStr + 'T00:00:00');
+      if (d.getMonth() + 1 !== mo || d.getFullYear() !== yr) continue;
+      const dayOfMonth = d.getDate();
+      // Find which OT block this slot belongs to
+      let blockIdx = OT_BLOCKS.findIndex(b => b.label === blockLabel);
+      if (blockIdx < 0 && blockHrs === 1) {
+        // 1hr slot key like "6A-7A" — find which OT block contains this hour
+        const hourMatch = blockLabel.match(/^(\d+[AP])-/);
+        if (hourMatch) {
+          const parseHr = (s) => { const n = parseInt(s); const isPM = s.endsWith('P'); if (n === 12) return isPM ? 12 : 0; return isPM ? n + 12 : n; };
+          const hr = parseHr(hourMatch[1]);
+          blockIdx = OT_BLOCKS.findIndex(b => hr >= (b.hourStart % 24) && hr < (b.hourEnd % 24 || 24));
+          // Handle wrap-around for overnight blocks
+          if (blockIdx < 0) blockIdx = OT_BLOCKS.findIndex(b => (hr + 24) >= b.hourStart && (hr + 24) < b.hourEnd);
+        }
+      }
+      if (blockIdx < 0) continue;
+      const key = dayOfMonth + '-' + blockIdx;
+      if (!_otAssignments[key]) _otAssignments[key] = [];
+      if (!_otAssignments[key].includes(name)) _otAssignments[key].push(name);
+    }
+  }
+
+  try {
+    const pid = getOTBidPeriodId();
+    const bidRef = db.collection('ot_bids').doc(pid);
+    await bidRef.set({
+      approved,
+      'settings.status': 'assigned'
+    }, { merge: true });
+
+    saveOTAssignments();
+    _otBidDistResult = null;
+    document.getElementById('btnOtbPublish').style.display = 'none';
+    alert('Assignments published!');
+    renderMonthlyOTView();
+  } catch (err) {
+    alert('Error publishing: ' + err.message);
+  }
+});
 
 function printHowItWorksStaffing(){
   const content = document.getElementById('howItWorksContent');

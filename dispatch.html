@@ -258,9 +258,9 @@
     .board-wrapper{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
     .board-container{flex:1;display:flex;flex-direction:column;min-height:0}
     .board-grid{flex:1;display:flex!important;flex-direction:column;min-height:0;width:100%}
-    .grid-header.shift-title{flex-shrink:0;font-size:7px;padding:2px 6px}
+    .grid-header.shift-title{flex-shrink:0;font-size:9px;padding:2px 6px}
     .board-grid > div:not(.channel-row-mobile):not(.grid-header){flex-shrink:0}
-    .channel-row-mobile{flex:1;min-height:0;display:grid!important;grid-template-columns:28px 1fr 1fr 1fr}
+    .channel-row-mobile{flex:1;min-height:0;display:grid!important;grid-template-columns:32px 1fr 1fr 1fr}
     .channel-row-mobile .assignment-cell{justify-content:center;padding:1px 2px}
     .status-bar{display:none}
     /* Hide announcement and status on mobile — no room */
@@ -276,18 +276,18 @@
     .board-container{width:100%;overflow:hidden;border-radius:0 0 3px 3px}
     .board-grid{display:block;width:100%}
     .grid-header.channel-label,.grid-header:not(.shift-title):not(.channel-label){display:none}
-    .grid-header.shift-title{display:block;font-size:8px;padding:3px 6px;margin-bottom:0;border-radius:0}
+    .grid-header.shift-title{display:block;font-size:9px;padding:3px 6px;margin-bottom:0;border-radius:0}
 
     /* One row per channel: label col + 3 block cols */
     .channel-row-mobile{
       display:grid;
-      grid-template-columns:28px 1fr 1fr 1fr;
+      grid-template-columns:32px 1fr 1fr 1fr;
       border-bottom:1px solid #1a1a1a;
       min-height:0;
     }
     .channel-row-mobile:last-child{border-bottom:none}
     .channel-row-mobile .channel-label-cell{
-      padding:0 2px;font-size:12px;letter-spacing:0;font-weight:900;color:#fff;
+      padding:0 2px;font-size:13px;letter-spacing:0;font-weight:900;color:#fff;
       border-right:1px solid #242424;border-bottom:none;
       background:#141414;display:flex;align-items:center;justify-content:center;
       white-space:nowrap;overflow:hidden;line-height:1;text-align:center;
@@ -303,9 +303,9 @@
 
     /* Name badges — maximize text size */
     .ch-initial{min-width:12px;padding:1px 1px;font-size:5px;letter-spacing:0;flex-shrink:0;line-height:1;display:none}
-    .assignment-badge{font-size:12px;padding:3px 3px;letter-spacing:0;line-height:1.2;border-left-width:3px!important;color:#fff!important}
-    .ct-badge{font-size:11px;padding:2px 3px;letter-spacing:0;line-height:1.2;border-left-width:1px!important;color:#ddd!important}
-    .pending-cell{font-size:7px;padding:2px 3px;letter-spacing:.5px}
+    .assignment-badge{font-size:15px;padding:3px 4px;letter-spacing:0;line-height:1.2;border-left-width:3px!important;color:#fff!important}
+    .ct-badge{font-size:13px;padding:2px 4px;letter-spacing:0;line-height:1.2;border-left-width:1px!important;color:#ddd!important}
+    .pending-cell{font-size:9px;padding:2px 3px;letter-spacing:.5px}
     .paste-col-btn{display:none}
 
     /* Status + announcement compact */
@@ -1205,13 +1205,13 @@ function renderBoard() {
 
     // Dedicated header row with time block labels
     const headerRow = document.createElement('div');
-    headerRow.style.cssText = 'display:grid;grid-template-columns:28px 1fr 1fr 1fr;background:#1a1a1a;border-bottom:1px solid #333;';
+    headerRow.style.cssText = 'display:grid;grid-template-columns:32px 1fr 1fr 1fr;background:#1a1a1a;border-bottom:1px solid #333;';
     const emptyCell = document.createElement('div');
     emptyCell.style.cssText = 'border-right:1px solid #242424;';
     headerRow.appendChild(emptyCell);
     labels.forEach(lbl => {
       const h = document.createElement('div');
-      h.style.cssText = 'font-size:7px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:#aaa;text-align:center;padding:3px 1px;font-family:"Share Tech Mono",monospace;border-right:1px solid #242424;';
+      h.style.cssText = 'font-size:9px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:#aaa;text-align:center;padding:3px 1px;font-family:"Share Tech Mono",monospace;border-right:1px solid #242424;';
       // Shorten labels for mobile
       h.textContent = lbl.replace(' AM','A').replace(' PM','P').replace('—','–');
       headerRow.appendChild(h);
