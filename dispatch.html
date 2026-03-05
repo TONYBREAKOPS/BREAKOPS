@@ -234,94 +234,105 @@
 
   /* ── Mobile & Responsive ───────────────────────────────────── */
   @media(max-width:768px){
-    body{padding:3px;font-size:11px}
-
-    /* Header — two rows on mobile */
-    .page-header{
-      padding:4px 6px;gap:3px;
-      flex-direction:column;align-items:stretch;margin-bottom:3px;
-    }
-    .page-title{font-size:10px;letter-spacing:.3px;text-align:center}
-    .page-header > div:last-child{
-      display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:nowrap;
-    }
-    #liveClock{font-size:11px;padding:2px 5px;min-width:60px;letter-spacing:1px}
-    .power-btn,.lock-btn{font-size:8px;padding:3px 6px;letter-spacing:0}
-    .btn{font-size:8px;padding:3px 6px}
+    body{padding:0;font-size:11px}
 
     /* Fill full screen — no scroll */
-    body{height:100dvh;display:flex;flex-direction:column;overflow:hidden;padding:2px;padding-top:max(12px, env(safe-area-inset-top))}
+    body{height:100dvh;display:flex;flex-direction:column;overflow:hidden;padding-top:max(4px, env(safe-area-inset-top))}
     .page-wrap{flex:1;display:flex;flex-direction:column;min-height:0;max-width:100%;margin:0}
-    .page-header{flex-shrink:0;padding:3px 6px;margin-bottom:2px}
-    .shift-tabs{flex-shrink:0}
-    .shift-tab{font-size:9px;padding:3px 2px}
-    .board-wrapper{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
-    .board-container{flex:1;display:flex;flex-direction:column;min-height:0}
+
+    /* Header — single condensed row */
+    .page-header{
+      flex-shrink:0;padding:2px 6px;gap:0;margin-bottom:0;
+      flex-direction:row;align-items:center;justify-content:space-between;
+      border-bottom:1px solid #1a2a3a;
+    }
+    .page-header > div:first-child{display:none}
+    .page-header > div:last-child{
+      display:flex;align-items:center;justify-content:space-between;gap:4px;flex-wrap:nowrap;width:100%;
+    }
+    #liveClock{font-size:14px;padding:2px 6px;min-width:auto;letter-spacing:2px;border:none;background:none;box-shadow:none;order:2;flex:1;text-align:center}
+    .power-btn,.lock-btn{font-size:7px;padding:3px 6px;letter-spacing:0}
+    .power-btn{order:1}
+    .lock-btn{order:3}
+    .btn{font-size:7px;padding:2px 5px}
+    #clearAllBtn,#saveBtn{order:4}
+
+    /* Shift tabs — compact */
+    .shift-tabs{flex-shrink:0;gap:0}
+    .shift-tab{font-size:8px;padding:3px 2px;letter-spacing:.5px;border-radius:0}
+
+    /* Board fills remaining space */
+    .board-wrapper{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;overflow-x:visible}
+    .board-container{flex:1;display:flex;flex-direction:column;min-height:0;width:100%;overflow:hidden;border-radius:0;border-bottom:none}
     .board-grid{flex:1;display:flex!important;flex-direction:column;min-height:0;width:100%}
-    .grid-header.shift-title{flex-shrink:0;font-size:9px;padding:2px 6px}
+    .grid-header.channel-label,.grid-header:not(.shift-title):not(.channel-label){display:none}
+    .grid-header.shift-title{flex-shrink:0;font-size:8px;padding:2px 6px;margin-bottom:0;border-radius:0;display:block}
     .board-grid > div:not(.channel-row-mobile):not(.grid-header){flex-shrink:0}
-    .channel-row-mobile{flex:1;min-height:0;display:grid!important;grid-template-columns:32px 1fr 1fr 1fr}
-    .channel-row-mobile .assignment-cell{justify-content:center;padding:1px 2px}
-    .status-bar{display:none}
+
     /* Hide announcement and status on mobile — no room */
     #announcementWrapper{display:none!important}
     .status-bar{display:none!important}
-    .board-container{border-radius:0;border-bottom:none}
 
-    /* Shift tabs — short */
-    .shift-tab{font-size:9px;padding:4px 2px;letter-spacing:.5px}
-
-    /* Board */
-    .board-wrapper{overflow-x:visible}
-    .board-container{width:100%;overflow:hidden;border-radius:0 0 3px 3px}
-    .board-grid{display:block;width:100%}
-    .grid-header.channel-label,.grid-header:not(.shift-title):not(.channel-label){display:none}
-    .grid-header.shift-title{display:block;font-size:9px;padding:3px 6px;margin-bottom:0;border-radius:0}
+    /* Time header row */
+    .mobile-time-header{flex-shrink:0}
 
     /* One row per channel: label col + 3 block cols */
     .channel-row-mobile{
-      display:grid;
-      grid-template-columns:32px 1fr 1fr 1fr;
-      border-bottom:1px solid #1a1a1a;
-      min-height:0;
+      flex:1;min-height:0;
+      display:grid!important;
+      grid-template-columns:28px 1fr 1fr 1fr;
+      border-bottom:1px solid rgba(255,255,255,.06);
     }
     .channel-row-mobile:last-child{border-bottom:none}
     .channel-row-mobile .channel-label-cell{
-      padding:0 2px;font-size:13px;letter-spacing:0;font-weight:900;color:#fff;
-      border-right:1px solid #242424;border-bottom:none;
-      background:#141414;display:flex;align-items:center;justify-content:center;
+      padding:0 1px;font-size:12px;letter-spacing:0;font-weight:900;color:#fff;
+      border-right:none;border-bottom:none;
+      display:flex;align-items:center;justify-content:center;
       white-space:nowrap;overflow:hidden;line-height:1;text-align:center;
     }
     .channel-row-mobile .time-blocks{display:contents}
     .channel-row-mobile .assignment-cell{
-      padding:2px 3px;min-height:0;
-      border-right:1px solid #1a1a1a;border-bottom:none;
+      padding:1px 3px;min-height:0;
+      border-right:1px solid rgba(255,255,255,.04);border-bottom:none;
       gap:0;display:flex;flex-direction:column;justify-content:center;
     }
     .channel-row-mobile .assignment-cell:last-child{border-right:none}
     .mobile-block-label{display:none}
 
+    /* Channel row color tinting — subtle full-row background */
+    .channel-row-mobile[data-ch="NORTH"]    {background:rgba(232,130,12,.10)}
+    .channel-row-mobile[data-ch="EAST"]     {background:rgba(46,204,113,.08)}
+    .channel-row-mobile[data-ch="SOUTH"]    {background:rgba(52,152,219,.08)}
+    .channel-row-mobile[data-ch="WEST"]     {background:rgba(231,76,60,.08)}
+    .channel-row-mobile[data-ch="NORTHWEST"]{background:rgba(155,89,182,.08)}
+    .channel-row-mobile[data-ch="CENTRAL"]  {background:rgba(26,188,156,.08)}
+    .channel-row-mobile[data-ch="DC1"]      {background:rgba(241,196,15,.08)}
+    .channel-row-mobile[data-ch="DC2"]      {background:rgba(230,126,34,.08)}
+    .channel-row-mobile[data-ch="RELIEF1"]  {background:rgba(149,165,166,.08)}
+    .channel-row-mobile[data-ch="RELIEF2"]  {background:rgba(91,141,217,.08)}
+    .channel-row-mobile[data-ch="CT"]       {background:rgba(255,255,255,.03)}
+
+    /* Channel label color matches its channel */
+    .channel-row-mobile[data-ch="NORTH"]     .channel-label-cell{color:#e8820c}
+    .channel-row-mobile[data-ch="EAST"]      .channel-label-cell{color:#2ecc71}
+    .channel-row-mobile[data-ch="SOUTH"]     .channel-label-cell{color:#3498db}
+    .channel-row-mobile[data-ch="WEST"]      .channel-label-cell{color:#e74c3c}
+    .channel-row-mobile[data-ch="NORTHWEST"] .channel-label-cell{color:#9b59b6}
+    .channel-row-mobile[data-ch="CENTRAL"]   .channel-label-cell{color:#1abc9c}
+    .channel-row-mobile[data-ch="DC1"]       .channel-label-cell{color:#f1c40f}
+    .channel-row-mobile[data-ch="DC2"]       .channel-label-cell{color:#e67e22}
+    .channel-row-mobile[data-ch="RELIEF1"]   .channel-label-cell{color:#95a5a6}
+    .channel-row-mobile[data-ch="RELIEF2"]   .channel-label-cell{color:#5b8dd9}
+    .channel-row-mobile[data-ch="CT"]        .channel-label-cell{color:#8896a8}
+
     /* Name badges — maximize text size */
-    .ch-initial{min-width:12px;padding:1px 1px;font-size:5px;letter-spacing:0;flex-shrink:0;line-height:1;display:none}
-    .assignment-badge{font-size:15px;padding:3px 4px;letter-spacing:0;line-height:1.2;border-left-width:3px!important;color:#fff!important}
-    .ct-badge{font-size:13px;padding:2px 4px;letter-spacing:0;line-height:1.2;border-left-width:1px!important;color:#ddd!important}
+    .ch-initial{display:none}
+    .assignment-badge{font-size:17px;padding:2px 4px;letter-spacing:0;line-height:1.15;border-left-width:3px!important;color:#fff!important;background:transparent!important}
+    .ct-badge{font-size:14px;padding:1px 4px;letter-spacing:0;line-height:1.15;border-left-width:1px!important;color:#ddd!important;background:transparent!important}
     .pending-cell{font-size:9px;padding:2px 3px;letter-spacing:.5px}
     .paste-col-btn{display:none}
 
-    /* Status + announcement compact */
-    .status-bar{font-size:8px;padding:2px 6px}
-    #announcementBox{font-size:10px;padding:6px 8px;min-height:50px}
-
-    /* Page gate */
-    #pageGate > div{padding:20px 14px;width:calc(100vw - 24px)}
-
-    /* Modals */
-    .modal{padding:14px 12px;width:calc(100vw - 20px)}
-    .modal-title{font-size:12px}
-    .modal-desc{font-size:10px}
-    .modal-textarea{height:130px;font-size:10px}
-
-    /* Restore channel color border on badge since prefix is hidden */
+    /* Restore channel color border on badge */
     .c-north.assignment-badge{border-left:3px solid #e8820c!important}
     .c-east.assignment-badge{ border-left:3px solid #2ecc71!important}
     .c-south.assignment-badge{border-left:3px solid #3498db!important}
@@ -333,10 +344,40 @@
     .c-r1.assignment-badge{   border-left:3px solid #95a5a6!important}
     .c-r2.assignment-badge{   border-left:3px solid #5b8dd9!important}
 
+    /* Page gate */
+    #pageGate > div{padding:20px 14px;width:calc(100vw - 24px)}
+
+    /* Modals */
+    .modal{padding:14px 12px;width:calc(100vw - 20px)}
+    .modal-title{font-size:12px}
+    .modal-desc{font-size:10px}
+    .modal-textarea{height:130px;font-size:10px}
+
     /* Inputs non-interactive when locked */
     .assignment-badge,.ct-badge{pointer-events:none}
     body:not(.locked) .assignment-badge,
     body:not(.locked) .ct-badge{pointer-events:auto}
+  }
+
+  /* ── Landscape mobile ─────────────────────────────────────── */
+  @media(max-width:900px) and (max-height:500px) and (orientation:landscape){
+    /* Header even more compact in landscape */
+    .page-header{padding:1px 8px}
+    #liveClock{font-size:12px;padding:1px 4px}
+    .power-btn,.lock-btn{font-size:6px;padding:2px 5px}
+
+    /* Hide shift tabs — use shift title only */
+    .shift-tabs{display:none!important}
+
+    /* Board grid: wider label column, names can be huge */
+    .channel-row-mobile{grid-template-columns:36px 1fr 1fr 1fr!important}
+    .channel-row-mobile .channel-label-cell{font-size:13px}
+    .assignment-badge{font-size:19px!important;padding:1px 5px!important}
+    .ct-badge{font-size:15px!important;padding:1px 5px!important}
+    .grid-header.shift-title{font-size:9px;padding:1px 6px}
+
+    /* Shift title shows which shift — replaces hidden tabs */
+    .grid-header.shift-title{font-weight:700;letter-spacing:1px}
   }
 </style>
 </head>
@@ -1205,7 +1246,8 @@ function renderBoard() {
 
     // Dedicated header row with time block labels
     const headerRow = document.createElement('div');
-    headerRow.style.cssText = 'display:grid;grid-template-columns:32px 1fr 1fr 1fr;background:#1a1a1a;border-bottom:1px solid #333;';
+    headerRow.style.cssText = 'display:grid;grid-template-columns:28px 1fr 1fr 1fr;background:#0a0e16;border-bottom:1px solid rgba(255,255,255,.06);';
+    headerRow.className = 'mobile-time-header';
     const emptyCell = document.createElement('div');
     emptyCell.style.cssText = 'border-right:1px solid #242424;';
     headerRow.appendChild(emptyCell);
@@ -1221,6 +1263,7 @@ function renderBoard() {
     CHANNELS.forEach(ch => {
       const card = document.createElement('div');
       card.className = 'channel-row-mobile';
+      card.setAttribute('data-ch', ch.key);
 
       const labelCell = document.createElement('div');
       labelCell.className = 'channel-label-cell';
