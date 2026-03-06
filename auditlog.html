@@ -33,8 +33,8 @@ body {
   background: var(--bg);
 }
 
-/* Password gate */
-#passGate {
+/* Login gate */
+#loginOverlay {
   position: fixed; inset: 0; z-index: 1000;
   background: var(--bg);
   display: flex; align-items: center; justify-content: center;
@@ -145,8 +145,8 @@ tr:hover td { background: rgba(74,163,255,.04); }
 </head>
 <body>
 
-<!-- Password Gate -->
-<div id="passGate">
+<!-- Login Gate -->
+<div id="loginOverlay">
   <div class="login-box">
     <svg width="48" height="48" viewBox="0 0 64 64" fill="none" style="margin-bottom:12px">
       <circle cx="32" cy="32" r="29" stroke="#233043" stroke-width="2" fill="#0b0f14"/>
@@ -156,13 +156,13 @@ tr:hover td { background: rgba(74,163,255,.04); }
       <line x1="24" y1="36" x2="36" y2="36" stroke="#4aa3ff" stroke-width="1.5"/>
     </svg>
     <h2>Audit Log</h2>
-    <div class="sub">Enter access code to continue</div>
-    <div class="login-err" id="passError"></div>
-    <form id="passForm">
-      <label>Access Code</label>
-      <input type="password" id="passInput" placeholder="Enter access code" required autocomplete="off"/>
-      <button type="submit" class="btn-login">Unlock</button>
-    </form>
+    <div class="sub">Sign in to continue</div>
+    <div class="login-err" id="loginErr"></div>
+    <label>Email</label>
+    <input type="email" id="loginEmail" placeholder="Enter email" autocomplete="email"/>
+    <label>Password</label>
+    <input type="password" id="loginPass" placeholder="Enter password" autocomplete="current-password"/>
+    <button class="btn-login" id="btnLogin">Sign In</button>
   </div>
 </div>
 
@@ -173,10 +173,15 @@ tr:hover td { background: rgba(74,163,255,.04); }
   <h1>Audit Log</h1>
   <div class="header-right">
     <span id="logCount" style="color:var(--muted);font-size:12px"></span>
+    <span id="userEmail" style="color:var(--muted);font-size:12px"></span>
+    <a href="#" id="btnLogout" style="color:var(--bad);font-size:12px;text-decoration:none;font-weight:700">Logout</a>
   </div>
 </header>
 
 <div class="controls">
+  <select id="filterApp">
+    <option value="">All Apps</option>
+  </select>
   <select id="filterCollection">
     <option value="">All Collections</option>
   </select>
@@ -208,6 +213,7 @@ tr:hover td { background: rgba(74,163,255,.04); }
         <th>Timestamp</th>
         <th>User</th>
         <th>Action</th>
+        <th>App</th>
         <th>Collection</th>
         <th>Document</th>
       </tr>
@@ -223,32 +229,6 @@ tr:hover td { background: rgba(74,163,255,.04); }
 </div>
 
 <script>
-// SHA-256 password gate (same pattern as employees.html)
-const PASS_HASH = "e9ea85886c6f94643bcc7b5f9ed746d72f5ac6f6b955684bf3858c0dd58c645c";
-
-async function sha256(text) {
-  const data = new TextEncoder().encode(text);
-  const buf = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
-document.getElementById("passForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const input = document.getElementById("passInput").value;
-  const errEl = document.getElementById("passError");
-  const hash = await sha256(input);
-  if (hash === PASS_HASH) {
-    document.getElementById("passGate").style.display = "none";
-    document.getElementById("app").style.display = "block";
-    initApp();
-  } else {
-    errEl.textContent = "Incorrect access code";
-    errEl.classList.add("show");
-    document.getElementById("passInput").value = "";
-    document.getElementById("passInput").focus();
-  }
-});
-
 // Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyA6KELmSyotefK0zhahQZ0-mbYur8_nTsg",
@@ -264,31 +244,53 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
+// Auth
+document.getElementById("btnLogin").addEventListener("click", async () => {
+  const email = document.getElementById("loginEmail").value.trim();
+  const pass = document.getElementById("loginPass").value;
+  const errEl = document.getElementById("loginErr");
+  errEl.textContent = ""; errEl.classList.remove("show");
+  try { await auth.signInWithEmailAndPassword(email, pass); }
+  catch(e) { errEl.textContent = e.message; errEl.classList.add("show"); }
+});
+document.getElementById("loginPass").addEventListener("keydown", e => {
+  if (e.key === "Enter") document.getElementById("btnLogin").click();
+});
+document.getElementById("btnLogout").addEventListener("click", e => {
+  e.preventDefault();
+  auth.signOut();
+});
+auth.onAuthStateChanged(user => {
+  document.getElementById("loginOverlay").style.display = user ? "none" : "";
+  document.getElementById("app").style.display = user ? "" : "none";
+  if (user) {
+    document.getElementById("userEmail").textContent = user.email;
+    loadLogs();
+  }
+});
+
 let allLogs = [];
 let filteredLogs = [];
 let collections = new Set();
+let apps = new Set();
 let users = new Set();
 const PAGE_SIZE = 50;
 let currentPage = 0;
 
-async function initApp() {
-  // Sign in anonymously for Firestore access
-  try { await auth.signInAnonymously(); } catch(e) { console.warn("Auth failed:", e); }
-  await loadLogs();
-}
-
 async function loadLogs() {
-  document.getElementById("logBody").innerHTML = '<tr><td colspan="6" class="status-msg">Loading audit logs...</td></tr>';
+  document.getElementById("logBody").innerHTML = '<tr><td colspan="7" class="status-msg">Loading audit logs...</td></tr>';
   try {
     const snap = await db.collection("auditLog").orderBy("timestamp", "desc").limit(2000).get();
     allLogs = [];
     collections.clear();
+    apps.clear();
     users.clear();
     snap.forEach(doc => {
       const d = doc.data();
       d._id = doc.id;
       allLogs.push(d);
       if (d.collection) collections.add(d.collection);
+      if (d.sourceApp) apps.add(d.sourceApp);
       if (d.authEmail) users.add(d.authEmail);
     });
     populateFilters();
@@ -308,11 +310,17 @@ function escHtml(s) {
 }
 
 function populateFilters() {
+  const appSel = document.getElementById("filterApp");
   const colSel = document.getElementById("filterCollection");
   const userSel = document.getElementById("filterUser");
-  // Keep first option
+  appSel.innerHTML = '<option value="">All Apps</option>';
   colSel.innerHTML = '<option value="">All Collections</option>';
   userSel.innerHTML = '<option value="">All Users</option>';
+  Array.from(apps).sort().forEach(a => {
+    const o = document.createElement("option");
+    o.value = a; o.textContent = a;
+    appSel.appendChild(o);
+  });
   Array.from(collections).sort().forEach(c => {
     const o = document.createElement("option");
     o.value = c; o.textContent = c;
@@ -326,6 +334,7 @@ function populateFilters() {
 }
 
 function applyFilters() {
+  const app = document.getElementById("filterApp").value;
   const col = document.getElementById("filterCollection").value;
   const action = document.getElementById("filterAction").value;
   const user = document.getElementById("filterUser").value;
@@ -333,6 +342,7 @@ function applyFilters() {
   const to = document.getElementById("filterDateTo").value;
 
   filteredLogs = allLogs.filter(log => {
+    if (app && log.sourceApp !== app) return false;
     if (col && log.collection !== col) return false;
     if (action && log.action !== action) return false;
     if (user && log.authEmail !== user) return false;
@@ -351,6 +361,7 @@ function applyFilters() {
 }
 
 function clearFilters() {
+  document.getElementById("filterApp").value = "";
   document.getElementById("filterCollection").value = "";
   document.getElementById("filterAction").value = "";
   document.getElementById("filterUser").value = "";
@@ -376,7 +387,7 @@ function render() {
   document.getElementById("logCount").textContent = allLogs.length + " total entries";
 
   if (page.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="status-msg">No log entries found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="status-msg">No log entries found</td></tr>';
     document.getElementById("pagination").innerHTML = "";
     return;
   }
@@ -396,10 +407,11 @@ function render() {
       '<td class="mono">' + escHtml(timeStr) + '</td>' +
       '<td>' + escHtml(userStr) + '</td>' +
       '<td><span class="badge ' + escHtml(actionClass) + '">' + escHtml(log.action || "?") + '</span></td>' +
+      '<td>' + escHtml(log.sourceApp || "") + '</td>' +
       '<td>' + escHtml(log.collection || "") + '</td>' +
       '<td class="mono">' + escHtml(log.documentId || "") + '</td>' +
       '</tr>' +
-      '<tr class="detail-row" id="detail-' + idx + '" style="display:none"><td colspan="6"><div class="detail-content">' +
+      '<tr class="detail-row" id="detail-' + idx + '" style="display:none"><td colspan="7"><div class="detail-content">' +
       '<span class="label">Before:</span><pre>' + escHtml(log.before ? JSON.stringify(log.before, null, 2) : "null") + '</pre>' +
       '<span class="label">After:</span><pre>' + escHtml(log.after ? JSON.stringify(log.after, null, 2) : "null") + '</pre>' +
       '</div></td></tr>';

@@ -298,8 +298,8 @@ main{padding:14px 18px 20px}
     const proto = firebase.firestore.DocumentReference.prototype;
     const _set = proto.set, _update = proto.update;
     function _who(){ try{ return auth.currentUser?.email||"unknown"; }catch(e){ return "unknown"; } }
-    proto.set = function(d, o){ if(d&&typeof d==="object") d._modifiedBy=_who(); return _set.call(this,d,o); };
-    proto.update = function(d){ if(d&&typeof d==="object") d._modifiedBy=_who(); return _update.apply(this,arguments); };
+    proto.set = function(d, o){ if(d&&typeof d==="object"){ d._modifiedBy=_who(); d._sourceApp="DecisionOps"; } return _set.call(this,d,o); };
+    proto.update = function(d){ if(d&&typeof d==="object"){ d._modifiedBy=_who(); d._sourceApp="DecisionOps"; } return _update.apply(this,arguments); };
   })();
 
   db.enablePersistence({synchronizeTabs:true}).catch(err=>{
