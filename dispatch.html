@@ -26,6 +26,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check-compat.js"
   crossorigin="anonymous"
   onerror="window._firebaseLoadError=true"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"
+  crossorigin="anonymous"
+  onerror="window._firebaseLoadError=true"></script>
 
 <style>
   :root {
@@ -736,7 +739,13 @@ function initFirebase() {
     db      = firebase.firestore();
     DOC_REF = db.collection('appState').doc('rotationBoard');
     setStatus('⏳ Connecting...');
-    startLiveSync();
+    // Silent anonymous auth — no UI, just secures Firestore writes
+    firebase.auth().signInAnonymously().then(() => {
+      startLiveSync();
+    }).catch((authErr) => {
+      console.warn('Anonymous auth failed, proceeding anyway:', authErr);
+      startLiveSync();
+    });
   } catch(e) {
     // Firebase failed after SDK loaded — fall back to local
     if (loadLocal()) {

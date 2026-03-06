@@ -561,7 +561,7 @@ textarea.copyBox,
     addDoc
   } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
   import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app-check.js";
-  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
+  import { getAuth, signInAnonymously, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
 
   // BreakOPS Firebase (no auth required)
   const firebaseConfig = {
@@ -579,6 +579,10 @@ textarea.copyBox,
     isTokenAutoRefreshEnabled: true
   });
   const _db = getFirestore(_fbApp);
+
+  // Silent anonymous auth for legitimous — no UI, just secures Firestore writes
+  const _fbAuth = getAuth(_fbApp);
+  signInAnonymously(_fbAuth).catch(e => console.warn('Anonymous auth failed:', e));
 
   // ShiftOPS Firebase (auth required — used only for Push Seats)
   const _soApp = initializeApp({

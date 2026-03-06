@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; img-src 'self' data:;"/>
+<title>Launchpad</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23070c16'/%3E%3Ccircle cx='32' cy='32' r='30' fill='none' stroke='%23c0c8d4' stroke-width='2'/%3E%3Cpolygon points='36,8 18,36 30,36 28,56 46,28 34,28' fill='%23e8ecf0'/%3E%3C/svg%3E"/>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  --bg: #0b0f14;
+  --bg2: #0e1319;
+  --card: #111826;
+  --card-hover: #182036;
+  --border: #233043;
+  --border-hover: rgba(74,163,255,.4);
+  --text: #e7eef8;
+  --muted: #9aa4b2;
+  --accent: #4aa3ff;
+  --accent2: #3fe7b6;
+  --glow-blue: rgba(74,163,255,.15);
+  --glow-green: rgba(63,231,182,.12);
+  --glow-amber: rgba(255,190,50,.12);
+  --glow-purple: rgba(167,139,250,.12);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  overflow-x: hidden;
+}
+
+/* ===== Animated background ===== */
+.bg-effects {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+}
+.bg-effects::before {
+  content: '';
+  position: absolute;
+  top: -30%; left: -10%;
+  width: 800px; height: 800px;
+  background: radial-gradient(circle, rgba(77,163,255,.08) 0%, transparent 70%);
+  animation: drift1 25s ease-in-out infinite;
+}
+.bg-effects::after {
+  content: '';
+  position: absolute;
+  bottom: -20%; right: -10%;
+  width: 700px; height: 700px;
+  background: radial-gradient(circle, rgba(63,231,182,.06) 0%, transparent 70%);
+  animation: drift2 30s ease-in-out infinite;
+}
+@keyframes drift1 {
+  0%, 100% { transform: translate(0, 0); }
+  33% { transform: translate(80px, 60px); }
+  66% { transform: translate(-40px, 30px); }
+}
+@keyframes drift2 {
+  0%, 100% { transform: translate(0, 0); }
+  33% { transform: translate(-60px, -40px); }
+  66% { transform: translate(50px, -20px); }
+}
+
+/* Grid pattern overlay */
+.grid-overlay {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(35,48,67,.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(35,48,67,.3) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black, transparent);
+}
+
+/* Scan line */
+.scanline {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: linear-gradient(180deg, transparent 0%, rgba(35,48,67,.08) 50%, transparent 100%);
+  background-size: 100% 4px;
+  animation: scanMove 8s linear infinite;
+  opacity: .5;
+}
+@keyframes scanMove {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 200%; }
+}
+
+/* ===== Layout ===== */
+.container {
+  position: relative; z-index: 1;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+/* ===== Header ===== */
+header {
+  position: relative; z-index: 2;
+  padding: 48px 0 0;
+}
+.header-inner {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.brand h1 {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--text);
+  line-height: 1.1;
+  margin:0;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.brand .tagline {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 6px;
+}
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent2);
+  box-shadow: 0 0 8px var(--accent2), 0 0 20px rgba(63,231,182,.3);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--accent2), 0 0 20px rgba(63,231,182,.3); }
+  50% { opacity: .6; box-shadow: 0 0 4px var(--accent2), 0 0 10px rgba(63,231,182,.15); }
+}
+.status-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent2);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.header-time {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), rgba(74,163,255,.25), var(--border), transparent);
+  margin: 32px 0;
+}
+
+/* ===== Section title ===== */
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border), transparent);
+}
+
+/* ===== Tool Cards ===== */
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin-bottom: 48px;
+}
+@media (max-width: 860px) {
+  .tools-grid { grid-template-columns: 1fr; }
+  .container { padding: 0 20px; }
+}
+
+.tool-card {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: all .25s cubic-bezier(.4,0,.2,1);
+  overflow: hidden;
+  cursor: pointer;
+}
+.tool-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  opacity: 0;
+  transition: opacity .3s;
+  pointer-events: none;
+}
+.tool-card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-3px);
+  box-shadow: 0 20px 60px rgba(0,0,0,.5), 0 0 40px var(--card-glow, rgba(77,163,255,.08));
+}
+.tool-card:hover::before { opacity: 1; }
+.tool-card:active { transform: translateY(-1px); }
+
+/* Card glow variants */
+.tool-card.amber { --card-glow: rgba(255,190,50,.08); }
+.tool-card.amber::before { background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%), rgba(255,190,50,.05), transparent 40%); }
+.tool-card.amber .card-icon { background: var(--glow-amber); border-color: rgba(255,190,50,.2); color: #ffbe32; }
+
+.tool-card.purple { --card-glow: rgba(167,139,250,.08); }
+.tool-card.purple::before { background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%), rgba(167,139,250,.05), transparent 40%); }
+.tool-card.purple .card-icon { background: var(--glow-purple); border-color: rgba(167,139,250,.2); color: #a78bfa; }
+
+.tool-card.green { --card-glow: rgba(63,231,182,.1); }
+.tool-card.green::before { background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%), rgba(63,231,182,.06), transparent 40%); }
+.tool-card.green .card-icon { background: var(--glow-green); border-color: rgba(63,231,182,.2); color: var(--accent2); }
+
+/* Rotation spin for RotationOps */
+@keyframes spinArrows { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+/* Bolt pulse for Launchpad logo */
+@keyframes boltPulse { 0%,100%{opacity:.8} 50%{opacity:1} }
+.bolt-logo { animation:boltPulse 3s ease-in-out infinite; }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.card-icon {
+  width: 80px; height: 80px;
+  border-radius: 16px;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.card-icon svg { width: 64px; height: 64px; }
+.card-title-group { flex: 1; }
+.card-title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  line-height: 1.2;
+}
+.card-subtitle {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.card-desc {
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 8px;
+}
+.card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.card-badge.live {
+  background: rgba(63,231,182,.1);
+  color: var(--accent2);
+  border: 1px solid rgba(63,231,182,.2);
+}
+.card-badge.live::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent2);
+  box-shadow: 0 0 6px var(--accent2);
+}
+.card-arrow {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .2s;
+}
+.tool-card:hover .card-arrow {
+  background: rgba(77,163,255,.15);
+  border-color: rgba(77,163,255,.3);
+  transform: translateX(3px);
+}
+.card-arrow svg { width: 14px; height: 14px; color: var(--muted); }
+.tool-card:hover .card-arrow svg { color: var(--accent); }
+
+/* Tags */
+.card-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.card-tag {
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.06);
+  color: var(--muted);
+}
+
+/* ===== Footer ===== */
+footer {
+  position: relative; z-index: 1;
+  padding: 32px 0;
+  text-align: center;
+}
+.footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.footer-inner .sep { opacity: .3; }
+.footer-brand {
+  font-weight: 700;
+  color: var(--muted);
+}
+</style>
+</head>
+<body>
+
+<div class="bg-effects"></div>
+<div class="grid-overlay"></div>
+<div class="scanline"></div>
+
+<div class="container">
+
+<header>
+  <div class="header-inner">
+    <div class="brand" style="gap:10px;">
+      <svg class="bolt-logo" width="38" height="38" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+        <circle cx="32" cy="32" r="29" stroke="#233043" stroke-width="1.5" fill="none"/>
+        <circle cx="32" cy="32" r="20" stroke="#233043" stroke-width=".6" fill="none" opacity=".5"/>
+        <line x1="32" y1="4" x2="32" y2="18" stroke="#4aa3ff" stroke-width="1" opacity=".4"/>
+        <line x1="32" y1="46" x2="32" y2="60" stroke="#4aa3ff" stroke-width="1" opacity=".4"/>
+        <line x1="4" y1="32" x2="18" y2="32" stroke="#4aa3ff" stroke-width="1" opacity=".4"/>
+        <line x1="46" y1="32" x2="60" y2="32" stroke="#4aa3ff" stroke-width="1" opacity=".4"/>
+        <polygon points="35,14 24,34 30,34 29,50 40,30 34,30" fill="#4aa3ff" opacity=".9"/>
+      </svg>
+      <h1>Launchpad</h1>
+    </div>
+    <div class="header-status">
+      <div class="status-dot"></div>
+      <span class="status-text">Connected</span>
+      <span class="header-time" id="headerClock">--:--:--</span>
+    </div>
+  </div>
+</header>
+
+<div class="divider"></div>
+
+<main>
+  <div class="section-title">Staff Applications</div>
+
+  <div class="tools-grid">
+
+    <!-- BreakOps Staff View -->
+    <a href="https://www.legitimous.com/" target="_blank" rel="noopener noreferrer" class="tool-card green">
+      <div class="card-header">
+        <div class="card-icon" style="background:rgba(14,17,20,.9); border-color:rgba(63,231,182,.25);">
+          <svg viewBox="0 0 300 180" width="64" height="40">
+            <defs><linearGradient id="fh1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3a3e43"/><stop offset="100%" stop-color="#1a1d20"/></linearGradient></defs>
+            <polygon points="150,20 30,150 270,150" fill="url(#fh1)" stroke="#2a2d30" stroke-width="4"/>
+            <polygon points="150,50 115,120 185,120" fill="#101820" stroke="#3b4045" stroke-width="2"/>
+            <rect x="80" y="120" width="28" height="16" rx="3" fill="#1c1f24"/>
+            <rect x="192" y="120" width="28" height="16" rx="3" fill="#1c1f24"/>
+            <polygon points="150,110 135,150 165,150" fill="#1c1f24"/>
+            <circle cx="90" cy="145" r="3" fill="#3fe7b6"/>
+            <circle cx="150" cy="148" r="3" fill="#3fe7b6"/>
+            <circle cx="210" cy="145" r="3" fill="#3fe7b6"/>
+          </svg>
+        </div>
+        <div class="card-title-group">
+          <div class="card-title">BreakOps</div>
+          <div class="card-subtitle">Staff View &bull; Read-Only</div>
+        </div>
+      </div>
+      <div class="card-desc">
+        View the live break board. See current break assignments and positions on break. Updates automatically across all connected devices.
+      </div>
+      <div class="card-tags">
+        <span class="card-tag">Breaks</span>
+        <span class="card-tag">Live Updates</span>
+        <span class="card-tag">Read-Only</span>
+      </div>
+      <div class="card-footer">
+        <span class="card-badge live">Live</span>
+        <div class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+    </a>
+
+    <!-- OT Bidding -->
+    <a href="https://www.legitimous.com/otbidding.html" target="_blank" rel="noopener noreferrer" class="tool-card amber">
+      <div class="card-header">
+        <div class="card-icon" style="background:rgba(11,15,20,.9); border-color:rgba(255,190,50,.25);">
+          <svg viewBox="0 0 64 64" width="64" height="64" fill="none">
+            <circle cx="32" cy="32" r="29" stroke="rgba(255,190,50,.15)" stroke-width="1.5" fill="none"/>
+            <line x1="12" y1="22" x2="52" y2="22" stroke="#ffbe32" stroke-width="1" stroke-dasharray="3 2" opacity=".5"/>
+            <rect x="14" y="26" width="6" height="22" rx="1.5" fill="#ffbe32" opacity=".9"/>
+            <rect x="22" y="18" width="6" height="30" rx="1.5" fill="#ffbe32" opacity=".7"/>
+            <rect x="30" y="30" width="6" height="18" rx="1.5" fill="#ff6b6b" opacity=".6"/>
+            <rect x="38" y="20" width="6" height="28" rx="1.5" fill="#ffbe32" opacity=".8"/>
+            <rect x="46" y="32" width="6" height="16" rx="1.5" fill="#ff6b6b" opacity=".5"/>
+            <circle cx="17" cy="52" r="1.2" fill="#ffbe32" opacity=".4"/>
+            <circle cx="25" cy="52" r="1.2" fill="#ffbe32" opacity=".4"/>
+            <circle cx="33" cy="52" r="1.2" fill="#ffbe32" opacity=".4"/>
+            <circle cx="41" cy="52" r="1.2" fill="#ffbe32" opacity=".4"/>
+            <circle cx="49" cy="52" r="1.2" fill="#ffbe32" opacity=".4"/>
+          </svg>
+        </div>
+        <div class="card-title-group">
+          <div class="card-title">OT Bidding</div>
+          <div class="card-subtitle">Overtime Bid Submission</div>
+        </div>
+      </div>
+      <div class="card-desc">
+        Submit your overtime bids for available shifts. View open OT slots, place bids by role, and track your submission status. Bids are processed with scarcity-first auto-distribution.
+      </div>
+      <div class="card-tags">
+        <span class="card-tag">Overtime</span>
+        <span class="card-tag">Bidding</span>
+        <span class="card-tag">Submissions</span>
+      </div>
+      <div class="card-footer">
+        <span class="card-badge live">Online</span>
+        <div class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+    </a>
+
+    <!-- Dispatch Board -->
+    <a href="https://www.legitimous.com/dispatch.html" target="_blank" rel="noopener noreferrer" class="tool-card purple">
+      <div class="card-header">
+        <div class="card-icon" style="background:rgba(11,15,20,.9); border-color:rgba(167,139,250,.25);">
+          <svg viewBox="0 0 64 64" width="64" height="64" fill="none">
+            <circle cx="32" cy="32" r="29" stroke="rgba(167,139,250,.15)" stroke-width="1.5" fill="none"/>
+            <circle cx="32" cy="32" r="18" stroke="rgba(167,139,250,.15)" stroke-width=".6" fill="none" opacity=".5"/>
+            <g style="transform-origin:32px 32px;animation:spinArrows 6s linear infinite">
+              <path d="M20 14 A20 20 0 0 1 50 26" fill="none" stroke="#a78bfa" stroke-width="3" stroke-linecap="round"/>
+              <polygon points="50,20 56,28 46,28" fill="#a78bfa"/>
+              <path d="M44 50 A20 20 0 0 1 14 38" fill="none" stroke="#a78bfa" stroke-width="3" stroke-linecap="round"/>
+              <polygon points="14,44 8,36 18,36" fill="#a78bfa"/>
+            </g>
+            <circle cx="32" cy="32" r="3" fill="#a78bfa" opacity=".9"/>
+          </svg>
+        </div>
+        <div class="card-title-group">
+          <div class="card-title">Dispatch Board</div>
+          <div class="card-subtitle">Live Channel Rotation</div>
+        </div>
+      </div>
+      <div class="card-desc">
+        View the current month's dispatch channel rotation schedule. See your assigned channels by day with day, week, and month views. Updates in real-time as rotations are published.
+      </div>
+      <div class="card-tags">
+        <span class="card-tag">Rotation</span>
+        <span class="card-tag">Channels</span>
+        <span class="card-tag">Live Board</span>
+      </div>
+      <div class="card-footer">
+        <span class="card-badge live">Online</span>
+        <div class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+    </a>
+
+  </div>
+
+</main>
+
+<div class="divider"></div>
+
+<footer>
+  <div class="footer-inner">
+    <span class="footer-brand">LEGITIMOUS</span>
+    <span class="sep">/</span>
+    <span>Launchpad</span>
+    <span class="sep">/</span>
+    <span id="footerYear">2026</span>
+  </div>
+</footer>
+
+</div>
+
+<script>
+// Live clock
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const s = String(now.getSeconds()).padStart(2, '0');
+  document.getElementById('headerClock').textContent = `${h}:${m}:${s}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// Footer year
+document.getElementById('footerYear').textContent = new Date().getFullYear();
+
+// Card mouse-follow glow effect
+document.querySelectorAll('.tool-card').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const rect = card.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width * 100).toFixed(1) + '%';
+    const y = ((e.clientY - rect.top) / rect.height * 100).toFixed(1) + '%';
+    card.style.setProperty('--mx', x);
+    card.style.setProperty('--my', y);
+  });
+});
+</script>
+</body>
+</html>

@@ -419,6 +419,7 @@ body { padding-top: 12px !important; }
     addDoc
   } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
   import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app-check.js";
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCnabvDHyrEYPjtGikTSC6eIQL2VEPWnn4",
@@ -435,6 +436,10 @@ body { padding-top: 12px !important; }
     isTokenAutoRefreshEnabled: true
   });
   const _db = getFirestore(_fbApp);
+
+  // Silent anonymous auth — no UI, just secures Firestore writes
+  const _fbAuth = getAuth(_fbApp);
+  signInAnonymously(_fbAuth).catch(e => console.warn('Anonymous auth failed:', e));
 
   // Shared landing view (mode/day/block) so everyone lands where you last locked
   const _APPSTATE_DOC = doc(_db, "appState", "current");
