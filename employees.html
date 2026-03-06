@@ -818,6 +818,15 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
+// Auto-stamp _modifiedBy on every Firestore write for audit logging
+(function(){
+  const proto = firebase.firestore.DocumentReference.prototype;
+  const _set = proto.set, _update = proto.update;
+  function _who(){ try{ return auth.currentUser?.email||"unknown"; }catch(e){ return "unknown"; } }
+  proto.set = function(d, o){ if(d&&typeof d==="object") d._modifiedBy=_who(); return _set.call(this,d,o); };
+  proto.update = function(d){ if(d&&typeof d==="object") d._modifiedBy=_who(); return _update.apply(this,arguments); };
+})();
+
 // Auth state listener — never bypass the password gate
 auth.onAuthStateChanged((user) => {
   if(!passUnlocked) return;          // password gate still active, do nothing

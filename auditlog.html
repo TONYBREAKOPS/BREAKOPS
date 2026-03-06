@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://www.gstatic.com; style-src 'unsafe-inline'; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://firestore.googleapis.com https://securetoken.googleapis.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none';">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="Referrer-Policy" content="no-referrer">
+<meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()">
+<meta name="robots" content="noindex, nofollow">
+<title>Audit Log</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='29' stroke='%23233043' stroke-width='2' fill='%230b0f14'/%3E%3Crect x='18' y='14' width='28' height='36' rx='3' fill='none' stroke='%234aa3ff' stroke-width='2'/%3E%3Cline x1='24' y1='24' x2='40' y2='24' stroke='%234aa3ff' stroke-width='1.5'/%3E%3Cline x1='24' y1='30' x2='40' y2='30' stroke='%234aa3ff' stroke-width='1.5'/%3E%3Cline x1='24' y1='36' x2='36' y2='36' stroke='%234aa3ff' stroke-width='1.5'/%3E%3C/svg%3E"/>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<style>
+:root {
+  --bg: #0b0f14;
+  --card: #111826;
+  --border: #233043;
+  --text: #e7eef8;
+  --muted: #9aa4b2;
+  --accent: #4aa3ff;
+  --ok: #3fe7b6;
+  --bad: #ff6b6b;
+  --warn: #ffe066;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  min-height: 100vh;
+  font: 13px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+/* Password gate */
+#passGate {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+}
+.login-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 36px 32px;
+  width: 340px;
+  text-align: center;
+}
+.login-box h2 { font-size: 22px; font-weight: 800; letter-spacing: -.01em; margin-bottom: 4px; }
+.login-box .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+.login-box label {
+  display: block; text-align: left;
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  margin: 12px 0 4px; text-transform: uppercase; letter-spacing: .04em;
+}
+.login-box input {
+  width: 100%; padding: 10px 14px;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 14px;
+}
+.login-box input:focus { outline: none; border-color: var(--accent); }
+.login-box .btn-login {
+  width: 100%; margin-top: 18px;
+  padding: 10px 28px; background: var(--accent); color: #000;
+  border: none; border-radius: 8px; font-weight: 700; font-size: 13px;
+  cursor: pointer;
+}
+.login-box .btn-login:hover { filter: brightness(1.15); }
+.login-err {
+  color: var(--bad); font-size: 12px; min-height: 16px;
+  margin-top: 10px; display: none;
+}
+.login-err.show { display: block; }
+
+/* Header */
+header {
+  padding: 14px 18px;
+  background: linear-gradient(to bottom, rgba(11,15,20,.98), rgba(11,15,20,.75));
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+}
+header h1 { font-size: 20px; font-weight: 900; letter-spacing: .3px; }
+.header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* Controls */
+.controls {
+  display: flex; gap: 10px; padding: 14px 18px; flex-wrap: wrap; align-items: center;
+  border-bottom: 1px solid var(--border); background: var(--card);
+}
+.controls select, .controls input {
+  padding: 8px 12px; background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px; font-size: 13px;
+}
+.controls select:focus, .controls input:focus { outline: none; border-color: var(--accent); }
+.controls input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.7); }
+.btn {
+  padding: 8px 16px; font-size: 12px; font-weight: 700; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--card); color: var(--text);
+  cursor: pointer; transition: all .15s;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+.btn.primary:hover { filter: brightness(1.15); }
+
+/* Stats bar */
+.stats {
+  display: flex; gap: 16px; padding: 10px 18px; font-size: 12px; color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.stats strong { color: var(--text); }
+
+/* Table */
+.wrap { padding: 0; max-width: 100%; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; text-align: left; }
+th { color: var(--muted); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; background: var(--card); }
+tr:hover td { background: rgba(74,163,255,.04); }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
+
+/* Action badges */
+.badge { display: inline-block; padding: 2px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+.badge.created { background: rgba(63,231,182,.12); color: var(--ok); border: 1px solid rgba(63,231,182,.25); }
+.badge.updated { background: rgba(74,163,255,.12); color: var(--accent); border: 1px solid rgba(74,163,255,.25); }
+.badge.deleted { background: rgba(255,107,107,.12); color: var(--bad); border: 1px solid rgba(255,107,107,.25); }
+
+/* Expand row */
+.expand-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 4px; }
+.expand-btn:hover { color: var(--accent); background: rgba(74,163,255,.08); }
+.detail-row td { padding: 0; border-bottom: 1px solid var(--border); }
+.detail-content { padding: 12px 18px; background: rgba(17,24,38,.6); font-size: 12px; max-height: 300px; overflow-y: auto; }
+.detail-content pre { white-space: pre-wrap; word-break: break-all; color: var(--muted); line-height: 1.6; }
+.detail-content .label { color: var(--accent); font-weight: 700; margin-top: 8px; display: block; }
+.detail-content .label:first-child { margin-top: 0; }
+
+/* Loading / empty */
+.status-msg { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
+
+/* Pagination */
+.pagination { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 16px; }
+</style>
+</head>
+<body>
+
+<!-- Password Gate -->
+<div id="passGate">
+  <div class="login-box">
+    <svg width="48" height="48" viewBox="0 0 64 64" fill="none" style="margin-bottom:12px">
+      <circle cx="32" cy="32" r="29" stroke="#233043" stroke-width="2" fill="#0b0f14"/>
+      <rect x="18" y="14" width="28" height="36" rx="3" fill="none" stroke="#4aa3ff" stroke-width="2"/>
+      <line x1="24" y1="24" x2="40" y2="24" stroke="#4aa3ff" stroke-width="1.5"/>
+      <line x1="24" y1="30" x2="40" y2="30" stroke="#4aa3ff" stroke-width="1.5"/>
+      <line x1="24" y1="36" x2="36" y2="36" stroke="#4aa3ff" stroke-width="1.5"/>
+    </svg>
+    <h2>Audit Log</h2>
+    <div class="sub">Enter access code to continue</div>
+    <div class="login-err" id="passError"></div>
+    <form id="passForm">
+      <label>Access Code</label>
+      <input type="password" id="passInput" placeholder="Enter access code" required autocomplete="off"/>
+      <button type="submit" class="btn-login">Unlock</button>
+    </form>
+  </div>
+</div>
+
+<!-- Main App (hidden until unlocked) -->
+<div id="app" style="display:none">
+
+<header>
+  <h1>Audit Log</h1>
+  <div class="header-right">
+    <span id="logCount" style="color:var(--muted);font-size:12px"></span>
+  </div>
+</header>
+
+<div class="controls">
+  <select id="filterCollection">
+    <option value="">All Collections</option>
+  </select>
+  <select id="filterAction">
+    <option value="">All Actions</option>
+    <option value="created">Created</option>
+    <option value="updated">Updated</option>
+    <option value="deleted">Deleted</option>
+  </select>
+  <select id="filterUser">
+    <option value="">All Users</option>
+  </select>
+  <input type="date" id="filterDateFrom" title="From date"/>
+  <input type="date" id="filterDateTo" title="To date"/>
+  <button class="btn primary" onclick="applyFilters()">Filter</button>
+  <button class="btn" onclick="clearFilters()">Clear</button>
+  <button class="btn" onclick="refreshLogs()">Refresh</button>
+</div>
+
+<div class="stats" id="statsBar">
+  <span>Loading...</span>
+</div>
+
+<div class="wrap">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:36px"></th>
+        <th>Timestamp</th>
+        <th>User</th>
+        <th>Action</th>
+        <th>Collection</th>
+        <th>Document</th>
+      </tr>
+    </thead>
+    <tbody id="logBody">
+      <tr><td colspan="6" class="status-msg">Loading audit logs...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="pagination" id="pagination"></div>
+
+</div>
+
+<script>
+// SHA-256 password gate (same pattern as employees.html)
+const PASS_HASH = "e9ea85886c6f94643bcc7b5f9ed746d72f5ac6f6b955684bf3858c0dd58c645c";
+
+async function sha256(text) {
+  const data = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+document.getElementById("passForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = document.getElementById("passInput").value;
+  const errEl = document.getElementById("passError");
+  const hash = await sha256(input);
+  if (hash === PASS_HASH) {
+    document.getElementById("passGate").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    initApp();
+  } else {
+    errEl.textContent = "Incorrect access code";
+    errEl.classList.add("show");
+    document.getElementById("passInput").value = "";
+    document.getElementById("passInput").focus();
+  }
+});
+
+// Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyA6KELmSyotefK0zhahQZ0-mbYur8_nTsg",
+  authDomain: "commandops-93846.firebaseapp.com",
+  databaseURL: "https://commandops-93846-default-rtdb.firebaseio.com",
+  projectId: "commandops-93846",
+  storageBucket: "commandops-93846.firebasestorage.app",
+  messagingSenderId: "262613721964",
+  appId: "1:262613721964:web:478a694d357234e3be4949"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+let allLogs = [];
+let filteredLogs = [];
+let collections = new Set();
+let users = new Set();
+const PAGE_SIZE = 50;
+let currentPage = 0;
+
+async function initApp() {
+  // Sign in anonymously for Firestore access
+  try { await auth.signInAnonymously(); } catch(e) { console.warn("Auth failed:", e); }
+  await loadLogs();
+}
+
+async function loadLogs() {
+  document.getElementById("logBody").innerHTML = '<tr><td colspan="6" class="status-msg">Loading audit logs...</td></tr>';
+  try {
+    const snap = await db.collection("auditLog").orderBy("timestamp", "desc").limit(2000).get();
+    allLogs = [];
+    collections.clear();
+    users.clear();
+    snap.forEach(doc => {
+      const d = doc.data();
+      d._id = doc.id;
+      allLogs.push(d);
+      if (d.collection) collections.add(d.collection);
+      if (d.authEmail) users.add(d.authEmail);
+    });
+    populateFilters();
+    filteredLogs = allLogs;
+    currentPage = 0;
+    render();
+  } catch(e) {
+    document.getElementById("logBody").innerHTML = '<tr><td colspan="6" class="status-msg">Error loading logs: ' + escHtml(e.message) + '</td></tr>';
+  }
+}
+
+function escHtml(s) {
+  if (!s) return "";
+  const d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function populateFilters() {
+  const colSel = document.getElementById("filterCollection");
+  const userSel = document.getElementById("filterUser");
+  // Keep first option
+  colSel.innerHTML = '<option value="">All Collections</option>';
+  userSel.innerHTML = '<option value="">All Users</option>';
+  Array.from(collections).sort().forEach(c => {
+    const o = document.createElement("option");
+    o.value = c; o.textContent = c;
+    colSel.appendChild(o);
+  });
+  Array.from(users).sort().forEach(u => {
+    const o = document.createElement("option");
+    o.value = u; o.textContent = u;
+    userSel.appendChild(o);
+  });
+}
+
+function applyFilters() {
+  const col = document.getElementById("filterCollection").value;
+  const action = document.getElementById("filterAction").value;
+  const user = document.getElementById("filterUser").value;
+  const from = document.getElementById("filterDateFrom").value;
+  const to = document.getElementById("filterDateTo").value;
+
+  filteredLogs = allLogs.filter(log => {
+    if (col && log.collection !== col) return false;
+    if (action && log.action !== action) return false;
+    if (user && log.authEmail !== user) return false;
+    if (from && log.timestamp) {
+      const d = log.timestamp.toDate ? log.timestamp.toDate() : new Date(log.timestamp);
+      if (d < new Date(from + "T00:00:00")) return false;
+    }
+    if (to && log.timestamp) {
+      const d = log.timestamp.toDate ? log.timestamp.toDate() : new Date(log.timestamp);
+      if (d > new Date(to + "T23:59:59")) return false;
+    }
+    return true;
+  });
+  currentPage = 0;
+  render();
+}
+
+function clearFilters() {
+  document.getElementById("filterCollection").value = "";
+  document.getElementById("filterAction").value = "";
+  document.getElementById("filterUser").value = "";
+  document.getElementById("filterDateFrom").value = "";
+  document.getElementById("filterDateTo").value = "";
+  filteredLogs = allLogs;
+  currentPage = 0;
+  render();
+}
+
+function refreshLogs() { loadLogs(); }
+
+function render() {
+  const tbody = document.getElementById("logBody");
+  const start = currentPage * PAGE_SIZE;
+  const page = filteredLogs.slice(start, start + PAGE_SIZE);
+  const totalPages = Math.ceil(filteredLogs.length / PAGE_SIZE);
+
+  // Stats
+  document.getElementById("statsBar").innerHTML =
+    "<span>Showing <strong>" + page.length + "</strong> of <strong>" + filteredLogs.length + "</strong> entries</span>" +
+    (filteredLogs.length !== allLogs.length ? " <span>(filtered from " + allLogs.length + " total)</span>" : "");
+  document.getElementById("logCount").textContent = allLogs.length + " total entries";
+
+  if (page.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="status-msg">No log entries found</td></tr>';
+    document.getElementById("pagination").innerHTML = "";
+    return;
+  }
+
+  let html = "";
+  page.forEach((log, i) => {
+    const idx = start + i;
+    const ts = log.timestamp
+      ? (log.timestamp.toDate ? log.timestamp.toDate() : new Date(log.timestamp))
+      : null;
+    const timeStr = ts ? ts.toLocaleDateString() + " " + ts.toLocaleTimeString() : "N/A";
+    const userStr = log.authEmail || log.authUid || "Unknown";
+    const actionClass = log.action || "updated";
+
+    html += '<tr>' +
+      '<td><button class="expand-btn" onclick="toggleDetail(' + idx + ', this)">+</button></td>' +
+      '<td class="mono">' + escHtml(timeStr) + '</td>' +
+      '<td>' + escHtml(userStr) + '</td>' +
+      '<td><span class="badge ' + escHtml(actionClass) + '">' + escHtml(log.action || "?") + '</span></td>' +
+      '<td>' + escHtml(log.collection || "") + '</td>' +
+      '<td class="mono">' + escHtml(log.documentId || "") + '</td>' +
+      '</tr>' +
+      '<tr class="detail-row" id="detail-' + idx + '" style="display:none"><td colspan="6"><div class="detail-content">' +
+      '<span class="label">Before:</span><pre>' + escHtml(log.before ? JSON.stringify(log.before, null, 2) : "null") + '</pre>' +
+      '<span class="label">After:</span><pre>' + escHtml(log.after ? JSON.stringify(log.after, null, 2) : "null") + '</pre>' +
+      '</div></td></tr>';
+  });
+  tbody.innerHTML = html;
+
+  // Pagination
+  let pagHtml = "";
+  if (totalPages > 1) {
+    pagHtml += '<button class="btn" ' + (currentPage === 0 ? "disabled" : "") + ' onclick="goPage(' + (currentPage - 1) + ')">Prev</button>';
+    pagHtml += '<span style="color:var(--muted);font-size:12px">Page ' + (currentPage + 1) + ' of ' + totalPages + '</span>';
+    pagHtml += '<button class="btn" ' + (currentPage >= totalPages - 1 ? "disabled" : "") + ' onclick="goPage(' + (currentPage + 1) + ')">Next</button>';
+  }
+  document.getElementById("pagination").innerHTML = pagHtml;
+}
+
+function toggleDetail(idx, btn) {
+  const row = document.getElementById("detail-" + idx);
+  if (row.style.display === "none") {
+    row.style.display = "";
+    btn.textContent = "-";
+  } else {
+    row.style.display = "none";
+    btn.textContent = "+";
+  }
+}
+
+function goPage(p) {
+  currentPage = p;
+  render();
+  window.scrollTo(0, 0);
+}
+</script>
+</body>
+</html>

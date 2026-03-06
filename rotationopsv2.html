@@ -421,6 +421,15 @@
   const db = firebase.firestore();
   const auth = firebase.auth();
 
+  // Auto-stamp _modifiedBy on every Firestore write for audit logging
+  (function(){
+    const proto = firebase.firestore.DocumentReference.prototype;
+    const _set = proto.set, _update = proto.update;
+    function _who(){ try{ return auth.currentUser?.email||"unknown"; }catch(e){ return "unknown"; } }
+    proto.set = function(d, o){ if(d&&typeof d==="object") d._modifiedBy=_who(); return _set.call(this,d,o); };
+    proto.update = function(d){ if(d&&typeof d==="object") d._modifiedBy=_who(); return _update.apply(this,arguments); };
+  })();
+
   // Auth state – resolved once onAuthStateChanged fires with a user
   let authResolve;
   let authReady = new Promise(r => { authResolve = r; });
@@ -1191,6 +1200,47 @@ const SEVENTH_BLOCKS = new Set(["2200-0200","0200-0600"]); // Block(s) where 7th
 // --- Special Detail (SD) settings ---
 // Only these names may ever be assigned SD.
 const SD_ELIGIBLE = new Set(["RAMIREZ","FOWLERL","GROUNDS","GUIDRY","BROWNC","MARZAHN","CLEMENT"]);
+
+// --- OT Bid Approved Data ---
+let _otBidApproved = {}; // name -> { slots: [...] }
+let _otBidUnsub = null;
+
+// Map RotationOps block keys to OT bid block labels
+const BLOCK_TO_OT_LABEL = {
+  "0600-1000": "6A-10A",
+  "1000-1400": "10A-2P",
+  "1400-1800": "2P-6P",
+  "1800-2200": "6P-10P",
+  "2200-0200": "10P-2A",
+  "0200-0600": "2A-6A"
+};
+
+function listenOTBids() {
+  if (_otBidUnsub) _otBidUnsub();
+  // Determine current period ID from the date picker
+  const dp = document.getElementById("datePicker");
+  const d = dp ? new Date(dp.value + "T00:00:00") : new Date();
+  const pid = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  const ref = db.collection('ot_bids').doc(pid);
+  _otBidUnsub = ref.onSnapshot(snap => {
+    if (!snap.exists) { _otBidApproved = {}; return; }
+    _otBidApproved = snap.data().approved || {};
+  });
+}
+
+function getScheduledOTForBlock(dayKey, blockKey) {
+  // dayKey = "YYYY-MM-DD", blockKey = "0600-1000" etc.
+  const otLabel = BLOCK_TO_OT_LABEL[blockKey];
+  if (!otLabel) return [];
+  const slotKey = dayKey + '_' + otLabel;
+  const result = [];
+  for (const [name, data] of Object.entries(_otBidApproved)) {
+    if (data.slots && data.slots.includes(slotKey)) {
+      result.push(name);
+    }
+  }
+  return result;
+}
 
 // Tracking + scoring maps (reinitialized each time a plan is built)
 let sdWeekHours = new Map();          // weekKey -> Map(name -> SD hours)
@@ -10713,6 +10763,7 @@ function boot() {
   initSelectors();
   const ui = loadJSON(STORAGE.ui, {});
   if (ui && ui.tab) setActiveTab(ui.tab);
+  listenOTBids();
 
   // ===== Channel Flash Text =====
   const channelInner = document.getElementById("channelInner");
@@ -12257,6 +12308,24 @@ function boot() {
           opt.value = "OT|" + nm;
           opt.textContent = nm.toUpperCase() + "  (OT)";
           opt.style.fontWeight = "700";
+          sel.appendChild(opt);
+        }
+      }
+
+      // SCHEDULE OT — approved from OT bidding
+      const schedOT = getScheduledOTForBlock(dayKey, blockKey);
+      if (schedOT.length > 0) {
+        const sep2 = document.createElement("option");
+        sep2.disabled = true;
+        sep2.textContent = "\u2500\u2500\u2500 SCHEDULE OT \u2500\u2500\u2500";
+        sel.appendChild(sep2);
+
+        for (const nm of schedOT.sort()) {
+          const opt = document.createElement("option");
+          opt.value = "OT|" + nm;
+          opt.textContent = nm.toUpperCase() + "  (SCHED OT)";
+          opt.style.fontWeight = "700";
+          opt.style.color = "#22c55e";
           sel.appendChild(opt);
         }
       }
