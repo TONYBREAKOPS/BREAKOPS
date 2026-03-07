@@ -105,6 +105,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .bid-cell.cant{background:var(--cant-bg);border-color:var(--cant-border);color:#f87171}
 .bid-cell.scheduled{background:rgba(100,116,139,.18);border-color:rgba(100,116,139,.4);color:#94a3b8;cursor:not-allowed;font-size:9px}
 .bid-cell.disabled{opacity:.5;cursor:not-allowed}
+.bid-cell.no-need{background:rgba(30,30,40,.4);border-color:rgba(42,52,70,.4);color:#3a4458;cursor:not-allowed;font-size:9px}
+.bid-cell.pic-priority{border-color:rgba(168,85,247,.5);box-shadow:inset 0 0 0 1px rgba(168,85,247,.25)}
+.bid-cell.pic-priority:not(.prefer):not(.can):not(.cant){background:rgba(168,85,247,.08)}
+.role-badge{position:absolute;top:2px;right:2px;font-size:7px;font-weight:900;color:#94a3b8;background:rgba(148,163,184,.15);padding:1px 4px;border-radius:3px;letter-spacing:.5px;line-height:1.2}
+.role-badge.has-pic{color:#c084fc;background:rgba(168,85,247,.2)}
 .shift-row td{background:rgba(74,163,255,.1);border:1px solid rgba(74,163,255,.25);color:#4aa3ff;font-size:11px;font-weight:800;padding:4px 8px;text-align:center;letter-spacing:.3px}
 .bid-cell.drag-selected{box-shadow:0 0 0 2px #60a5fa;z-index:1}
 
@@ -127,11 +132,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .status-banner.closed{background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.3);color:#ef4444}
 .status-banner.submitted{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#22c55e}
 .status-banner.assigned{background:rgba(74,163,255,.1);border:1px solid rgba(74,163,255,.3);color:#4aa3ff}
+.status-banner.historical{background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);color:#a855f7}
 
 /* Approved results */
 .approved-section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:16px}
 .approved-title{font-size:13px;font-weight:800;margin-bottom:10px;color:#4aa3ff}
 .approved-slot{display:inline-block;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:700;margin:3px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:#22c55e}
+
+/* Schedule + OT grid cells */
+.sched-cell{min-width:70px;height:44px;border:1px solid var(--line);background:var(--panel2);cursor:default;transition:all .12s;font-size:10px;font-weight:800;letter-spacing:.3px;user-select:none;position:relative;text-align:center;vertical-align:middle}
+.sched-cell.on-shift{background:rgba(100,116,139,.18);border-color:rgba(100,116,139,.4);color:#94a3b8}
+.sched-cell.ot-assigned{background:rgba(59,130,246,.2);border-color:rgba(59,130,246,.6);color:#93c5fd}
+.sched-cell.off{color:#475569}
 
 /* Footer */
 .footer-bar{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;z-index:50}
@@ -168,10 +180,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       <span class="emp-name" id="empNameDisplay"></span>
       <span class="emp-pos" id="empPosDisplay"></span>
     </div>
-    <div class="week-nav" id="weekNav" style="margin-bottom:0">
-      <button class="btn week-nav-btn" id="btnPrevWeek" onclick="prevWeek()">&#9664;</button>
-      <span class="week-nav-label" id="weekLabel">Week 1 of 1</span>
-      <button class="btn week-nav-btn" id="btnNextWeek" onclick="nextWeek()">&#9654;</button>
+    <div style="display:flex;align-items:center;gap:12px">
+      <select id="monthSelector" style="padding:5px 10px;font-size:12px;font-weight:700;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text);cursor:pointer;outline:none" onchange="onMonthChange(this.value)"></select>
+      <div class="week-nav" id="weekNav" style="margin-bottom:0">
+        <button class="btn week-nav-btn" id="btnPrevWeek" onclick="prevWeek()">&#9664;</button>
+        <span class="week-nav-label" id="weekLabel">Week 1 of 1</span>
+        <button class="btn week-nav-btn" id="btnNextWeek" onclick="nextWeek()">&#9654;</button>
+      </div>
     </div>
     <div class="header-right">
       <button class="hiw-btn" onclick="document.getElementById('hiwOverlay').classList.remove('hidden')">? HOW IT WORKS</button>
@@ -194,14 +209,33 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         <span class="legend-item"><span class="legend-swatch" style="background:var(--can-bg);border-color:var(--can-border)"></span>CAN</span>
         <span class="legend-item"><span class="legend-swatch" style="background:var(--cant-bg);border-color:var(--cant-border)"></span>CAN'T</span>
         <span class="legend-item"><span class="legend-swatch" style="background:rgba(100,116,139,.18);border-color:rgba(100,116,139,.4)"></span>SCHED</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:rgba(30,30,40,.4);border-color:rgba(42,52,70,.4)"></span>NO NEED</span>
+        <span class="legend-item" id="legendPicPriority" style="display:none"><span class="legend-swatch" style="background:rgba(168,85,247,.12);border-color:rgba(168,85,247,.5)"></span>PIC PRIORITY</span>
       </span>
     </div>
     <div class="grid-layout">
       <div class="grid-sidebar">
         <div class="round-tracker" id="roundTracker"></div>
       </div>
-      <div class="bid-grid-wrap" style="flex:1;min-width:0">
+      <div class="bid-grid-wrap" id="bidGridWrap" style="flex:1;min-width:0">
         <table class="bid-grid" id="bidGrid"></table>
+      </div>
+    </div>
+
+    <!-- SCHEDULE + OT GRID -->
+    <div id="scheduleGridSection" style="display:none;margin-top:20px">
+      <div style="display:flex;align-items:center;justify-content:center;margin-bottom:10px;position:relative">
+        <h2 style="font-size:16px;font-weight:800;color:#fff;position:absolute;left:50%;transform:translateX(-50%)">YOUR SCHEDULE + ASSIGNED OT</h2>
+        <span style="display:flex;gap:12px;align-items:center;margin-left:auto">
+          <span class="legend-item"><span class="legend-swatch" style="background:rgba(100,116,139,.18);border-color:rgba(100,116,139,.4)"></span>SCHED</span>
+          <span class="legend-item"><span class="legend-swatch" style="background:rgba(59,130,246,.2);border-color:rgba(59,130,246,.6)"></span>ASSIGNED OT</span>
+        </span>
+      </div>
+      <div class="grid-layout">
+        <div class="grid-sidebar" style="visibility:hidden"></div>
+        <div class="bid-grid-wrap" style="flex:1;min-width:0">
+          <table class="bid-grid" id="scheduleGrid"></table>
+        </div>
       </div>
     </div>
   </div>
@@ -309,27 +343,73 @@ let _desiredR2 = null;
 let _otBlocks = OT_BLOCKS_4HR;  // default
 let _periodId = '';
 let _weekOffset = 0;
+let _selectedMonth = ''; // YYYY-MM — empty means auto-detect current/open period
+let _isHistorical = false; // true when viewing a past month (read-only)
 
-function getWeekCount(settings) {
-  if (!settings.periodStart || !settings.periodEnd) return 1;
+// Full Sat-Fri weeks covering the period
+// Find the Saturday on or before a date
+function _findSaturday(d) {
+  const sat = new Date(d);
+  const dow = sat.getDay(); // 0=Sun,1=Mon,...,6=Sat
+  const diff = (dow === 6) ? 0 : -(dow + 1); // go back to previous Saturday
+  sat.setDate(sat.getDate() + diff);
+  return sat;
+}
+
+function _getFullWeeks(settings) {
+  if (!settings.periodStart || !settings.periodEnd) return [];
+
+  // If a specific month is selected, show only weeks whose Saturday falls in that month
+  if (_selectedMonth) {
+    const [yr, mo] = _selectedMonth.split('-').map(Number);
+    const firstOfMonth = new Date(yr, mo - 1, 1);
+    const lastOfMonth = new Date(yr, mo, 0);
+    // Find first Saturday in this month
+    let firstSat = new Date(firstOfMonth);
+    while (firstSat.getDay() !== 6) firstSat.setDate(firstSat.getDate() + 1);
+    const weeks = [];
+    for (let sat = new Date(firstSat); sat <= lastOfMonth; sat.setDate(sat.getDate() + 7)) {
+      const weekEnd = new Date(sat);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      weeks.push({ start: new Date(sat), end: new Date(weekEnd) });
+    }
+    return weeks;
+  }
+
+  // Default: full Sat-Fri weeks covering the period range
   const startD = parseDateStr(settings.periodStart);
   const endD = parseDateStr(settings.periodEnd);
-  const totalDays = Math.round((endD - startD) / 86400000) + 1;
-  return Math.max(1, Math.ceil(totalDays / 7));
+  const firstSat = _findSaturday(startD);
+  const lastDay = new Date(endD);
+  const lastDow = lastDay.getDay();
+  const daysToFri = (lastDow <= 5) ? (5 - lastDow) : 6;
+  const lastFri = new Date(lastDay);
+  lastFri.setDate(lastFri.getDate() + daysToFri);
+
+  const weeks = [];
+  let cur = new Date(firstSat);
+  while (cur <= lastFri) {
+    const weekEnd = new Date(cur);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    weeks.push({ start: new Date(cur), end: new Date(weekEnd) });
+    cur.setDate(cur.getDate() + 7);
+  }
+  return weeks;
+}
+
+function getWeekCount(settings) {
+  return Math.max(1, _getFullWeeks(settings).length);
 }
 
 function getWeekDates(settings) {
-  if (!settings.periodStart || !settings.periodEnd) return [];
-  const startD = parseDateStr(settings.periodStart);
-  const endD = parseDateStr(settings.periodEnd);
-  const weekStart = new Date(startD);
-  weekStart.setDate(weekStart.getDate() + _weekOffset * 7);
+  const weeks = _getFullWeeks(settings);
+  if (_weekOffset >= weeks.length) return [];
+  const wk = weeks[_weekOffset];
   const dates = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(weekStart);
-    d.setDate(d.getDate() + i);
-    if (d > endD) break;
-    if (d >= startD) dates.push(d);
+  const cur = new Date(wk.start);
+  while (cur <= wk.end) {
+    dates.push(new Date(cur));
+    cur.setDate(cur.getDate() + 1);
   }
   return dates;
 }
@@ -473,59 +553,151 @@ function findCurrentPeriodId() {
 // ========== INIT APP ==========
 async function initApp() {
   renderScheduleBar();
+  await populateMonthSelector();
   await listenBids();
+}
+
+// ========== PERIOD SELECTOR (by month) ==========
+async function populateMonthSelector() {
+  const sel = document.getElementById('monthSelector');
+  const MONTH_NAMES = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+
+  const availableMonths = new Set();
+  try {
+    const snap = await db.collection('ot_bids').get();
+    snap.docs.forEach(doc => {
+      const id = doc.id;
+      if (/^\d{4}-\d{2}$/.test(id)) availableMonths.add(id);
+    });
+  } catch (e) { console.warn('Failed to query ot_bids for months:', e); }
+
+  const now = new Date();
+  const curMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  availableMonths.add(curMonth);
+
+  const sorted = [...availableMonths].sort().reverse();
+
+  sel.innerHTML = '<option value="">CURRENT PERIOD</option>';
+  for (const m of sorted) {
+    const [y, mo] = m.split('-').map(Number);
+    const label = MONTH_NAMES[mo - 1] + ' ' + y;
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = label;
+    sel.appendChild(opt);
+  }
+}
+
+function onMonthChange(val) {
+  _selectedMonth = val;
+  _dirty = false;
+  _weekOffset = 0;
+  _isHistorical = false;
+  listenBids();
 }
 
 // ========== LISTEN TO BIDS DOCUMENT ==========
 async function listenBids() {
-  // Get ALL ot_bids docs and find the one with status "open"
+  if (_bidUnsub) { _bidUnsub(); _bidUnsub = null; }
+
   let foundRef = null;
-  try {
-    const allSnap = await db.collection('ot_bids').get();
-    const now = new Date();
-    const todayStr = toDateStr(now);
-    let bestRef = null;
-    let bestEnd = null;
-    allSnap.docs.forEach(doc => {
-      const data = doc.data();
-      const status = data?.settings?.status;
-      const periodEnd = data?.settings?.periodEnd;
-      if (status === 'open' && periodEnd && periodEnd >= todayStr) {
-        if (!bestEnd || periodEnd > bestEnd) {
-          bestRef = doc.ref;
-          bestEnd = periodEnd;
-          _periodId = doc.id;
-        }
+
+  if (_selectedMonth) {
+    // Load a specific month's period directly by doc ID
+    try {
+      const docRef = db.collection('ot_bids').doc(_selectedMonth);
+      const docSnap = await docRef.get();
+      if (docSnap.exists) {
+        foundRef = docRef;
+        _periodId = _selectedMonth;
       }
-    });
-    foundRef = bestRef;
-  } catch (e) { console.error('Failed to query ot_bids:', e); }
+    } catch (e) { console.error('Failed to load ot_bids for ' + _selectedMonth + ':', e); }
+  } else {
+    // Auto-detect: find the currently open period
+    try {
+      const allSnap = await db.collection('ot_bids').get();
+      const now = new Date();
+      const todayStr = toDateStr(now);
+      let bestRef = null;
+      let bestEnd = null;
+      allSnap.docs.forEach(doc => {
+        const data = doc.data();
+        const status = data?.settings?.status;
+        const periodEnd = data?.settings?.periodEnd;
+        if (status === 'open' && periodEnd && periodEnd >= todayStr) {
+          if (!bestEnd || periodEnd > bestEnd) {
+            bestRef = doc.ref;
+            bestEnd = periodEnd;
+            _periodId = doc.id;
+          }
+        }
+      });
+      foundRef = bestRef;
+    } catch (e) { console.error('Failed to query ot_bids:', e); }
+
+    // Determine if current auto-detected period is historical
+    const now = new Date();
+    const curMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    _isHistorical = false;
+  }
 
   if (!foundRef) {
-    document.getElementById('mainContent').innerHTML = '<div class="status-banner closed">No OT bidding period is currently active. Check back later.</div>';
+    const msg = _selectedMonth
+      ? 'No OT bidding data found for this month.'
+      : 'No OT bidding period is currently active. Check back later.';
+    document.getElementById('statusArea').innerHTML = '<div class="status-banner closed">' + msg + '</div>';
+    document.getElementById('approvedArea').innerHTML = '';
+    document.getElementById('bidGridWrap').innerHTML = '';
     document.getElementById('footerBar').style.display = 'none';
+    _bidDoc = null;
     return;
   }
 
   _bidDocRef = foundRef;
-  _weekOffset = 0;
 
-  if (_bidUnsub) _bidUnsub();
+  let _empBidUnsub = null;
   _bidUnsub = _bidDocRef.onSnapshot(snap => {
     if (!snap.exists) {
       _bidDoc = null;
+      if (_empBidUnsub) _empBidUnsub();
       renderAll();
       return;
     }
     _bidDoc = snap.data();
+    if (!_bidDoc.bids) _bidDoc.bids = {};
+
+    // Determine if this is a historical (read-only) period
+    const docStatus = _bidDoc.settings?.status || 'open';
+    if (_selectedMonth) {
+      _isHistorical = docStatus !== 'open';
+    } else {
+      _isHistorical = false;
+    }
 
     // Update block size
     const bs = _bidDoc.settings?.blockSize;
     _otBlocks = (bs === 1) ? OT_BLOCKS_1HR : OT_BLOCKS_4HR;
 
-    // Load existing bids if we haven't modified locally
+    // Listen to emp_bids subcollection (individual employee bids)
+    if (!_empBidUnsub) {
+      _empBidUnsub = _bidDocRef.collection('emp_bids').onSnapshot(subSnap => {
+        if (!_bidDoc) return;
+        const subBids = {};
+        subSnap.docs.forEach(d => { subBids[d.id] = d.data(); });
+        _bidDoc.bids = { ...(_bidDoc.bids || {}), ...subBids };
+        // Load my bids from subcollection
+        if (!_dirty) {
+          let myBid = _bidDoc.bids?.[_loggedInName];
+          if (!myBid) myBid = _bidDoc['bids.' + _loggedInName];
+          _localSlots = myBid?.slots ? { ...myBid.slots } : {};
+          loadDesiredHrs();
+        }
+        renderAll();
+      });
+    }
+
+    // Load existing bids if we haven't modified locally (from legacy main doc)
     if (!_dirty) {
-      // Check nested format (bids.NAME) and legacy flat format (bids.NAME as literal key)
       let myBid = _bidDoc.bids?.[_loggedInName];
       if (!myBid) myBid = _bidDoc['bids.' + _loggedInName];
       _localSlots = myBid?.slots ? { ...myBid.slots } : {};
@@ -534,6 +706,10 @@ async function listenBids() {
 
     renderAll();
   });
+
+  // Wrap unsub to also clean up subcollection listener
+  const origUnsub = _bidUnsub;
+  _bidUnsub = () => { origUnsub(); if (_empBidUnsub) _empBidUnsub(); };
 }
 
 // ========== RENDER ALL ==========
@@ -547,15 +723,32 @@ function renderAll() {
 
   const settings = _bidDoc.settings || {};
   const status = settings.status || 'open';
-  const isClosed = status !== 'open';
+  const isClosed = status !== 'open' || _isHistorical;
   const isAssigned = status === 'assigned';
 
   renderDeadline(settings);
   renderStatus(status);
   renderApproved();
+  renderScheduleGrid(settings);
   renderRoundTracker(settings);
   renderCapInfo(settings);
   renderBidGrid(settings, isClosed);
+  // Show PIC legend + priority banner for PIC users
+  const _pos = (_loggedInEmp?.position || '').toUpperCase();
+  const _showPic = _pos === 'PIC' || _pos.includes('PIC');
+  const picLeg = document.getElementById('legendPicPriority');
+  if (picLeg) picLeg.style.display = _showPic ? '' : 'none';
+  let picBanner = document.getElementById('picPriorityBanner');
+  if (_showPic && _bidDoc?.needSlotsByRole?.PIC?.length > 0) {
+    if (!picBanner) {
+      picBanner = document.createElement('div');
+      picBanner.id = 'picPriorityBanner';
+      picBanner.style.cssText = 'padding:8px 14px;border-radius:6px;font-size:12px;font-weight:700;text-align:center;margin-bottom:10px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);color:#c084fc';
+      picBanner.innerHTML = 'Each slot shows which roles need coverage (<b>PIC</b>, <b>DP</b>, <b>CT</b>). Purple-highlighted <b>PIC</b> slots can only be filled by you — please prioritize those. Other roles are not guaranteed and may be assigned to dispatch or calltaking.';
+      const grid = document.getElementById('bidGridWrap');
+      grid.parentElement.insertBefore(picBanner, grid);
+    }
+  } else if (picBanner) { picBanner.remove(); }
   document.getElementById('desiredR2').disabled = isClosed;
   updateFooter(isClosed);
 }
@@ -563,6 +756,11 @@ function renderAll() {
 // ========== DEADLINE ==========
 function renderDeadline(settings) {
   const el = document.getElementById('deadlineBox');
+  if (_isHistorical) {
+    el.textContent = 'PAST PERIOD';
+    el.className = 'deadline-box';
+    return;
+  }
   if (!settings.deadline) {
     el.textContent = 'No deadline set';
     el.className = 'deadline-box';
@@ -600,7 +798,13 @@ function renderStatus(status) {
   const area = document.getElementById('statusArea');
   const myBid = _bidDoc?.bids?.[_loggedInName];
 
-  if (status === 'assigned') {
+  if (_isHistorical) {
+    const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const [hy, hm] = _selectedMonth.split('-').map(Number);
+    const monthLabel = MONTH_NAMES[hm - 1] + ' ' + hy;
+    const statusLabel = status === 'assigned' ? 'Assignments were published.' : status === 'closed' ? 'Bidding was closed.' : '';
+    area.innerHTML = '<div class="status-banner historical">Viewing past period: <strong>' + monthLabel + '</strong>. ' + statusLabel + ' This is read-only.</div>';
+  } else if (status === 'assigned') {
     area.innerHTML = '<div class="status-banner assigned">OT assignments have been published. See your approved slots below.</div>';
   } else if (status === 'closed') {
     area.innerHTML = '<div class="status-banner closed">Bidding is closed. Your submission is locked.</div>';
@@ -631,6 +835,109 @@ function renderApproved() {
   }
   html += '</div>';
   area.innerHTML = html;
+}
+
+// ========== SCHEDULE + OT GRID ==========
+function renderScheduleGrid(settings) {
+  const section = document.getElementById('scheduleGridSection');
+  const grid = document.getElementById('scheduleGrid');
+  const approved = _bidDoc?.approved?.[_loggedInName];
+  if (!approved || !approved.slots?.length || !settings.periodStart || !settings.periodEnd) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+
+  // Build a set of approved slot keys for quick lookup
+  const approvedSet = new Set(approved.slots.map(s => s.toUpperCase()));
+
+  const dates = getWeekDates(settings);
+  if (!dates.length) { grid.innerHTML = ''; return; }
+
+  // Header
+  let html = '<thead><tr><th>TIME</th>';
+  for (const d of dates) {
+    const dow = DOW_NAMES[d.getDay()].substring(0, 3).toUpperCase();
+    html += '<th>' + dow + ' ' + (d.getMonth() + 1) + '/' + d.getDate() + '</th>';
+  }
+  html += '</tr></thead><tbody>';
+
+  // Day shifts
+  const dayShifts = dates.map(d => {
+    const dayName = getDayName(d);
+    return _loggedInEmp?.schedule?.[dayName] || '';
+  });
+
+  // Reorder blocks same way as bid grid
+  let primaryShift = null;
+  const shiftCounts = {};
+  for (const s of dayShifts) {
+    const ns = normalizeShift(s);
+    if (ns && ns !== 'OFF' && ns !== 'RDO' && SHIFT_CODES[ns]) {
+      shiftCounts[ns] = (shiftCounts[ns] || 0) + 1;
+      if (!primaryShift || shiftCounts[ns] > shiftCounts[primaryShift]) primaryShift = ns;
+    }
+  }
+  let orderedBlocks = [..._otBlocks];
+  if (primaryShift) {
+    const range = SHIFT_CODES[primaryShift];
+    const shiftStart = range[0];
+    const shiftEnd = range[1];
+    const startIdx = _otBlocks.findIndex(b => b.start >= shiftStart);
+    let endIdx = _otBlocks.findIndex(b => b.start >= shiftEnd);
+    if (endIdx === -1) endIdx = _otBlocks.length;
+    const shiftBlockCount = endIdx - startIdx;
+    const nonShiftCount = _otBlocks.length - shiftBlockCount;
+    const beforeCount = Math.floor(nonShiftCount / 2);
+    const rotateFrom = startIdx - beforeCount;
+    const n = _otBlocks.length;
+    const offset = ((rotateFrom % n) + n) % n;
+    orderedBlocks = [];
+    for (let i = 0; i < n; i++) {
+      orderedBlocks.push(_otBlocks[(offset + i) % n]);
+    }
+  }
+
+  for (const block of orderedBlocks) {
+    html += '<tr>';
+    html += '<td class="date-cell">' + block.label + '</td>';
+    for (let di = 0; di < dates.length; di++) {
+      const d = dates[di];
+      const dateStr = toDateStr(d);
+      const shift = dayShifts[di];
+      const slotKey = (dateStr + '_' + block.label).toUpperCase();
+      const isScheduled = shiftCoversBlock(shift, block);
+
+      // Check if this slot has approved OT — handle both 4hr and 1hr block sizes
+      let hasOT = approvedSet.has(slotKey);
+      if (!hasOT && _otBlocks === OT_BLOCKS_1HR) {
+        // For 1hr blocks, check if any approved slot falls in this hour
+        for (const s of approved.slots) {
+          if (s.toUpperCase() === slotKey) { hasOT = true; break; }
+        }
+      }
+
+      let cls = 'sched-cell';
+      let label = '';
+
+      if (hasOT) {
+        cls += ' ot-assigned';
+        label = 'ASSIGNED<br>OT';
+      } else if (isScheduled) {
+        cls += ' on-shift';
+        label = shift || 'WORK';
+      } else {
+        cls += ' off';
+        label = '';
+      }
+
+      html += '<td class="' + cls + '">' + label + '</td>';
+    }
+    html += '</tr>';
+  }
+
+  html += '</tbody>';
+  grid.innerHTML = html;
 }
 
 // ========== SCHEDULE BAR ==========
@@ -774,6 +1081,38 @@ function renderBidGrid(settings, isClosed) {
     }
   }
 
+  // Build need slots lookup — role-aware
+  // PIC can fill PIC + DISPATCHER + CALLTAKER OT
+  // DISPATCHER can fill DISPATCHER + CALLTAKER OT
+  // CALLTAKER can only fill CALLTAKER OT
+  const byRole = _bidDoc?.needSlotsByRole;
+  let needSet = null;
+  const _userPos = (_loggedInEmp?.position || '').toUpperCase();
+  const _isPIC = _userPos === 'PIC' || _userPos.includes('PIC');
+  // Per-role need sets for badge display (PIC users only)
+  let picNeedSet = null, dpNeedSet = null, ctNeedSet = null;
+  if (byRole && typeof byRole === 'object') {
+    let eligible = [];
+    if (_isPIC) {
+      eligible = [...(byRole.PIC || []), ...(byRole.DISPATCHER || []), ...(byRole.CALLTAKER || [])];
+      picNeedSet = new Set((byRole.PIC || []).map(s => s.toUpperCase()));
+      dpNeedSet = new Set((byRole.DISPATCHER || []).map(s => s.toUpperCase()));
+      ctNeedSet = new Set((byRole.CALLTAKER || []).map(s => s.toUpperCase()));
+    } else if (_userPos === 'DISPATCHER' || _userPos.includes('DISPATCH')) {
+      eligible = [...(byRole.DISPATCHER || []), ...(byRole.CALLTAKER || [])];
+    } else {
+      eligible = [...(byRole.CALLTAKER || [])];
+    }
+    if (eligible.length > 0) needSet = new Set(eligible.map(s => s.toUpperCase()));
+  }
+  // Fallback to flat needSlots if no per-role data
+  if (!needSet) {
+    const needSlots = _bidDoc?.needSlots;
+    if (Array.isArray(needSlots) && needSlots.length > 0) {
+      needSet = new Set(needSlots.map(s => s.toUpperCase()));
+    }
+  }
+
   // Body rows: one per time block
   for (const block of orderedBlocks) {
     html += '<tr>';
@@ -785,7 +1124,20 @@ function renderBidGrid(settings, isClosed) {
       const shift = dayShifts[di];
       const slotKey = formatSlotKey(dateStr, block.label);
       const isScheduled = shiftCoversBlock(shift, block);
+      const noNeed = needSet && !needSet.has(slotKey.toUpperCase());
       const val = _localSlots[slotKey] || '';
+
+      // Build role badge for PIC users
+      let roleBadge = '';
+      let hasPicNeed = false;
+      if (_isPIC && !isScheduled && !noNeed && picNeedSet) {
+        const sk = slotKey.toUpperCase();
+        const parts = [];
+        if (picNeedSet.has(sk)) { parts.push('PIC'); hasPicNeed = true; }
+        if (dpNeedSet.has(sk)) parts.push('DP');
+        if (ctNeedSet.has(sk)) parts.push('CT');
+        if (parts.length > 0) roleBadge = '<span class="role-badge' + (hasPicNeed ? ' has-pic' : '') + '">' + parts.join('/') + '</span>';
+      }
 
       let cls = 'bid-cell';
       let label = '';
@@ -793,6 +1145,9 @@ function renderBidGrid(settings, isClosed) {
       if (isScheduled) {
         cls += ' scheduled';
         label = 'SCHEDULED SHIFT';
+      } else if (noNeed) {
+        cls += ' no-need';
+        label = 'NO NEED';
       } else if (isClosed) {
         cls += ' disabled';
         if (val === 'prefer') { cls += ' prefer'; label = 'PREFER'; }
@@ -804,8 +1159,9 @@ function renderBidGrid(settings, isClosed) {
         else if (val === 'cant') { cls += ' cant'; label = "CAN'T"; }
       }
 
-      const dataAttr = (!isScheduled && !isClosed) ? ' data-slot="' + slotKey + '"' : '';
-      html += '<td class="' + cls + '"' + dataAttr + '>' + label + '</td>';
+      if (hasPicNeed && !noNeed) cls += ' pic-priority';
+      const dataAttr = (!isScheduled && !isClosed && !noNeed) ? ' data-slot="' + slotKey + '"' : '';
+      html += '<td class="' + cls + '"' + dataAttr + '>' + label + roleBadge + '</td>';
     }
     html += '</tr>';
   }
@@ -898,7 +1254,7 @@ function updateFooter(isClosed) {
 
   if (isClosed) {
     btn.style.display = 'none';
-    status.textContent = 'Bidding is closed';
+    status.textContent = _isHistorical ? 'Viewing past period (read-only)' : 'Bidding is closed';
     return;
   }
 
@@ -932,7 +1288,7 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
     };
     if (_desiredR2 !== null) bidData.desiredR2 = _desiredR2;
     // Use set with merge and proper nested object (not dot-notation key)
-    await _bidDocRef.set({ bids: { [_loggedInName]: bidData } }, { merge: true });
+    await _bidDocRef.collection('emp_bids').doc(_loggedInName).set(bidData);
 
     _dirty = false;
     toast('Bids submitted successfully!', 'success');

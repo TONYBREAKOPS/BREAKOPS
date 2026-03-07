@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Legitimous Operations Suite — Master Manual</title>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <style>
   :root {
     --bg: #0b0f14;
@@ -296,9 +298,25 @@
     .hero h1 { font-size: 1.8rem; }
     .section { padding: 20px; }
   }
+.login-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:#0b0f14;z-index:9999;display:flex;align-items:center;justify-content:center;}
+.login-box{background:#111826;border:1px solid #233043;border-radius:12px;padding:30px;min-width:320px;text-align:center;}
+.login-box h2{margin-bottom:16px;font-size:18px;color:#f0f4f8;}
+.login-box input{width:100%;padding:10px;font-size:14px;border-radius:6px;border:1px solid #233043;background:#0b0f14;color:#e2e8f0;margin-bottom:10px;}
+.login-box button{width:100%;padding:10px;font-size:14px;font-weight:700;border-radius:6px;border:none;background:#4aa3ff;color:#fff;cursor:pointer;}
+.login-box .err{color:#ef4444;font-size:12px;margin-top:8px;}
 </style>
 </head>
 <body>
+
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h2>Master Manual</h2>
+    <input type="email" id="loginEmail" placeholder="Email" />
+    <input type="password" id="loginPass" placeholder="Password" />
+    <button id="btnLogin">SIGN IN</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
 
 <div class="hero">
   <h1><span>LEGITIMOUS</span> OPERATIONS SUITE</h1>
@@ -895,6 +913,32 @@ All Apps --> bugReports ----------> Bug Reports Dashboard (bugs.html)
 <div class="pdf-bar">
   <button class="green" onclick="window.print()">SAVE AS PDF</button>
 </div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyA6KELmSyotefK0zhahQZ0-mbYur8_nTsg",
+  authDomain: "commandops-93846.firebaseapp.com",
+  databaseURL: "https://commandops-93846-default-rtdb.firebaseio.com",
+  projectId: "commandops-93846",
+  storageBucket: "commandops-93846.firebasestorage.app",
+  messagingSenderId: "262613721964",
+  appId: "1:262613721964:web:478a694d357234e3be4949"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+document.getElementById('btnLogin').addEventListener('click', async () => {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  try { await auth.signInWithEmailAndPassword(email, pass); }
+  catch (e) { document.getElementById('loginErr').textContent = e.message; }
+});
+document.getElementById('loginPass').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('btnLogin').click();
+});
+auth.onAuthStateChanged((user) => {
+  document.getElementById('loginOverlay').style.display = user ? 'none' : 'flex';
+});
+</script>
 
 </body>
 </html>
