@@ -656,15 +656,22 @@ async function listenBids() {
   _bidDocRef = foundRef;
 
   let _empBidUnsub = null;
+  let _approvedSubUnsub = null;
+  let _approvedSubCache = {};
   _bidUnsub = _bidDocRef.onSnapshot(snap => {
     if (!snap.exists) {
       _bidDoc = null;
       if (_empBidUnsub) _empBidUnsub();
+      if (_approvedSubUnsub) _approvedSubUnsub();
       renderAll();
       return;
     }
     _bidDoc = snap.data();
     if (!_bidDoc.bids) _bidDoc.bids = {};
+    // Merge subcollection approved into bidDoc (subcollection wins)
+    if (Object.keys(_approvedSubCache).length > 0) {
+      _bidDoc.approved = { ...(_bidDoc.approved || {}), ..._approvedSubCache };
+    }
 
     // Determine if this is a historical (read-only) period
     const docStatus = _bidDoc.settings?.status || 'open';
@@ -696,6 +703,16 @@ async function listenBids() {
       });
     }
 
+    // Listen to results/approved subcollection
+    if (!_approvedSubUnsub) {
+      _approvedSubUnsub = _bidDocRef.collection('results').doc('approved').onSnapshot(aSnap => {
+        if (!_bidDoc) return;
+        _approvedSubCache = aSnap.exists ? aSnap.data() : {};
+        _bidDoc.approved = { ...(_bidDoc.approved || {}), ..._approvedSubCache };
+        renderAll();
+      });
+    }
+
     // Load existing bids if we haven't modified locally (from legacy main doc)
     if (!_dirty) {
       let myBid = _bidDoc.bids?.[_loggedInName];
@@ -707,9 +724,9 @@ async function listenBids() {
     renderAll();
   });
 
-  // Wrap unsub to also clean up subcollection listener
+  // Wrap unsub to also clean up subcollection listeners
   const origUnsub = _bidUnsub;
-  _bidUnsub = () => { origUnsub(); if (_empBidUnsub) _empBidUnsub(); };
+  _bidUnsub = () => { origUnsub(); if (_empBidUnsub) _empBidUnsub(); if (_approvedSubUnsub) _approvedSubUnsub(); };
 }
 
 // ========== RENDER ALL ==========
