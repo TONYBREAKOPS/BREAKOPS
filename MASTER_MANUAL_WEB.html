@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legitimous Operations Suite — Master Manual</title>
+<style>
+  :root {
+    --bg: #0b0f14;
+    --card: #111826;
+    --card2: #161d2e;
+    --text: #e2e8f0;
+    --muted: #8896a8;
+    --accent: #4aa3ff;
+    --accent2: #3fe7b6;
+    --border: #233043;
+    --heading: #f0f4f8;
+    --toc-bg: #0e1420;
+    --table-head: #1a2538;
+    --table-row: #12192a;
+    --table-row-alt: #151e30;
+    --badge-blue: #2563eb;
+    --badge-green: #16a34a;
+    --badge-red: #dc2626;
+    --badge-amber: #d97706;
+    --badge-purple: #7c3aed;
+    --code-bg: #1a2332;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 0;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* Header */
+  .hero {
+    background: linear-gradient(135deg, #0b1a2e 0%, #162040 50%, #0b1a2e 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 60px 40px 50px;
+    text-align: center;
+  }
+  .hero h1 {
+    font-size: 2.8rem;
+    font-weight: 800;
+    color: var(--heading);
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+  }
+  .hero h1 span { color: var(--accent); }
+  .hero .subtitle {
+    font-size: 1.15rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .hero .version {
+    font-size: 0.9rem;
+    color: var(--accent2);
+    font-weight: 600;
+  }
+
+  /* Layout */
+  .wrapper {
+    display: flex;
+    max-width: 1400px;
+    margin: 0 auto;
+    min-height: 100vh;
+  }
+  .sidebar {
+    width: 280px;
+    min-width: 280px;
+    background: var(--toc-bg);
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .sidebar h3 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    padding: 0 20px;
+    margin-bottom: 12px;
+  }
+  .sidebar a {
+    display: block;
+    padding: 8px 20px;
+    font-size: 0.88rem;
+    color: var(--text);
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+  }
+  .sidebar a:hover {
+    background: rgba(74,163,255,0.08);
+    border-left-color: var(--accent);
+    text-decoration: none;
+    color: var(--accent);
+  }
+  .sidebar a .num {
+    display: inline-block;
+    width: 24px;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 0.8rem;
+  }
+  .main {
+    flex: 1;
+    padding: 40px 50px 80px;
+    max-width: 1120px;
+  }
+
+  /* Print / PDF button */
+  .pdf-bar {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 999;
+    display: flex;
+    gap: 10px;
+  }
+  .pdf-bar button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(74,163,255,0.3);
+    transition: transform 0.1s;
+  }
+  .pdf-bar button:hover { transform: translateY(-2px); }
+  .pdf-bar button.green { background: var(--accent2); color: #000; box-shadow: 0 4px 16px rgba(63,231,182,0.3); }
+
+  /* Sections */
+  .section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 36px 40px;
+    margin-bottom: 32px;
+  }
+  h1.sec-title {
+    font-size: 1.9rem;
+    color: var(--accent);
+    font-weight: 800;
+    margin-bottom: 6px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+  }
+  .sec-meta {
+    font-size: 0.88rem;
+    color: var(--muted);
+    margin-bottom: 20px;
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .sec-meta span {
+    background: var(--card2);
+    padding: 3px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  h2 {
+    font-size: 1.35rem;
+    color: var(--heading);
+    margin: 28px 0 12px;
+    font-weight: 700;
+  }
+  h3 {
+    font-size: 1.1rem;
+    color: var(--accent2);
+    margin: 22px 0 8px;
+    font-weight: 700;
+  }
+  p { margin: 8px 0; }
+  ul, ol { margin: 8px 0 8px 24px; }
+  li { margin: 4px 0; }
+  li strong { color: var(--heading); }
+  code {
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.88rem;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    color: var(--accent2);
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin: 12px 0;
+    color: var(--text);
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    white-space: pre;
+  }
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 32px 0;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 0.9rem;
+  }
+  th {
+    background: var(--table-head);
+    color: var(--heading);
+    text-align: left;
+    padding: 10px 14px;
+    font-weight: 700;
+    border-bottom: 2px solid var(--border);
+  }
+  td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  tr:nth-child(even) td { background: var(--table-row-alt); }
+  tr:nth-child(odd) td { background: var(--table-row); }
+  tr:hover td { background: rgba(74,163,255,0.06); }
+
+  /* Badges */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge-blue { background: var(--badge-blue); color: #fff; }
+  .badge-green { background: var(--badge-green); color: #fff; }
+  .badge-red { background: var(--badge-red); color: #fff; }
+  .badge-amber { background: var(--badge-amber); color: #000; }
+  .badge-purple { background: var(--badge-purple); color: #fff; }
+
+  /* Back to top */
+  .back-top {
+    text-align: right;
+    margin-top: 16px;
+  }
+  .back-top a {
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+
+  /* Print styles */
+  @media print {
+    body { background: #fff; color: #111; }
+    .sidebar, .pdf-bar, .hero { display: none !important; }
+    .wrapper { display: block; }
+    .main { padding: 20px; max-width: 100%; }
+    .section {
+      background: #fff;
+      border: 1px solid #ccc;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    h1.sec-title { color: #1a56db; }
+    h2 { color: #111; }
+    h3 { color: #0e7c5f; }
+    a { color: #1a56db; }
+    table { font-size: 0.8rem; }
+    th { background: #e8ecf0; color: #111; }
+    td { background: #fff !important; }
+    tr:nth-child(even) td { background: #f7f8fa !important; }
+    code { background: #f0f2f5; color: #0e7c5f; }
+    pre { background: #f0f2f5; border-color: #ccc; color: #111; }
+    .sec-meta span { background: #f0f2f5; border-color: #ccc; }
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .main { padding: 20px; }
+    .hero { padding: 40px 20px 30px; }
+    .hero h1 { font-size: 1.8rem; }
+    .section { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1><span>LEGITIMOUS</span> OPERATIONS SUITE</h1>
+  <div class="subtitle">911 Operational Tools for Dispatch Center Management</div>
+  <div class="version">MASTER MANUAL &mdash; Version 2.0 &mdash; March 2026</div>
+</div>
+
+<div class="wrapper">
+<nav class="sidebar" id="toc">
+  <h3>Table of Contents</h3>
+  <a href="#sec-1"><span class="num">1.</span> Operations Hub</a>
+  <a href="#sec-2"><span class="num">2.</span> ShiftOps</a>
+  <a href="#sec-3"><span class="num">3.</span> BreakOPS &mdash; Admin</a>
+  <a href="#sec-4"><span class="num">4.</span> BreakOPS &mdash; Staff View</a>
+  <a href="#sec-5"><span class="num">5.</span> BreakOPS &mdash; Backup</a>
+  <a href="#sec-6"><span class="num">6.</span> RotationOps</a>
+  <a href="#sec-7"><span class="num">7.</span> Dispatch Board</a>
+  <a href="#sec-8"><span class="num">8.</span> AttendanceOps</a>
+  <a href="#sec-9"><span class="num">9.</span> StaffingOps</a>
+  <a href="#sec-10"><span class="num">10.</span> OT Bidding</a>
+  <a href="#sec-11"><span class="num">11.</span> ScheduleOps</a>
+  <a href="#sec-12"><span class="num">12.</span> MandateOps</a>
+  <a href="#sec-13"><span class="num">13.</span> DecisionOps</a>
+  <a href="#sec-14"><span class="num">14.</span> Employee Database</a>
+  <a href="#sec-15"><span class="num">15.</span> Bug Reports</a>
+  <a href="#sec-16"><span class="num">16.</span> Cross-App Architecture</a>
+</nav>
+
+<div class="main">
+
+<!-- ============ 1. OPERATIONS HUB ============ -->
+<div class="section" id="sec-1">
+<h1 class="sec-title">1. Operations Hub</h1>
+<div class="sec-meta"><span>File: links.html</span><span>Type: Navigation Portal</span></div>
+<h2>Overview</h2>
+<p>The Operations Hub is the main landing page for the entire Legitimous Operations Suite. It displays a grid of cards, each linking to a different operational tool. There is no database or login &mdash; it is purely a navigation dashboard.</p>
+<h2>Features</h2>
+<ul>
+  <li><strong>App Cards</strong> &mdash; Each card shows the app name, description, feature tags, and a status badge (Ready / Online). Clicking a card opens that app in a new browser tab.</li>
+  <li><strong>Split Cards</strong> &mdash; Some apps have two entry points (e.g., BreakOps Admin + Staff, StaffingOps + OT Bidding, RotationOps + Dispatch Board) shown as split-half links within a single card.</li>
+  <li><strong>Live Clock</strong> &mdash; Header displays real-time clock (HH:MM:SS) and a green "Connected" status dot.</li>
+  <li><strong>Visual Effects</strong> &mdash; Animated background gradients, grid overlay, scanline effect, and mouse-follow glow on cards.</li>
+</ul>
+<h2>Connected Apps</h2>
+<table>
+  <tr><th>Card</th><th>Links To</th><th>Description</th></tr>
+  <tr><td>ShiftOps</td><td><code>shiftops.html</code></td><td>Daily Roster Management</td></tr>
+  <tr><td>BreakOps (Admin)</td><td><code>admin.html</code></td><td>Full control, manage assignments</td></tr>
+  <tr><td>BreakOps (Staff)</td><td><code>/</code> (root)</td><td>Read-only break board</td></tr>
+  <tr><td>RotationOps</td><td><code>rotationopsv2.html</code></td><td>Monthly Channel Rotation</td></tr>
+  <tr><td>Dispatch Board</td><td><code>dispatch.html</code></td><td>Live Dispatch Rotation Board</td></tr>
+  <tr><td>AttendanceOps</td><td><code>vacationops.html</code></td><td>Attendance Manager</td></tr>
+  <tr><td>MandateOps</td><td><code>mandateops.html</code></td><td>Overtime Mandate Ranking</td></tr>
+  <tr><td>StaffingOps</td><td><code>staffingopsv2.html</code></td><td>Staffing Analysis &amp; OT Distribution</td></tr>
+  <tr><td>OT Bidding</td><td><code>otbidding.html</code></td><td>Employee OT Bid Submission</td></tr>
+  <tr><td>DecisionOps</td><td><code>decisionops.html</code></td><td>Meeting Decision Engine</td></tr>
+  <tr><td>ScheduleOps</td><td><code>scheduleops.html</code></td><td>Schedule Builder &amp; Coverage Simulator</td></tr>
+  <tr><td>Employee DB</td><td><code>employees.html</code></td><td>Database Editor (Password-Protected)</td></tr>
+  <tr><td>BreakOps Backup</td><td><code>index2.html</code></td><td>Offline fallback</td></tr>
+  <tr><td>Bug Reports</td><td><code>bugs.html</code></td><td>Issue tracking</td></tr>
+</table>
+<div class="back-top"><a href="#toc">Back to top</a></div>
+</div>
+
+<!-- ============ 2. SHIFTOPS ============ -->
+<div class="section" id="sec-2">
+<h1 class="sec-title">2. ShiftOps</h1>
+<div class="sec-meta"><span>File: shiftops.html</span><span>~9,500 lines</span><span>Daily Operations</span></div>
+<h2>Overview</h2>
+<p>ShiftOps is the primary daily operations tool. It manages employee scheduling across day and night shifts, tracks attendance (present, absent, tardy, partial, trainer, trainee), assigns seat positions, monitors staffing adequacy, handles overtime imports, generates timesheets, and produces printable/exportable reports.</p>
+
+<h2>Header Controls</h2>
+<ul>
+  <li><strong>Pay Period (PP)</strong> &mdash; Select from PP3 onward (14-day cycles starting 2026-01-10)</li>
+  <li><strong>Week</strong> &mdash; Week 1 or Week 2 within the pay period</li>
+  <li><strong>Day</strong> &mdash; Saturday through Friday with the specific date shown</li>
+  <li><strong>Shift</strong> &mdash; Day Shift (0600&ndash;1800) or Night Shift (1800&ndash;0600). Auto-selects based on current time</li>
+  <li><strong>Panel View</strong> &mdash; "All 3 blocks" or individual 4-hour blocks, plus an employee search field</li>
+</ul>
+
+<h2>Options Menu</h2>
+<ul>
+  <li><strong>Import OT</strong> &mdash; Import Microsoft Teams overtime schedule (XLSX or CSV)</li>
+  <li><strong>Save XLSX</strong> &mdash; Export current day's roster to a styled Excel workbook</li>
+  <li><strong>Timesheet</strong> &mdash; Generate unofficial timesheets for the full 14-day pay period</li>
+  <li><strong>Print Daily</strong> &mdash; Portrait letter-size PDF (roster + comments)</li>
+  <li><strong>Print Weekly</strong> &mdash; 8-page legal-size PDF (regulars + OT for both shifts)</li>
+  <li><strong>Download Weekly Excel</strong> &mdash; Weekly Excel workbook with staffing data</li>
+  <li><strong>Print Excel Legend</strong> &mdash; Reference guide for weekly Excel color codes</li>
+  <li><strong>Shift Swap</strong> &mdash; Swap schedules between two employees</li>
+  <li><strong>Push to BreakOPS</strong> &mdash; Push staffing data to the BreakOPS system</li>
+</ul>
+
+<h2>Shift Board Layout</h2>
+<p>Each shift has three 4-hour blocks displayed as columns. Each column contains stacked cards:</p>
+<ol>
+  <li><strong>Staffing Numbers</strong> &mdash; Hour-by-hour required vs. scheduled headcount (SHORT / STAFFED / OVER)</li>
+  <li><strong>Calltakers Table</strong> &mdash; Name, Role, Seat, Worked, Hrs, Present, Comment</li>
+  <li><strong>Dispatchers Table</strong> &mdash; Same format</li>
+  <li><strong>PIC Table</strong> &mdash; Same format</li>
+  <li><strong>OTHER Table</strong> &mdash; For OTH roles (SD, TRN, B, ADM)</li>
+  <li><strong>Supervisors Table</strong> &mdash; Same format</li>
+  <li><strong>Absent Table</strong> &mdash; Shows absent/tardy/partial with Reason column</li>
+  <li><strong>OT / Extra Bar</strong> &mdash; Add overtime employees with Role and Segment selectors</li>
+</ol>
+
+<h2>Marking Attendance</h2>
+<table>
+  <tr><th>Status</th><th>Effect</th></tr>
+  <tr><td><strong>YES</strong></td><td>Normal present</td></tr>
+  <tr><td><strong>TRAINER</strong></td><td>Present as trainer (green ring)</td></tr>
+  <tr><td><strong>TRAINEE</strong></td><td>Present as trainee (excluded from staffing counts)</td></tr>
+  <tr><td><strong>PARTIAL</strong></td><td>Left early (yellow ring, creates ghost absent row for missed time)</td></tr>
+  <tr><td><strong>TARDY</strong></td><td>Arrived late (red ring, auto-opens time editor, creates ghost absent row)</td></tr>
+  <tr><td><strong>NO</strong></td><td>Triggers absence reason picker. Cascades absence to all later blocks for the day</td></tr>
+</table>
+
+<h2>Auto-Marking Behaviors</h2>
+<ul>
+  <li><strong>Vacation</strong>: Employees on vacation are auto-marked ABSENT with reason "VACATION"</li>
+  <li><strong>On-Site Training</strong>: Auto-marked as TRAINEE</li>
+  <li><strong>Off-Site Training</strong>: Auto-marked as OTH with type TRN</li>
+  <li>Auto-marks only apply if the employee hasn't been manually edited</li>
+</ul>
+
+<h2>Keyboard Shortcuts</h2>
+<table>
+  <tr><th>Shortcut</th><th>Action</th></tr>
+  <tr><td>Alt+1 / Alt+2 / Alt+3</td><td>Switch to block 1, 2, or 3</td></tr>
+  <tr><td>Alt+A</td><td>Switch to "All 3 blocks" view</td></tr>
+  <tr><td>Enter (on time input)</td><td>Commit worked time change</td></tr>
+  <tr><td>Escape (on time input)</td><td>Revert worked time change</td></tr>
+  <tr><td>Space (on custom select)</td><td>Toggle dropdown</td></tr>
+  <tr><td>Arrow Up/Down (in dropdown)</td><td>Navigate options</td></tr>
+  <tr><td>Enter (in dropdown)</td><td>Select option and auto-advance to next row</td></tr>
+  <tr><td>Type-ahead (on dropdown)</td><td>Type letters to filter/preview match</td></tr>
+  <tr><td>Shift+Enter (on present)</td><td>Toggle backwards through statuses</td></tr>
+</table>
+
+<h2>Firebase Collections</h2>
+<table>
+  <tr><th>Collection</th><th>Purpose</th></tr>
+  <tr><td><code>employees</code></td><td>Employee roster (name, seniority, position, schedule)</td></tr>
+  <tr><td><code>daily_edits</code></td><td>Per-day per-shift edits (roles, seats, presence, OT, comments)</td></tr>
+  <tr><td><code>*_Adequate_Staffing</code></td><td>Required headcounts per hour per day (CT, DP, PIC)</td></tr>
+  <tr><td><code>*_Seat_Assignments</code></td><td>Seat/position labels per role</td></tr>
+  <tr><td><code>Absent_Reason</code></td><td>Valid absence reason labels</td></tr>
+  <tr><td><code>rotation_plans</code></td><td>Vacation and training data per month</td></tr>
+  <tr><td><code>scheduledChanges</code></td><td>Future schedule changes</td></tr>
+  <tr><td><code>shift_swaps</code></td><td>Active shift swap records per date</td></tr>
+</table>
+<div class="back-top"><a href="#toc">Back to top</a></div>
+</div>
+
+<!-- ============ 3. BREAKOPS ADMIN ============ -->
+<div class="section" id="sec-3">
+<h1 class="sec-title">3. BreakOPS &mdash; Admin Panel</h1>
+<div class="sec-meta"><span>File: admin.html</span><span>~4,300 lines</span><span>Break Scheduling</span></div>
+<h2>Overview</h2>
+<p>BreakOPS Admin is a real-time break scheduling system for managing employee breaks across four positions (Calltaker, Dispatcher, PIC, ANET). It uses a turn-based sequential system where each employee picks their break in order, with skip timers and second-chance mechanics.</p>
+<h2>Break Picker</h2>
+<ul>
+  <li><strong>DEPLOY BREAKS</strong> &mdash; Starts break selection for all positions (must lock editing first)</li>
+  <li><strong>PAUSE ALL</strong> &mdash; Pauses all timers</li>
+  <li><strong>Timer Duration</strong> &mdash; 10sec to 10min (default 5 min)</li>
+  <li><strong>Slot Capacity Manager</strong> &mdash; Adjust per-slot, per-position capacity (CT=3, DP=2, PIC=1, ANET=1)</li>
+  <li><strong>NEXT UP</strong> (yellow) &mdash; Current picker's turn</li>
+  <li><strong>SKIPPED</strong> (gray) &mdash; Timer expired, waiting for second chance</li>
+  <li><strong>2ND CHANCE</strong> (orange) &mdash; Skipped person getting another turn</li>
+  <li><strong>Pre-Selections &amp; Auto-Pick</strong> &mdash; Pre-set preferences for automatic assignment</li>
+</ul>
+<h2>Additional Features</h2>
+<ul>
+  <li>Dispatcher channel assignment cards (10+ channels)</li>
+  <li>Position lineup tables with override dropdowns</li>
+  <li>Add extra people (overtime/fill-ins)</li>
+  <li>NOT IN STAFFING LISTS panel for absent employees</li>
+  <li>Print break sheets (2-page: CT breaks + DP/PIC breaks with relief table)</li>
+  <li>Push seats to ShiftOps</li>
+  <li>Coverage mini-tables per position</li>
+</ul>
+<h2>Firebase</h2>
+<p>Uses <strong>two Firebase projects</strong>: <code>legitimous-2f2d2</code> (breaks, state, config) and <code>commandops-93846</code> (ShiftOps push only).</p>
+<div class="back-top"><a href="#toc">Back to top</a></div>
+</div>
+
+<!-- ============ 4. BREAKOPS STAFF VIEW ============ -->
+<div class="section" id="sec-4">
+<h1 class="sec-title">4. BreakOPS &mdash; Staff View</h1>
+<div class="sec-meta"><span>File: index.html</span><span>Read-Only</span></div>
+<p>Shows only the break picker card &mdash; all admin controls are hidden. Staff see whose turn it is, what breaks have been assigned, skip timer countdowns, and NEXT UP / SECOND CHANCE / SKIPPED highlighting in real-time. Automatically syncs to the admin's mode/day/block selections.</p>
+<div class="back-top"><a href="#toc">Back to top</a></div>
+</div>
+
+<!-- ============ 5. BREAKOPS BACKUP ============ -->
+<div class="section" id="sec-5">
+<h1 class="sec-title">5. BreakOPS &mdash; Backup / Offline</h1>
+<div class="sec-meta"><span>File: index2.html</span><span>Offline Fallback</span></div>
+<p>A standalone break system that stores all data in browser localStorage (no Firebase). Used when cloud services are unavailable. Includes position management, extras, day-off awareness, CSV export, and print break sheets. Only supports CT, DP, PIC (no ANET).</p>
+<div class="back-top"><a href="#toc">Back to top</a></div>
+</div>
+
+<!-- ============ 6. ROTATIONOPS ============ -->
+<div class="section" id="sec-6">
+<h1 class="sec-title">6. RotationOps</h1>
+<div class="sec-meta"><span>File: rotationopsv2.html</span><span>~14,500 lines</span><span>Monthly Rotation</span></div>
+<h2>Overview</h2>
+<p>RotationOps generates monthly rotation schedules assigning dispatchers to 10 radio channels (North, East, South, West, Northwest, Central, DC1, DC2, Relief 1, Relief 2) across six 4-hour blocks per day. Uses AI-powered fairness optimization. Works alongside the <strong>Dispatch Board</strong> (Section 7) which provides the live daily view.</p>
+<h2>Core Functions</h2>
+<ul>
+  <li><strong>RANDOMIZE</strong> &mdash; Runs hundreds of full-month attempts (~60 sec), keeps the best-scoring plan</li>
+  <li><strong>BALANCE</strong> &mdash; Post-optimization pass that swaps to improve fairness</li>
+  <li><strong>CHECK VIOLATIONS</strong> &mdash; Scans for rule violations (same-channel-twice, weekly caps)</li>
+  <li><strong>CLEAR ASSIGNMENTS</strong> &mdash; Password-protected, wipes all assignments</li>
+</ul>
+<h2>View Tabs</h2>
+<ul>
+  <li><strong>Day</strong> &mdash; Single-day, click names for SWAP/MOVE/MARK ABSENT, click NEEDED to assign</li>
+  <li><strong>Week</strong> &mdash; 7-day grid with search</li>
+  <li><strong>Month</strong> &mdash; Full-month calendar</li>
+  <li><strong>Roster</strong> &mdash; Per-employee grid split by Day/Night/Split shift, printable</li>
+  <li><strong>Monthly Exceptions</strong> &mdash; Vacations, exclusions, trainers with block/channel overrides</li>
+</ul>
+<h2>Export Options</h2>
+<ul>
+  <li>Export Totals (fairness stats) / Export Excel / Export CSV</li>
+  <li>Export Open Shifts (Teams-compatible .xlsx)</li>
+  <li>Push to ShiftOps</li>
+</ul>
+<h2>Configuration</h2>
+<p>10 channels + 7th channel (Fri/Sat nights). Six 4-hour blocks. Weekly caps: CT 2, Relief 2, DC 2, Primary 2. SD monthly cap: 32 blocks. Dark/Light theme.</p>
+<div class="back-top"><a href="#toc">Back to top</a></div>
+</div>
+
+<!-- ============ 7. DISPATCH BOARD ============ -->
+<div class="section" id="sec-7">
+<h1 class="sec-title">7. Dispatch Board</h1>
+<div class="sec-meta"><span>File: dispatch.html</span><span>Live Operations</span><span>Real-time Sync</span></div>
+<h2>Overview</h2>
+<p>The Dispatch Board is a live, real-time rotation board that displays current channel assignments for dispatchers across all 10 radio channels plus calltaker slots. It serves as the daily companion to RotationOps (Section 6), which handles monthly planning.</p>
+<h2>Board Layout</h2>
+<ul>
+  <li><strong>10 Dispatch Channels</strong> &mdash; North, East, South, West, Northwest, Central, DC1, DC2, Relief 1, Relief 2 &mdash; each with a color-coded left border</li>
+  <li><strong>3 Calltaker Slots</strong> &mdash; Per time block</li>
+  <li><strong>3 Time Blocks</strong> &mdash; Day Shift (6A&ndash;10A, 10A&ndash;2P, 2P&ndash;6P) or Night Shift (6P&ndash;10P, 10P&ndash;2A, 2A&ndash;6A)</li>
+  <li><strong>Day Selector</strong> &mdash; Sunday through Saturday tabs</li>
+</ul>
+<h2>Controls</h2>
+<ul>
+  <li><strong>Power Button</strong> &mdash; ONLINE / OFFLINE toggle. When offline, all viewers see "PENDING" in every cell</li>
+  <li><strong>Lock / Unlock</strong> &mdash; Password-protected editing. Auto-locks after 3 minutes of inactivity</li>
+  <li><strong>Paste Block</strong> &mdash; Bulk-paste all 10 channel names at once (one per line)</li>
+  <li><strong>Save</strong> &mdash; Pushes current board state to Firebase for all connected devices</li>
+  <li><strong>Clear Block</strong> &mdash; Reset all assignments for the current shift</li>
+</ul>
+<h2>Name Hover Trail</h2>
+<p>Hovering over a dispatcher's name highlights all blocks where that person appears across the shift, with animated SVG connector lines and arrows showing their rotation path between blocks.</p>
+<h2>Mobile View</h2>
+<p>Fully responsive &mdash; compact grid with abbreviated channel labels (N, E, S, W, NW, C, DC1, DC2, R1, R2, CT), optimized touch targets, and tap-to-trail on locked boards. Fills the full viewport with no scrolling required.</p>
+<h2>Auto Shift Switching</h2>
+<p>Automatically switches between Day and Night shift tabs based on current time (Day before 5 PM, Night after 5 PM). Manual selection overrides auto-switching for the session.</p>
+<h2>Announcements</h2>
+<p>A text area below the board for supervisor announcements. Syncs in real-time to all connected devices. Editable only when unlocked.</p>
+<h2>Firebase</h2>
+<p>Uses <code>legitimous-2f2d2</code> &mdash; stores board data, announcement text, and power state in <code>appState/rotationBoard</code>. Real-time sync via <code>onSnapshot</code>. Falls back to localStorage when offline.</p>
+<div class="back-top"><a href="#toc">Back to top</a></div>
+</div>
+
+<!-- ============ 8. ATTENDANCEOPS ============ -->
+<div class="section" id="sec-8">
+<h1 class="sec-title">8. AttendanceOps</h1>
+<div class="sec-meta"><span>File: vacationops.html</span><span>~2,100 lines</span><span>Attendance Manager</span></div>
+<h2>Three Main Tabs</h2>
+<h3>VACATIONS</h3>
+<p>Add/edit/delete vacation entries. Import bulk vacations from Excel with name matching and typo correction. Clear duplicates. Fix misplaced entries. Month navigation or ALL months view with filters.</p>
+<h3>TRAINING</h3>
+<p>Add training entries with On Site / Off Site location. On-Site = TRAINEE in ShiftOps. Off-Site = OTH/TRN in ShiftOps.</p>
+<h3>ABSENCES</h3>
+<p>View real-time absences from ShiftOps. Types: <span class="badge badge-red">ABSENT</span> <span class="badge badge-amber">TARDY</span> <span class="badge badge-amber" style="background:#f97316">PARTIAL</span>. Recent call-offs (last 7 days). Dismiss individual or all.</p>
+<div class="back-top"><a href="#toc">Back to top</a></div>
+</div>
+
+<!-- ============ 9. STAFFINGOPS ============ -->
+<div class="section" id="sec-9">
+<h1 class="sec-title">9. StaffingOps</h1>
+<div class="sec-meta"><span>File: staffingopsv2.html</span><span>Staffing Analysis &amp; OT Distribution</span></div>
+<h2>Three Main Views</h2>
+<h3>STAFFING NUMBERS</h3>
+<p>7-column (Mon&ndash;Sun) x 12-row grid split into DAY and NIGHT shifts. Each cell shows <code>current/needed</code>, color-coded: <span class="badge badge-red">SHORT</span> <span class="badge badge-amber">ADEQUATE</span> <span class="badge badge-green">OVER</span>. Hover to see names.</p>
+<h3>OT NEEDS (Monthly Calendar)</h3>
+<p>Full-month horizontal scrolling table with 6 blocks per day (6A-10A, 10A-2P, 2P-6P, 6P-10P, 10P-2A, 2A-6A). Summary bar at top shows total OT slots and hours needed. Rows include:</p>
+<ul>
+  <li><strong>STAFF row</strong> &mdash; Numbered chips for each scheduled employee. Blue <code>DISP IN CT</code> badges for dispatchers assigned to calltaking via RotationOps. Red <code>OT</code> badges for overtime assignments. Red pulsing <code>DP NEEDED</code> / <code>CT NEEDED</code> / <code>PIC NEEDED</code> badges for unfilled slots. Block footer shows <code>NEED X</code> (red), <code>FULL STAFFED</code> (green), or <code>OVER +X</code> (purple)</li>
+  <li><strong>OT BIDS row</strong> &mdash; Shows who bid per block: green (PREFER), yellow (CAN), red with OT badge (assigned). Only employees qualified for the current role appear. Click a NEEDED badge to manually assign OT</li>
+  <li><strong>VACATION section</strong> &mdash; Cyan names at the bottom of each OT BIDS cell showing who is on vacation that day</li>
+  <li><strong>SPECIAL DETAIL row</strong> (Dispatcher only) &mdash; Purple SD row showing predicted special detail assignments per block</li>
+</ul>
+<h3>OT Distribution (Run Distribution)</h3>
+<p>Automated overtime assignment engine. It reads employee bids from OT Bidding (Section 10) and fills only the slots where staffing is actually short.</p>
+
+<h3>Admin Bid Panel</h3>
+<ul>
+  <li><strong>Submitted list</strong> &mdash; Shows every employee who submitted a bid for the current period</li>
+  <li><strong>Click any name</strong> to expand and see their slot-by-slot bids grouped by date (green = PREFER, yellow = CAN)</li>
+  <li><strong>R1 / R2 hours</strong> &mdash; Shows what each employee requested</li>
+</ul>
+
+<h2>Distribution Algorithm</h2>
+<h3>Pre-Processing</h3>
+<ul>
+  <li><strong>Needed Slots Only</strong> &mdash; Ignores any block where staffing is already adequate</li>
+  <li><strong>Cross-Role Check</strong> &mdash; Pulls OT assignments from all three roles (Dispatcher, PIC, Calltaker) so nobody gets double-booked</li>
+  <li><strong>Shift Conflict Check</strong> &mdash; Won't assign OT during blocks someone is already working their regular shift</li>
+  <li><strong>Vacation Exclusion</strong> &mdash; Anyone on vacation that day is automatically skipped</li>
+  <li><strong>Multi-Fill</strong> &mdash; If a slot needs 3 people, it assigns up to 3</li>
+</ul>
+<h3>Round 1 &mdash; Scarcity-First</h3>
+<ol>
+  <li>Finds the hardest-to-fill slot (fewest eligible candidates)</li>
+  <li>Picks the best candidate: fewest options &rarr; "prefer" over "can" &rarr; highest seniority</li>
+  <li>Assigns one slot, then re-checks everything and repeats</li>
+  <li>Each employee capped at their <code>desiredR1</code> hours per week (default 4)</li>
+</ol>
+<h3>Round 2 &mdash; Opt-In Extra Hours</h3>
+<ol>
+  <li>Only employees who set <code>desiredR2 &gt; 0</code> are eligible &mdash; this round is opt-in</li>
+  <li>Weekly cap becomes <code>desiredR1 + desiredR2</code></li>
+  <li>Same scarcity-first logic, same tiebreakers</li>
+</ol>
+<p><strong>Safety:</strong> The algorithm has a hard cap of 5,000 iterations and yields to the browser every 20 cycles so the page never freezes.</p>
+
+<h2>Run All Roles</h2>
+<p>One-click button that runs distribution for all three roles in order: Dispatcher &rarr; PIC &rarr; Calltaker. Each role's results feed into the next so cross-role double-booking is prevented automatically. Shows a combined results screen at the end.</p>
+
+<h2>Distribution Results</h2>
+<ul>
+  <li><strong>Fill rate</strong> &mdash; Percentage of needed slots that got filled</li>
+  <li><strong>R1 / R2 badges</strong> &mdash; Each assignment shows which round assigned it</li>
+  <li><strong>Unfilled slots</strong> &mdash; Listed in red with how many candidates were available</li>
+  <li><strong>Publish</strong> &mdash; Saves approved assignments to Firestore</li>
+</ul>
+
+<h2>Clear OT</h2>
+<p>Wipes all OT assignments for the current role and period. Use this to start fresh before re-running distribution.</p>
+
+<h2>Import / Export</h2>
+<ul>
+  <li><strong>Export</strong> &mdash; Copies all current staffing data (schedules, OT assignments, bids) to clipboard as JSON</li>
+  <li><strong>Import</strong> &mdash; Paste previously exported JSON to restore a saved state</li>
+</ul>
+
+<h2>Cross-Position Workflow</h2>
+<p>Designed for a three-pass workflow:</p>
+<ol>
+  <li><strong>Dispatcher first</strong> &mdash; Only dispatchers and PIC-qualified people can fill dispatch OT</li>
+  <li><strong>PIC next</strong> &mdash; Fill remaining PIC slots with PIC-qualified people</li>
+  <li><strong>Calltaker last</strong> &mdash; Everyone can work calltaking, so fill these last</li>
+</ol>
+<p>The system checks all three roles before each run so no one gets double-booked.</p>
+
+<h2>Hypothetical Schedule Modeling</h2>
+<ul>
+  <li><strong>Dual tabs (Set A / Set B)</strong> with renamable labels</li>
+  <li>Load employees or add blank entries, click day pills for custom IN/OUT times</li>
+  <li><strong>APPLY</strong> to see grid impact with +/- change badges</li>
+  <li><strong>LOAD RECS</strong> / <strong>TRIM</strong> / <strong>SUGGEST</strong> for AI-assisted optimization</li>
+  <li>Print before/after comparison reports</li>
+</ul>
+<div class="back-top"><a href="#toc">Back to top</a></div>
+</div>
+
+<!-- ============ 10. OT BIDDING ============ -->
+<div class="section" id="sec-10">
+<h1 class="sec-title">10. OT Bidding</h1>
+<div class="sec-meta"><span>File: otbidding.html</span><span>Employee-Facing</span><span>OT Bid Submission</span></div>
+<h2>Overview</h2>
+<p>OT Bidding is the employee-facing companion to StaffingOps (Section 9). Employees log in and submit their overtime availability for the current bid period. The admin then runs distribution in StaffingOps to auto-assign OT based on these bids.</p>
+
+<h2>Bid Submission</h2>
+<ul>
+  <li><strong>Grid Layout</strong> &mdash; Days as columns, 4-hour blocks as rows (6A&ndash;10A, 10A&ndash;2P, 2P&ndash;6P, 6P&ndash;10P, 10P&ndash;2A, 2A&ndash;6A)</li>
+  <li><strong>Four Cell States</strong> &mdash; Click to cycle:
+    <span class="badge badge-green">PREFER</span> (first choice),
+    <span class="badge badge-blue">CAN</span> (available but not preferred),
+    <span class="badge badge-red">CAN'T</span> (unavailable), or
+    empty (no preference set)</li>
+  <li><strong>Scheduled Blocks</strong> &mdash; Blocks you're already working are greyed out</li>
+  <li><strong>Vacation Days</strong> &mdash; Days you're on vacation are marked and excluded from assignment</li>
+  <li><strong>PIC Role Badges</strong> &mdash; If you're PIC-qualified, a purple PIC badge shows on your bid card</li>
+  <li><strong>Desired Hours</strong> &mdash; Set your Round 1 hours (default 4). Round 2 is opt-in &mdash; set R2 hours only if you want extra OT beyond R1</li>
+</ul>
+
+<h2>How Distribution Uses Bids</h2>
+<ul>
+  <li>OT is only assigned where there's an actual staffing need</li>
+  <li><strong>Round 1</strong> fills the hardest slots first, capped at your R1 hours per week</li>
+  <li><strong>Round 2</strong> is opt-in only &mdash; you must set R2 &gt; 0 to be included. Cap becomes R1 + R2</li>
+  <li>Marking more slots improves your chances &mdash; the algorithm favors flexibility</li>
+  <li>You won't be assigned during your regular shift or on vacation days</li>
+  <li>Cross-role tracking prevents double-booking (e.g., Dispatch + Calltaking same block)</li>
+</ul>
+
+<h2>Firebase</h2>
+<p>Bids are stored in the <code>ot_bids</code> collection using subcollections:</p>
+<ul>
+  <li><code>ot_bids/{period}/emp_bids/{employeeName}</code> &mdash; Individual bid documents (slots, desired hours, timestamp)</li>
+  <li><code>ot_bids/{period}/results/approved</code> &mdash; Published OT assignments after distribution</li>
+</ul>
+<p>Period format example: <code>DISPATCHER-2026-03</code>, <code>CALLTAKER-2026-03</code>, <code>PIC-2026-03</code>.</p>
+<div class="back-top"><a href="#toc">Back to top</a></div>
+</div>
+
+<!-- ============ 11. SCHEDULEOPS ============ -->
+<div class="section" id="sec-11">
+<h1 class="sec-title">11. ScheduleOps</h1>
+<div class="sec-meta"><span>File: scheduleops.html</span><span>Schedule Builder &amp; Coverage Simulator</span></div>
+<h2>Three-Panel Layout</h2>
+<ul>
+  <li><strong>Left: Templates</strong> &mdash; Define shift templates (shift time, days off, headcount). AUTO-SUGGEST FILLS button.</li>
+  <li><strong>Center: Coverage Grid</strong> &mdash; 24hr x 7-day grid, color-coded (RED/YELLOW/GREEN). Summary bar.</li>
+  <li><strong>Right: Roster</strong> &mdash; Employee checkboxes, search, ALL ON / ALL OFF.</li>
+</ul>
+<h2>Auto-Suggest</h2>
+<p>Three shift structure options: 8-hour (3-shift), Mixed 12 &amp; 8-hour, and 10-hour (overlapping). Algorithm generates optimal templates automatically.</p>
+<h2>Scenarios</h2>
+<p>Save, load, and delete named schedule scenarios per role. Export coverage report to clipboard.</p>
+<div class="back-top"><a href="#toc">Back to top</a></div>
+</div>
+
+<!-- ============ 12. MANDATEOPS ============ -->
+<div class="section" id="sec-12">
+<h1 class="sec-title">12. MandateOps</h1>
+<div class="sec-meta"><span>File: mandateops.html</span><span>Overtime Mandate Ranking</span></div>
+<h2>Overview</h2>
+<p>Generates ranked lists of employees eligible for mandatory overtime, records acceptance/refusal, and produces formal refusal forms.</p>
+<h2>Ranking Algorithm</h2>
+<ol>
+  <li><strong>Shortest work day</strong> (ascending)</li>
+  <li><strong>Least OT hours in last 7 days</strong> (ascending)</li>
+  <li><strong>Highest seniority number</strong> (descending) for ties</li>
+</ol>
+<h2>Eligibility Rules</h2>
+<ul>
+  <li>Shift must end when mandate block starts</li>
+  <li>Must be Present</li>
+  <li>No existing OT overlap</li>
+  <li>Would not exceed 16-hour cap</li>
+</ul>
+<h2>Actions</h2>
+<p><strong>Mandate</strong> (accept) / <strong>Refuse</strong> (decline) / <strong>Undo</strong> (today only) / <strong>Print Refusal</strong> (formal form with signature lines).</p>
+<h2>Cross-Qualification</h2>
+<p>CT: check CT &rarr; DP &rarr; PIC. DP: check DP &rarr; PIC. PIC: PIC only.</p>
+<div class="back-top"><a href="#toc">Back to top</a></div>
+</div>
+
+<!-- ============ 13. DECISIONOPS ============ -->
+<div class="section" id="sec-13">
+<h1 class="sec-title">13. DecisionOps</h1>
+<div class="sec-meta"><span>File: decisionops.html</span><span>~3,100 lines</span><span>Meeting Decision Engine</span></div>
+<h2>Meeting Lifecycle</h2>
+<p><strong>Create &rarr; Setup &rarr; Start &rarr; Active &rarr; Stop/Resume &rarr; End</strong></p>
+<h2>Topic Phases</h2>
+<ul>
+  <li><strong>WAITING</strong> &mdash; Editable, reorderable</li>
+  <li><strong>DISCUSS</strong> &mdash; Timer, speaker tracking, propose options, shared notes. Consensus or advance</li>
+  <li><strong>NARROW</strong> &mdash; Facilitator selects 2&ndash;4 finalists (3+ options)</li>
+  <li><strong>VOTE</strong> &mdash; Real-time per-person voting board. Tie-breaking by facilitator</li>
+  <li><strong>DECIDED</strong> &mdash; Winner, vote breakdown, participation stats, action items</li>
+</ul>
+<h2>Key Features</h2>
+<ul>
+  <li>Add participants by search or bulk ("SUPERVISORS", "DISPATCHERS")</li>
+  <li>Per-person speaker time tracking</li>
+  <li>Declare Consensus (skip voting)</li>
+  <li>Action items with owner and due date</li>
+  <li>COPY summary to clipboard / PRINT formatted summary</li>
+  <li>Carry unresolved topics to follow-up meetings</li>
+</ul>
+<div class="back-top"><a href="#toc">Back to top</a></div>
+</div>
+
+<!-- ============ 14. EMPLOYEE DATABASE ============ -->
+<div class="section" id="sec-14">
+<h1 class="sec-title">14. Employee Database Editor</h1>
+<div class="sec-meta"><span>File: employees.html</span><span>Core Data Source</span><span>Password-Protected</span></div>
+<h2>Five Tabs</h2>
+<ul>
+  <li><strong>Employees</strong> &mdash; Sortable table, inline editing, search/filter, add/delete, Export Schedules to JSON</li>
+  <li><strong>Absence Reasons</strong> &mdash; Add/edit/delete reason codes (SICK, VACATION, NCNS, etc.). Migration tool</li>
+  <li><strong>Adequate Staffing</strong> &mdash; 24hr x 7-day grid of minimums per role (CT, DP, PIC)</li>
+  <li><strong>Seat Assignments</strong> &mdash; Add/edit/delete seat names per role (CT, DP, PIC, SUP)</li>
+  <li><strong>Scheduled Changes</strong> &mdash; Schedule changes (future effective dates) and Training Mirrors (trainee shadows trainer). Auto-processed: Pending &rarr; Active &rarr; Expired</li>
+</ul>
+<p>This is the foundational data source for nearly every other app in the suite.</p>
+<div class="back-top"><a href="#toc">Back to top</a></div>
+</div>
+
+<!-- ============ 15. BUG REPORTS ============ -->
+<div class="section" id="sec-15">
+<h1 class="sec-title">15. Bug Reports Dashboard</h1>
+<div class="sec-meta"><span>File: bugs.html</span><span>~320 lines</span><span>Issue Tracking</span></div>
+<h2>Features</h2>
+<ul>
+  <li><strong>ACTIVE tab</strong> &mdash; Filter by ALL / OPEN / FIXED</li>
+  <li><strong>ARCHIVED tab</strong> &mdash; Archived bugs with count badge</li>
+  <li>Each card: reporter name, app tag, email, status badge, details, timestamp, action buttons</li>
+</ul>
+<table>
+  <tr><th>Status</th><th>Available Actions</th></tr>
+  <tr><td><span class="badge badge-red">OPEN</span></td><td>Mark Fixed, Archive, Delete</td></tr>
+  <tr><td><span class="badge badge-green">FIXED</span></td><td>Reopen, Archive, Delete</td></tr>
+  <tr><td><span class="badge badge-blue">ARCHIVED</span></td><td>Restore, Delete</td></tr>
+</table>
+<p>Header stats: <span class="badge badge-red">X OPEN</span> <span class="badge badge-green">X FIXED</span> <span class="badge badge-purple">X TOTAL</span></p>
+<div class="back-top"><a href="#toc">Back to top</a></div>
+</div>
+
+<!-- ============ 16. CROSS-APP ARCHITECTURE ============ -->
+<div class="section" id="sec-16">
+<h1 class="sec-title">16. Cross-App Architecture</h1>
+<h2>Two Firebase Projects</h2>
+<table>
+  <tr><th>Project</th><th>Apps</th></tr>
+  <tr><td><code>commandops-93846</code></td><td>ShiftOps, RotationOps, StaffingOps, OT Bidding, AttendanceOps, ScheduleOps, MandateOps, DecisionOps, Employee DB, Bug Reports</td></tr>
+  <tr><td><code>legitimous-2f2d2</code></td><td>BreakOPS (Admin, Staff View, Backup), Dispatch Board</td></tr>
+</table>
+<h2>Shared Data Flow</h2>
+<pre>
+Employee Database Editor (employees.html)
+    |
+    +-- employees collection ----> ALL APPS (roster data)
+    +-- *_Adequate_Staffing -----> ShiftOps, StaffingOps, ScheduleOps, BreakOPS
+    +-- *_Seat_Assignments ------> ShiftOps, BreakOPS
+    +-- Absent_Reason -----------> ShiftOps
+    +-- scheduledChanges --------> ShiftOps, RotationOps
+    +-- Export Schedules --------> BreakOPS (manual copy-paste of BASE array)
+
+RotationOps (rotationopsv2.html)
+    |
+    +-- rotation_plans ----------> StaffingOps (vacation/CT data)
+    |                           -> AttendanceOps (vacation/training)
+    |                           -> ShiftOps (vacation/training auto-marks)
+    +-- daily_edits <----------- ShiftOps (push rotation to shifts)
+
+Dispatch Board (dispatch.html)
+    |
+    +-- appState/rotationBoard --> Real-time board state (all connected viewers)
+
+ShiftOps (shiftops.html)
+    |
+    +-- daily_edits -------------> AttendanceOps (absence extraction)
+    |                           -> MandateOps (attendance checks)
+    |                           -> StaffingOps (OT tracking)
+    +-- BreakOPS push -----------> BreakOPS (position overrides, OT extras)
+
+OT Bidding (otbidding.html)
+    |
+    +-- ot_bids/{period}/emp_bids --> StaffingOps (bid data for distribution)
+
+StaffingOps (staffingopsv2.html)
+    |
+    +-- ot_bids/{period}/results --> Published OT assignments (per role)
+    +-- reads all 3 role periods --> Prevents double-booking across positions
+
+AttendanceOps (vacationops.html)
+    |
+    +-- rotation_plans ----------> RotationOps, StaffingOps, ShiftOps
+
+All Apps --> bugReports ----------> Bug Reports Dashboard (bugs.html)
+</pre>
+<h2>Common Patterns</h2>
+<ul>
+  <li><strong>Single-file HTML</strong> &mdash; All apps self-contained with inline CSS and JS</li>
+  <li><strong>Dark/Light Theme</strong> &mdash; Consistent toggle with CSS custom properties</li>
+  <li><strong>Firebase Firestore</strong> &mdash; Real-time shared state via <code>onSnapshot</code> listeners</li>
+  <li><strong>Toast Notifications</strong> &mdash; Transient success/error messages</li>
+  <li><strong>Responsive Design</strong> &mdash; CSS Grid and Flexbox</li>
+  <li><strong>Print Stylesheets</strong> &mdash; <code>@media print</code> rules for formatted output</li>
+  <li><strong>Bug Reporting</strong> &mdash; Every app has a "Report Bug" button</li>
+  <li><strong>Firebase Auth</strong> &mdash; Email/password login (except Hub and BreakOPS Staff)</li>
+  <li><strong>Auto-Save</strong> &mdash; Debounced (1.5&ndash;3 sec) with echo-loop guards</li>
+</ul>
+<div class="back-top"><a href="#toc">Back to top</a></div>
+</div>
+
+<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:0.85rem;">
+  <p>LEGITIMOUS &bull; 911 Operational Tools &bull; 2026</p>
+  <p>End of Master Manual</p>
+</div>
+
+</div><!-- .main -->
+</div><!-- .wrapper -->
+
+<div class="pdf-bar">
+  <button class="green" onclick="window.print()">SAVE AS PDF</button>
+</div>
+
+</body>
+</html>

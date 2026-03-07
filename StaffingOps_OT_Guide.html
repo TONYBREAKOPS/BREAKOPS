@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>StaffingOps OT Needs Guide - Supervisor Manual</title>
+<style>
+@media print {
+  body { font-size: 11pt; }
+  .no-print { display: none; }
+  @page { margin: 0.75in; }
+  .page-break { page-break-before: always; }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: #1a1a1a;
+  line-height: 1.7;
+  max-width: 8.5in;
+  margin: 0 auto;
+  padding: 0.75in;
+  background: #fff;
+}
+h1 { font-size: 28pt; font-weight: 900; margin-bottom: 6px; letter-spacing: -0.5px; }
+h2 { font-size: 17pt; font-weight: 800; margin: 30px 0 14px; padding-bottom: 5px; border-bottom: 3px solid #1a1a1a; }
+h3 { font-size: 13pt; font-weight: 700; margin: 18px 0 8px; color: #333; }
+p, li { font-size: 11pt; margin-bottom: 8px; }
+ul, ol { padding-left: 24px; margin-bottom: 14px; }
+li { margin-bottom: 5px; }
+table { width: 100%; border-collapse: collapse; margin: 14px 0 20px; font-size: 10.5pt; }
+th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; }
+th { background: #f0f0f0; font-weight: 700; }
+tr:nth-child(even) { background: #fafafa; }
+.cover { text-align: center; padding: 100px 0 80px; }
+.cover h1 { font-size: 36pt; margin-bottom: 10px; }
+.cover .subtitle { font-size: 15pt; color: #555; margin-bottom: 30px; }
+.cover .dept { font-size: 12pt; color: #888; margin-top: 40px; }
+.highlight {
+  background: #e8f5e9; border: 1px solid #4caf50; border-radius: 6px;
+  padding: 12px 16px; margin: 16px 0; font-size: 10.5pt;
+}
+.highlight strong { color: #2e7d32; }
+.warning {
+  background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px;
+  padding: 12px 16px; margin: 16px 0; font-size: 10.5pt;
+}
+.warning strong { color: #856404; }
+.important {
+  background: #e3f2fd; border: 1px solid #2196f3; border-radius: 6px;
+  padding: 12px 16px; margin: 16px 0; font-size: 10.5pt;
+}
+.important strong { color: #1565c0; }
+.step-box {
+  border: 2px solid #1a1a1a; border-radius: 8px; padding: 16px 20px;
+  margin: 14px 0; background: #fafafa;
+}
+.step-num {
+  display: inline-block; width: 30px; height: 30px; line-height: 30px;
+  text-align: center; background: #1a1a1a; color: #fff; border-radius: 50%;
+  font-weight: 800; font-size: 11pt; margin-right: 10px; vertical-align: middle;
+}
+.pref-table td:nth-child(1) { font-weight: 800; text-align: center; width: 100px; }
+.pref-green { background: #e8f5e9; color: #2e7d32; }
+.pref-yellow { background: #fffde7; color: #f9a825; }
+.pref-red { background: #ffebee; color: #c62828; }
+.pref-blue { background: #e3f2fd; color: #1565c0; }
+.pref-cyan { background: #e0f7fa; color: #00838f; }
+.pref-purple { background: #f3e5f5; color: #7b1fa2; }
+.btn-print {
+  position: fixed; bottom: 20px; right: 20px;
+  background: #1a1a1a; color: #fff; border: none;
+  padding: 12px 24px; border-radius: 8px; font-size: 14px;
+  font-weight: 700; cursor: pointer; z-index: 100;
+}
+.btn-print:hover { background: #333; }
+.faq dt { font-weight: 700; font-size: 11pt; margin: 14px 0 4px; color: #1a1a1a; }
+.faq dd { font-size: 11pt; margin-left: 20px; margin-bottom: 10px; color: #444; }
+
+/* ===== SCHEMATIC STYLES ===== */
+.schematic { position: relative; width: 100%; margin: 30px 0; font-size: 9.5pt; }
+.sch-row { display: flex; justify-content: center; gap: 16px; margin-bottom: 0; position: relative; flex-wrap: wrap; }
+.sch-box {
+  border: 2.5px solid #1a1a1a; border-radius: 8px; padding: 10px 14px;
+  text-align: center; background: #fff; position: relative; z-index: 2;
+  min-width: 130px;
+}
+.sch-box strong { display: block; font-size: 10pt; margin-bottom: 2px; }
+.sch-box .sub { font-size: 8.5pt; color: #666; }
+.sch-db { background: #e3f2fd; border-color: #1565c0; }
+.sch-db strong { color: #1565c0; }
+.sch-ops { background: #f3e5f5; border-color: #7b1fa2; }
+.sch-ops strong { color: #7b1fa2; }
+.sch-engine { background: #fff3e0; border-color: #e65100; }
+.sch-engine strong { color: #e65100; }
+.sch-result { background: #e8f5e9; border-color: #2e7d32; }
+.sch-result strong { color: #2e7d32; }
+.sch-role { background: #fce4ec; border-color: #c62828; }
+.sch-role strong { color: #c62828; }
+.sch-bid { background: #fffde7; border-color: #f9a825; }
+.sch-bid strong { color: #f9a825; }
+.sch-output { background: #f5f5f5; border-color: #616161; }
+
+/* Arrows between rows */
+.sch-arrows { display: flex; justify-content: center; gap: 16px; padding: 0; margin: 0; }
+.sch-arrow {
+  width: 2px; height: 28px; background: #1a1a1a; position: relative; margin: 0 auto;
+}
+.sch-arrow::after {
+  content: ''; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%);
+  border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-top: 8px solid #1a1a1a;
+}
+.sch-arrow-row { display: flex; justify-content: center; margin: 0; }
+.sch-arrow-wide { width: 100%; max-width: 500px; display: flex; justify-content: center; position: relative; height: 32px; }
+.sch-arrow-wide::before {
+  content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 2px; height: 100%; background: #1a1a1a;
+}
+.sch-arrow-wide::after {
+  content: ''; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%);
+  border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-top: 8px solid #1a1a1a;
+}
+
+/* Merge connector - multiple sources into one */
+.sch-merge { position: relative; width: 100%; max-width: 580px; margin: 0 auto; height: 36px; }
+.sch-merge .v-line {
+  position: absolute; top: 0; width: 2px; height: 14px; background: #1a1a1a;
+}
+.sch-merge .v-line.l { left: 16%; }
+.sch-merge .v-line.cl { left: 38%; }
+.sch-merge .v-line.c { left: 50%; transform: translateX(-50%); }
+.sch-merge .v-line.cr { left: 62%; }
+.sch-merge .v-line.r { right: 16%; }
+.sch-merge .h-line {
+  position: absolute; top: 14px; left: 16%; right: 16%; height: 2px; background: #1a1a1a;
+}
+.sch-merge .v-down {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  width: 2px; height: 14px; background: #1a1a1a;
+}
+.sch-merge .v-down::after {
+  content: ''; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%);
+  border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-top: 8px solid #1a1a1a;
+}
+
+/* Fan out - one source into multiple */
+.sch-fan { position: relative; width: 100%; max-width: 580px; margin: 0 auto; height: 36px; }
+.sch-fan .v-up {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 2px; height: 14px; background: #1a1a1a;
+}
+.sch-fan .h-line {
+  position: absolute; top: 14px; left: 16%; right: 16%; height: 2px; background: #1a1a1a;
+}
+.sch-fan .v-line {
+  position: absolute; top: 14px; width: 2px; height: 14px; background: #1a1a1a;
+}
+.sch-fan .v-line.l { left: 16%; }
+.sch-fan .v-line.c { left: 50%; transform: translateX(-50%); }
+.sch-fan .v-line.r { right: 16%; }
+.sch-fan .v-line::after {
+  content: ''; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%);
+  border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-top: 8px solid #1a1a1a;
+}
+
+.sch-label {
+  text-align: center; font-size: 8.5pt; color: #888; font-style: italic;
+  margin: -2px 0 4px; position: relative; z-index: 2;
+}
+</style>
+</head>
+<body>
+
+<button class="btn-print no-print" onclick="window.print()">Print / Save PDF</button>
+
+<!-- ==================== COVER PAGE ==================== -->
+<div class="cover">
+  <h1>StaffingOps OT Needs Guide</h1>
+  <div class="subtitle">Supervisor Manual &mdash; Managing Overtime Staffing</div>
+  <div style="font-size: 13pt; color: #333; margin: 20px 0;">See Shortfalls. Fill Gaps. Keep the Floor Running.</div>
+  <div class="dept">
+    Communications Division<br/>
+    Effective March 2026
+  </div>
+</div>
+
+<!-- ==================== SYSTEM ARCHITECTURE SCHEMATIC ==================== -->
+<div class="page-break"></div>
+<h2>System Architecture: How It All Connects</h2>
+
+<p>This diagram shows where the data comes from, how the system figures out where overtime is needed, and how assignments get made. Everything flows from top to bottom.</p>
+
+<!-- SCHEMATIC -->
+<div class="schematic">
+
+  <!-- ROW 1: Data Sources -->
+  <div class="sch-label"><strong style="font-size:10pt;color:#1565c0;font-style:normal">DATA SOURCES</strong></div>
+  <div class="sch-row">
+    <div class="sch-box sch-db" style="min-width:130px">
+      <strong>EMPLOYEES</strong>
+      <div class="sub">Names, Positions<br/>Seniority, Schedules</div>
+    </div>
+    <div class="sch-box sch-db" style="min-width:130px">
+      <strong>ADEQUATE STAFFING</strong>
+      <div class="sub">Per-role targets<br/>By day + hour</div>
+    </div>
+    <div class="sch-box sch-db" style="min-width:130px">
+      <strong>VACATIONOPS</strong>
+      <div class="sub">Vacation dates<br/>per employee</div>
+    </div>
+    <div class="sch-box sch-db" style="min-width:130px">
+      <strong>ROTATIONOPS</strong>
+      <div class="sub">Dispatcher CT<br/>assignments</div>
+    </div>
+  </div>
+
+  <!-- Merge 4 into 1 -->
+  <div class="sch-merge" style="max-width:680px">
+    <div class="v-line" style="left:10%"></div>
+    <div class="v-line" style="left:36%"></div>
+    <div class="v-line" style="left:62%"></div>
+    <div class="v-line" style="right:10%"></div>
+    <div class="h-line" style="left:10%;right:10%"></div>
+    <div class="v-down"></div>
+  </div>
+
+  <!-- ROW 2: Staffing Computation -->
+  <div class="sch-row">
+    <div class="sch-box sch-ops" style="min-width:380px">
+      <strong>STAFFING COMPUTATION</strong>
+      <div class="sub">For each day &times; 6 blocks:<br/>
+        <em>Scheduled Staff</em> &minus; <em>Vacations</em> vs. <em>Adequate Target</em><br/>
+        = <strong>Shortfall per block</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Arrow down -->
+  <div class="sch-arrow-row"><div class="sch-arrow-wide"></div></div>
+
+  <!-- ROW 3: OT Need + Side inputs -->
+  <div class="sch-row">
+    <div class="sch-box sch-ops" style="min-width:140px">
+      <strong>SPECIAL DETAIL<br/>PREDICTIONS</strong>
+      <div class="sub">Dispatchers predicted<br/>for SD duty &mdash; subtracted<br/>from dispatch count</div>
+    </div>
+    <div class="sch-box sch-engine" style="min-width:200px">
+      <strong>OT NEED PER BLOCK</strong>
+      <div class="sub">Shown on grid as:<br/><strong style="color:#c62828">NEED X</strong> / <strong style="color:#2e7d32">FULL STAFFED</strong> / <strong style="color:#1565c0">OVER +X</strong></div>
+    </div>
+    <div class="sch-box sch-ops" style="min-width:140px">
+      <strong>DISPATCHER<br/>OVERFLOW</strong>
+      <div class="sub">Excess dispatchers flow<br/>into calltaker count<br/>(blue <strong style="color:#1565c0">DISP IN CT</strong>)</div>
+    </div>
+  </div>
+
+  <!-- Merge into Monthly Grid -->
+  <div class="sch-merge">
+    <div class="v-line l"></div>
+    <div class="v-line c"></div>
+    <div class="v-line r"></div>
+    <div class="h-line"></div>
+    <div class="v-down"></div>
+  </div>
+
+  <!-- ROW 4: Monthly OT Grid -->
+  <div class="sch-row">
+    <div class="sch-box sch-engine" style="min-width:360px">
+      <strong>MONTHLY OT GRID</strong>
+      <div class="sub">The visual calendar you see on screen.<br/>Shows staffing counts, OT badges, and need indicators for every block.</div>
+    </div>
+  </div>
+
+  <!-- Arrow down -->
+  <div class="sch-arrow-row"><div class="sch-arrow-wide"></div></div>
+
+  <!-- ROW 5: OT Bidding Panel -->
+  <div class="sch-row">
+    <div class="sch-box sch-bid" style="min-width:170px">
+      <strong>OT BIDDING PANEL</strong>
+      <div class="sub">Settings, period dates,<br/>deadline, employee caps</div>
+    </div>
+    <div class="sch-box sch-bid" style="min-width:170px">
+      <strong>EMPLOYEE BIDS</strong>
+      <div class="sub">PREFER / CAN per slot<br/>Desired hours (R1 &amp; R2)</div>
+    </div>
+    <div class="sch-box sch-engine" style="min-width:170px">
+      <strong>DISTRIBUTION ENGINE</strong>
+      <div class="sub">Matches bids to needs<br/>Round 1 + Round 2</div>
+    </div>
+  </div>
+
+  <!-- Merge into results -->
+  <div class="sch-merge">
+    <div class="v-line l"></div>
+    <div class="v-line c"></div>
+    <div class="v-line r"></div>
+    <div class="h-line"></div>
+    <div class="v-down"></div>
+  </div>
+
+  <!-- ROW 6: Results -->
+  <div class="sch-row">
+    <div class="sch-box sch-result" style="min-width:340px">
+      <strong>DISTRIBUTION RESULTS &rarr; REVIEW &rarr; PUBLISH</strong>
+      <div class="sub">Supervisor reviews results, then clicks PUBLISH<br/>Assignments saved to database per role</div>
+    </div>
+  </div>
+
+  <!-- Fan out to final views -->
+  <div class="sch-fan">
+    <div class="v-up"></div>
+    <div class="h-line"></div>
+    <div class="v-line l"></div>
+    <div class="v-line c"></div>
+    <div class="v-line r"></div>
+  </div>
+
+  <div class="sch-row">
+    <div class="sch-box sch-output" style="min-width:140px">
+      <strong>Monthly Grid</strong>
+      <div class="sub">Names with red<br/><strong style="color:#c62828">OT</strong> badge</div>
+    </div>
+    <div class="sch-box sch-output" style="min-width:140px">
+      <strong>OT Bids Row</strong>
+      <div class="sub">Assigned bidders<br/>turn red with OT badge</div>
+    </div>
+    <div class="sch-box sch-output" style="min-width:140px">
+      <strong>Employee OT Page</strong>
+      <div class="sub">Approved slots on<br/>OT Bidding page</div>
+    </div>
+  </div>
+
+</div>
+<!-- END SCHEMATIC -->
+
+<h3>Reading the Diagram</h3>
+<ul>
+  <li><strong style="color:#1565c0">Blue boxes</strong> = Data sources (where information comes from)</li>
+  <li><strong style="color:#7b1fa2">Purple boxes</strong> = Computation steps (where the system does math)</li>
+  <li><strong style="color:#e65100">Orange boxes</strong> = Processing and display steps</li>
+  <li><strong style="color:#f9a825">Yellow boxes</strong> = Bidding inputs (employee bids and settings)</li>
+  <li><strong style="color:#2e7d32">Green box</strong> = Final published output</li>
+  <li><strong>Grey boxes</strong> = Where results show up on screen</li>
+</ul>
+
+<div class="important">
+  <strong>Key takeaway:</strong> The system pulls from multiple data sources automatically. Employee schedules, vacations, rotation assignments, and staffing targets are all factored in before any OT slot is identified. The grid shows you exactly where the gaps are.
+</div>
+
+<!-- ==================== HOW THE MONTHLY GRID WORKS ==================== -->
+<div class="page-break"></div>
+<h2>How the Monthly Grid Works</h2>
+
+<p>The monthly grid is the main screen you will use every day. It shows one month at a time, with one column for each day. Each day is divided into <strong>6 time blocks</strong>:</p>
+
+<table>
+  <tr><th>Block</th><th>Time Range</th></tr>
+  <tr><td><strong>6A&ndash;10A</strong></td><td>6:00 AM to 10:00 AM</td></tr>
+  <tr><td><strong>10A&ndash;2P</strong></td><td>10:00 AM to 2:00 PM</td></tr>
+  <tr><td><strong>2P&ndash;6P</strong></td><td>2:00 PM to 6:00 PM</td></tr>
+  <tr><td><strong>6P&ndash;10P</strong></td><td>6:00 PM to 10:00 PM</td></tr>
+  <tr><td><strong>10P&ndash;2A</strong></td><td>10:00 PM to 2:00 AM</td></tr>
+  <tr><td><strong>2A&ndash;6A</strong></td><td>2:00 AM to 6:00 AM</td></tr>
+</table>
+
+<h3>What You Will See in Each Block</h3>
+
+<table class="pref-table">
+  <tr><th>What It Looks Like</th><th>What It Means</th></tr>
+  <tr><td><strong>Numbered chips</strong></td><td>These are employees who are scheduled to work during that block. Each chip shows a name.</td></tr>
+  <tr><td class="pref-blue"><strong>DISP IN CT</strong> (blue badge)</td><td>A dispatcher who is doing calltaking duty that day (from RotationOps). This person counts toward the calltaker total.</td></tr>
+  <tr><td class="pref-red"><strong>OT</strong> (red badge)</td><td>An employee assigned to work overtime in this block. This was set either by the distribution engine or by a supervisor manually.</td></tr>
+  <tr><td class="pref-red"><strong>DP NEEDED</strong></td><td>A dispatcher overtime slot that still needs to be filled.</td></tr>
+  <tr><td class="pref-red"><strong>CT NEEDED</strong></td><td>A calltaker overtime slot that still needs to be filled.</td></tr>
+  <tr><td class="pref-red"><strong>PIC NEEDED</strong></td><td>A PIC overtime slot that still needs to be filled.</td></tr>
+  <tr><td><strong>NEED X</strong></td><td>The block is short-staffed. The number tells you how many more people are needed.</td></tr>
+  <tr><td class="pref-green"><strong>FULL STAFFED</strong></td><td>The block has exactly enough people. No overtime is needed.</td></tr>
+  <tr><td class="pref-blue"><strong>OVER +X</strong></td><td>The block has more people than required. The number tells you how many extra.</td></tr>
+</table>
+
+<h3>Summary Bar</h3>
+<p>At the top of the grid, a summary bar shows the <strong>total number of OT slots needed</strong> for the entire month and the <strong>total OT hours</strong> those slots add up to. This gives you a quick snapshot of how much overtime the month requires.</p>
+
+<div class="highlight">
+  <strong>Tip:</strong> Start by looking at the NEEDED badges. These are the gaps you need to fill. The summary bar tells you how big the problem is at a glance.
+</div>
+
+<!-- ==================== OT BIDS ROW ==================== -->
+<div class="page-break"></div>
+<h2>OT Bids Row</h2>
+
+<p>Below the main staffing grid, there is a <strong>purple row</strong> that shows employee bids for each time block. This is the OT Bids Row.</p>
+
+<h3>What You Will See</h3>
+
+<table class="pref-table">
+  <tr><th>Color / Badge</th><th>What It Means</th></tr>
+  <tr><td class="pref-green"><strong>Green</strong></td><td>The employee marked this block as <strong>PREFER</strong> &mdash; they want to work this slot.</td></tr>
+  <tr><td class="pref-yellow"><strong>Yellow</strong></td><td>The employee marked this block as <strong>CAN</strong> &mdash; they are available but did not specifically request it.</td></tr>
+  <tr><td class="pref-red"><strong>Red with OT badge</strong></td><td>The employee has been <strong>assigned</strong> to work overtime in this block (after distribution and publish).</td></tr>
+  <tr><td class="pref-cyan"><strong>Cyan (light blue)</strong></td><td>Vacation dates from VacationOps. Shown at the bottom of each cell.</td></tr>
+</table>
+
+<p>Only employees who are <strong>qualified for the current role</strong> are shown. For example, if you are viewing the Calltaker role, you will see all employees (since everyone can fill calltaker). If you are viewing PIC, you will only see PICs.</p>
+
+<div class="important">
+  <strong>Remember:</strong> The bids row updates in real time. As employees submit their bids, their preferences appear here automatically. After you publish, assigned employees turn red.
+</div>
+
+<!-- ==================== THREE ROLES ==================== -->
+<div class="page-break"></div>
+<h2>Three Roles</h2>
+
+<p>The system manages overtime for three separate roles. Each role has its own pool of employees who can fill it. The roles are handled in a specific order because some employees can fill more than one role.</p>
+
+<table>
+  <tr><th>Role</th><th>Who Can Fill It</th><th>Pool Size</th><th>Run Order</th><th>Why This Order</th></tr>
+  <tr><td><strong>PIC</strong></td><td>Only PICs</td><td>Smallest</td><td>First</td><td>Fewest people available, so fill these slots first before anyone gets used elsewhere.</td></tr>
+  <tr><td><strong>Dispatcher</strong></td><td>PICs + Dispatchers</td><td>Medium</td><td>Second</td><td>PICs can step down to dispatch. Fill these after PIC slots are covered.</td></tr>
+  <tr><td><strong>Calltaker</strong></td><td>Everyone (PICs + Dispatchers + Calltakers)</td><td>Largest</td><td>Last</td><td>Anyone can take calls. Fill these last since the pool is biggest.</td></tr>
+</table>
+
+<h3>Switching Roles</h3>
+<p>At the top of the screen, you will see <strong>role switcher buttons</strong> (PIC, Dispatcher, Calltaker). Click any button to switch the grid to that role. The grid will reload with that role's staffing targets, employees, and OT needs.</p>
+
+<div class="warning">
+  <strong>Important:</strong> Each role has its own separate set of staffing targets and OT calculations. When you switch roles, you are looking at a completely different view of the same month.
+</div>
+
+<!-- ==================== MANUAL OT ASSIGNMENT ==================== -->
+<div class="page-break"></div>
+<h2>Manual OT Assignment</h2>
+
+<p>Sometimes you need to assign overtime by hand instead of using the distribution engine. Maybe a slot did not get filled, or you know exactly who should work it. Here is how to do it.</p>
+
+<h3>To Assign Someone</h3>
+<div class="step-box">
+  <p><span class="step-num">1</span> <strong>Find the NEEDED badge</strong> on the grid (for example, "CT NEEDED" or "DP NEEDED").</p>
+  <p style="margin-top:10px"><span class="step-num">2</span> <strong>Click</strong> on the NEEDED badge. A popup will appear.</p>
+  <p style="margin-top:10px"><span class="step-num">3</span> <strong>Look at the dropdown list.</strong> It is grouped by position. Next to each name, you will see their bid preference for that slot (PREFER, CAN, or no bid).</p>
+  <p style="margin-top:10px"><span class="step-num">4</span> <strong>Pick a name</strong> from the dropdown.</p>
+  <p style="margin-top:10px"><span class="step-num">5</span> <strong>Click ASSIGN.</strong> The person's name will appear on the grid with a red OT badge.</p>
+</div>
+
+<h3>To Remove an Assignment</h3>
+<div class="step-box">
+  <p><span class="step-num">1</span> <strong>Find the OT chip</strong> on the grid (the name with the red OT badge).</p>
+  <p style="margin-top:10px"><span class="step-num">2</span> <strong>Click</strong> on it. The assignment will be removed and the slot will go back to showing NEEDED.</p>
+</div>
+
+<div class="highlight">
+  <strong>Tip:</strong> The dropdown in the assignment popup shows bid preferences so you can see who actually wants to work that slot. Prefer people who marked PREFER before picking someone who marked CAN.
+</div>
+
+<!-- ==================== OT BIDDING PANEL ==================== -->
+<div class="page-break"></div>
+<h2>OT Bidding Panel</h2>
+
+<p>The OT Bidding panel is where you control the entire bidding process. This is the command center for setting up, running, and publishing overtime assignments.</p>
+
+<h3>How to Open It</h3>
+<p>Click the <strong>OT BIDDING</strong> button at the top of the screen. The panel will slide open.</p>
+
+<h3>Settings</h3>
+<table>
+  <tr><th>Setting</th><th>What It Does</th></tr>
+  <tr><td><strong>Period Start Date</strong></td><td>The first day of the OT bidding period (usually the first day of the month).</td></tr>
+  <tr><td><strong>Period End Date</strong></td><td>The last day of the OT bidding period (usually the last day of the month).</td></tr>
+  <tr><td><strong>Deadline</strong></td><td>The date and time when employees must have their bids submitted. After this time, no more bids are accepted.</td></tr>
+  <tr><td><strong>Status</strong></td><td>Open (accepting bids), Closed (deadline passed), or Assigned (results published).</td></tr>
+  <tr><td><strong>Block Size</strong></td><td>4 hours. Each time slot is a 4-hour block. This is fixed.</td></tr>
+  <tr><td><strong>Default Cap</strong></td><td>The default monthly hour limit for each employee. This prevents any one person from getting too much overtime.</td></tr>
+</table>
+
+<h3>Bid List</h3>
+<p>Below the settings, you will see a list of employees who have submitted bids. It shows a <strong>submitted count</strong> (how many employees have turned in their availability card). Click on any employee's name to expand their row and see their slot-by-slot bids.</p>
+
+<h3>Employee Caps</h3>
+<p>Each employee has a <strong>per-person monthly hour limit</strong>. The default cap applies to everyone, but you can change it for individual employees. If someone has a medical restriction or a special agreement, you can lower or raise their cap.</p>
+
+<h3>Simulate Bids</h3>
+<p>The <strong>Simulate Bids</strong> button generates fake test data. Use this when you want to try out the distribution engine without waiting for real employees to submit bids. This is for testing only.</p>
+
+<h3>Save Settings</h3>
+<p>When you click <strong>Save Settings</strong>, the system saves your period dates, deadline, and caps. It also <strong>computes the OT need slots for all roles</strong>. This is an important step &mdash; you must save settings before running distribution.</p>
+
+<div class="warning">
+  <strong>Do not forget:</strong> You must click Save Settings at least once after setting your period dates. If you skip this step, the distribution engine will not have any slots to fill.
+</div>
+
+<!-- ==================== DISTRIBUTION ALGORITHM ==================== -->
+<div class="page-break"></div>
+<h2>Distribution Algorithm (How Assignments Are Made)</h2>
+
+<p>When you run the distribution, the system uses a set of rules to decide who gets which overtime slot. Here is how it works, step by step, in plain language.</p>
+
+<h3>Round 1: Fair Share</h3>
+<p>The goal of Round 1 is to give everyone a <strong>fair, equal share</strong> of overtime. The weekly target is about <strong>4 hours per week</strong> (which equals 1 block).</p>
+
+<div class="step-box">
+  <p><span class="step-num">1</span> <strong>Hardest slots go first.</strong> The system looks at all the OT slots and picks the one with the <strong>fewest people who bid on it</strong>. That slot is the hardest to fill, so it gets handled first.</p>
+  <p style="margin-top:10px"><span class="step-num">2</span> <strong>Person with fewest options gets priority.</strong> Among the people who bid on that slot, the person who has the <strong>fewest other slots they can work</strong> goes first. This prevents someone with lots of options from taking a slot away from someone who has very few choices.</p>
+  <p style="margin-top:10px"><span class="step-num">3</span> <strong>PREFER beats CAN.</strong> If two people are tied, the one who marked <strong>PREFER</strong> wins over the one who marked <strong>CAN</strong>.</p>
+  <p style="margin-top:10px"><span class="step-num">4</span> <strong>Seniority breaks ties.</strong> If two people have the same preference, the one with <strong>higher seniority</strong> (lower seniority number) gets the slot.</p>
+  <p style="margin-top:10px"><span class="step-num">5</span> <strong>Automatic skips.</strong> The system will never assign someone to a slot if any of these are true:</p>
+  <ul style="margin-top:6px;margin-left:50px">
+    <li>They are already <strong>scheduled to work</strong> during that block</li>
+    <li>They are on <strong>vacation</strong> that day</li>
+    <li>They are already assigned to <strong>another role's OT</strong> in the same block (no double-booking)</li>
+    <li>They have hit their <strong>monthly hour cap</strong></li>
+  </ul>
+</div>
+
+<h3>Round 2: Extra Hours</h3>
+<p>Some employees want more overtime than the fair share. If an employee set their <strong>Round 2 (R2) hours to a number greater than 0</strong> in their bid, they are saying "I am willing to work extra beyond my fair share."</p>
+
+<div class="step-box">
+  <p><span class="step-num">1</span> <strong>Same logic as Round 1</strong> &mdash; hardest slot first, fewest options, PREFER beats CAN, seniority.</p>
+  <p style="margin-top:10px"><span class="step-num">2</span> <strong>Expanded weekly cap.</strong> The weekly limit is raised to include the extra hours the employee requested.</p>
+  <p style="margin-top:10px"><span class="step-num">3</span> <strong>Only people who asked for extra.</strong> If an employee did not set R2 hours, they are not considered in Round 2.</p>
+  <p style="margin-top:10px"><span class="step-num">4</span> <strong>Monthly cap still applies.</strong> Even in Round 2, no one can go over their monthly hour limit.</p>
+</div>
+
+<div class="important">
+  <strong>In simple terms:</strong> Round 1 makes sure everyone gets a fair piece of the pie. Round 2 lets people who want more grab the leftovers, as long as they have not hit their limit.
+</div>
+
+<!-- ==================== RUN ALL ROLES ==================== -->
+<div class="page-break"></div>
+<h2>Run All Roles</h2>
+
+<p>Instead of running the distribution for one role at a time, you can click the <strong>RUN ALL ROLES</strong> button. Here is what happens:</p>
+
+<div class="step-box">
+  <p><span class="step-num">1</span> <strong>PIC runs first.</strong> The system loads PIC employees and PIC staffing targets, then runs the distribution for PIC slots.</p>
+  <p style="margin-top:10px"><span class="step-num">2</span> <strong>Dispatcher runs second.</strong> The system loads Dispatcher employees (including PICs who can step down) and Dispatcher staffing targets. It knows which PICs were already assigned to PIC OT, so they will not be double-booked.</p>
+  <p style="margin-top:10px"><span class="step-num">3</span> <strong>Calltaker runs last.</strong> The system loads all employees and Calltaker staffing targets. Anyone already assigned to PIC or Dispatcher OT in a given block is skipped.</p>
+</div>
+
+<p>After all three roles finish, you will see a <strong>combined results panel</strong> showing how many slots were filled and how many are still open for each role.</p>
+
+<div class="highlight">
+  <strong>Why this order matters:</strong> PICs are the hardest to find because they are the smallest group. By filling PIC slots first, you make sure those critical positions are covered before PICs get pulled into Dispatcher or Calltaker OT.
+</div>
+
+<!-- ==================== PUBLISHING ==================== -->
+<div class="page-break"></div>
+<h2>Publishing</h2>
+
+<p>After you run the distribution (or make manual assignments), the results are just a preview. Nothing is final until you publish.</p>
+
+<div class="step-box">
+  <p><span class="step-num">1</span> <strong>Review the results.</strong> Look at the results panel. Check fill rates. See if any critical slots are still unfilled. Manually assign anyone you need to.</p>
+  <p style="margin-top:10px"><span class="step-num">2</span> <strong>Click PUBLISH.</strong> This saves all assignments to the database for the current role.</p>
+  <p style="margin-top:10px"><span class="step-num">3</span> <strong>Assignments become visible everywhere:</strong></p>
+  <ul style="margin-top:6px;margin-left:50px">
+    <li>On the <strong>monthly grid</strong> as red OT badges with employee names</li>
+    <li>On the <strong>OT Bids Row</strong> as red chips with OT badges</li>
+    <li>On each <strong>employee's OT Bidding page</strong> under their Approved Slots section</li>
+  </ul>
+</div>
+
+<div class="warning">
+  <strong>Be careful:</strong> Once you publish, the assignments are live. Employees can see them immediately. Make sure you are happy with the results before clicking PUBLISH.
+</div>
+
+<!-- ==================== CLEAR OT ==================== -->
+<h2>Clear OT</h2>
+
+<p>If you need to start over, click the <strong>CLEAR OT</strong> button.</p>
+
+<ul>
+  <li>This <strong>removes all OT assignments</strong> for the current role and current month.</li>
+  <li>Employee <strong>bids stay intact</strong>. Nothing happens to the bids themselves. Only the assignments are erased.</li>
+  <li>The <strong>grid updates right away</strong>. NEEDED badges will reappear where assignments were removed.</li>
+</ul>
+
+<div class="important">
+  <strong>When to use this:</strong> Use CLEAR OT when you want to re-run the distribution from scratch, or when you made a mistake and want to undo all assignments at once.
+</div>
+
+<!-- ==================== EXPORT / IMPORT ==================== -->
+<div class="page-break"></div>
+<h2>Export / Import</h2>
+
+<h3>Export OT Needs</h3>
+<p>Click <strong>EXPORT OT NEEDS</strong> to download an Excel file (XLSX) of all unfilled OT slots for the current role and month. This is useful when you need to share the overtime needs with other supervisors or departments, or when you want to track unfilled slots outside the system.</p>
+
+<h3>Import OT Assignments</h3>
+<p>Click <strong>IMPORT OT ASSIGNMENTS</strong> to upload an Excel (XLSX) or CSV file with bulk assignments. This lets you assign overtime in bulk using a spreadsheet instead of clicking one slot at a time. The file must follow the expected format (matching employee names and time blocks).</p>
+
+<div class="highlight">
+  <strong>Tip:</strong> Export first, fill in the names in the spreadsheet, then import it back. This is the fastest way to assign a large number of OT slots at once.
+</div>
+
+<!-- ==================== SPECIAL DETAIL (DISPATCHER ONLY) ==================== -->
+<h2>Special Detail (Dispatcher Only)</h2>
+
+<p>When you are viewing the Dispatcher role, you will see a <strong>purple SD row</strong> on the grid. This shows predicted Special Detail assignments.</p>
+
+<ul>
+  <li><strong>What is Special Detail?</strong> Some dispatchers are pulled from their normal duties to work special assignments (SD). When that happens, they are not available to dispatch.</li>
+  <li><strong>How it affects the grid:</strong> SD predictions <strong>reduce the dispatcher count</strong> for that block. If 5 dispatchers are scheduled but 1 is predicted for SD, the system counts only 4 dispatchers available.</li>
+  <li><strong>Dispatcher overflow:</strong> When there are <strong>more dispatchers than needed</strong> in a block, the extra dispatchers "overflow" into the calltaker count. This shows up as a blue <strong>DISP IN CT</strong> badge on the calltaker grid.</li>
+</ul>
+
+<div class="important">
+  <strong>Remember:</strong> Special Detail only appears on the Dispatcher view. It does not affect PIC or Calltaker views directly. However, the dispatcher overflow into calltaking does reduce calltaker OT needs.
+</div>
+
+<!-- ==================== VACATION HANDLING ==================== -->
+<div class="page-break"></div>
+<h2>Vacation Handling</h2>
+
+<p>Vacations are pulled automatically from VacationOps. You do not need to enter them manually.</p>
+
+<ul>
+  <li><strong>On the Bids Row:</strong> Vacation dates appear in <strong>cyan (light blue)</strong> at the bottom of each cell. This lets you see at a glance who is off.</li>
+  <li><strong>During distribution:</strong> The system <strong>automatically skips</strong> employees who are on vacation for a given day. They will never be assigned OT on a vacation day.</li>
+  <li><strong>In the staffing count:</strong> Employees on vacation are <strong>removed from the scheduled staff count</strong> for that day. This increases the shortfall and may create additional OT needs.</li>
+</ul>
+
+<div class="warning">
+  <strong>Make sure VacationOps is up to date.</strong> If a vacation is not entered in VacationOps, the system will not know about it. The employee could be assigned OT on a day they are actually off.
+</div>
+
+<!-- ==================== STEP BY STEP WORKFLOW ==================== -->
+<div class="page-break"></div>
+<h2>Step-by-Step Workflow</h2>
+
+<p>Follow these steps in order to manage overtime for a month. Repeat for each role if you are running them individually.</p>
+
+<div class="step-box">
+  <p><span class="step-num">1</span> <strong>Switch to the role you want to manage.</strong> Click PIC, Dispatcher, or Calltaker at the top of the screen.</p>
+</div>
+
+<div class="step-box">
+  <p><span class="step-num">2</span> <strong>Review the monthly grid.</strong> Look at where NEEDED badges appear. These are the gaps that need overtime coverage.</p>
+</div>
+
+<div class="step-box">
+  <p><span class="step-num">3</span> <strong>Open the OT Bidding panel.</strong> Click the OT BIDDING button. Set the period start date, end date, and deadline.</p>
+</div>
+
+<div class="step-box">
+  <p><span class="step-num">4</span> <strong>Save settings.</strong> Click Save Settings. This computes the OT need slots for all roles. You must do this before running distribution.</p>
+</div>
+
+<div class="step-box">
+  <p><span class="step-num">5</span> <strong>Wait for employees to submit bids.</strong> Employees will fill out their availability cards on the OT Bidding page. You can check progress in the bid list. (Or use Simulate Bids for testing.)</p>
+</div>
+
+<div class="step-box">
+  <p><span class="step-num">6</span> <strong>Click RUN ALL ROLES</strong> (or RUN DISTRIBUTION for a single role). The system will match bids to OT needs using the distribution algorithm.</p>
+</div>
+
+<div class="step-box">
+  <p><span class="step-num">7</span> <strong>Review the results panel.</strong> Check fill rates and see which slots are still unfilled.</p>
+</div>
+
+<div class="step-box">
+  <p><span class="step-num">8</span> <strong>Manually assign any remaining unfilled slots</strong> if needed. Click on NEEDED badges to open the assignment popup.</p>
+</div>
+
+<div class="step-box">
+  <p><span class="step-num">9</span> <strong>Click PUBLISH</strong> to commit the assignments. They are now saved and visible to everyone.</p>
+</div>
+
+<div class="step-box">
+  <p><span class="step-num">10</span> <strong>Repeat for other roles</strong> if you ran them individually instead of using RUN ALL ROLES.</p>
+</div>
+
+<!-- ==================== QUICK REFERENCE TABLE ==================== -->
+<div class="page-break"></div>
+<h2>Quick Reference</h2>
+
+<table>
+  <tr><th>Button / Feature</th><th>What It Does</th></tr>
+  <tr><td><strong>PIC / Dispatcher / Calltaker buttons</strong></td><td>Switches the grid to show that role's staffing and OT needs.</td></tr>
+  <tr><td><strong>OT BIDDING button</strong></td><td>Opens the OT Bidding panel where you control settings, bids, and distribution.</td></tr>
+  <tr><td><strong>Save Settings</strong></td><td>Saves period dates, deadline, and caps. Computes OT need slots for all roles.</td></tr>
+  <tr><td><strong>RUN DISTRIBUTION</strong></td><td>Runs the distribution algorithm for the current role only.</td></tr>
+  <tr><td><strong>RUN ALL ROLES</strong></td><td>Runs PIC, then Dispatcher, then Calltaker distribution in sequence.</td></tr>
+  <tr><td><strong>PUBLISH</strong></td><td>Saves assignments to the database. Makes them visible everywhere.</td></tr>
+  <tr><td><strong>CLEAR OT</strong></td><td>Removes all OT assignments for the current role and month. Bids stay.</td></tr>
+  <tr><td><strong>EXPORT OT NEEDS</strong></td><td>Downloads an Excel file of unfilled OT slots.</td></tr>
+  <tr><td><strong>IMPORT OT ASSIGNMENTS</strong></td><td>Uploads an Excel or CSV file to bulk-assign overtime.</td></tr>
+  <tr><td><strong>Simulate Bids</strong></td><td>Generates fake test bids for testing the distribution engine.</td></tr>
+  <tr><td><strong>NEEDED badge (click)</strong></td><td>Opens a popup to manually assign someone to that OT slot.</td></tr>
+  <tr><td><strong>OT chip (click)</strong></td><td>Removes that person's OT assignment from that slot.</td></tr>
+  <tr><td><strong>Employee Caps</strong></td><td>Sets per-person monthly hour limits to control how much OT one person can get.</td></tr>
+  <tr><td><strong>Month navigation arrows</strong></td><td>Moves the grid forward or backward one month.</td></tr>
+  <tr><td><strong>Summary bar</strong></td><td>Shows total OT slots and hours needed for the month at a glance.</td></tr>
+</table>
+
+<!-- ==================== TROUBLESHOOTING ==================== -->
+<div class="page-break"></div>
+<h2>Troubleshooting</h2>
+
+<p>If something does not look right, check this list before calling for help.</p>
+
+<dl class="faq">
+
+<dt>"No bid data available"</dt>
+<dd>This means the system does not have any OT need slots computed yet. Open the OT Bidding panel and click <strong>Save Settings</strong> first. Make sure your period dates are set.</dd>
+
+<dt>"Period dates not set"</dt>
+<dd>You need to enter a start date and end date in the OT Bidding panel settings. Without these dates, the system does not know which month to compute.</dd>
+
+<dt>Distribution seems slow or the screen freezes briefly</dt>
+<dd>This is normal for large datasets. The distribution engine is doing a lot of math (checking every employee against every slot). Give it a moment. The screen may freeze for a few seconds, but it will finish.</dd>
+
+<dt>Over-staffing is showing when it should not be</dt>
+<dd>Check whether you published assignments more than once without clearing first. If you run distribution and publish, then run again and publish again without clearing, the assignments can stack up. Use <strong>CLEAR OT</strong> first, then re-run and re-publish.</dd>
+
+<dt>Bids are not showing in the grid</dt>
+<dd>Make sure employees submitted their bids <strong>after</strong> you saved the settings. If the settings were saved after the employee submitted, their bids may not line up with the computed slots. Have the employee re-submit, or click Save Settings again.</dd>
+
+<dt>A specific employee is not appearing in the assignment dropdown</dt>
+<dd>Check that the employee's position matches the role you are viewing. A calltaker will not appear in the PIC assignment dropdown. Also check that they are not on vacation for that day.</dd>
+
+<dt>DISP IN CT badges are not showing on the calltaker grid</dt>
+<dd>Make sure RotationOps has the dispatcher calltaking assignments entered for the current month. The overflow calculation depends on RotationOps data being present.</dd>
+
+<dt>After clearing OT, the old assignments still show</dt>
+<dd>Try refreshing the page. The grid should update immediately, but in rare cases a page refresh is needed.</dd>
+
+</dl>
+
+<div class="highlight">
+  <strong>Still stuck?</strong> Take a screenshot of what you see and send it to the system administrator. Include the role you were viewing, the month, and what you were trying to do.
+</div>
+
+</body>
+</html>

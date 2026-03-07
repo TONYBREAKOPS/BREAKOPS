@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>OT Bidding Guide - Employee Manual</title>
+<style>
+@media print {
+  body { font-size: 11pt; }
+  .no-print { display: none; }
+  @page { margin: 0.75in; }
+  .page-break { page-break-before: always; }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: #1a1a1a;
+  line-height: 1.7;
+  max-width: 8.5in;
+  margin: 0 auto;
+  padding: 0.75in;
+  background: #fff;
+}
+h1 { font-size: 28pt; font-weight: 900; margin-bottom: 6px; letter-spacing: -0.5px; }
+h2 { font-size: 17pt; font-weight: 800; margin: 30px 0 14px; padding-bottom: 5px; border-bottom: 3px solid #1a1a1a; }
+h3 { font-size: 13pt; font-weight: 700; margin: 18px 0 8px; color: #333; }
+p, li { font-size: 11pt; margin-bottom: 8px; }
+ul, ol { padding-left: 24px; margin-bottom: 14px; }
+li { margin-bottom: 5px; }
+table { width: 100%; border-collapse: collapse; margin: 14px 0 20px; font-size: 10.5pt; }
+th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; }
+th { background: #f0f0f0; font-weight: 700; }
+tr:nth-child(even) { background: #fafafa; }
+.cover { text-align: center; padding: 100px 0 80px; }
+.cover h1 { font-size: 36pt; margin-bottom: 10px; }
+.cover .subtitle { font-size: 15pt; color: #555; margin-bottom: 30px; }
+.cover .dept { font-size: 12pt; color: #888; margin-top: 40px; }
+.highlight {
+  background: #e8f5e9; border: 1px solid #4caf50; border-radius: 6px;
+  padding: 12px 16px; margin: 16px 0; font-size: 10.5pt;
+}
+.highlight strong { color: #2e7d32; }
+.warning {
+  background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px;
+  padding: 12px 16px; margin: 16px 0; font-size: 10.5pt;
+}
+.warning strong { color: #856404; }
+.important {
+  background: #e3f2fd; border: 1px solid #2196f3; border-radius: 6px;
+  padding: 12px 16px; margin: 16px 0; font-size: 10.5pt;
+}
+.important strong { color: #1565c0; }
+.step-box {
+  border: 2px solid #1a1a1a; border-radius: 8px; padding: 16px 20px;
+  margin: 14px 0; background: #fafafa;
+}
+.step-num {
+  display: inline-block; width: 30px; height: 30px; line-height: 30px;
+  text-align: center; background: #1a1a1a; color: #fff; border-radius: 50%;
+  font-weight: 800; font-size: 11pt; margin-right: 10px; vertical-align: middle;
+}
+.pref-table td:nth-child(1) { font-weight: 800; text-align: center; width: 100px; }
+.pref-green { background: #e8f5e9; color: #2e7d32; }
+.pref-yellow { background: #fffde7; color: #f9a825; }
+.pref-red { background: #ffebee; color: #c62828; }
+.btn-print {
+  position: fixed; bottom: 20px; right: 20px;
+  background: #1a1a1a; color: #fff; border: none;
+  padding: 12px 24px; border-radius: 8px; font-size: 14px;
+  font-weight: 700; cursor: pointer; z-index: 100;
+}
+.btn-print:hover { background: #333; }
+.faq dt { font-weight: 700; font-size: 11pt; margin: 14px 0 4px; color: #1a1a1a; }
+.faq dd { font-size: 11pt; margin-left: 20px; margin-bottom: 10px; color: #444; }
+
+/* ===== SCHEMATIC STYLES ===== */
+.schematic { position: relative; width: 100%; margin: 30px 0; font-size: 9.5pt; }
+.sch-row { display: flex; justify-content: center; gap: 16px; margin-bottom: 0; position: relative; }
+.sch-box {
+  border: 2.5px solid #1a1a1a; border-radius: 8px; padding: 10px 14px;
+  text-align: center; background: #fff; position: relative; z-index: 2;
+  min-width: 130px;
+}
+.sch-box strong { display: block; font-size: 10pt; margin-bottom: 2px; }
+.sch-box .sub { font-size: 8.5pt; color: #666; }
+.sch-db { background: #e3f2fd; border-color: #1565c0; }
+.sch-db strong { color: #1565c0; }
+.sch-ops { background: #f3e5f5; border-color: #7b1fa2; }
+.sch-ops strong { color: #7b1fa2; }
+.sch-engine { background: #fff3e0; border-color: #e65100; }
+.sch-engine strong { color: #e65100; }
+.sch-result { background: #e8f5e9; border-color: #2e7d32; }
+.sch-result strong { color: #2e7d32; }
+.sch-role { background: #fce4ec; border-color: #c62828; }
+.sch-role strong { color: #c62828; }
+.sch-bid { background: #fffde7; border-color: #f9a825; }
+.sch-bid strong { color: #f9a825; }
+
+/* Arrows between rows */
+.sch-arrows { display: flex; justify-content: center; gap: 16px; padding: 0; margin: 0; }
+.sch-arrow {
+  width: 2px; height: 28px; background: #1a1a1a; position: relative; margin: 0 auto;
+}
+.sch-arrow::after {
+  content: ''; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%);
+  border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-top: 8px solid #1a1a1a;
+}
+.sch-arrow-row { display: flex; justify-content: center; margin: 0; }
+.sch-arrow-wide { width: 100%; max-width: 500px; display: flex; justify-content: center; position: relative; height: 32px; }
+.sch-arrow-wide::before {
+  content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 2px; height: 100%; background: #1a1a1a;
+}
+.sch-arrow-wide::after {
+  content: ''; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%);
+  border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-top: 8px solid #1a1a1a;
+}
+
+/* Merge connector — three sources into one */
+.sch-merge { position: relative; width: 100%; max-width: 580px; margin: 0 auto; height: 36px; }
+.sch-merge .v-line {
+  position: absolute; top: 0; width: 2px; height: 14px; background: #1a1a1a;
+}
+.sch-merge .v-line.l { left: 16%; }
+.sch-merge .v-line.c { left: 50%; transform: translateX(-50%); }
+.sch-merge .v-line.r { right: 16%; }
+.sch-merge .h-line {
+  position: absolute; top: 14px; left: 16%; right: 16%; height: 2px; background: #1a1a1a;
+}
+.sch-merge .v-down {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  width: 2px; height: 14px; background: #1a1a1a;
+}
+.sch-merge .v-down::after {
+  content: ''; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%);
+  border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-top: 8px solid #1a1a1a;
+}
+
+/* Fan out — one source into three */
+.sch-fan { position: relative; width: 100%; max-width: 580px; margin: 0 auto; height: 36px; }
+.sch-fan .v-up {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 2px; height: 14px; background: #1a1a1a;
+}
+.sch-fan .h-line {
+  position: absolute; top: 14px; left: 16%; right: 16%; height: 2px; background: #1a1a1a;
+}
+.sch-fan .v-line {
+  position: absolute; top: 14px; width: 2px; height: 14px; background: #1a1a1a;
+}
+.sch-fan .v-line.l { left: 16%; }
+.sch-fan .v-line.c { left: 50%; transform: translateX(-50%); }
+.sch-fan .v-line.r { right: 16%; }
+.sch-fan .v-line::after {
+  content: ''; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%);
+  border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-top: 8px solid #1a1a1a;
+}
+
+.sch-label {
+  text-align: center; font-size: 8.5pt; color: #888; font-style: italic;
+  margin: -2px 0 4px; position: relative; z-index: 2;
+}
+</style>
+</head>
+<body>
+
+<button class="btn-print no-print" onclick="window.print()">Print / Save PDF</button>
+
+<!-- COVER -->
+<div class="cover">
+  <h1>OT Bidding Guide</h1>
+  <div class="subtitle">How to Submit Your Overtime Availability<br/>and How Assignments Are Made</div>
+  <div style="font-size: 13pt; color: #333; margin: 20px 0;">Fair. Transparent. Based on YOUR Preferences.</div>
+  <div class="dept">
+    Communications Division<br/>
+    Effective March 2026
+  </div>
+</div>
+
+<!-- ==================== SYSTEM ARCHITECTURE ==================== -->
+<div class="page-break"></div>
+<h2>System Architecture: How It All Connects</h2>
+
+<p>Before diving into how to use the bidding system, here's a <strong>visual map</strong> of how all the data flows together. Every OT assignment starts with these data sources and flows through the system automatically.</p>
+
+<!-- SCHEMATIC -->
+<div class="schematic">
+
+  <!-- ROW 1: Data Sources -->
+  <div class="sch-label"><strong style="font-size:10pt;color:#1565c0;font-style:normal">DATA SOURCES (Firestore Database)</strong></div>
+  <div class="sch-row">
+    <div class="sch-box sch-db" style="min-width:150px">
+      <strong>EMPLOYEES</strong>
+      <div class="sub">Names, Positions, Seniority<br/>Weekly Schedules (Mon-Sun)<br/>Shift Codes (6A-2P, etc.)</div>
+    </div>
+    <div class="sch-box sch-db" style="min-width:150px">
+      <strong>ADEQUATE STAFFING</strong>
+      <div class="sub">Per-role staffing targets<br/>PIC / Dispatcher / Calltaker<br/>By day-of-week + hour</div>
+    </div>
+    <div class="sch-box sch-db" style="min-width:150px">
+      <strong>VACATIONOPS</strong>
+      <div class="sub">Vacation list by employee<br/>Date ranges (from/to)<br/>Removes from staffing count</div>
+    </div>
+  </div>
+
+  <!-- Merge 3 into 1 -->
+  <div class="sch-merge">
+    <div class="v-line l"></div>
+    <div class="v-line c"></div>
+    <div class="v-line r"></div>
+    <div class="h-line"></div>
+    <div class="v-down"></div>
+  </div>
+
+  <!-- ROW 2: StaffingOps Computation -->
+  <div class="sch-row">
+    <div class="sch-box sch-ops" style="min-width:360px">
+      <strong>STAFFINGOPS &mdash; Staffing Computation</strong>
+      <div class="sub">For each day of the month, for each 4-hour block:<br/>
+        <em>Scheduled Staff</em> &minus; <em>Vacations</em> vs. <em>Adequate Staffing Target</em><br/>
+        = <strong>Shortfall (OT NEED)</strong> per block
+      </div>
+    </div>
+  </div>
+
+  <!-- Arrow down -->
+  <div class="sch-arrow-row"><div class="sch-arrow-wide"></div></div>
+
+  <!-- ROW 2B: Additional inputs -->
+  <div class="sch-row">
+    <div class="sch-box sch-db" style="min-width:170px">
+      <strong>ROTATIONOPS</strong>
+      <div class="sub">Dispatchers assigned to<br/>Calltaking on specific days<br/>(reduces CT shortfall)</div>
+    </div>
+    <div class="sch-box sch-engine" style="min-width:220px">
+      <strong>OT NEED PER BLOCK</strong>
+      <div class="sub">Each day &times; 6 blocks = slots that<br/>need OT coverage<br/>Shown as <strong style="color:#c62828">NEED X</strong> on grid</div>
+    </div>
+    <div class="sch-box sch-db" style="min-width:170px">
+      <strong>MANUAL OT ASSIGNS</strong>
+      <div class="sub">Supervisors can directly<br/>assign OT to a slot<br/>(reduces remaining need)</div>
+    </div>
+  </div>
+
+  <!-- Merge into OT Bidding -->
+  <div class="sch-merge">
+    <div class="v-line l"></div>
+    <div class="v-line c"></div>
+    <div class="v-line r"></div>
+    <div class="h-line"></div>
+    <div class="v-down"></div>
+  </div>
+
+  <!-- ROW 3: OT Bidding + Employee Bids -->
+  <div class="sch-row">
+    <div class="sch-box sch-bid" style="min-width:170px">
+      <strong>EMPLOYEE BIDS</strong>
+      <div class="sub">Each employee submits:<br/>PREFER / CAN / CAN'T<br/>per slot + Desired Hours<br/>(Round 1 &amp; Round 2)</div>
+    </div>
+    <div class="sch-box sch-engine" style="min-width:260px">
+      <strong>DISTRIBUTION ENGINE</strong>
+      <div class="sub">Matches bids to OT needs<br/>Scarcest slot first &rarr; Fewest options<br/>&rarr; PREFER &gt; CAN &rarr; Seniority<br/>Round 1 (fair share) then Round 2 (extra)</div>
+    </div>
+  </div>
+
+  <!-- Arrow down -->
+  <div class="sch-arrow-row"><div class="sch-arrow-wide"></div></div>
+
+  <!-- ROW 4: Role order -->
+  <div class="sch-label"><strong style="font-size:10pt;color:#c62828;font-style:normal">RUN ALL ROLES (in order)</strong></div>
+  <div class="sch-row">
+    <div class="sch-box sch-role">
+      <strong>1. PIC</strong>
+      <div class="sub">Smallest pool<br/>Filled first</div>
+    </div>
+    <div class="sch-box sch-role">
+      <strong>2. DISPATCHER</strong>
+      <div class="sub">Medium pool<br/>PICs can fill</div>
+    </div>
+    <div class="sch-box sch-role">
+      <strong>3. CALLTAKER</strong>
+      <div class="sub">Largest pool<br/>Everyone can fill</div>
+    </div>
+  </div>
+  <div class="sch-label">Each role loads its own employees, staffing targets, and OT data.<br/>Assignments carry forward &mdash; no double-booking across roles.</div>
+
+  <!-- Merge 3 into 1 -->
+  <div class="sch-merge">
+    <div class="v-line l"></div>
+    <div class="v-line c"></div>
+    <div class="v-line r"></div>
+    <div class="h-line"></div>
+    <div class="v-down"></div>
+  </div>
+
+  <!-- ROW 5: Results -->
+  <div class="sch-row">
+    <div class="sch-box sch-result" style="min-width:360px">
+      <strong>PUBLISHED ASSIGNMENTS</strong>
+      <div class="sub">
+        Supervisor reviews &rarr; clicks PUBLISH<br/>
+        Assignments saved to Firestore per role<br/>
+        Visible on StaffingOps grid (red <strong>OT</strong> badge)<br/>
+        Visible on OT Bidding page (Approved Slots)
+      </div>
+    </div>
+  </div>
+
+  <!-- Fan out to views -->
+  <div class="sch-fan">
+    <div class="v-up"></div>
+    <div class="h-line"></div>
+    <div class="v-line l"></div>
+    <div class="v-line c"></div>
+    <div class="v-line r"></div>
+  </div>
+
+  <div class="sch-row">
+    <div class="sch-box" style="min-width:140px;background:#f5f5f5">
+      <strong>Monthly OT Grid</strong>
+      <div class="sub">Names with red OT badge<br/>in staffing columns</div>
+    </div>
+    <div class="sch-box" style="min-width:140px;background:#f5f5f5">
+      <strong>OT Bids Row</strong>
+      <div class="sub">Assigned bidders turn<br/>red in the bids row</div>
+    </div>
+    <div class="sch-box" style="min-width:140px;background:#f5f5f5">
+      <strong>Employee View</strong>
+      <div class="sub">Approved slots shown<br/>on OT Bidding page</div>
+    </div>
+  </div>
+
+</div>
+<!-- END SCHEMATIC -->
+
+<h3>Reading the Diagram</h3>
+<ul>
+  <li><strong style="color:#1565c0">Blue boxes</strong> = Data sources stored in the database (Firestore)</li>
+  <li><strong style="color:#7b1fa2">Purple boxes</strong> = Computation steps inside StaffingOps</li>
+  <li><strong style="color:#e65100">Orange boxes</strong> = Processing / engine steps</li>
+  <li><strong style="color:#f9a825">Yellow box</strong> = Employee input (your bids)</li>
+  <li><strong style="color:#c62828">Red boxes</strong> = Role-based distribution order</li>
+  <li><strong style="color:#2e7d32">Green box</strong> = Final published output</li>
+  <li><strong>Grey boxes</strong> = Where results are displayed</li>
+</ul>
+
+<div class="important">
+  <strong>Key takeaway:</strong> The system pulls from multiple data sources automatically. Your schedules, vacations, and calltaking assignments are all factored in before any OT slot is identified. Your bids are the final piece &mdash; they tell the system where to place you.
+</div>
+
+<!-- ==================== DATA FLOW DETAIL ==================== -->
+<div class="page-break"></div>
+<h2>Data Flow: Step by Step</h2>
+
+<p>Here is exactly what happens, in order, when the system determines OT needs and makes assignments:</p>
+
+<div class="step-box">
+  <p><span class="step-num">1</span> <strong>Employee Database</strong> &mdash; The system reads every employee's name, position (PIC, Dispatcher, Calltaker), seniority number, and weekly schedule (e.g., 6A-2P Mon-Fri, OFF Sat-Sun).</p>
+</div>
+
+<div class="step-box">
+  <p><span class="step-num">2</span> <strong>Adequate Staffing Targets</strong> &mdash; Each role has its own staffing requirements. For example, "Calltakers need 5 people from 6A-10A on weekdays." These are stored per day-of-week and per hour block.</p>
+</div>
+
+<div class="step-box">
+  <p><span class="step-num">3</span> <strong>Vacation List</strong> &mdash; VacationOps tracks who is on vacation and when. Anyone on vacation is removed from the staffing count for those dates. The distribution algorithm also automatically excludes employees on vacation &mdash; you will never be assigned OT on a day you're listed as on vacation.</p>
+</div>
+
+<div class="step-box">
+  <p><span class="step-num">4</span> <strong>Staffing Calculation</strong> &mdash; For each day of the month, for each 4-hour block: the system counts how many employees are scheduled to work, subtracts vacations, and compares to the adequate staffing target. If scheduled &lt; target, the difference is the <strong>OT need</strong>.</p>
+</div>
+
+<div class="step-box">
+  <p><span class="step-num">5</span> <strong>RotationOps (Calltaker only)</strong> &mdash; Some dispatchers are assigned to calltaking duty on specific days through RotationOps. These count as additional calltaker coverage and reduce calltaker OT needs.</p>
+</div>
+
+<div class="step-box">
+  <p><span class="step-num">6</span> <strong>Manual OT / Previously Published OT</strong> &mdash; Any OT already assigned (manually or from a previous distribution) is subtracted from the remaining need.</p>
+</div>
+
+<div class="step-box">
+  <p><span class="step-num">7</span> <strong>Employee Bids</strong> &mdash; Employees submit their availability (PREFER / CAN / CAN'T) for each time block, plus their desired Round 1 and Round 2 hours.</p>
+</div>
+
+<div class="step-box">
+  <p><span class="step-num">8</span> <strong>Distribution Engine</strong> &mdash; The algorithm matches employee bids to OT needs using the priority rules (scarcest slot first, fewest options, PREFER > CAN, seniority). Round 1 ensures fair share; Round 2 fills remaining slots.</p>
+</div>
+
+<div class="step-box">
+  <p><span class="step-num">9</span> <strong>Run All Roles</strong> &mdash; When supervisors click "Run All Roles," the engine runs three times in order: PIC first, then Dispatcher, then Calltaker. Each role loads its own employee list and staffing targets. Assignments from earlier roles carry forward to prevent double-booking.</p>
+</div>
+
+<div class="step-box">
+  <p><span class="step-num">10</span> <strong>Publish</strong> &mdash; Supervisor reviews the results and clicks Publish. Assignments are saved to the database and become visible on the staffing grid (red OT badges), the OT Bids row (bubbles turn red), and on each employee's OT Bidding page (Approved Slots).</p>
+</div>
+
+<!-- WHY -->
+<div class="page-break"></div>
+<h2>Why We're Doing This</h2>
+<p>We're replacing the old overtime assignment process with a <strong>preference-based bidding system</strong>. Instead of supervisors guessing who's available, <strong>you tell us when you want to work</strong>.</p>
+
+<div class="highlight">
+  <strong>The bottom line:</strong> The more availability you submit, the better chance you have of getting the OT shifts you actually want &mdash; on your terms, on your schedule.
+</div>
+
+<h3>What's In It For You</h3>
+<ul>
+  <li><strong>You choose your shifts</strong> &mdash; Mark which blocks you prefer, which you can work, and which you can't</li>
+  <li><strong>Fair distribution</strong> &mdash; The system uses seniority and scarcity to assign shifts fairly</li>
+  <li><strong>No surprises</strong> &mdash; You'll see exactly what you were assigned before the schedule goes live</li>
+  <li><strong>More availability = more OT</strong> &mdash; The system can only assign you to shifts you bid on</li>
+  <li><strong>Less mandatory OT</strong> &mdash; When more people volunteer, fewer people get mandated</li>
+</ul>
+
+<div class="warning">
+  <strong>If you don't bid, you won't get voluntary OT.</strong> Only employees who submit their availability card will be considered for OT assignments. Unfilled slots may result in mandatory overtime for someone else.
+</div>
+
+<!-- LOGGING IN -->
+<div class="page-break"></div>
+<h2>Getting Started: Logging In</h2>
+
+<p>Open the <strong>OT Bidding</strong> page in your web browser (the link will be provided by your supervisor or posted in your workspace).</p>
+
+<h3>Login Steps</h3>
+<ol>
+  <li><strong>Select your name</strong> from the dropdown list. All employees are listed alphabetically.</li>
+  <li><strong>Enter your password.</strong> Your default password is the <strong>first 4 characters of your first name</strong> (lowercase). For example, if your name is "Michael", your password is <strong>mich</strong>.</li>
+  <li>Click <strong>SIGN IN</strong>.</li>
+</ol>
+
+<div class="important">
+  <strong>Password trouble?</strong> If the password doesn't work, check that you're using lowercase letters. If you still can't get in, see your supervisor.
+</div>
+
+<p>Once logged in, you'll see:</p>
+<ul>
+  <li>Your <strong>name</strong> and <strong>position</strong> displayed in the header bar (e.g., "MARTINEZ, JOSE" and "DISPATCHER")</li>
+  <li>A <strong>deadline countdown</strong> showing how much time is left to submit your bids</li>
+  <li>A <strong>SIGN OUT</strong> button in the top-right to log out when you're done</li>
+</ul>
+
+<!-- HOW IT WORKS -->
+<div class="page-break"></div>
+<h2>How the Process Works</h2>
+
+<h3>The Timeline</h3>
+<table>
+  <tr><th>When</th><th>What Happens</th><th>Who</th></tr>
+  <tr><td><strong>Bid Opens</strong></td><td>Bidding period opens. You receive a notification to fill out your availability card.</td><td>All Staff</td></tr>
+  <tr><td><strong>Bid Deadline</strong></td><td>All availability cards must be submitted by this date. Late submissions will not be accepted.</td><td>All Staff</td></tr>
+  <tr><td><strong>Distribution</strong></td><td>The system runs the assignment algorithm. Shifts are filled using your preferences.</td><td>Supervisors</td></tr>
+  <tr><td><strong>Published</strong></td><td>Assignments are published. You can see your OT schedule in StaffingOps.</td><td>All Staff</td></tr>
+</table>
+
+<h3>Period Status</h3>
+<p>The bidding period goes through these stages:</p>
+<table>
+  <tr><th>Status</th><th>What It Means</th><th>What You Can Do</th></tr>
+  <tr><td><strong>Open</strong></td><td>Bidding is open and accepting submissions</td><td>Fill out and submit your availability card</td></tr>
+  <tr><td><strong>Closed</strong></td><td>The deadline has passed &mdash; no more submissions accepted</td><td>Wait for assignments to be published</td></tr>
+  <tr><td><strong>Assigned</strong></td><td>OT shifts have been distributed and published</td><td>View your approved OT slots</td></tr>
+</table>
+
+<p>You'll see a <strong>status banner</strong> at the top of the page telling you the current state:</p>
+<ul>
+  <li><strong>Green banner</strong> &mdash; "Bids submitted" with a timestamp of when you last saved</li>
+  <li><strong>Red banner</strong> &mdash; "Bidding closed" &mdash; the deadline has passed</li>
+  <li><strong>Blue banner</strong> &mdash; "Assignments published" &mdash; check your approved shifts</li>
+</ul>
+
+<h3>The Big Picture</h3>
+<div class="step-box">
+  <p><span class="step-num">1</span> <strong>You fill out your availability card</strong> &mdash; Mark each time block as Prefer, Can, Can't, or leave blank</p>
+  <p style="margin-top:10px"><span class="step-num">2</span> <strong>The system distributes shifts fairly</strong> &mdash; Scarcest slots fill first, seniority matters</p>
+  <p style="margin-top:10px"><span class="step-num">3</span> <strong>Supervisors review and publish</strong> &mdash; Assignments go live on the schedule</p>
+  <p style="margin-top:10px"><span class="step-num">4</span> <strong>You see your assignments</strong> &mdash; Check the OT Bidding page or StaffingOps for your OT schedule</p>
+</div>
+
+<!-- USING THE APP -->
+<div class="page-break"></div>
+<h2>Using the Bidding App</h2>
+
+<h3>What You'll See on Screen</h3>
+<p>After logging in, the main screen has these areas:</p>
+<ol>
+  <li><strong>Header bar</strong> &mdash; Your name, position, week navigation arrows, deadline countdown, "How It Works" button, and Sign Out</li>
+  <li><strong>Schedule bar</strong> &mdash; Shows your regular work schedule for the current week (e.g., "6A-2P" on your work days, "OFF" on your days off). This tells you which blocks you're already working so you know where to bid for OT.</li>
+  <li><strong>Color legend</strong> &mdash; Shows the four cell states: PREFER (green), CAN (yellow), CAN'T (red), and SCHED (grey = your regular shift)</li>
+  <li><strong>Sidebar: Round tracker cards</strong> &mdash; Shows live counts of your PREFER, CAN, CAN'T, and TOTAL bids</li>
+  <li><strong>Bidding grid</strong> &mdash; The main table with days across the top and 6 time blocks down the left side</li>
+  <li><strong>Footer bar</strong> &mdash; Desired Hours inputs, unsaved changes status, and the SUBMIT BIDS button</li>
+</ol>
+
+<h3>The Bidding Grid</h3>
+<p>The grid shows <strong>one week at a time</strong>. Each column is a day, and each row is a 4-hour time block. Each cell represents one OT slot you can bid on.</p>
+
+<ul>
+  <li><strong>Grey cells</strong> &mdash; These are blocks during your regular shift. You can't bid on them because you're already working.</li>
+  <li><strong>Empty cells</strong> &mdash; Available for bidding. Click or drag to set your preference.</li>
+  <li><strong>Green cells (PREFER)</strong> &mdash; You've marked this as a shift you want.</li>
+  <li><strong>Yellow cells (CAN)</strong> &mdash; You've marked this as available if needed.</li>
+  <li><strong>Red cells (CAN'T)</strong> &mdash; You've marked this as unavailable.</li>
+</ul>
+
+<h3>PIC Priority Badges (PIC Users Only)</h3>
+<p>If you are a PIC, you will see <strong>colored role badges</strong> on each cell in the bidding grid. These badges tell you which roles need OT coverage for that specific slot.</p>
+<ul>
+  <li><strong>Badges show role labels</strong> &mdash; Each cell displays a badge like "PIC", "DP", "CT", or a combined label like "PIC/DP/CT" if multiple roles need coverage in that slot.</li>
+  <li><strong>PIC slots are highlighted</strong> &mdash; Slots that need PIC coverage have a priority indicator so you can spot them quickly.</li>
+  <li><strong>Use badges to guide your bids</strong> &mdash; Aim to mark PREFER on slots that show a PIC label. This gives you the best chance of being assigned as PIC for that block.</li>
+  <li><strong>Bid on other slots too</strong> &mdash; Even if a slot only shows "DP" or "CT", it's still worth bidding on as backup availability.</li>
+</ul>
+
+<div class="warning">
+  <strong>Getting PIC OT is not guaranteed.</strong> Even if you bid on a PIC-labeled slot, you may be assigned as Dispatcher or Calltaker for that block depending on overall demand and other bids. The badges help you make informed decisions, but the final role assignment depends on the distribution engine.
+</div>
+
+<h3>How to Set Your Preferences</h3>
+
+<h3>Method 1: Click to Cycle</h3>
+<p>Click any empty cell and it will cycle through the options in this order:</p>
+<p style="text-align:center;font-size:12pt;font-weight:700;margin:12px 0">
+  Empty &rarr; PREFER &rarr; CAN &rarr; CAN'T &rarr; Empty &rarr; ...
+</p>
+<p>Keep clicking to reach the option you want.</p>
+
+<h3>Method 2: Click and Drag (Recommended for Multiple Cells)</h3>
+<p>This is the fastest way to fill out your card:</p>
+<ol>
+  <li><strong>Click and hold</strong> on any cell</li>
+  <li><strong>Drag</strong> across multiple cells &mdash; they'll be highlighted with a blue border</li>
+  <li><strong>Release the mouse</strong> &mdash; a popup menu appears with four buttons: <strong>PREFER</strong>, <strong>CAN</strong>, <strong>CAN'T</strong>, and <strong>CLEAR</strong></li>
+  <li><strong>Click your choice</strong> &mdash; all selected cells are set at once</li>
+</ol>
+
+<div class="highlight">
+  <strong>Pro tip:</strong> Use drag-to-select for filling out entire days at once. For example, drag from 6A-10A down to 2A-6A on your day off, then click PREFER to mark the whole day.
+</div>
+
+<h3>Navigating Between Weeks</h3>
+<p>The grid shows one week at a time. Use the <strong>arrow buttons</strong> in the header to move between weeks:</p>
+<ul>
+  <li>Click <strong>&#9664;</strong> (left arrow) to go to the previous week</li>
+  <li>Click <strong>&#9654;</strong> (right arrow) to go to the next week</li>
+  <li>You can also use <strong>keyboard arrow keys</strong> (&larr; and &rarr;) to navigate weeks</li>
+  <li>The header shows which week you're on (e.g., "Week 2 of 5")</li>
+</ul>
+
+<div class="warning">
+  <strong>Don't forget the other weeks!</strong> Make sure you go through every week of the month, not just the first one. Use the arrows to check all weeks before submitting.
+</div>
+
+<!-- DESIRED HOURS -->
+<div class="page-break"></div>
+<h2>Setting Your Desired Hours</h2>
+
+<p>At the bottom of the screen, in the footer bar, you'll see the <strong>Desired Hours</strong> section:</p>
+
+<table>
+  <tr><th>Input</th><th>What It Controls</th><th>Details</th></tr>
+  <tr>
+    <td><strong>Round 1</strong></td>
+    <td>Your fair-share weekly allotment</td>
+    <td>Fixed at <strong>4 hours/week</strong> (1 block). This cannot be changed &mdash; it ensures everyone gets a fair share before anyone gets extra.</td>
+  </tr>
+  <tr>
+    <td><strong>Round 2</strong></td>
+    <td>Extra OT you'd like beyond the fair share</td>
+    <td>Round 2 is <strong>opt-in only</strong>. It only runs for employees who set Round 2 desired hours greater than 0. Enter how many <strong>additional hours</strong> you want. If you want as much OT as possible, set this high. If you only want the 4-hour fair share from Round 1, leave it at 0 and you won't be considered for extra hours.</td>
+  </tr>
+</table>
+
+<div class="important">
+  <strong>Round 2 hours are not guaranteed.</strong> The system will try to give you up to your desired amount, but it depends on how many slots are available and how many other people bid. The monthly cap (default 36 hours) always applies.
+</div>
+
+<!-- SUBMITTING -->
+<h2>Submitting Your Bids</h2>
+
+<h3>Before You Submit</h3>
+<ul>
+  <li>Check the <strong>footer status</strong> &mdash; if it says "Unsaved changes" you have bids that haven't been saved yet</li>
+  <li>Review all weeks using the navigation arrows</li>
+  <li>Make sure you've set your Round 2 desired hours</li>
+</ul>
+
+<h3>Submitting</h3>
+<ol>
+  <li>Click the <strong>SUBMIT BIDS</strong> button in the bottom-right corner</li>
+  <li>A green confirmation toast will appear: "Bids saved!"</li>
+  <li>The status banner will update to show "Bids submitted" with a timestamp</li>
+</ol>
+
+<div class="highlight">
+  <strong>You can resubmit anytime before the deadline.</strong> Changed your mind? Just update your cells and hit SUBMIT BIDS again. Your latest submission always replaces the previous one.
+</div>
+
+<h3>The Deadline</h3>
+<p>The <strong>deadline countdown</strong> in the top-right header shows exactly how long you have left:</p>
+<ul>
+  <li><strong>Normal</strong> &mdash; Shows days/hours remaining in neutral text</li>
+  <li><strong>Urgent (red)</strong> &mdash; Less than 24 hours remaining. The countdown turns red to warn you</li>
+  <li><strong>Closed</strong> &mdash; Deadline has passed. The SUBMIT button is disabled and you can no longer make changes</li>
+</ul>
+
+<!-- FILLING OUT YOUR CARD -->
+<div class="page-break"></div>
+<h2>Filling Out Your Availability Card</h2>
+
+<h3>The Four Options</h3>
+<p>For each time block on each day, you have four choices:</p>
+
+<table class="pref-table">
+  <tr><th>Option</th><th>Color</th><th>What It Means</th><th>When to Use It</th></tr>
+  <tr>
+    <td class="pref-green">PREFER</td>
+    <td>Green</td>
+    <td>You <strong>want</strong> this shift. This is your first choice.</td>
+    <td>Days off when you're free and want to work. Blocks that fit your schedule best.</td>
+  </tr>
+  <tr>
+    <td class="pref-yellow">CAN</td>
+    <td>Yellow</td>
+    <td>You <strong>can</strong> work this shift if needed, but it's not your first pick.</td>
+    <td>Times you're available but wouldn't choose first. Backup availability.</td>
+  </tr>
+  <tr>
+    <td class="pref-red">CAN'T</td>
+    <td>Red</td>
+    <td>You <strong>cannot</strong> work this shift.</td>
+    <td>You have plans, appointments, family obligations, or are otherwise unavailable.</td>
+  </tr>
+  <tr>
+    <td style="background:#f5f5f5; color:#999; font-weight:800; text-align:center">(blank)</td>
+    <td>None</td>
+    <td>You <strong>haven't responded</strong> for this block.</td>
+    <td>The system skips blank blocks &mdash; they're treated as no bid. Fill in every block so supervisors know your full availability.</td>
+  </tr>
+</table>
+
+<div class="important">
+  <strong>PREFER vs CAN matters.</strong> The system prioritizes PREFER bids over CAN bids. If two people bid for the same slot and one marked PREFER while the other marked CAN, the PREFER bid gets priority (all else being equal).
+</div>
+
+<h3>Time Blocks</h3>
+<p>Each day is divided into six 4-hour blocks:</p>
+<table>
+  <tr><th>Block</th><th>Time</th><th>Typical Shift Coverage</th></tr>
+  <tr><td><strong>6A - 10A</strong></td><td>6:00 AM - 10:00 AM</td><td>Early morning</td></tr>
+  <tr><td><strong>10A - 2P</strong></td><td>10:00 AM - 2:00 PM</td><td>Mid-day</td></tr>
+  <tr><td><strong>2P - 6P</strong></td><td>2:00 PM - 6:00 PM</td><td>Afternoon</td></tr>
+  <tr><td><strong>6P - 10P</strong></td><td>6:00 PM - 10:00 PM</td><td>Evening</td></tr>
+  <tr><td><strong>10P - 2A</strong></td><td>10:00 PM - 2:00 AM</td><td>Late night</td></tr>
+  <tr><td><strong>2A - 6A</strong></td><td>2:00 AM - 6:00 AM</td><td>Overnight</td></tr>
+</table>
+
+<div class="highlight">
+  <strong>Each block = 4 hours of OT.</strong> One block in Round 1 equals your weekly fair share. If you want more, set your Round 2 desired hours.
+</div>
+
+<h3>Tips for Filling Out Your Card</h3>
+<ol>
+  <li><strong>Be generous with your availability.</strong> The more blocks you mark as PREFER or CAN, the more likely you are to get OT. The system can only assign you to blocks you bid on.</li>
+  <li><strong>Use PREFER for your best shifts.</strong> If you really want a specific day/block, mark it PREFER. Don't mark everything PREFER &mdash; be honest about what you truly want vs. what you can do.</li>
+  <li><strong>Mark your days off.</strong> Your days off are the best time to pick up OT. Mark those blocks as PREFER or CAN.</li>
+  <li><strong>Mark CAN'T if you can't work a block.</strong> This tells supervisors you're unavailable. Don't leave blocks blank &mdash; fill in every block so we have a complete picture of your availability.</li>
+  <li><strong>Use drag-to-select for speed.</strong> Click and drag across a whole day, then pick PREFER or CAN from the popup. It's much faster than clicking each cell individually.</li>
+  <li><strong>Check every week.</strong> Navigate through all weeks of the month before submitting. Bids not entered are bids not counted.</li>
+  <li><strong>Submit on time.</strong> Late cards are not accepted. Watch the countdown timer in the header.</li>
+</ol>
+
+<div class="highlight">
+  <strong>Example:</strong> If you have Tuesdays and Wednesdays off and you'd love to pick up 8 hours of OT, mark 2-3 blocks on those days as PREFER and a couple more as CAN. That gives the system flexibility to slot you in where you're needed most.
+</div>
+
+<!-- HOW ASSIGNMENTS WORK -->
+<div class="page-break"></div>
+<h2>How Assignments Are Made</h2>
+
+<p>The assignment system is designed to be <strong>fair, transparent, and efficient</strong>. Here's exactly how it works:</p>
+
+<h3>Priority Order by Role</h3>
+<p>Assignments are made in this order because some roles are harder to fill:</p>
+<table>
+  <tr><th>Order</th><th>Role</th><th>Why First</th></tr>
+  <tr><td><strong>1st</strong></td><td>PIC</td><td>Smallest pool &mdash; only PICs can fill PIC slots</td></tr>
+  <tr><td><strong>2nd</strong></td><td>Dispatcher</td><td>Medium pool &mdash; PICs, Dispatchers, and Supervisors can fill</td></tr>
+  <tr><td><strong>3rd</strong></td><td>Calltaker</td><td>Largest pool &mdash; everyone qualifies</td></tr>
+</table>
+
+<div class="important">
+  <strong>What this means for you:</strong> If you're a PIC, your PIC OT needs are filled first before you'd be considered for Dispatcher or Calltaker OT. This ensures the hardest-to-fill positions get covered.
+</div>
+
+<h3>How the System Picks Who Gets a Shift</h3>
+<p>When multiple people bid for the same slot, the system uses these tiebreakers <strong>in order</strong>:</p>
+
+<ol>
+  <li><strong>Scarcest slot fills first</strong> &mdash; If a shift only has 1 person who bid for it, that person gets it before a shift with 10 bidders. This ensures hard-to-fill shifts don't go empty.</li>
+  <li><strong>Fewest options = higher priority</strong> &mdash; If you only bid for 3 blocks total and someone else bid for 20, you get priority on overlapping slots. The system protects people with limited availability.</li>
+  <li><strong>PREFER beats CAN</strong> &mdash; If you marked PREFER and someone else marked CAN, you win.</li>
+  <li><strong>Seniority</strong> &mdash; When all else is equal, seniority determines who gets the shift.</li>
+</ol>
+
+<h3>Round 1 vs Round 2</h3>
+<table>
+  <tr><th>Round</th><th>Goal</th><th>Your Weekly Cap</th></tr>
+  <tr><td><strong>Round 1</strong></td><td>Give everyone a fair share of OT</td><td>4 hours per week (1 block)</td></tr>
+  <tr><td><strong>Round 2</strong></td><td>Fill remaining open slots</td><td>Up to your personal OT cap (default 36 hrs/month)</td></tr>
+</table>
+
+<p><strong>Round 1</strong> makes sure everyone who wants OT gets at least some before anyone gets a lot. <strong>Round 2</strong> is opt-in only &mdash; it only runs for employees who explicitly set their Round 2 desired hours above 0. If you only want the fair share (4 hours/week), leave Round 2 at 0. If you want extra OT, set Round 2 to how many additional hours you'd like.</p>
+
+<h3>Cross-Role Protection</h3>
+<p>The system runs all three roles in order (PIC &rarr; Dispatcher &rarr; Calltaker). Once you're assigned a slot in one role, <strong>you cannot be double-booked</strong> for that same time block in another role. For example:</p>
+<ul>
+  <li>If you're a PIC and get assigned PIC OT from 6A-10A on March 5, you will NOT also be assigned Dispatcher or Calltaker OT for that same time block.</li>
+  <li>The system tracks assignments across all roles to prevent conflicts.</li>
+</ul>
+
+<h3>What Won't Happen</h3>
+<ul>
+  <li>You will <strong>never</strong> be assigned OT during your regular shift &mdash; the system knows your schedule</li>
+  <li>You will <strong>never</strong> be double-booked across roles (e.g., PIC OT and Calltaker OT at the same time)</li>
+  <li>You will <strong>never</strong> exceed your monthly OT cap</li>
+  <li>You will <strong>never</strong> be assigned to a block you didn't bid on</li>
+  <li>You will <strong>never</strong> be assigned to a block that's already fully staffed</li>
+  <li>You will <strong>never</strong> be assigned OT on a day you're on vacation &mdash; the system checks VacationOps automatically</li>
+</ul>
+
+<h3>Why Might a Slot Go Unfilled?</h3>
+<p>A slot may remain unfilled after distribution if:</p>
+<ul>
+  <li>Nobody bid for that time block</li>
+  <li>Everyone who bid for it was already assigned to another slot at the same time</li>
+  <li>All eligible bidders already hit their cap</li>
+</ul>
+<p>Unfilled slots show as "NEEDED" on the staffing grid. Supervisors may assign them as mandatory OT.</p>
+
+<!-- WHAT YOU CAN DO -->
+<div class="page-break"></div>
+<h2>Who Can Work What</h2>
+
+<p>Your position determines which OT roles you're eligible for:</p>
+
+<table>
+  <tr><th>Your Position</th><th>You Can Fill OT For</th></tr>
+  <tr><td><strong>PIC</strong></td><td>PIC, Dispatcher, Calltaker</td></tr>
+  <tr><td><strong>Dispatcher</strong></td><td>Dispatcher, Calltaker</td></tr>
+  <tr><td><strong>Supervisor</strong></td><td>Dispatcher, Calltaker</td></tr>
+  <tr><td><strong>Calltaker</strong></td><td>Calltaker only</td></tr>
+</table>
+
+<div class="highlight">
+  <strong>Higher qualifications = more OT opportunity.</strong> PICs have access to every OT slot in the building. If you're working toward a higher qualification, this is another reason to do so.
+</div>
+
+<div class="important">
+  <strong>Your bids are filtered by qualification.</strong> When supervisors view the OT BIDS list for a role, only qualified employees' bids appear. You won't see Calltaker-only employees in the Dispatcher or PIC bid lists.
+</div>
+
+<!-- VIEWING YOUR RESULTS -->
+<div class="page-break"></div>
+<h2>After Assignments Are Published</h2>
+
+<p>Once supervisors run the distribution and publish assignments, you'll see your results in two places:</p>
+
+<h3>1. OT Bidding Page &mdash; Approved Slots</h3>
+<p>Log back into the OT Bidding page. You'll see:</p>
+<ul>
+  <li>A <strong>blue status banner</strong> saying "Assignments published"</li>
+  <li>An <strong>Approved Slots section</strong> listing every OT shift you were assigned, showing the date and time block for each (e.g., "Mar 5 6A-10A", "Mar 12 2P-6P")</li>
+  <li>Your bidding grid will still be visible so you can compare what you bid vs. what you got</li>
+</ul>
+
+<h3>2. StaffingOps &mdash; Monthly View</h3>
+<p>Your assignments also appear on the monthly staffing grid:</p>
+<ul>
+  <li>Your name shows up in the staffing column with a red <strong style="background:#dc2626;color:#fff;padding:1px 6px;border-radius:3px;font-size:9pt">OT</strong> badge next to it</li>
+  <li>In the OT BIDS row below, your bid bubble turns <strong style="color:#c62828">red</strong> with an OT badge &mdash; so supervisors can see at a glance which bidders were assigned</li>
+  <li>Unassigned bidders stay green (PREFER) or yellow (CAN)</li>
+</ul>
+
+<!-- HOW IT WORKS BUTTON -->
+<h2>The "How It Works" Button</h2>
+<p>There's a <strong>"? HOW IT WORKS"</strong> button in the header of the OT Bidding page. Click it anytime for a quick summary of the bidding process, including:</p>
+<ul>
+  <li>How to navigate weeks and fill in cells</li>
+  <li>What PREFER, CAN, CAN'T, and blank mean</li>
+  <li>How Round 1 and Round 2 work</li>
+  <li>Why marking more availability helps you</li>
+  <li>How cross-position coverage works</li>
+</ul>
+<p>It's a handy reference if you forget anything while filling out your card.</p>
+
+<!-- FAQ -->
+<div class="page-break"></div>
+<h2>Frequently Asked Questions</h2>
+
+<dl class="faq">
+  <dt>Q: How do I log in?</dt>
+  <dd>Select your name from the dropdown and enter your password. Your default password is the first 4 characters of your first name in lowercase (e.g., "jose" for Jose).</dd>
+
+  <dt>Q: What if I don't submit my card?</dt>
+  <dd>You will not be assigned any voluntary OT for that period. If staffing is still short after the bidding process, mandatory OT may be assigned regardless.</dd>
+
+  <dt>Q: Can I change my card after submitting?</dt>
+  <dd>Yes, you can update your availability any time before the deadline. After the deadline, changes are not accepted.</dd>
+
+  <dt>Q: How do I fill multiple cells at once?</dt>
+  <dd>Click and drag across the cells you want to select. They'll get a blue highlight. When you release, a popup appears with PREFER, CAN, CAN'T, and CLEAR buttons. Click one to apply it to all selected cells.</dd>
+
+  <dt>Q: What if I bid PREFER on everything?</dt>
+  <dd>The system treats them all equally as PREFER. It's better to be honest &mdash; mark your true preferences as PREFER and your backup availability as CAN. This helps the system make smarter assignments.</dd>
+
+  <dt>Q: What's the difference between CAN'T and blank?</dt>
+  <dd>CAN'T explicitly tells supervisors "I am not available for this block." Blank means you didn't respond. Both result in no assignment, but filling in CAN'T helps supervisors understand your actual availability. Fill in every cell.</dd>
+
+  <dt>Q: What if nobody bids for a shift?</dt>
+  <dd>That shift remains unfilled in the voluntary process. Supervisors may need to assign it as mandatory OT. The more people who bid, the less mandatory OT for everyone.</dd>
+
+  <dt>Q: Does seniority guarantee I get the shift I want?</dt>
+  <dd>Seniority is the last tiebreaker, not the first. Someone with fewer options and a PREFER bid can beat a senior person with a CAN bid and lots of availability. The system is designed to be fair, not just seniority-based.</dd>
+
+  <dt>Q: How much OT can I get?</dt>
+  <dd>The default cap is 36 hours per month. Your supervisor may set a different cap for you individually. Round 1 gives everyone up to 4 hours/week before Round 2 opens up more hours.</dd>
+
+  <dt>Q: What does the Round 2 "Desired Hours" input do?</dt>
+  <dd>Round 1 is fixed at 4 hours/week for everyone. Round 2 is opt-in only &mdash; it only runs for employees who set their Round 2 desired hours above 0. Enter how many extra hours you'd like and the system will try to give you up to that amount from remaining slots. If you leave it at 0, you will only receive up to 4 hours/week from Round 1.</dd>
+
+  <dt>Q: I'm a PIC. Will I get stuck filling Calltaker OT?</dt>
+  <dd>No. PIC OT needs are filled first. You'll only be considered for Dispatcher or Calltaker OT after all PIC slots are handled &mdash; and only if you bid for those time blocks.</dd>
+
+  <dt>Q: What if I get assigned a shift I marked CAN but don't really want?</dt>
+  <dd>CAN means you can work it. If you can't, mark it CAN'T. Be honest with your availability &mdash; the system takes you at your word.</dd>
+
+  <dt>Q: Can I see who else bid for the same shifts?</dt>
+  <dd>No. Bid submissions are confidential. You'll only see your own assignments after they're published.</dd>
+
+  <dt>Q: What happens to unfilled shifts?</dt>
+  <dd>They show up as "NEEDED" on the staffing grid. Supervisors can manually assign them or use mandatory OT. Help us avoid this &mdash; bid for what you can work.</dd>
+
+  <dt>Q: Why are some cells grey and unclickable?</dt>
+  <dd>Grey cells are time blocks during your regular scheduled shift. You can't bid for OT on blocks you're already working.</dd>
+
+  <dt>Q: What does the countdown timer in the header mean?</dt>
+  <dd>It shows how much time remains before the bidding deadline. When it turns red, you have less than 24 hours left. Once it hits zero, the SUBMIT button is disabled.</dd>
+
+  <dt>Q: I forgot to check all the weeks. Did I miss some?</dt>
+  <dd>Use the arrow buttons (or keyboard arrow keys) to navigate through all weeks. Any week you didn't fill out will have blank cells &mdash; the system won't bid for those blocks on your behalf.</dd>
+
+  <dt>Q: What does it mean when a bid bubble turns red in the OT BIDS row?</dt>
+  <dd>It means that person was assigned OT for that slot. Red bubbles with an OT badge match the red OT badges in the staffing row above. Green and yellow bubbles are bidders who were NOT assigned to that particular slot.</dd>
+
+  <dt>Q: What does "Run All Roles" do?</dt>
+  <dd>It runs the distribution engine three times in order: PIC first, then Dispatcher, then Calltaker. Each role uses its own employee list and staffing targets. This can be run from any role view &mdash; you don't need to switch between roles. Assignments from earlier roles carry forward so nobody gets double-booked.</dd>
+
+  <dt>Q: I'm a PIC. How do I know which slots need PIC coverage?</dt>
+  <dd>The bidding page shows role badges (PIC/DP/CT) on each cell telling you what's needed. Aim for PIC-labeled slots first, but bid on others too as backup.</dd>
+
+  <dt>Q: What if I'm on vacation during the bidding period?</dt>
+  <dd>Your vacation dates are automatically excluded. The system will not assign you OT on any day you're listed as on vacation in VacationOps.</dd>
+
+  <dt>Q: What if I set Round 2 to 0?</dt>
+  <dd>You'll only get up to 4 hours/week from Round 1. You won't be considered for extra hours in Round 2. Set Round 2 greater than 0 if you want more OT beyond the fair share.</dd>
+</dl>
+
+<!-- SUMMARY -->
+<div class="page-break"></div>
+<h2>Quick Reference Card</h2>
+
+<div style="border:3px solid #1a1a1a;border-radius:10px;padding:20px;margin:20px 0">
+  <h3 style="text-align:center;font-size:16pt;margin-bottom:16px">YOUR OT BIDDING CHECKLIST</h3>
+
+  <table style="border:none;margin:0">
+    <tr style="background:none"><td style="border:none;padding:6px 10px;font-size:11pt;vertical-align:top;width:30px">&#9744;</td><td style="border:none;padding:6px 10px;font-size:11pt"><strong>Log in</strong> &mdash; Select your name, enter your password (first 4 letters of your first name, lowercase)</td></tr>
+    <tr style="background:none"><td style="border:none;padding:6px 10px;font-size:11pt;vertical-align:top">&#9744;</td><td style="border:none;padding:6px 10px;font-size:11pt"><strong>Check the deadline</strong> &mdash; Look at the countdown timer in the top-right corner</td></tr>
+    <tr style="background:none"><td style="border:none;padding:6px 10px;font-size:11pt;vertical-align:top">&#9744;</td><td style="border:none;padding:6px 10px;font-size:11pt"><strong>Review your schedule</strong> &mdash; Check the schedule bar to see your regular shifts and days off</td></tr>
+    <tr style="background:none"><td style="border:none;padding:6px 10px;font-size:11pt;vertical-align:top">&#9744;</td><td style="border:none;padding:6px 10px;font-size:11pt"><strong>Go through every week</strong> &mdash; Use the arrows to navigate all weeks of the month</td></tr>
+    <tr style="background:none"><td style="border:none;padding:6px 10px;font-size:11pt;vertical-align:top">&#9744;</td><td style="border:none;padding:6px 10px;font-size:11pt"><strong>Mark PREFER</strong> on shifts you truly want (green)</td></tr>
+    <tr style="background:none"><td style="border:none;padding:6px 10px;font-size:11pt;vertical-align:top">&#9744;</td><td style="border:none;padding:6px 10px;font-size:11pt"><strong>Mark CAN</strong> on shifts you're available but flexible about (yellow)</td></tr>
+    <tr style="background:none"><td style="border:none;padding:6px 10px;font-size:11pt;vertical-align:top">&#9744;</td><td style="border:none;padding:6px 10px;font-size:11pt"><strong>Mark CAN'T</strong> on shifts you absolutely cannot work (red)</td></tr>
+    <tr style="background:none"><td style="border:none;padding:6px 10px;font-size:11pt;vertical-align:top">&#9744;</td><td style="border:none;padding:6px 10px;font-size:11pt"><strong>Set Round 2 desired hours</strong> &mdash; Enter how much extra OT you want beyond the 4 hrs/week fair share</td></tr>
+    <tr style="background:none"><td style="border:none;padding:6px 10px;font-size:11pt;vertical-align:top">&#9744;</td><td style="border:none;padding:6px 10px;font-size:11pt"><strong>Submit before the deadline</strong> &mdash; Click SUBMIT BIDS. No exceptions.</td></tr>
+    <tr style="background:none"><td style="border:none;padding:6px 10px;font-size:11pt;vertical-align:top">&#9744;</td><td style="border:none;padding:6px 10px;font-size:11pt"><strong>Check your results</strong> &mdash; After assignments are published, log back in to see your approved OT slots</td></tr>
+  </table>
+</div>
+
+<div style="text-align:center;margin-top:40px;padding:20px;background:#f5f5f5;border-radius:8px">
+  <p style="font-size:14pt;font-weight:800;margin-bottom:8px">More Availability = More OT on Your Terms</p>
+  <p style="font-size:11pt;color:#555;margin-bottom:0">The system can only give you shifts you bid on.<br/>The more you bid, the more you get. It's that simple.</p>
+</div>
+
+</body>
+</html>

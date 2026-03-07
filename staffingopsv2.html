@@ -12,7 +12,7 @@
 <style>
 :root{--bg:#0b0f16;--panel:#111826;--panel2:#0f1622;--line:#2a3446;--text:#e6edf7;--muted:#a8b3c7;--btn:#1f6feb;--btn2:#233047;--danger:#d94848;--ok:#22c55e;--warn:#eab308;--short:#dc2626}
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;overflow-y:auto}
+html,body{height:100%;overflow:hidden}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text)}
 body.light{--bg:#f5f7fa;--panel:#ffffff;--panel2:#f0f2f5;--line:#d1d5db;--text:#1f2937;--muted:#6b7280;--btn:#2563eb;--btn2:#e5e7eb;--short:#dc2626;--ok:#16a34a;--warn:#ca8a04}
 
@@ -62,7 +62,7 @@ body.light{--bg:#f5f7fa;--panel:#ffffff;--panel2:#f0f2f5;--line:#d1d5db;--text:#
 
 /* Main layout */
 .main-layout{display:flex;gap:12px;padding:12px;height:calc(100vh - 52px);overflow:hidden}
-.grid-panel{flex:1;display:flex;flex-direction:column;gap:8px;overflow-y:auto}
+.grid-panel{flex:1;display:flex;flex-direction:column;gap:8px;overflow:hidden;min-height:0}
 .roster-panel{flex:1;display:flex;flex-direction:column;gap:8px;overflow:hidden;transition:all .2s}
 .roster-panel.collapsed{flex:0 0 0;min-width:0;overflow:hidden;opacity:0;padding:0;gap:0;pointer-events:none}
 .roster-panel.collapsed+*,.grid-panel.full-width{flex:1}
@@ -454,25 +454,21 @@ tr.on-vacation .shift-sel{pointer-events:none}
             <button class="btn" onclick="document.getElementById('otBiddingPanel').style.display='none'">CLOSE</button>
           </div>
 
-          <!-- Period Settings -->
-          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
-            <label style="font-size:11px;font-weight:700;color:var(--muted)">Period Type
-              <select id="otbPeriodType" style="display:block;margin-top:3px;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text)">
-                <option value="weekly">Weekly</option><option value="biweekly">Biweekly</option><option value="3week">3 Week</option><option value="monthly" selected>Monthly</option>
-              </select>
+          <!-- Period Settings — auto-synced from main month selector -->
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;align-items:flex-end">
+            <label style="font-size:11px;font-weight:700;color:var(--muted)">Start
+              <input type="date" id="otbPeriodStart" readonly style="display:block;margin-top:3px;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid rgba(74,163,255,.3);background:rgba(74,163,255,.08);color:#4aa3ff;font-weight:700;opacity:1">
             </label>
-            <label style="font-size:11px;font-weight:700;color:var(--muted)">Start Date
-              <input type="date" id="otbPeriodStart" style="display:block;margin-top:3px;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text)">
+            <label style="font-size:11px;font-weight:700;color:var(--muted)">End
+              <input type="date" id="otbPeriodEnd" readonly style="display:block;margin-top:3px;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid rgba(74,163,255,.3);background:rgba(74,163,255,.08);color:#4aa3ff;font-weight:700;opacity:1">
             </label>
-            <label style="font-size:11px;font-weight:700;color:var(--muted)">End Date
-              <input type="date" id="otbPeriodEnd" style="display:block;margin-top:3px;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text)">
-            </label>
+            <select id="otbPeriodType" style="display:none"><option value="biweekly" selected>Biweekly</option></select>
             <label style="font-size:11px;font-weight:700;color:var(--muted)">Deadline
               <input type="datetime-local" id="otbDeadline" style="display:block;margin-top:3px;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text)">
             </label>
             <label style="font-size:11px;font-weight:700;color:var(--muted)">Block Size
               <select id="otbBlockSize" style="display:block;margin-top:3px;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text)">
-                <option value="4" selected>4-hour blocks</option><option value="1">1-hour blocks</option>
+                <option value="4" selected>4-hour blocks</option>
               </select>
             </label>
             <label style="font-size:11px;font-weight:700;color:var(--muted)">Default Max OT (hrs)
@@ -689,6 +685,32 @@ const BLOCKS = [
 // ========== ROLE CONFIG ==========
 let currentRole = 'CALLTAKER';
 let currentMonth = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); })();
+let _ppStart = null; // YYYY-MM-DD pay period start
+let _ppEnd = null;   // YYYY-MM-DD pay period end
+
+// Get all dates in the active pay period as Date objects
+function _getActiveDates() {
+  if (!_ppStart || !_ppEnd) {
+    // Fallback to calendar month
+    const [yr, mo] = currentMonth.split('-').map(Number);
+    const daysInMonth = new Date(yr, mo, 0).getDate();
+    const dates = [];
+    for (let d = 1; d <= daysInMonth; d++) dates.push(new Date(yr, mo - 1, d));
+    return dates;
+  }
+  const start = new Date(_ppStart + 'T00:00:00');
+  const end = new Date(_ppEnd + 'T00:00:00');
+  const dates = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    dates.push(new Date(d));
+  }
+  return dates;
+}
+
+// Format Date to YYYY-MM-DD
+function _fmtDate(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
 
 function getSettingsDocId() {
   return ROLE_CONFIG[currentRole].settingsDoc + '-' + currentMonth;
@@ -733,7 +755,9 @@ let BASELINE_SHORTFALL = 0;
 let BASELINE_GRID = null; // [dayIdx][blockIdx].current — cached on first load
 let rosterSort = 'name'; // 'seniority' or 'name'
 let _otAssignments = {}; // key "day-blockIdx" → [names]
-let _ctAssignments = {}; // key "day-blockIdx" → [names]  (from RotationOps CT)
+let _ctAssignments = {}; // key "day-blockIdx" → [names]  (from RotationOps CT — legacy)
+let _dispOverflowCache = null; // { "dateStr-blockIdx": overflowCount } — computed dispatcher surplus for calltaker
+let _sdPredictionCache = null; // { "dateStr-otBlockIdx": [names] } — predicted SD assignments per OT block
 let _ctUnsub = null; // onSnapshot unsubscribe for rotation_plans
 let _rotationPlanDays = null; // full rotation plan days object for DISPATCHER read-only view
 let _otBidData = null; // current ot_bids document
@@ -829,6 +853,7 @@ async function loadAllData() {
     BASELINE_GRID = baseResult.grid.map(dayRow => dayRow.map(c => ({ current: c.current })));
     await loadExcluded();
     await loadVacations();
+    await _refreshDispOverflow();
     await loadHypoState();
     listenSettings();
     listenVacations();
@@ -956,22 +981,21 @@ const _ROT_BLOCK_HOURS = [6, 10, 14, 18, 22, 26]; // start hours for each OT blo
 const _ROT_BLOCK_TO_DAY_IDX = { 0:6, 1:0, 2:1, 3:2, 4:3, 5:4, 6:5 }; // JS dow → DAYS index
 
 function computeMonthlyFromRotation() {
-  const [yr, mo] = currentMonth.split('-').map(Number);
-  const daysInMonth = new Date(yr, mo, 0).getDate();
+  const activeDates = _getActiveDates();
   const result = [];
   if (!_rotationPlanDays) return result;
-  for (let date = 1; date <= daysInMonth; date++) {
-    const dateObj = new Date(yr, mo - 1, date);
+  for (const dateObj of activeDates) {
+    const date = dateObj.getDate();
     const dow = dateObj.getDay();
     const dayIdx = _ROT_BLOCK_TO_DAY_IDX[dow];
     const day = DAYS[dayIdx];
-    const dayKey = yr + '-' + String(mo).padStart(2,'0') + '-' + String(date).padStart(2,'0');
+    const dayKey = _fmtDate(dateObj);
     const dayData = _rotationPlanDays[dayKey];
     // Vacations for this date
     const vacNamesOnDate = [];
     for (const v of vacations) {
-      const f = v.from ? new Date(v.from + 'T00:00:00') : new Date(yr, mo - 1, 1);
-      const t = v.to ? new Date(v.to + 'T00:00:00') : new Date(yr, mo, 0);
+      const f = v.from ? new Date(v.from + 'T00:00:00') : new Date(activeDates[0]);
+      const t = v.to ? new Date(v.to + 'T00:00:00') : new Date(activeDates[activeDates.length - 1]);
       if (dateObj.getTime() >= f.getTime() && dateObj.getTime() <= t.getTime()) vacNamesOnDate.push(v.name.toUpperCase());
     }
     const blocks = [];
@@ -1003,9 +1027,10 @@ function computeMonthlyFromRotation() {
         }
       }
       names.sort((a, b) => a.name.localeCompare(b.name));
-      // Include OT assignments from StaffingOps
-      const staffOTKey = date + '-' + bi;
-      const staffOTNames = (_otAssignments[staffOTKey] || []).slice();
+      // Include OT assignments from StaffingOps (try full date key first, fallback to day-of-month)
+      const fullKey = dayKey + '-' + bi;
+      const legacyKey = date + '-' + bi;
+      const staffOTNames = (_otAssignments[fullKey] || _otAssignments[legacyKey] || []).slice();
       // Merge: don't duplicate names already in rotation otNames
       const rotOTSet = new Set(otNames.map(n => n.toUpperCase()));
       const extraOT = staffOTNames.filter(n => !rotOTSet.has(n.toUpperCase()));
@@ -1013,7 +1038,9 @@ function computeMonthlyFromRotation() {
       const otNeed = Math.max(0, needed - filled - extraOT.length);
       blocks.push({ label: _ROT_BLOCK_KEYS[bi], names, needed, current: filled + extraOT.length, otNeed, delta: (filled + extraOT.length) - needed, ctNames: [], otNames: allOTNames });
     }
-    result.push({ date, dow, vacNames: [...new Set(vacNamesOnDate)].sort(), blocks });
+    const [_cyr, _cmo] = currentMonth.split('-').map(Number);
+    const _outOfMonth = (dateObj.getMonth() + 1 !== _cmo || dateObj.getFullYear() !== _cyr);
+    result.push({ date, dow, dateStr: dayKey, outOfMonth: _outOfMonth, vacNames: [...new Set(vacNamesOnDate)].sort(), blocks });
   }
   return result;
 }
@@ -1029,21 +1056,21 @@ const OT_BLOCKS = [
 ];
 
 function computeOTNeeds() {
-  const [yr, mo] = currentMonth.split('-').map(Number);
-  const daysInMonth = new Date(yr, mo, 0).getDate();
+  const activeDates = _getActiveDates();
   const jsDay2idx = { 0:6, 1:0, 2:1, 3:2, 4:3, 5:4, 6:5 }; // JS Sunday=0 → our index
   const results = [];
 
-  for (let date = 1; date <= daysInMonth; date++) {
-    const dateObj = new Date(yr, mo - 1, date);
+  for (const dateObj of activeDates) {
+    const date = dateObj.getDate();
+    const dateKey = _fmtDate(dateObj);
     const dayIdx = jsDay2idx[dateObj.getDay()];
     const day = DAYS[dayIdx];
 
     // Get vacation names for this specific date
     const vacNamesOnDate = [];
     for (const v of vacations) {
-      const f = v.from ? new Date(v.from + 'T00:00:00') : new Date(yr, mo - 1, 1);
-      const t = v.to ? new Date(v.to + 'T00:00:00') : new Date(yr, mo, 0);
+      const f = v.from ? new Date(v.from + 'T00:00:00') : new Date(activeDates[0]);
+      const t = v.to ? new Date(v.to + 'T00:00:00') : new Date(activeDates[activeDates.length - 1]);
       if (dateObj.getTime() >= f.getTime() && dateObj.getTime() <= t.getTime()) {
         vacNamesOnDate.push(v.name.toUpperCase());
       }
@@ -1056,7 +1083,8 @@ function computeOTNeeds() {
       const block = BLOCKS[bi];
       let current = 0;
       for (let i = 0; i < ORIG_DISPATCHERS.length; i++) {
-        if (vacSet.has(ORIG_DISPATCHERS[i].name.toUpperCase())) continue;
+        const nm = ORIG_DISPATCHERS[i].name.toUpperCase();
+        if (vacSet.has(nm)) continue;
         if (shiftCoversBlock(ORIG_DISPATCHERS[i].schedule[day], block)) current++;
       }
       const needed = getNeededForBlock(day, block);
@@ -1068,16 +1096,20 @@ function computeOTNeeds() {
     let dateTotalOT = 0;
     for (let obi = 0; obi < OT_BLOCKS.length; obi++) {
       const ob = OT_BLOCKS[obi];
+      const fullKey = dateKey + '-' + obi;
+      const legacyKey = date + '-' + obi;
+      // SD count for dispatcher role
+      const sdCount = (currentRole === 'DISPATCHER' && _sdPredictionCache) ? (_sdPredictionCache[fullKey] || []).length : 0;
       let maxShort = 0;
       for (const bi of ob.blockIdxs) {
-        if (hourlyStaffing[bi].delta < 0) {
-          maxShort = Math.max(maxShort, Math.abs(hourlyStaffing[bi].delta));
+        const adjustedDelta = hourlyStaffing[bi].delta - sdCount;
+        if (adjustedDelta < 0) {
+          maxShort = Math.max(maxShort, Math.abs(adjustedDelta));
         }
       }
-      // Subtract CT (calltaker only) + OT coverage
-      const ctKey = date + '-' + obi;
-      const ctCount = currentRole === 'CALLTAKER' ? (_ctAssignments[ctKey] || []).length : 0;
-      const otCount = (_otAssignments[ctKey] || []).length;
+      // Subtract dispatcher overflow (calltaker only) + OT coverage
+      const ctCount = (currentRole === 'CALLTAKER' && _dispOverflowCache) ? (_dispOverflowCache[fullKey] || 0) : 0;
+      const otCount = (_otAssignments[fullKey] || _otAssignments[legacyKey] || []).length;
       maxShort = Math.max(0, maxShort - ctCount - otCount);
       if (maxShort > 0) {
         dateBlocks.push({ label: ob.label, need: maxShort });
@@ -1093,7 +1125,7 @@ function computeOTNeeds() {
         date,
         dayName,
         isWeekend,
-        dateStr: String(mo).padStart(2,'0') + '/' + String(date).padStart(2,'0'),
+        dateStr: String(dateObj.getMonth() + 1).padStart(2,'0') + '/' + String(date).padStart(2,'0'),
         blocks: dateBlocks,
         totalOT: dateTotalOT,
         vacNames: [...vacSet].sort()
@@ -1103,14 +1135,199 @@ function computeOTNeeds() {
   return results;
 }
 
-function computeMonthlyStaffing() {
-  const [yr, mo] = currentMonth.split('-').map(Number);
-  const daysInMonth = new Date(yr, mo, 0).getDate();
+// Predict SD assignments for the active date range
+// Mirrors rotationops logic: assign SD on most-staffed days, 32 blocks/month cap, 8 blocks/week cap
+// Returns { "YYYY-MM-DD": { blockIdx: [names] } } — which SD people are on SD per hourly block
+function _predictSD(dispEmployees) {
+  const activeDates = _getActiveDates();
+  const jsDay2idx = { 0:6, 1:0, 2:1, 3:2, 4:3, 5:4, 6:5 };
+  const sdEligible = ROLE_CONFIG.DISPATCHER.sdEligible;
+  const SD_MONTHLY_CAP = 32;
+
+  // Build per-date dispatcher counts and scheduled SD people per hourly block
+  const dateInfo = [];
+  for (const dateObj of activeDates) {
+    const dateKey = _fmtDate(dateObj);
+    const dayIdx = jsDay2idx[dateObj.getDay()];
+    const day = DAYS[dayIdx];
+
+    // Vacations
+    const vacSet = new Set();
+    for (const v of vacations) {
+      const f = v.from ? new Date(v.from + 'T00:00:00') : new Date(activeDates[0]);
+      const t = v.to ? new Date(v.to + 'T00:00:00') : new Date(activeDates[activeDates.length - 1]);
+      if (dateObj.getTime() >= f.getTime() && dateObj.getTime() <= t.getTime()) vacSet.add(v.name.toUpperCase());
+    }
+
+    // Count dispatchers and track who works each hourly block
+    let dispCount = 0;
+    const blockWorkers = []; // blockWorkers[bi] = [names working this block]
+    for (let bi = 0; bi < BLOCKS.length; bi++) {
+      blockWorkers.push([]);
+      const block = BLOCKS[bi];
+      for (const emp of dispEmployees) {
+        if (vacSet.has(emp.name.toUpperCase())) continue;
+        if (shiftCoversBlock(emp.schedule[day], block)) {
+          blockWorkers[bi].push(emp.name.toUpperCase());
+        }
+      }
+      dispCount = Math.max(dispCount, blockWorkers[bi].length);
+    }
+
+    dateInfo.push({ dateKey, dateObj, day, dispCount, blockWorkers, vacSet });
+  }
+
+  // Group dates into Sat-Fri weeks
+  const weeks = [];
+  let currentWeek = [];
+  for (const di of dateInfo) {
+    if (di.dateObj.getDay() === 6 && currentWeek.length > 0) {
+      weeks.push(currentWeek);
+      currentWeek = [];
+    }
+    currentWeek.push(di);
+  }
+  if (currentWeek.length > 0) weeks.push(currentWeek);
+
+  // SD assignment result
+  const sdResult = {}; // dateKey -> { hourBlockIdx: [names] }
+  const sdMonthlyCount = new Map();
+  for (const nm of sdEligible) sdMonthlyCount.set(nm, 0);
+
+  for (const weekDays of weeks) {
+    // Sort days by dispatcher count descending (most staffed first)
+    const sorted = weekDays.slice().sort((a, b) => b.dispCount - a.dispCount);
+
+    // Pro-rate weekly cap: full week (7 days) = 8 blocks, scale by actual days
+    const sdWeeklyCap = Math.min(8, Math.round(8 * sorted.length / 5));
+    const sdBlocksThisWeek = new Map();
+    for (const nm of sdEligible) sdBlocksThisWeek.set(nm, 0);
+
+    for (const di of sorted) {
+      sdResult[di.dateKey] = {};
+      for (let bi = 0; bi < BLOCKS.length; bi++) {
+        sdResult[di.dateKey][bi] = [];
+        for (const sdName of sdEligible) {
+          const weeklyBlocks = sdBlocksThisWeek.get(sdName) || 0;
+          if (weeklyBlocks >= sdWeeklyCap) continue;
+          const monthlyBlocks = sdMonthlyCount.get(sdName) || 0;
+          if (monthlyBlocks >= SD_MONTHLY_CAP) continue;
+          // Check if this person works this block
+          if (!di.blockWorkers[bi].includes(sdName)) continue;
+          // Assign to SD
+          sdResult[di.dateKey][bi].push(sdName);
+          sdBlocksThisWeek.set(sdName, weeklyBlocks + 1);
+          sdMonthlyCount.set(sdName, monthlyBlocks + 1);
+        }
+      }
+    }
+  }
+
+  return sdResult;
+}
+
+// Aggregate hourly SD predictions into OT_BLOCK level
+// Returns { "YYYY-MM-DD-otBlockIdx": [names] }
+function _aggregateSDToOTBlocks(sdPredictions) {
+  const result = {};
+  for (const [dateKey, hourBlocks] of Object.entries(sdPredictions)) {
+    for (let obi = 0; obi < OT_BLOCKS.length; obi++) {
+      const ob = OT_BLOCKS[obi];
+      // A person is on SD for this OT block if they're on SD for ALL hours in the block
+      const nameCountMap = {};
+      for (const bi of ob.blockIdxs) {
+        for (const nm of (hourBlocks[bi] || [])) {
+          nameCountMap[nm] = (nameCountMap[nm] || 0) + 1;
+        }
+      }
+      const allHours = ob.blockIdxs.length;
+      const names = Object.keys(nameCountMap).filter(nm => nameCountMap[nm] === allHours);
+      if (names.length > 0) {
+        result[dateKey + '-' + obi] = names;
+      }
+    }
+  }
+  return result;
+}
+
+// Compute dispatcher overflow per OT block slot — surplus dispatchers available for calltaking
+// sdOTBlocks: { "dateKey-obi": [names on SD] } — subtracted from dispatcher count
+// Returns { "YYYY-MM-DD-blockIdx": overflowCount }
+function _computeDispatcherOverflow(dispEmployees, dispAdeq, sdOTBlocks) {
+  const activeDates = _getActiveDates();
+  const jsDay2idx = { 0:6, 1:0, 2:1, 3:2, 4:3, 5:4, 6:5 };
+  const overflow = {};
+
+  for (const dateObj of activeDates) {
+    const dateKey = _fmtDate(dateObj);
+    const dayIdx = jsDay2idx[dateObj.getDay()];
+    const day = DAYS[dayIdx];
+
+    // Vacations for this date
+    const vacSet = new Set();
+    for (const v of vacations) {
+      const f = v.from ? new Date(v.from + 'T00:00:00') : new Date(activeDates[0]);
+      const t = v.to ? new Date(v.to + 'T00:00:00') : new Date(activeDates[activeDates.length - 1]);
+      if (dateObj.getTime() >= f.getTime() && dateObj.getTime() <= t.getTime()) vacSet.add(v.name.toUpperCase());
+    }
+
+    for (let obi = 0; obi < OT_BLOCKS.length; obi++) {
+      const ob = OT_BLOCKS[obi];
+      const key = dateKey + '-' + obi;
+      const sdNames = sdOTBlocks ? (sdOTBlocks[key] || []) : [];
+      const sdSet = new Set(sdNames.map(n => n.toUpperCase()));
+      // Find minimum surplus across all hours in this 4-hour block
+      let minSurplus = Infinity;
+      for (const bi of ob.blockIdxs) {
+        const block = BLOCKS[bi];
+        let scheduled = 0;
+        for (const emp of dispEmployees) {
+          const nm = emp.name.toUpperCase();
+          if (vacSet.has(nm)) continue;
+          if (sdSet.has(nm)) continue; // on SD, not dispatching
+          if (shiftCoversBlock(emp.schedule[day], block)) scheduled++;
+        }
+        const needed = _getNeededForBlockWithAdeq(day, block, dispAdeq);
+        const surplus = scheduled - needed;
+        if (surplus < minSurplus) minSurplus = surplus;
+      }
+      overflow[key] = Math.max(0, minSurplus);
+    }
+  }
+  return overflow;
+}
+
+// Refresh cached dispatcher overflow + SD predictions (call after vacations load or role/month switch)
+async function _refreshDispOverflow() {
+  try {
+    const dispData = await _loadRoleData('DISPATCHER');
+    const sdHourly = _predictSD(dispData.employees);
+    _sdPredictionCache = _aggregateSDToOTBlocks(sdHourly);
+    _dispOverflowCache = _computeDispatcherOverflow(dispData.employees, dispData.adeq, _sdPredictionCache);
+  } catch (e) {
+    console.warn('Failed to refresh dispatcher overflow:', e);
+    _dispOverflowCache = null;
+    _sdPredictionCache = null;
+  }
+}
+
+// Helper: getNeededForBlock using a specific ADEQ table (not the global one)
+function _getNeededForBlockWithAdeq(day, block, adeqTable) {
+  if (!adeqTable || !adeqTable[day]) return 10;
+  const realHour = block.start % 24;
+  const hk = String(realHour).padStart(2, '0') + '00';
+  const val = adeqLookup(adeqTable[day], hk);
+  return (val !== undefined && val > 0) ? val : 10;
+}
+
+function computeMonthlyStaffing(dispOverflow) {
+  const activeDates = _getActiveDates();
   const jsDay2idx = { 0:6, 1:0, 2:1, 3:2, 4:3, 5:4, 6:5 };
   const result = [];
 
-  for (let date = 1; date <= daysInMonth; date++) {
-    const dateObj = new Date(yr, mo - 1, date);
+  for (const dateObj of activeDates) {
+    const date = dateObj.getDate();
+    const dateKey = _fmtDate(dateObj);
     const dow = dateObj.getDay();
     const dayIdx = jsDay2idx[dow];
     const day = DAYS[dayIdx];
@@ -1118,8 +1335,8 @@ function computeMonthlyStaffing() {
     // Vacations for this specific date
     const vacNamesOnDate = [];
     for (const v of vacations) {
-      const f = v.from ? new Date(v.from + 'T00:00:00') : new Date(yr, mo - 1, 1);
-      const t = v.to ? new Date(v.to + 'T00:00:00') : new Date(yr, mo, 0);
+      const f = v.from ? new Date(v.from + 'T00:00:00') : new Date(activeDates[0]);
+      const t = v.to ? new Date(v.to + 'T00:00:00') : new Date(activeDates[activeDates.length - 1]);
       if (dateObj.getTime() >= f.getTime() && dateObj.getTime() <= t.getTime()) {
         vacNamesOnDate.push(v.name.toUpperCase());
       }
@@ -1146,31 +1363,52 @@ function computeMonthlyStaffing() {
     const blocks = [];
     for (let obi = 0; obi < OT_BLOCKS.length; obi++) {
       const ob = OT_BLOCKS[obi];
-      // Use the first hour-block index to get the representative names
       const repIdx = ob.blockIdxs[0];
-      const names = hourlyNames[repIdx];
+      let names = hourlyNames[repIdx].slice(); // copy so we can filter
       const needed = hourlyNeeded[repIdx];
-      // Also compute max shortfall across all hours in this OT block
+
+      // SD prediction: remove SD people from dispatcher names when viewing DISPATCHER
+      const fullKey = dateKey + '-' + obi;
+      const legacyKey = date + '-' + obi;
+      let sdNames = [];
+      if (currentRole === 'DISPATCHER' && _sdPredictionCache) {
+        sdNames = (_sdPredictionCache[fullKey] || []).slice();
+        const sdSet = new Set(sdNames.map(n => n.toUpperCase()));
+        names = names.filter(n => !sdSet.has(n.name.toUpperCase()));
+      }
+
       let maxShort = 0;
       for (const bi of ob.blockIdxs) {
-        const delta = hourlyNames[bi].length - hourlyNeeded[bi];
+        let blockCount = hourlyNames[bi].length;
+        // Also subtract SD from hourly delta calculation
+        if (currentRole === 'DISPATCHER' && _sdPredictionCache) {
+          const sdSet = new Set((_sdPredictionCache[fullKey] || []).map(n => n.toUpperCase()));
+          blockCount = hourlyNames[bi].filter(n => !sdSet.has(n.name.toUpperCase())).length;
+        }
+        const delta = blockCount - hourlyNeeded[bi];
         if (delta < 0) maxShort = Math.max(maxShort, Math.abs(delta));
       }
       names.sort((a, b) => {
         if (a.isLead !== b.isLead) return a.isLead ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
-      // CT dispatchers from RotationOps (calltaker only)
-      const ctKey = date + '-' + obi;
-      const ctNames = currentRole === 'CALLTAKER' ? (_ctAssignments[ctKey] || []).slice() : [];
-      // OT manually assigned
-      const otNames = (_otAssignments[ctKey] || []).slice();
-      // Reduce otNeed by CT + OT coverage
-      const adjustedOtNeed = Math.max(0, maxShort - ctNames.length - otNames.length);
-      blocks.push({ label: ob.label, names, needed, current: names.length, otNeed: adjustedOtNeed, delta: names.length - needed, ctNames, otNames });
+      // Dispatcher overflow into calltaking: use computed overflow if provided, else fall back to _ctAssignments
+      let ctCount = 0;
+      if (currentRole === 'CALLTAKER') {
+        if (dispOverflow) {
+          ctCount = dispOverflow[fullKey] || 0;
+        } else {
+          ctCount = (_ctAssignments[fullKey] || _ctAssignments[legacyKey] || []).length;
+        }
+      }
+      const otNames = (_otAssignments[fullKey] || _otAssignments[legacyKey] || []).slice();
+      const adjustedOtNeed = Math.max(0, maxShort - ctCount - otNames.length);
+      blocks.push({ label: ob.label, names, needed, current: names.length, otNeed: adjustedOtNeed, delta: names.length - needed, ctCount, otNames, sdNames });
     }
 
-    result.push({ date, dow, vacNames: [...vacSet].sort(), blocks });
+    const [_cyr, _cmo] = currentMonth.split('-').map(Number);
+    const _outOfMonth = (dateObj.getMonth() + 1 !== _cmo || dateObj.getFullYear() !== _cyr);
+    result.push({ date, dow, dateStr: dateKey, outOfMonth: _outOfMonth, vacNames: [...vacSet].sort(), blocks });
   }
   return result;
 }
@@ -1182,19 +1420,16 @@ function renderMonthlyOTView() {
   const [yr, mo] = currentMonth.split('-').map(Number);
   const MONTHS = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
   const today = new Date();
-  const todayDate = (today.getFullYear() === yr && today.getMonth() === mo - 1) ? today.getDate() : -1;
+  const todayStr = _fmtDate(today);
   const DOW_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const roleLabel = ROLE_CONFIG[currentRole].label;
-  const roleSingular = roleLabel.replace(/S$/, '');
+  const roleShort = { DISPATCHER: 'DP', CALLTAKER: 'CT', PIC: 'PIC' }[currentRole] || roleLabel.replace(/S$/, '');
 
-  const isDispatcher = currentRole === 'DISPATCHER';
-  const monthly = isDispatcher ? computeMonthlyFromRotation() : computeMonthlyStaffing();
+  const monthly = computeMonthlyStaffing(currentRole === 'CALLTAKER' ? _dispOverflowCache : null);
   let grandTotal = 0, daysWithOT = 0;
-  if (!isDispatcher) {
-    const needs = computeOTNeeds();
-    for (const d of needs) { grandTotal += d.totalOT; daysWithOT++; }
-  } else {
-    for (const d of monthly) { for (const b of d.blocks) { if (b.otNeed > 0) { grandTotal += b.otNeed; } } if (d.blocks.some(b => b.otNeed > 0)) daysWithOT++; }
+  for (const d of monthly) {
+    for (const b of d.blocks) { if (b.otNeed > 0) grandTotal += b.otNeed; }
+    if (d.blocks.some(b => b.otNeed > 0)) daysWithOT++;
   }
 
   const colsPerDay = 6;
@@ -1224,7 +1459,7 @@ function renderMonthlyOTView() {
   }
   for (const d of monthly) {
     for (const b of d.blocks) {
-      for (const n of (b.ctNames || [])) { if (!nameColorMap[n]) { nameColorMap[n] = NAME_COLORS[colorIdx % NAME_COLORS.length]; colorIdx++; } }
+      // ctCount is numeric now (dispatcher overflow), no names to color-map
       for (const n of (b.otNames || [])) { if (!nameColorMap[n]) { nameColorMap[n] = NAME_COLORS[colorIdx % NAME_COLORS.length]; colorIdx++; } }
     }
   }
@@ -1235,7 +1470,8 @@ function renderMonthlyOTView() {
 
   // Header
   let html = '<div class="ot-month-hdr">';
-  html += '<span class="ot-month-title">' + roleLabel + ' — ' + MONTHS[mo - 1] + ' ' + yr + '</span>';
+  const ppSuffix = _ppStart && _ppEnd ? ('  (' + _ppStart.slice(5).replace('-','/') + ' – ' + _ppEnd.slice(5).replace('-','/') + ')') : '';
+  html += '<span class="ot-month-title">' + roleLabel + ' — ' + MONTHS[mo - 1] + ' ' + yr + ppSuffix + '</span>';
   html += '<button class="btn" id="btnExportOT" style="font-size:10px;padding:5px 14px;background:rgba(220,38,38,.15);color:#ef4444;border-color:rgba(220,38,38,.3)">EXPORT OT NEEDS</button>';
   html += '<button class="btn" id="btnImportOT" style="font-size:10px;padding:5px 14px;background:rgba(34,197,94,.12);color:#22c55e;border-color:rgba(34,197,94,.3);margin-left:6px">IMPORT OT ASSIGNMENTS</button>';
   html += '<input type="file" id="importOTFile" accept=".xlsx,.xls,.csv" style="display:none"/>';
@@ -1243,12 +1479,13 @@ function renderMonthlyOTView() {
   html += '</div>';
 
   if (grandTotal > 0) {
-    html += '<div class="ot-month-summary">' + grandTotal + ' total OT slot' + (grandTotal !== 1 ? 's' : '') + ' needed across ' + daysWithOT + ' day' + (daysWithOT !== 1 ? 's' : '') + '</div>';
+    const grandHrs = grandTotal * 4;
+    html += '<div class="ot-month-summary">' + grandTotal + ' total OT slot' + (grandTotal !== 1 ? 's' : '') + ' / ' + grandHrs + ' hours needed across ' + daysWithOT + ' day' + (daysWithOT !== 1 ? 's' : '') + '</div>';
   } else {
     html += '<div class="ot-month-summary" style="color:#22c55e">No overtime needed — adequate staffing all month</div>';
   }
 
-  // Scroll wrapper — fills remaining viewport, scrollbar at bottom of screen
+  // Single scroll wrapper — handles both horizontal and vertical scroll
   html += '<div style="overflow:auto;flex:1;min-height:0">';
   html += '<table class="ot-roster-tbl">';
 
@@ -1257,8 +1494,11 @@ function renderMonthlyOTView() {
   for (let di = 0; di < monthly.length; di++) {
     const d = monthly[di];
     const isWknd = d.dow === 0 || d.dow === 6;
-    const isTdy = d.date === todayDate;
-    html += '<th class="dayhead' + (isWknd ? ' weekend' : '') + (isTdy ? ' today' : '') + '" colspan="' + colsPerDay + '" style="' + dayBorder(di) + '">' + DOW_LABELS[d.dow] + ' ' + mo + '/' + d.date + '</th>';
+    const isTdy = d.dateStr === todayStr;
+    const dParts = (d.dateStr || '').split('-');
+    const dLabel = dParts.length === 3 ? (parseInt(dParts[1]) + '/' + parseInt(dParts[2])) : (mo + '/' + d.date);
+    const oomStyle = '';
+    html += '<th class="dayhead' + (isWknd ? ' weekend' : '') + (isTdy ? ' today' : '') + '" colspan="' + colsPerDay + '" style="' + dayBorder(di) + oomStyle + '">' + DOW_LABELS[d.dow] + ' ' + dLabel + '</th>';
   }
   html += '</tr>';
 
@@ -1280,34 +1520,35 @@ function renderMonthlyOTView() {
       const b = d.blocks[bi];
       const db = (bi === 0) ? dayBorder(di) : '';
       html += '<td style="' + db + '">';
-      let count = 0;
-      for (const p of b.names) {
-        count++;
-        const bg = nameColorMap[p.name] || 'rgba(255,255,255,.08)';
-        html += '<div class="ot-name" style="background:' + bg + '"><span class="ot-num">' + count + '</span>' + esc(p.name) + '</div>';
-      }
-      for (const cn of (b.ctNames || [])) {
-        count++;
-        const bg = nameColorMap[cn] || 'rgba(255,255,255,.08)';
-        html += '<div class="ot-name" style="background:' + bg + '"><span class="ot-num">' + count + '</span>' + esc(cn) + '<span class="ct-badge">DISP IN CT</span></div>';
-      }
-      for (const on of (b.otNames || [])) {
-        count++;
-        const bg = nameColorMap[on] || 'rgba(255,255,255,.08)';
-          html += '<div class="ot-name" style="background:' + bg + ';cursor:pointer" onclick="removeOTAssign(\'' + esc(on).replace(/'/g, "\\'") + '\',' + d.date + ',' + bi + ')" title="Click to remove"><span class="ot-num">' + count + '</span>' + esc(on) + '<span class="ot-badge">OT</span></div>';
-      }
-      for (let n = 0; n < b.otNeed; n++) {
-        count++;
-          html += '<div class="ot-name needed" style="cursor:pointer" onclick="openOTAssignBox(' + d.date + ',' + bi + ')"><span class="ot-num">' + count + '</span>' + roleSingular + ' NEEDED</div>';
-      }
-      const totalFilled = b.names.length + (b.ctNames||[]).length + (b.otNames||[]).length;
-      const over = totalFilled - b.needed;
-      if (b.otNeed > 0) {
-        html += '<div style="text-align:center;font-size:9px;font-weight:900;color:#ef4444;padding:4px 0;letter-spacing:.5px;border-top:1px solid rgba(220,38,38,.2);margin-top:3px">NEED ' + b.otNeed + '</div>';
-      } else if (over > 0) {
-        html += '<div style="text-align:center;font-size:9px;font-weight:900;color:#818cf8;padding:4px 0;letter-spacing:.5px;border-top:1px solid rgba(129,140,248,.2);margin-top:3px">OVER +' + over + '</div>';
-      } else {
-        html += '<div style="text-align:center;font-size:9px;font-weight:900;color:#22c55e;padding:4px 0;letter-spacing:.5px;border-top:1px solid rgba(34,197,94,.2);margin-top:3px">FULL STAFFED</div>';
+      {
+        let count = 0;
+        for (const p of b.names) {
+          count++;
+          const bg = nameColorMap[p.name] || 'rgba(255,255,255,.08)';
+          html += '<div class="ot-name" style="background:' + bg + '"><span class="ot-num">' + count + '</span>' + esc(p.name) + '</div>';
+        }
+        for (let ci = 0; ci < (b.ctCount || 0); ci++) {
+          count++;
+          html += '<div class="ot-name" style="background:rgba(14,165,233,.12)"><span class="ot-num">' + count + '</span><span class="ct-badge">DISP IN CT</span></div>';
+        }
+        for (const on of (b.otNames || [])) {
+          count++;
+          const bg = nameColorMap[on] || 'rgba(255,255,255,.08)';
+          html += '<div class="ot-name" style="background:' + bg + ';cursor:pointer" onclick="removeOTAssign(\'' + esc(on).replace(/'/g, "\\'") + '\',\'' + (d.dateStr || d.date) + '\',' + bi + ')" title="Click to remove"><span class="ot-num">' + count + '</span>' + esc(on) + '<span class="ot-badge">OT</span></div>';
+        }
+        for (let n = 0; n < b.otNeed; n++) {
+          count++;
+          html += '<div class="ot-name needed" style="cursor:pointer" onclick="openOTAssignBox(\'' + (d.dateStr || d.date) + '\',' + bi + ')"><span class="ot-num">' + count + '</span>' + roleShort + ' NEEDED</div>';
+        }
+        const totalFilled = b.names.length + (b.ctCount || 0) + (b.otNames||[]).length;
+        const over = totalFilled - b.needed;
+        if (b.otNeed > 0) {
+          html += '<div style="text-align:center;font-size:9px;font-weight:900;color:#ef4444;padding:4px 0;letter-spacing:.5px;border-top:1px solid rgba(220,38,38,.2);margin-top:3px">NEED ' + b.otNeed + '</div>';
+        } else if (over > 0) {
+          html += '<div style="text-align:center;font-size:9px;font-weight:900;color:#818cf8;padding:4px 0;letter-spacing:.5px;border-top:1px solid rgba(129,140,248,.2);margin-top:3px">OVER +' + over + '</div>';
+        } else {
+          html += '<div style="text-align:center;font-size:9px;font-weight:900;color:#22c55e;padding:4px 0;letter-spacing:.5px;border-top:1px solid rgba(34,197,94,.2);margin-top:3px">FULL STAFFED</div>';
+        }
       }
       html += '</td>';
     }
@@ -1316,15 +1557,67 @@ function renderMonthlyOTView() {
 
   // OT BIDS row — one row, each block column shows who bid prefer/can
   const _allBids = getOTBids();
-  const _bidBlockSize = _otBidData?.settings?.blockSize || 4;
+
+  // Build lookup: which names are assigned (OT badge) per day-block
+  const _assignedPerBlock = {};
+  for (const key of Object.keys(_otAssignments)) {
+    const names = _otAssignments[key] || [];
+    _assignedPerBlock[key] = new Set(names.map(n => n.toUpperCase()));
+  }
+  // Helper: parse a slot key like "2026-09-05_6A-10A" or "2026-09-05_6A-7A" into { dateStr, blockIdx }
+  const _parseSlotToBlock = (sk) => {
+    const [dateStr, blockLabel] = sk.split('_');
+    let blockIdx = OT_BLOCKS.findIndex(b => b.label === blockLabel);
+    if (blockIdx < 0) {
+      // Try hourly format (e.g. "6A-7A")
+      const hourMatch = blockLabel?.match(/^(\d+[AP])-/);
+      if (hourMatch) {
+        const parseHr = (s) => { const n = parseInt(s); const isPM = s.endsWith('P'); if (n === 12) return isPM ? 12 : 0; return isPM ? n + 12 : n; };
+        const hr = parseHr(hourMatch[1]);
+        blockIdx = OT_BLOCKS.findIndex(b => hr >= (b.hourStart % 24) && hr < (b.hourEnd % 24 || 24));
+        if (blockIdx < 0) blockIdx = OT_BLOCKS.findIndex(b => (hr + 24) >= b.hourStart && (hr + 24) < b.hourEnd);
+      }
+    }
+    return { dateStr, blockIdx };
+  };
+  // Also include pending distribution results
+  if (_otBidDistResult) {
+    for (const [name, slots] of Object.entries(_otBidDistResult)) {
+      if (!slots || !slots.length) continue;
+      for (const sk of slots) {
+        const { dateStr, blockIdx } = _parseSlotToBlock(sk);
+        if (blockIdx >= 0) {
+          const key = dateStr + '-' + blockIdx;
+          if (!_assignedPerBlock[key]) _assignedPerBlock[key] = new Set();
+          _assignedPerBlock[key].add(name.toUpperCase());
+        }
+      }
+    }
+  }
+  // Also include approved/published assignments
+  if (_otBidData?.approved) {
+    for (const [name, data] of Object.entries(_otBidData.approved)) {
+      if (!data?.slots?.length) continue;
+      for (const sk of data.slots) {
+        const { dateStr, blockIdx } = _parseSlotToBlock(sk);
+        if (blockIdx >= 0) {
+          const key = dateStr + '-' + blockIdx;
+          if (!_assignedPerBlock[key]) _assignedPerBlock[key] = new Set();
+          _assignedPerBlock[key].add(name.toUpperCase());
+        }
+      }
+    }
+  }
+
   {
     const _hasBids = Object.keys(_allBids).length > 0;
     html += '<tr><td class="sticky-col" style="color:#a78bfa">OT BIDS</td>';
     for (let di = 0; di < monthly.length; di++) {
       const d = monthly[di];
-      const slotDateStr = yr + '-' + String(mo).padStart(2,'0') + '-' + String(d.date).padStart(2,'0');
+      const slotDateStr = d.dateStr || (yr + '-' + String(mo).padStart(2,'0') + '-' + String(d.date).padStart(2,'0'));
       for (let bi = 0; bi < OT_BLOCKS.length; bi++) {
         const db = (bi === 0) ? dayBorder(di) : '';
+        const _blockAssigned = _assignedPerBlock[slotDateStr + '-' + bi] || _assignedPerBlock[d.date + '-' + bi] || new Set();
         html += '<td style="' + db + 'vertical-align:top;padding:2px 3px"><div style="display:flex;flex-direction:column;min-height:500px">';
         html += '<div>';
         const preferNames = [], canNames = [];
@@ -1332,7 +1625,11 @@ function renderMonthlyOTView() {
           if (!bid.slots) continue;
           if (!isQualifiedForRole(name, currentRole)) continue;
           let pref = '';
-          if (_bidBlockSize === 1) {
+          // Try 4-hour key first
+          const slotKey4 = slotDateStr + '_' + OT_BLOCKS[bi].label;
+          pref = bid.slots[slotKey4] || '';
+          // If no match, try hourly keys within this block
+          if (!pref) {
             const blk = OT_BLOCKS[bi];
             for (let h = blk.hourStart; h < blk.hourEnd; h++) {
               const sh = h % 24, eh = (h + 1) % 24;
@@ -1342,18 +1639,25 @@ function renderMonthlyOTView() {
               if (p === 'prefer') pref = 'prefer';
               else if (p === 'can' && pref !== 'prefer') pref = 'can';
             }
-          } else {
-            const slotKey = slotDateStr + '_' + OT_BLOCKS[bi].label;
-            pref = bid.slots[slotKey] || '';
           }
           if (pref === 'prefer') preferNames.push(name);
           else if (pref === 'can') canNames.push(name);
         }
         for (const n of preferNames) {
-          html += '<div class="ot-name" style="background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#4ade80;font-size:9px">' + esc(n) + '</div>';
+          const isOT = _blockAssigned.has(n.toUpperCase());
+          if (isOT) {
+            html += '<div class="ot-name" style="background:rgba(220,38,38,.2);border:1px solid rgba(220,38,38,.6);color:#fca5a5;font-size:9px">' + esc(n) + '<span class="ot-badge">OT</span></div>';
+          } else {
+            html += '<div class="ot-name" style="background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#4ade80;font-size:9px">' + esc(n) + '</div>';
+          }
         }
         for (const n of canNames) {
-          html += '<div class="ot-name" style="background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.4);color:#facc15;font-size:9px">' + esc(n) + '</div>';
+          const isOT = _blockAssigned.has(n.toUpperCase());
+          if (isOT) {
+            html += '<div class="ot-name" style="background:rgba(220,38,38,.2);border:1px solid rgba(220,38,38,.6);color:#fca5a5;font-size:9px">' + esc(n) + '<span class="ot-badge">OT</span></div>';
+          } else {
+            html += '<div class="ot-name" style="background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.4);color:#facc15;font-size:9px">' + esc(n) + '</div>';
+          }
         }
         if (!preferNames.length && !canNames.length) html += '<span style="color:var(--muted);font-size:8px">&mdash;</span>';
         html += '</div>';
@@ -1373,6 +1677,30 @@ function renderMonthlyOTView() {
   }
 
   // Vacation names are now inline at the bottom of the OT BIDS row
+
+  // SD row — only for DISPATCHER, shows predicted special detail assignments (below OT BIDS)
+  if (currentRole === 'DISPATCHER' && _sdPredictionCache) {
+    html += '<tr><td class="sticky-col" style="background:rgba(168,85,247,.1);color:#a855f7;font-weight:900;font-size:10px">SPECIAL DETAIL</td>';
+    for (let di = 0; di < monthly.length; di++) {
+      const d = monthly[di];
+      for (let bi = 0; bi < 6; bi++) {
+        const db = (bi === 0) ? dayBorder(di) : '';
+        const oom = d.outOfMonth;
+        const sdKey = d.dateStr + '-' + bi;
+        const sdNames = _sdPredictionCache[sdKey] || [];
+        html += '<td style="' + db + 'background:rgba(168,85,247,.04);vertical-align:top;padding:3px">';
+        if (sdNames.length > 0) {
+          for (const nm of sdNames) {
+            html += '<div class="ot-name" style="background:rgba(168,85,247,.15);color:#c4b5fd;font-size:9px"><span style="font-weight:900;color:#a855f7;margin-right:3px">SD</span>' + esc(nm) + '</div>';
+          }
+        } else {
+          html += '<span style="color:var(--muted);font-size:8px">&mdash;</span>';
+        }
+        html += '</td>';
+      }
+    }
+    html += '</tr>';
+  }
 
   html += '</tbody></table>';
   html += '</div>'; // close scroll wrapper
@@ -1417,7 +1745,7 @@ function _buildOTRows() {
   const [yr, mo] = currentMonth.split('-').map(Number);
   const roleSuffix = currentRole === 'CALLTAKER' ? 'CT' : currentRole === 'PIC' ? 'PIC' : 'DP';
   for (const d of needs) {
-    const dateObj = new Date(yr, mo - 1, d.date);
+    const dateObj = d.dateStr && d.dateStr.includes('-') ? new Date(d.dateStr + 'T00:00:00') : new Date(yr, mo - 1, d.date);
     for (const b of d.blocks) {
       const bt = _OT_BLOCK_TIME_MAP[b.label];
       if (!bt) continue;
@@ -1801,16 +2129,31 @@ function clearOTAssignments() {
   if (!count) { setErr('No OT assignments to clear.'); setTimeout(clearErr, 2000); return; }
   if (!confirm('Clear all ' + count + ' OT assignment' + (count !== 1 ? 's' : '') + '?')) return;
   _otAssignments = {};
+  _otBidDistResult = null;
+  _runAllResults = null;
+  if (_otBidData) _otBidData.approved = {};
+  // Clear approved in Firestore
+  const _clrPid = getOTBidPeriodId();
+  if (_clrPid) {
+    const _clrRef = db.collection('ot_bids').doc(_clrPid);
+    _clrRef.update({ approved: {} }).catch(() => {});
+    _clrRef.collection('results').doc('approved').delete().catch(() => {});
+  }
   saveOTAssignments();
-  renderOTNeeds();
+  renderMonthlyOTView();
   setErr('Cleared ' + count + ' OT assignment' + (count !== 1 ? 's' : '') + '.');
   setTimeout(clearErr, 2500);
 }
 
 function getOTAvailable(dayOfMonth, blockIdx) {
   const key = dayOfMonth + '-' + blockIdx;
-  const [yr, mo] = currentMonth.split('-').map(Number);
-  const dateObj = new Date(yr, mo - 1, dayOfMonth);
+  let dateObj;
+  if (typeof dayOfMonth === 'string' && dayOfMonth.includes('-')) {
+    dateObj = new Date(dayOfMonth + 'T00:00:00');
+  } else {
+    const [yr, mo] = currentMonth.split('-').map(Number);
+    dateObj = new Date(yr, mo - 1, dayOfMonth);
+  }
   const jsDay2idx = { 0:6, 1:0, 2:1, 3:2, 4:3, 5:4, 6:5 };
   const dayIdx = jsDay2idx[dateObj.getDay()];
   const day = DAYS[dayIdx];
@@ -1823,8 +2166,6 @@ function getOTAvailable(dayOfMonth, blockIdx) {
       if (shiftCoversBlock(emp.schedule[day], BLOCKS[bi])) { workingSet.add(emp.name.toUpperCase()); break; }
     }
   }
-  const ctNames = _ctAssignments[key] || [];
-  for (const n of ctNames) workingSet.add(n.toUpperCase());
   const assigned = (_otAssignments[key] || []).map(n => n.toUpperCase());
   // Group available by position
   const groups = {};
@@ -1842,19 +2183,30 @@ function getOTAvailable(dayOfMonth, blockIdx) {
 
 let _otAssignCtx = null; // { dayOfMonth, blockIdx }
 
-function openOTAssignBox(dayOfMonth, blockIdx) {
-  _otAssignCtx = { dayOfMonth, blockIdx };
-  const [yr, mo] = currentMonth.split('-').map(Number);
-  const dateObj = new Date(yr, mo - 1, dayOfMonth);
+function openOTAssignBox(dayOrDateStr, blockIdx) {
+  // Accept either "2026-03-15" or legacy day-of-month number
+  let dateObj, dayOfMonth, dateKey;
+  if (typeof dayOrDateStr === 'string' && dayOrDateStr.includes('-')) {
+    dateObj = new Date(dayOrDateStr + 'T00:00:00');
+    dayOfMonth = dateObj.getDate();
+    dateKey = dayOrDateStr;
+  } else {
+    const [yr, mo] = currentMonth.split('-').map(Number);
+    dayOfMonth = dayOrDateStr;
+    dateObj = new Date(yr, mo - 1, dayOfMonth);
+    dateKey = _fmtDate(dateObj);
+  }
+  _otAssignCtx = { dayOfMonth, blockIdx, dateKey };
   const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const mo2 = dateObj.getMonth() + 1;
   document.getElementById('otAssignTitle').textContent = 'ASSIGN OT SLOT';
-  document.getElementById('otAssignInfo').textContent = DOW[dateObj.getDay()] + ' ' + mo + '/' + dayOfMonth + ' — ' + OT_BLOCKS[blockIdx].label;
+  document.getElementById('otAssignInfo').textContent = DOW[dateObj.getDay()] + ' ' + mo2 + '/' + dayOfMonth + ' — ' + OT_BLOCKS[blockIdx].label;
   const sel = document.getElementById('otAssignSelect');
   sel.innerHTML = '<option value="">Select person...</option>';
   const groups = getOTAvailable(dayOfMonth, blockIdx);
 
   // Build bid preference lookup for this slot
-  const slotDateStr = dateObj.getFullYear() + '-' + String(mo).padStart(2,'0') + '-' + String(dayOfMonth).padStart(2,'0');
+  const slotDateStr = dateKey;
   const slotKey = slotDateStr + '_' + OT_BLOCKS[blockIdx].label;
   const bidPrefs = {}; // name -> "prefer"|"can"|"cant"
   const _bidPrefsMap = getOTBids();
@@ -1940,8 +2292,8 @@ document.getElementById('btnOtAssign').addEventListener('click', () => {
   if (!_otAssignCtx) return;
   const name = document.getElementById('otAssignSelect').value;
   if (!name) return;
-  const { dayOfMonth, blockIdx } = _otAssignCtx;
-  const key = dayOfMonth + '-' + blockIdx;
+  const { dayOfMonth, blockIdx, dateKey } = _otAssignCtx;
+  const key = (dateKey || dayOfMonth) + '-' + blockIdx;
   if (!_otAssignments[key]) _otAssignments[key] = [];
   if (!_otAssignments[key].includes(name)) {
     _otAssignments[key].push(name);
@@ -1954,8 +2306,8 @@ document.getElementById('btnOtAssign').addEventListener('click', () => {
 document.getElementById('btnOtAssignCancel').addEventListener('click', closeOTAssignBox);
 document.getElementById('otAssignBackdrop').addEventListener('click', closeOTAssignBox);
 
-function removeOTAssign(name, dayOfMonth, blockIdx) {
-  const key = dayOfMonth + '-' + blockIdx;
+function removeOTAssign(name, dayOrDateStr, blockIdx) {
+  const key = dayOrDateStr + '-' + blockIdx;
   if (!_otAssignments[key]) return;
   _otAssignments[key] = _otAssignments[key].filter(n => n !== name);
   if (_otAssignments[key].length === 0) delete _otAssignments[key];
@@ -1995,6 +2347,7 @@ function renderAll() {
     otMonthView.style.display = 'flex';
     otMonthView.style.flexDirection = 'column';
     otMonthView.style.flex = '1';
+    otMonthView.style.minHeight = '0';
     otMonthView.style.overflow = 'hidden';
     if (hypoBtn) hypoBtn.style.display = 'none';
     if (printBtn) printBtn.style.display = 'none';
@@ -2019,7 +2372,10 @@ function renderAll() {
 function updateMonthLabel() {
   const MONTHS = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
   const parts = currentMonth.split('-');
-  const label = MONTHS[parseInt(parts[1]) - 1] + ' ' + parts[0];
+  let label = MONTHS[parseInt(parts[1]) - 1] + ' ' + parts[0];
+  if (_ppStart && _ppEnd) {
+    label += '  (' + _ppStart.slice(5).replace('-','/') + ' – ' + _ppEnd.slice(5).replace('-','/') + ')';
+  }
   document.getElementById('gridMonthLabel').textContent = label;
 }
 
@@ -2949,54 +3305,106 @@ document.getElementById('roleSelector').addEventListener('change', function() {
   switchRole(this.value);
 });
 
-// ========== MONTH SWITCH ==========
-async function switchMonth(newMonth) {
-  if (newMonth === currentMonth) return;
-  currentMonth = newMonth;
+// ========== MONTH / DATE RANGE SWITCH ==========
+async function switchDateRange(ppStartStr, ppEndStr, newMonth) {
+  const prevMonth = currentMonth;
+  _ppStart = ppStartStr;
+  _ppEnd = ppEndStr;
+  if (newMonth) {
+    currentMonth = newMonth;
+  } else if (!currentMonth) {
+    const ppStartDate = new Date(ppStartStr + 'T00:00:00');
+    currentMonth = ppStartDate.getFullYear() + '-' + String(ppStartDate.getMonth() + 1).padStart(2, '0');
+  }
+  const monthChanged = currentMonth !== prevMonth;
   _otWeekOffset = 0;
-  SETTINGS_REF = db.collection('staffingops').doc(getSettingsDocId());
-  if (_settingsUnsub) { _settingsUnsub(); _settingsUnsub = null; }
-  if (_vacUnsub) { _vacUnsub(); _vacUnsub = null; }
-  if (_ctUnsub) { _ctUnsub(); _ctUnsub = null; }
-  _hypoApplied = false;
-  _appliedHypoSet = null;
-  _activeHypoTab = 'A';
-  _otAssignments = {};
-  _ctAssignments = {};
-  updateApplyBar();
-  resetState();
-  dispatchers = ORIG_DISPATCHERS.map(d => ({
-    name: d.name, isLead: d.isLead, seniority: d.seniority,
-    schedule: { ...d.schedule }
-  }));
-  await loadExcluded();
-  await loadVacations();
-  await loadHypoState();
-  listenSettings();
-  listenVacations();
-  loadRotationCT();
-  listenOTBids();
+  _syncOTBidDates();
+  if (monthChanged) {
+    SETTINGS_REF = db.collection('staffingops').doc(getSettingsDocId());
+    if (_settingsUnsub) { _settingsUnsub(); _settingsUnsub = null; }
+    if (_vacUnsub) { _vacUnsub(); _vacUnsub = null; }
+    if (_ctUnsub) { _ctUnsub(); _ctUnsub = null; }
+    _hypoApplied = false;
+    _appliedHypoSet = null;
+    _activeHypoTab = 'A';
+    _otAssignments = {};
+    _ctAssignments = {};
+    updateApplyBar();
+    resetState();
+    dispatchers = ORIG_DISPATCHERS.map(d => ({
+      name: d.name, isLead: d.isLead, seniority: d.seniority,
+      schedule: { ...d.schedule }
+    }));
+    await loadExcluded();
+    await loadVacations();
+    await _refreshDispOverflow();
+    await loadHypoState();
+    listenSettings();
+    listenVacations();
+    loadRotationCT();
+    listenOTBids();
+  }
   renderAll();
+}
+
+// Find all Sat-Fri weeks where Saturday falls in the given month
+function _getWeeksForMonth(yr, mo) {
+  const firstOfMonth = new Date(yr, mo - 1, 1);
+  const lastOfMonth = new Date(yr, mo, 0);
+  let firstSat = new Date(firstOfMonth);
+  while (firstSat.getDay() !== 6) firstSat.setDate(firstSat.getDate() + 1);
+  const saturdays = [];
+  for (let sat = new Date(firstSat); sat <= lastOfMonth; sat.setDate(sat.getDate() + 7)) {
+    saturdays.push(new Date(sat));
+  }
+  if (saturdays.length === 0) return null;
+  const start = _fmtDate(saturdays[0]);
+  const lastFri = new Date(saturdays[saturdays.length - 1]);
+  lastFri.setDate(lastFri.getDate() + 6);
+  const end = _fmtDate(lastFri);
+  return { start, end };
 }
 
 (function populateMonthSelector() {
   const sel = document.getElementById('monthSelector');
   const now = new Date();
   const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const todayStr = _fmtDate(now);
+  let currentVal = '';
   for (let offset = -3; offset <= 6; offset++) {
     const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-    const val = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-    const label = MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+    const yr = d.getFullYear();
+    const mo = d.getMonth() + 1;
+    const val = yr + '-' + String(mo).padStart(2, '0');
+    const wkRange = _getWeeksForMonth(yr, mo);
     const opt = document.createElement('option');
     opt.value = val;
-    opt.textContent = label;
-    if (val === currentMonth) opt.selected = true;
+    opt.textContent = MONTHS[mo - 1] + ' ' + yr;
+    if (todayStr >= (wkRange?.start || val + '-01') && todayStr <= (wkRange?.end || val + '-31')) {
+      currentVal = val;
+    }
     sel.appendChild(opt);
+  }
+  // Set current month and load its PPs
+  const initMonth = currentVal || (now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0'));
+  sel.value = initMonth;
+  const [iyr, imo] = initMonth.split('-').map(Number);
+  const initPP = _getWeeksForMonth(iyr, imo);
+  if (initPP) {
+    _ppStart = initPP.start;
+    _ppEnd = initPP.end;
+    currentMonth = initMonth;
   }
 })();
 
 document.getElementById('monthSelector').addEventListener('change', function() {
-  switchMonth(this.value);
+  const val = this.value;
+  if (!val) return;
+  const [yr, mo] = val.split('-').map(Number);
+  const wkRange = _getWeeksForMonth(yr, mo);
+  if (wkRange) {
+    switchDateRange(wkRange.start, wkRange.end, val);
+  }
 });
 document.getElementById('viewMode').addEventListener('change', function() {
   renderAll();
@@ -4084,9 +4492,21 @@ function renderHowItWorks(){
       '&bull; <b ' + s + '>Numbered chips</b> = staff scheduled for that block.<br>' +
       '&bull; <b ' + s + '>Blue "DISP IN CT"</b> badge = a dispatcher assigned to calltaking in RotationOps.<br>' +
       '&bull; <b ' + s + '>Red "OT"</b> badge = someone assigned as overtime (manual or via distribution).<br>' +
-      '&bull; <b ' + s + '>Red pulsing "NEEDED"</b> = remaining unfilled slots that still need coverage.<br>' +
-      '&bull; <b ' + s + '>Purple "OT BIDS"</b> row = shows who submitted prefer (green) and can (yellow) bids for each block.<br>' +
-      '&bull; <b ' + s + '>Cyan "VACATION"</b> row = employees on vacation for that day (from AttendanceOps).' +
+      '&bull; <b ' + s + '>Red pulsing "DP NEEDED" / "CT NEEDED" / "PIC NEEDED"</b> = remaining unfilled slots that still need coverage.<br>' +
+      '&bull; <b ' + s + '>Summary bar</b> at the top shows total OT slots and hours needed across the month.<br>' +
+      '&bull; <b ' + s + '>NEED X</b> (red) at the bottom of a block = how many more people are needed.<br>' +
+      '&bull; <b ' + s + '>FULL STAFFED</b> (green) = block is covered, no OT needed.<br>' +
+      '&bull; <b ' + s + '>OVER +X</b> (purple) = block has more staff than the target.' +
+    '</div>' +
+
+    '<div ' + hdr + '>OT BIDS ROW</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '&bull; The <b ' + s + '>purple "OT BIDS"</b> row shows who submitted bids for each block.<br>' +
+      '&bull; <b ' + s + '>Green names</b> = PREFER bids (employee wants that slot).<br>' +
+      '&bull; <b ' + s + '>Yellow names</b> = CAN bids (employee is available).<br>' +
+      '&bull; <b ' + s + '>Red names with "OT" badge</b> = employee was assigned OT for that slot (after distribution or publish).<br>' +
+      '&bull; <b ' + s + '>Cyan "VACATION"</b> at the bottom = employees on vacation that day (from VacationOps).<br>' +
+      '&bull; Only employees <b ' + s + '>qualified for the current role</b> appear in the bids row.' +
     '</div>' +
 
     '<div ' + hdr + '>MANUAL OT ASSIGNMENT</div>' +
@@ -4097,45 +4517,67 @@ function renderHowItWorks(){
       '&bull; <b ' + s + '>Click an OT chip to remove</b> &mdash; The assignment is removed.' +
     '</div>' +
 
+    '<div ' + hdr + '>OT BIDDING PANEL</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '&bull; Click <b ' + s + '>OT BIDDING</b> button to open the admin panel.<br>' +
+      '&bull; <b ' + s + '>Settings:</b> Set the bidding period dates, deadline, status (open/closed), and monthly OT cap.<br>' +
+      '&bull; <b ' + s + '>Bid list:</b> Shows who submitted bids. Click any name to expand and see their <b ' + s + '>exact slot-level bids</b> (prefer/can), plus R1 and R2 desired hours.<br>' +
+      '&bull; <b ' + s + '>Employee caps:</b> Set per-employee monthly OT hour caps (overrides the default).<br>' +
+      '&bull; <b ' + s + '>SIMULATE BIDS</b> generates fake bid data for testing — useful before go-live.<br>' +
+      '&bull; <b ' + s + '>SAVE SETTINGS</b> saves everything and computes the need slots for all three roles.' +
+    '</div>' +
+
     '<div ' + hdr + '>RUN DISTRIBUTION (AUTO-ASSIGN)</div>' +
     '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
-      '&bull; <b ' + s + '>Click RUN DISTRIBUTION</b> in the OT Bidding section to auto-assign OT based on employee bids.<br>' +
-      '&bull; The algorithm only fills slots where there is an <b ' + s + '>actual staffing need</b> — fully staffed blocks are skipped.<br>' +
-      '&bull; It respects <b ' + s + '>existing manual OT assignments</b> and won\'t double-assign anyone.<br>' +
-      '&bull; It <b ' + s + '>skips schedule conflicts</b> — no one gets OT for a block they\'re already working.' +
+      '&bull; <b ' + s + '>RUN DISTRIBUTION</b> auto-assigns OT for the current role based on employee bids.<br>' +
+      '&bull; <b ' + s + '>RUN ALL ROLES</b> runs PIC → Dispatcher → Calltaker in one click.<br>' +
+      '&bull; The algorithm only fills slots where there is an <b ' + s + '>actual staffing need</b>.<br>' +
+      '&bull; It respects <b ' + s + '>existing OT assignments</b> and won\'t double-assign anyone.<br>' +
+      '&bull; It <b ' + s + '>skips schedule conflicts</b> — no one gets OT for a block they\'re already working.<br>' +
+      '&bull; It <b ' + s + '>skips employees on vacation</b> — vacation dates from VacationOps are excluded automatically.<br>' +
+      '&bull; It <b ' + s + '>prevents cross-role double-booking</b> — if someone has PIC OT at 6A-10A, they won\'t get Dispatcher OT at the same time.' +
     '</div>' +
 
     '<div ' + hdr + '>DISTRIBUTION ALGORITHM</div>' +
     '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
-      '<b ' + s + '>Round 1 (4 hrs/week):</b><br>' +
-      '&bull; Fills the <b ' + s + '>scarcest slots first</b> — slots with the fewest candidates get priority so they don\'t go unfilled.<br>' +
-      '&bull; For each slot, picks the person with the <b ' + s + '>fewest other options</b> — saving flexible people for easier-to-fill slots.<br>' +
-      '&bull; If a slot needs 3 people, it assigns up to 3 different people.<br>' +
-      '&bull; Each employee gets up to their Round 1 desired hours per week (default 4).<br>' +
-      '&bull; Tie-breaks: prefer &gt; can, then seniority.<br><br>' +
-      '<b ' + s + '>Round 2 (extra hours):</b><br>' +
-      '&bull; Same scarcity-first logic, but expands each employee\'s weekly cap to R1 + R2 desired hours.<br>' +
-      '&bull; Re-evaluates after <b ' + s + '>every single assignment</b> so the algorithm always has an accurate picture of who\'s available.<br>' +
-      '&bull; Picks candidates with <b ' + s + '>fewest remaining options</b>, then most cap room, then prefer &gt; can, then seniority.<br>' +
-      '&bull; Employees who only set Round 1 (no R2 hours) are identified as <b ' + s + '>[R1 ONLY]</b> in results.' +
+      '<b ' + s + '>Round 1 (fair share — 4 hrs/week):</b><br>' +
+      '&bull; Fills the <b ' + s + '>hardest-to-fill slots first</b> — slots with the fewest candidates get priority.<br>' +
+      '&bull; Picks the person with the <b ' + s + '>fewest other options</b> — saving flexible people for easier slots.<br>' +
+      '&bull; If a slot needs 3 people, it fills all 3 before moving on.<br>' +
+      '&bull; Each employee gets up to 4 hours/week (1 block) in Round 1.<br>' +
+      '&bull; Tie-breaks: PREFER &gt; CAN, then seniority.<br><br>' +
+      '<b ' + s + '>Round 2 (extra hours — opt-in only):</b><br>' +
+      '&bull; Only runs for employees who set Round 2 desired hours &gt; 0 in their bid.<br>' +
+      '&bull; Same scarcity-first logic, but expands weekly cap to R1 + R2 hours.<br>' +
+      '&bull; Re-evaluates after <b ' + s + '>every single assignment</b> for accuracy.<br>' +
+      '&bull; Monthly cap (default 36 hrs) always applies.' +
     '</div>' +
 
-    '<div ' + hdr + '>CROSS-POSITION WORKFLOW</div>' +
+    '<div ' + hdr + '>RUN ALL ROLES (PIC → DISP → CT)</div>' +
     '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
-      '&bull; OT should be distributed in <b ' + s + '>priority order: Dispatch → PIC → Calltaker</b>.<br>' +
-      '&bull; <b ' + s + '>Dispatch first</b> — only dispatchers and PIC-eligible people can work dispatch, so fill this first while the pool is small.<br>' +
-      '&bull; <b ' + s + '>PIC next</b> — fill remaining PIC gaps. Some people may already have dispatch OT and will be skipped for those blocks.<br>' +
-      '&bull; <b ' + s + '>Calltaker last</b> — everyone from any position can work calltaking, so this has the biggest candidate pool.<br>' +
-      '&bull; The algorithm <b ' + s + '>checks all three roles</b> before assigning — if someone already has OT in another position for that block, they won\'t be double-booked.<br>' +
-      '&bull; <b ' + s + '>Steps:</b> Switch to Dispatch → Run Distribution → Publish. Then switch to PIC → Run → Publish. Then Calltaker → Run → Publish.' +
+      '&bull; Runs distribution for <b ' + s + '>all three roles in priority order</b> with one click.<br>' +
+      '&bull; <b ' + s + '>PIC first</b> — smallest candidate pool, hardest to fill.<br>' +
+      '&bull; <b ' + s + '>Dispatcher second</b> — PICs and dispatchers can fill.<br>' +
+      '&bull; <b ' + s + '>Calltaker last</b> — everyone qualifies, biggest pool.<br>' +
+      '&bull; Assignments from earlier roles <b ' + s + '>carry forward</b> so nobody gets double-booked.<br>' +
+      '&bull; Shows a <b ' + s + '>combined results panel</b> with fill rates for each role.' +
     '</div>' +
 
-    '<div ' + hdr + '>DISTRIBUTION RESULTS</div>' +
+    '<div ' + hdr + '>DISTRIBUTION RESULTS &amp; PUBLISH</div>' +
     '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
       '&bull; Shows <b ' + s + '>fill rate</b>: how many needed slots were filled out of the total.<br>' +
       '&bull; Each employee shows their assigned slots, total hours vs cap, and R1/R2 desired hours.<br>' +
-      '&bull; <b ' + s + '>Unfilled slots</b> (no candidates available) are highlighted in red so you know where to manually assign.<br>' +
-      '&bull; <b ' + s + '>Review the results</b>, then click PUBLISH to commit the assignments.' +
+      '&bull; <b ' + s + '>Unfilled slots</b> are highlighted in red so you know where to manually assign.<br>' +
+      '&bull; <b ' + s + '>Review the results</b>, then click <b ' + s + '>PUBLISH</b> to commit.<br>' +
+      '&bull; Publishing saves assignments to the database and updates the grid immediately.<br>' +
+      '&bull; Employees can see their approved OT slots on the OT Bidding page.' +
+    '</div>' +
+
+    '<div ' + hdr + '>CLEAR OT</div>' +
+    '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
+      '&bull; Click <b ' + s + '>CLEAR OT</b> to remove all OT assignments for the current role and month.<br>' +
+      '&bull; This clears both the local view and the database — bids remain intact.<br>' +
+      '&bull; Use this to start fresh before re-running distribution.' +
     '</div>' +
 
     '<div ' + hdr + '>DISP IN CT (AUTOMATIC)</div>' +
@@ -4145,10 +4587,11 @@ function renderHowItWorks(){
       '&bull; This is <b ' + s + '>read-only</b> &mdash; to change CT assignments, use RotationOps.' +
     '</div>' +
 
-    '<div ' + hdr + '>EXPORT</div>' +
+    '<div ' + hdr + '>EXPORT &amp; IMPORT</div>' +
     '<div style="font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:8px">' +
       '&bull; <b ' + s + '>EXPORT OT NEEDS</b> &mdash; Downloads an XLSX with only the remaining unfilled slots.<br>' +
-      '&bull; Format is ready to upload to Teams Shifts.' +
+      '&bull; <b ' + s + '>IMPORT OT ASSIGNMENTS</b> &mdash; Upload an XLSX/CSV to bulk-assign OT.<br>' +
+      '&bull; Format is compatible with Teams Shifts.' +
     '</div>' +
 
     '<div style="margin-top:16px;text-align:center">' +
@@ -4157,6 +4600,70 @@ function renderHowItWorks(){
 }
 
 // ========== OT BIDDING ADMIN ==========
+
+// Compute slot keys that have OT need, broken out per role
+async function _computeNeedSlots() {
+  const blockSize = _otBidData?.settings?.blockSize || parseInt(document.getElementById('otbBlockSize').value) || 4;
+  const blockHrs = blockSize === 1 ? 1 : 4;
+  const needByRole = { PIC: [], DISPATCHER: [], CALLTAKER: [] };
+  const roles = ['PIC', 'DISPATCHER', 'CALLTAKER'];
+  const savedORIG = ORIG_DISPATCHERS;
+  const savedADEQ = ADEQ;
+  const savedOT = _otAssignments;
+  const savedCT = _ctAssignments;
+  const savedRole = currentRole;
+
+  // Pre-load dispatcher data for computing overflow into calltaking (with SD subtracted)
+  let dispOverflow = null;
+  const savedSDCache = _sdPredictionCache;
+  try {
+    const dispData = await _loadRoleData('DISPATCHER');
+    const sdHourly = _predictSD(dispData.employees);
+    const sdOTBlocks = _aggregateSDToOTBlocks(sdHourly);
+    _sdPredictionCache = sdOTBlocks; // set cache so computeMonthlyStaffing uses it for DISPATCHER
+    dispOverflow = _computeDispatcherOverflow(dispData.employees, dispData.adeq, sdOTBlocks);
+  } catch (e) { console.warn('Failed to compute dispatcher overflow:', e); }
+
+  for (const role of roles) {
+    try {
+      const roleData = await _loadRoleData(role);
+      ORIG_DISPATCHERS = roleData.employees;
+      ADEQ = roleData.adeq;
+      _otAssignments = roleData.otAssignments;
+      _ctAssignments = roleData.ctAssignments;
+      currentRole = role;
+
+      const monthly = computeMonthlyStaffing(role === 'CALLTAKER' ? dispOverflow : null);
+      for (const d of monthly) {
+        const dateStr = d.dateStr || _fmtDate(new Date(currentMonth.split('-')[0], currentMonth.split('-')[1] - 1, d.date));
+        for (let bi = 0; bi < OT_BLOCKS.length; bi++) {
+          if (d.blocks[bi].otNeed > 0) {
+            if (blockHrs === 1) {
+              for (let h = OT_BLOCKS[bi].hourStart; h < OT_BLOCKS[bi].hourEnd; h++) {
+                const sh = h % 24, eh = (h + 1) % 24;
+                const fmt = v => { if (v === 0) return '12A'; if (v === 12) return '12P'; return v < 12 ? v + 'A' : (v - 12) + 'P'; };
+                needByRole[role].push(dateStr + '_' + fmt(sh) + '-' + fmt(eh));
+              }
+            } else {
+              needByRole[role].push(dateStr + '_' + OT_BLOCKS[bi].label);
+            }
+          }
+        }
+      }
+    } catch (e) { console.warn('Failed to compute needs for ' + role + ':', e); }
+  }
+
+  ORIG_DISPATCHERS = savedORIG;
+  ADEQ = savedADEQ;
+  _otAssignments = savedOT;
+  _ctAssignments = savedCT;
+  currentRole = savedRole;
+  _sdPredictionCache = savedSDCache;
+
+  // De-duplicate each role's slots
+  for (const r of roles) needByRole[r] = [...new Set(needByRole[r])];
+  return needByRole;
+}
 
 function getOTBidPeriodId() {
   // Use current month as default period ID
@@ -4179,22 +4686,61 @@ function listenOTBids() {
   if (_otBidUnsub) _otBidUnsub();
   const pid = getOTBidPeriodId();
   const ref = db.collection('ot_bids').doc(pid);
+  let _bidSubUnsub = null;
+  let _approvedSubUnsub = null;
+  let _subBidsCache = {};   // subcollection bids (persists across main doc snapshots)
+  let _subApprovedCache = {}; // subcollection approved
   _otBidUnsub = ref.onSnapshot(snap => {
-    if (!snap.exists) { _otBidData = null; renderOTBidAdmin(); return; }
+    if (!snap.exists) { _otBidData = null; if (_bidSubUnsub) _bidSubUnsub(); if (_approvedSubUnsub) _approvedSubUnsub(); renderOTBidAdmin(); return; }
     _otBidData = snap.data();
+    // Merge: main doc bids + subcollection bids (subcollection wins)
+    _otBidData.bids = { ...(_otBidData.bids || {}), ..._subBidsCache };
+    _otBidData.approved = { ...(_otBidData.approved || {}), ..._subApprovedCache };
+    // Listen to emp_bids subcollection
+    if (!_bidSubUnsub) {
+      _bidSubUnsub = ref.collection('emp_bids').onSnapshot(subSnap => {
+        if (!_otBidData) return;
+        _subBidsCache = {};
+        subSnap.docs.forEach(d => { _subBidsCache[d.id] = d.data(); });
+        _otBidData.bids = { ...(_otBidData.bids || {}), ..._subBidsCache };
+        renderOTBidAdmin();
+        renderMonthlyOTView();
+      });
+    }
+    // Listen to results/approved subcollection doc
+    if (!_approvedSubUnsub) {
+      _approvedSubUnsub = ref.collection('results').doc('approved').onSnapshot(aSnap => {
+        if (!_otBidData) return;
+        _subApprovedCache = aSnap.exists ? aSnap.data() : {};
+        _otBidData.approved = { ...(_otBidData.approved || {}), ..._subApprovedCache };
+        renderOTBidAdmin();
+        renderMonthlyOTView();
+      });
+    }
     renderOTBidAdmin();
     renderMonthlyOTView();
   });
+  const origUnsub = _otBidUnsub;
+  _otBidUnsub = () => { origUnsub(); if (_bidSubUnsub) _bidSubUnsub(); if (_approvedSubUnsub) _approvedSubUnsub(); };
+}
+
+function _syncOTBidDates() {
+  // Auto-fill start/end from the currently selected month's pay periods
+  if (_ppStart) document.getElementById('otbPeriodStart').value = _ppStart;
+  if (_ppEnd) document.getElementById('otbPeriodEnd').value = _ppEnd;
 }
 
 function renderOTBidAdmin() {
+  // Always sync dates from current month's PP range
+  _syncOTBidDates();
+
   if (!_otBidData) {
     document.getElementById('otbBidCount').textContent = 'No period configured';
     document.getElementById('otbBidList').innerHTML = '';
     return;
   }
   const s = _otBidData.settings || {};
-  // Fill form fields
+  // Fill form fields from saved settings (overrides PP sync if saved data exists)
   if (s.periodType) document.getElementById('otbPeriodType').value = s.periodType;
   if (s.periodStart) document.getElementById('otbPeriodStart').value = s.periodStart;
   if (s.periodEnd) document.getElementById('otbPeriodEnd').value = s.periodEnd;
@@ -4217,13 +4763,47 @@ function renderOTBidAdmin() {
   for (const emp of _ALL_EMPLOYEES) {
     const submitted = !!bids[emp.name];
     const icon = submitted ? '<span style="color:#22c55e">&#10003;</span>' : '<span style="color:var(--muted)">&#x2013;</span>';
-    listHtml += '<div style="padding:2px 0">' + icon + ' ' + emp.name + ' (' + emp.position + ')';
+    const _eid = 'otbBidDetail_' + emp.name.replace(/[^a-zA-Z0-9]/g, '_');
+    listHtml += '<div style="padding:2px 0">';
     if (submitted) {
       const slots = bids[emp.name].slots || {};
       const pref = Object.values(slots).filter(v => v === 'prefer').length;
       const can = Object.values(slots).filter(v => v === 'can').length;
       const cant = Object.values(slots).filter(v => v === 'cant').length;
-      listHtml += ' <span style="color:var(--muted)">' + pref + 'P/' + can + 'C/' + cant + 'X</span>';
+      const r1 = bids[emp.name].desiredR1 || 4;
+      const r2 = bids[emp.name].desiredR2 || 0;
+      listHtml += '<div style="cursor:pointer" onclick="var el=document.getElementById(\'' + _eid + '\');el.style.display=el.style.display===\'none\'?\'\':\'none\'">' + icon + ' <b>' + emp.name + '</b> (' + emp.position + ') <span style="color:var(--muted)">' + pref + 'P/' + can + 'C/' + cant + 'X &nbsp; R1:' + r1 + 'h R2:' + r2 + 'h</span> <span style="color:#6b7280;font-size:9px">▼</span></div>';
+      // Expandable slot details
+      listHtml += '<div id="' + _eid + '" style="display:none;margin:4px 0 8px 18px;padding:6px 10px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;font-size:10px">';
+      // Group slots by date
+      const byDate = {};
+      for (const [sk, val] of Object.entries(slots)) {
+        if (val !== 'prefer' && val !== 'can') continue;
+        const [dateStr, blockLabel] = sk.split('_');
+        if (!byDate[dateStr]) byDate[dateStr] = [];
+        byDate[dateStr].push({ block: blockLabel, pref: val });
+      }
+      const sortedDates = Object.keys(byDate).sort();
+      if (sortedDates.length === 0) {
+        listHtml += '<span style="color:var(--muted)">No prefer/can bids</span>';
+      } else {
+        for (const dateStr of sortedDates) {
+          const dp = dateStr.split('-');
+          const dateLabel = parseInt(dp[1]) + '/' + parseInt(dp[2]);
+          const dayObj = new Date(dateStr + 'T12:00:00');
+          const dow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dayObj.getDay()];
+          listHtml += '<div style="margin-top:3px"><span style="font-weight:800;color:var(--text)">' + dow + ' ' + dateLabel + ':</span> ';
+          for (const s of byDate[dateStr].sort((a, b) => a.block.localeCompare(b.block))) {
+            const color = s.pref === 'prefer' ? '#4ade80' : '#facc15';
+            const lbl = s.pref === 'prefer' ? 'P' : 'C';
+            listHtml += '<span style="display:inline-block;margin:1px 2px;padding:1px 5px;border-radius:3px;background:' + color + '22;border:1px solid ' + color + '66;color:' + color + ';font-size:9px;font-weight:700">' + s.block + ' ' + lbl + '</span>';
+          }
+          listHtml += '</div>';
+        }
+      }
+      listHtml += '</div>';
+    } else {
+      listHtml += icon + ' ' + emp.name + ' (' + emp.position + ')';
     }
     listHtml += '</div>';
   }
@@ -4277,8 +4857,11 @@ document.getElementById('btnOtbSaveSettings').addEventListener('click', async ()
   };
 
   try {
-    await ref.set({ settings }, { merge: true });
-    alert('Settings saved!');
+    const needSlotsByRole = await _computeNeedSlots();
+    await ref.set({ settings, needSlotsByRole }, { merge: true });
+    try { await ref.update({ needSlots: firebase.firestore.FieldValue.delete() }); } catch(e) {}
+    const total = needSlotsByRole.PIC.length + needSlotsByRole.DISPATCHER.length + needSlotsByRole.CALLTAKER.length;
+    alert('Settings saved! (' + total + ' need slots computed across roles)');
   } catch (err) {
     alert('Error saving: ' + err.message);
   }
@@ -4313,8 +4896,13 @@ document.getElementById('btnOtbCreatePeriod').addEventListener('click', async ()
   };
 
   try {
+    const needSlotsByRole = await _computeNeedSlots();
+    doc.needSlotsByRole = needSlotsByRole;
     await ref.set(doc);
-    alert('Period created!');
+    // Clean up any legacy bids stored on the main doc
+    // (bids now live in subcollection emp_bids)
+    const total = needSlotsByRole.PIC.length + needSlotsByRole.DISPATCHER.length + needSlotsByRole.CALLTAKER.length;
+    alert('Period created! (' + total + ' need slots computed across roles)');
   } catch (err) {
     alert('Error: ' + err.message);
   }
@@ -4328,10 +4916,11 @@ document.getElementById('btnOtbSimulate').addEventListener('click', async () => 
 
   const settings = _otBidData?.settings || {};
   const blockSize = settings.blockSize || parseInt(document.getElementById('otbBlockSize').value) || 4;
-  // Always generate bids for the currently viewed month
+  // Generate bids for full Sat-Fri weeks of the currently viewed month
   const [_simYr, _simMo] = currentMonth.split('-').map(Number);
-  const start = new Date(_simYr, _simMo - 1, 1);
-  const end = new Date(_simYr, _simMo, 0); // last day of month
+  const wkRange = _getWeeksForMonth(_simYr, _simMo);
+  const start = wkRange ? new Date(wkRange.start + 'T00:00:00') : new Date(_simYr, _simMo - 1, 1);
+  const end = wkRange ? new Date(wkRange.end + 'T00:00:00') : new Date(_simYr, _simMo, 0);
 
   // Build all slot keys for the period
   const slotKeys = [];
@@ -4349,6 +4938,22 @@ document.getElementById('btnOtbSimulate').addEventListener('click', async () => 
     }
   }
 
+  // Load per-role need data so simulated bids only target slots with actual need
+  const ref0 = db.collection('ot_bids').doc(pid);
+  const snap0 = await ref0.get();
+  const byRole = snap0.exists ? snap0.data()?.needSlotsByRole : null;
+
+  // Build role-specific need sets (uppercase for matching)
+  const needSetFor = {};
+  if (byRole && typeof byRole === 'object') {
+    // PIC can fill PIC + DISPATCHER + CALLTAKER
+    needSetFor['PIC'] = new Set([...(byRole.PIC || []), ...(byRole.DISPATCHER || []), ...(byRole.CALLTAKER || [])].map(s => s.toUpperCase()));
+    // DISPATCHER can fill DISPATCHER + CALLTAKER
+    needSetFor['DISPATCHER'] = new Set([...(byRole.DISPATCHER || []), ...(byRole.CALLTAKER || [])].map(s => s.toUpperCase()));
+    // CALLTAKER can only fill CALLTAKER
+    needSetFor['CALLTAKER'] = new Set((byRole.CALLTAKER || []).map(s => s.toUpperCase()));
+  }
+
   // Generate bids for each employee — keep it lean (prefer/can only, max 3 slots per day)
   const bids = {};
   const DOW_NAMES = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
@@ -4362,6 +4967,13 @@ document.getElementById('btnOtbSimulate').addEventListener('click', async () => 
   }
 
   for (const emp of _ALL_EMPLOYEES) {
+    // Determine which slots this employee is eligible for based on their role
+    const pos = (emp.position || '').toUpperCase();
+    let empNeedSet = null;
+    if (pos.includes('PIC')) empNeedSet = needSetFor['PIC'];
+    else if (pos.includes('DISPATCH')) empNeedSet = needSetFor['DISPATCHER'];
+    else empNeedSet = needSetFor['CALLTAKER'];
+
     const slots = {};
     const offDays = new Set();
     for (const [day, shift] of Object.entries(emp.schedule || {})) {
@@ -4373,8 +4985,12 @@ document.getElementById('btnOtbSimulate').addEventListener('click', async () => 
       const dow = DOW_NAMES[keyDate.getDay()];
       const isDayOff = offDays.has(dow);
 
-      // Shuffle day's slots and pick a limited number
-      const shuffled = dayKeys.slice().sort(() => Math.random() - 0.5);
+      // Filter to only slots with need for this employee's role
+      const eligible = empNeedSet ? dayKeys.filter(k => empNeedSet.has(k.toUpperCase())) : dayKeys;
+      if (eligible.length === 0) continue;
+
+      // Shuffle and pick a limited number
+      const shuffled = eligible.slice().sort(() => Math.random() - 0.5);
       const maxPicks = isDayOff ? 3 : 1;
       const pickChance = isDayOff ? 0.6 : 0.15;
       let picked = 0;
@@ -4392,9 +5008,14 @@ document.getElementById('btnOtbSimulate').addEventListener('click', async () => 
   }
 
   try {
-    const ref = db.collection('ot_bids').doc(pid);
-    await ref.set({ bids }, { merge: true });
-    alert('Simulated bids generated for ' + _ALL_EMPLOYEES.length + ' employees across ' + slotKeys.length + ' slots each.');
+    const batch = db.batch();
+    const subCol = db.collection('ot_bids').doc(pid).collection('emp_bids');
+    for (const [name, bidData] of Object.entries(bids)) {
+      batch.set(subCol.doc(name), bidData);
+    }
+    batch.set(db.collection('ot_bids').doc(pid), { bids: {} }, { merge: true }); // clear legacy bids field
+    await batch.commit();
+    alert('Simulated bids generated for ' + Object.keys(bids).length + ' employees across ' + slotKeys.length + ' slots.');
   } catch (err) {
     alert('Error: ' + err.message);
   }
@@ -4525,8 +5146,9 @@ async function _loadRoleData(role) {
   return { employees: roleEmployees, adeq: roleAdeq, otAssignments: roleOTAssignments, ctAssignments: roleCTAssignments };
 }
 
-async function runDistributionForRole(targetRole, globalAssigned) {
+async function runDistributionForRole(targetRole, globalAssigned, dispOverflow) {
   // globalAssigned = { NAME: [slotKey, ...] } — already assigned across previous roles
+  // dispOverflow = { "dateStr-blockIdx": count } — dispatcher overflow for calltaker need calc
 
   // Load correct data for the target role
   const roleData = await _loadRoleData(targetRole);
@@ -4545,12 +5167,14 @@ async function runDistributionForRole(targetRole, globalAssigned) {
 
   try {
 
+  const [_yr, _mo] = currentMonth.split('-').map(Number);
   const bids = getOTBids();
   const settings = _otBidData.settings || {};
   const blockHrs = settings.blockSize === 1 ? 1 : 4;
   const defaultCap = settings.defaultMaxOT || 36;
   const periodStart = settings.periodStart;
   const periodEnd = settings.periodEnd;
+  console.log('[DIST] role=' + targetRole + ' blockHrs=' + blockHrs + ' defaultCap=' + defaultCap + ' periodStart=' + periodStart + ' periodEnd=' + periodEnd + ' bidders=' + Object.keys(bids).length);
 
   // Fetch OT assignments from ALL roles to prevent cross-role double-booking
   const allRoles = ['DISPATCHER', 'CALLTAKER', 'PIC'];
@@ -4571,11 +5195,9 @@ async function runDistributionForRole(targetRole, globalAssigned) {
 
   // Build needed slot keys using the target role's staffing computation
   const neededSlotKeys = new Set();
-  const isDisp = targetRole === 'DISPATCHER';
-  const monthly = isDisp ? computeMonthlyFromRotation() : computeMonthlyStaffing();
-  const [_yr, _mo] = currentMonth.split('-').map(Number);
+  const monthly = computeMonthlyStaffing(targetRole === 'CALLTAKER' ? dispOverflow : null);
   for (const d of monthly) {
-    const dateStr = _yr + '-' + String(_mo).padStart(2,'0') + '-' + String(d.date).padStart(2,'0');
+    const dateStr = d.dateStr || (currentMonth.split('-')[0] + '-' + String(currentMonth.split('-')[1]).padStart(2,'0') + '-' + String(d.date).padStart(2,'0'));
     for (let bi = 0; bi < OT_BLOCKS.length; bi++) {
       if (d.blocks[bi].otNeed > 0) {
         if (blockHrs === 1) {
@@ -4603,7 +5225,7 @@ async function runDistributionForRole(targetRole, globalAssigned) {
     }
   }
 
-  const assigned = {};
+  const assigned = {};  // name → Set of slotKeys (converted to arrays before return)
   const empCap = (name) => settings.employeeCaps?.[name] ?? defaultCap;
   const empSeniority = (name) => {
     const emp = _ALL_EMPLOYEES.find(e => e.name === name);
@@ -4614,7 +5236,7 @@ async function runDistributionForRole(targetRole, globalAssigned) {
   const empDesiredR1 = {};
   const empDesiredR2 = {};
   for (const name of qualifiedBidders) {
-    assigned[name] = [];
+    assigned[name] = new Set();
     const slots = bids[name].slots || {};
     empAvailCount[name] = Object.keys(slots).filter(k => (slots[k] === 'prefer' || slots[k] === 'can') && neededSlotKeys.has(k)).length;
     empDesiredR1[name] = bids[name].desiredR1 || 4;
@@ -4624,7 +5246,7 @@ async function runDistributionForRole(targetRole, globalAssigned) {
   // Slot need counts
   const slotNeedCount = {};
   for (const d of monthly) {
-    const dateStr = _yr + '-' + String(_mo).padStart(2,'0') + '-' + String(d.date).padStart(2,'0');
+    const dateStr = d.dateStr || (currentMonth.split('-')[0] + '-' + String(currentMonth.split('-')[1]).padStart(2,'0') + '-' + String(d.date).padStart(2,'0'));
     for (let bi = 0; bi < OT_BLOCKS.length; bi++) {
       if (d.blocks[bi].otNeed > 0) {
         if (blockHrs === 1) {
@@ -4641,14 +5263,29 @@ async function runDistributionForRole(targetRole, globalAssigned) {
   }
 
   const slotRemaining = { ...slotNeedCount };
+  const slotAssignedCount = {}; // hard counter: how many assigned per slot
+  for (const sk of Object.keys(slotNeedCount)) slotAssignedCount[sk] = 0;
+  const _totalSlotNeed = Object.values(slotNeedCount).reduce((s, v) => s + v, 0);
+  const _numSlots = Object.keys(slotNeedCount).length;
+  console.log('[DIST] ' + targetRole + ': ' + _numSlots + ' slots with need, total need=' + _totalSlotNeed + ', qualified bidders=' + qualifiedBidders.size);
   const jsDay2idx = { 0:6, 1:0, 2:1, 3:2, 4:3, 5:4, 6:5 };
 
   // Build cross-role + global pre-assigned map
   const preAssigned = {};
   for (const key of Object.keys(crossRoleOT)) {
-    const [dateNum, blockIdx] = key.split('-').map(Number);
-    if (isNaN(dateNum) || isNaN(blockIdx)) continue;
-    const dateStr = _yr + '-' + String(_mo).padStart(2,'0') + '-' + String(dateNum).padStart(2,'0');
+    // Handle both "DD-blockIdx" (legacy) and "YYYY-MM-DD-blockIdx" (new) formats
+    const parts = key.split('-');
+    let dateStr, blockIdx;
+    if (parts.length === 4) {
+      // "YYYY-MM-DD-blockIdx"
+      dateStr = parts[0] + '-' + parts[1] + '-' + parts[2];
+      blockIdx = Number(parts[3]);
+    } else if (parts.length === 2) {
+      // "DD-blockIdx"
+      dateStr = _yr + '-' + String(_mo).padStart(2,'0') + '-' + String(parts[0]).padStart(2,'0');
+      blockIdx = Number(parts[1]);
+    } else { continue; }
+    if (isNaN(blockIdx) || blockIdx < 0 || blockIdx >= OT_BLOCKS.length) continue;
     const names = crossRoleOT[key];
     if (blockHrs === 1) {
       for (let h = OT_BLOCKS[blockIdx].hourStart; h < OT_BLOCKS[blockIdx].hourEnd; h++) {
@@ -4704,112 +5341,209 @@ async function runDistributionForRole(targetRole, globalAssigned) {
     }
   }
 
-  const isEligible = (name, slotKey) => {
+  // Pre-compute vacation set per date string (avoids repeated Date creation)
+  const _vacDateCache = {};
+  for (const name of qualifiedBidders) {
+    const nameUpper = name.toUpperCase();
+    _vacDateCache[nameUpper] = new Set();
+  }
+  // Collect all unique date strings from slot keys
+  const _allDates = new Set();
+  for (const sk of allSlotKeys) _allDates.add(sk.split('_')[0]);
+  // Pre-check vacation for each bidder × each date
+  for (const dateStr of _allDates) {
+    const dateObj = new Date(dateStr + 'T12:00:00');
+    for (const name of qualifiedBidders) {
+      if (isOnVacationDate(name, dateObj)) {
+        _vacDateCache[name.toUpperCase()].add(dateStr);
+      }
+    }
+  }
+
+  const isEligible = (name, slotKey, slotDateStr) => {
     const nameUpper = name.toUpperCase();
     if (preAssigned[slotKey]?.has(nameUpper)) return false;
     if (empScheduled[nameUpper]?.has(slotKey)) return false;
+    if (_vacDateCache[nameUpper]?.has(slotDateStr)) return false;
     return true;
   };
 
   const weekHrs = {};
-  const getWeek = (slotKey) => {
-    const dateStr = slotKey.split('_')[0];
-    const d = new Date(dateStr + 'T00:00:00');
-    const start = new Date(periodStart + 'T00:00:00');
-    return Math.floor((d - start) / (7 * 86400000));
-  };
+  const _periodStartDate = periodStart ? new Date(periodStart + 'T00:00:00') : null;
+  // Pre-compute week number for each slot key
+  const _slotWeekCache = {};
+  const _slotDateCache = {};
+  for (const sk of allSlotKeys) {
+    const dateStr = sk.split('_')[0];
+    _slotDateCache[sk] = dateStr;
+    if (_slotWeekCache[dateStr] === undefined) {
+      const d = new Date(dateStr + 'T00:00:00');
+      if (!_periodStartDate || isNaN(_periodStartDate.getTime())) {
+        const jan1 = new Date(d.getFullYear(), 0, 1);
+        _slotWeekCache[dateStr] = Math.floor((d - jan1) / (7 * 86400000));
+      } else {
+        _slotWeekCache[dateStr] = Math.floor((d - _periodStartDate) / (7 * 86400000));
+      }
+    }
+  }
+  const getWeek = (sk) => _slotWeekCache[_slotDateCache[sk]] ?? 0;
   const getEmpWeekHrs = (name, wk) => (weekHrs[name]?.[wk]) || 0;
 
-  // Round 1
+  // Pre-compute each bidder's valid slots (bid prefer/can AND in neededSlotKeys)
+  const _bidderSlots = {};
+  for (const name of qualifiedBidders) {
+    const slots = bids[name].slots || {};
+    const valid = new Map(); // slotKey → 'prefer' | 'can'
+    for (const k of Object.keys(slots)) {
+      if ((slots[k] === 'prefer' || slots[k] === 'can') && allSlotKeys.has(k)) {
+        valid.set(k, slots[k]);
+      }
+    }
+    _bidderSlots[name] = valid;
+  }
+
+  // Track which slots still need filling (remove when full to avoid re-scanning)
+  const _openSlotSet = new Set();
+  for (const sk of allSlotKeys) {
+    if ((slotNeedCount[sk] || 0) > 0) _openSlotSet.add(sk);
+  }
+
+  // Round 1 — batch: assign all most-constrained slots per pass
+  let r1Iter = 0;
+  const MAX_ITER = 5000;
   let r1Made = true;
   while (r1Made) {
     r1Made = false;
-    const r1Open = [];
-    for (const sk of allSlotKeys) {
-      if ((slotRemaining[sk] || 0) <= 0) continue;
+    if (++r1Iter > MAX_ITER) { console.warn('[DIST] R1 hit max iterations'); break; }
+    if (r1Iter % 20 === 0) await new Promise(r => setTimeout(r, 0));
+    let bestSlot = null, bestCandidates = null, bestCount = Infinity;
+    for (const sk of _openSlotSet) {
+      if ((slotAssignedCount[sk] || 0) >= (slotNeedCount[sk] || 0)) { _openSlotSet.delete(sk); continue; }
+      const dateStr = _slotDateCache[sk];
       const candidates = [];
       for (const name of qualifiedBidders) {
-        if (assigned[name].includes(sk)) continue;
-        if (!isEligible(name, sk)) continue;
-        const val = bids[name].slots?.[sk];
-        if (val !== 'prefer' && val !== 'can') continue;
+        if (assigned[name].has(sk)) continue;
+        const val = _bidderSlots[name].get(sk);
+        if (!val) continue;
+        if (!isEligible(name, sk, dateStr)) continue;
+        if (assigned[name].size * blockHrs >= empCap(name)) continue;
         const wk = getWeek(sk);
         if (getEmpWeekHrs(name, wk) >= empDesiredR1[name]) continue;
         candidates.push({ name, pref: val });
       }
-      if (candidates.length > 0) r1Open.push({ slotKey: sk, candidates });
+      if (candidates.length > 0 && candidates.length < bestCount) {
+        bestSlot = sk; bestCandidates = candidates; bestCount = candidates.length;
+        if (bestCount === 1) break; // can't do better
+      }
     }
-    if (r1Open.length === 0) break;
-    r1Open.sort((a, b) => a.candidates.length - b.candidates.length);
-    const slot = r1Open[0];
-    slot.candidates.sort((a, b) => {
+    if (!bestSlot) break;
+    bestCandidates.sort((a, b) => {
       if (empAvailCount[a.name] !== empAvailCount[b.name]) return empAvailCount[a.name] - empAvailCount[b.name];
       const pa = a.pref === 'prefer' ? 0 : 1;
       const pb = b.pref === 'prefer' ? 0 : 1;
       if (pa !== pb) return pa - pb;
       return empSeniority(a.name) - empSeniority(b.name);
     });
-    const winner = slot.candidates[0];
-    assigned[winner.name].push(slot.slotKey);
-    const wk = getWeek(slot.slotKey);
+    const winner = bestCandidates[0];
+    assigned[winner.name].add(bestSlot);
+    slotAssignedCount[bestSlot] = (slotAssignedCount[bestSlot] || 0) + 1;
+    if ((slotAssignedCount[bestSlot] || 0) >= (slotNeedCount[bestSlot] || 0)) _openSlotSet.delete(bestSlot);
+    const wk = getWeek(bestSlot);
     if (!weekHrs[winner.name]) weekHrs[winner.name] = {};
     weekHrs[winner.name][wk] = (weekHrs[winner.name][wk] || 0) + blockHrs;
-    slotRemaining[slot.slotKey] = (slotRemaining[slot.slotKey] || 0) - 1;
+    slotRemaining[bestSlot] = (slotRemaining[bestSlot] || 0) - 1;
     r1Made = true;
   }
+  console.log('[DIST] R1 completed in ' + r1Iter + ' iterations');
 
-  // Round 2
-  const getRemainingAvail = (name) => {
-    const slots = bids[name].slots || {};
-    const assignedSet = new Set(assigned[name] || []);
-    let count = 0;
-    for (const k of Object.keys(slots)) {
-      if ((slots[k] === 'prefer' || slots[k] === 'can') && !assignedSet.has(k) && neededSlotKeys.has(k)) count++;
-    }
-    return count;
-  };
-  const getR2WeeklyCap = (name) => Math.min(empDesiredR1[name] + empDesiredR2[name], empCap(name));
+  // Round 2 — only for employees who explicitly requested extra hours (desiredR2 > 0)
+  // Re-populate open slots for R2
+  for (const sk of allSlotKeys) {
+    if ((slotNeedCount[sk] || 0) > 0 && (slotAssignedCount[sk] || 0) < (slotNeedCount[sk] || 0)) _openSlotSet.add(sk);
+  }
+  const r2Bidders = new Set([...qualifiedBidders].filter(n => empDesiredR2[n] > 0));
+  if (r2Bidders.size > 0) {
+    const getR2WeeklyCap = (name) => Math.min(empDesiredR1[name] + empDesiredR2[name], empCap(name));
 
-  let r2Made = true;
-  while (r2Made) {
-    r2Made = false;
-    const openSlots = [];
-    for (const sk of allSlotKeys) {
-      if ((slotRemaining[sk] || 0) <= 0) continue;
-      const candidates = [];
-      for (const name of qualifiedBidders) {
-        if (assigned[name].includes(sk)) continue;
-        if (!isEligible(name, sk)) continue;
-        const val = bids[name].slots?.[sk];
-        if (val !== 'prefer' && val !== 'can') continue;
-        const totalHrs = assigned[name].length * blockHrs;
-        if (totalHrs >= empCap(name)) continue;
-        const wk = getWeek(sk);
-        if (getEmpWeekHrs(name, wk) >= getR2WeeklyCap(name)) continue;
-        candidates.push({ name, pref: val, avail: getRemainingAvail(name) });
+    let r2Iter = 0;
+    let r2Made = true;
+    while (r2Made) {
+      r2Made = false;
+      if (++r2Iter > MAX_ITER) { console.warn('[DIST] R2 hit max iterations'); break; }
+      if (r2Iter % 20 === 0) await new Promise(r => setTimeout(r, 0));
+      let bestSlot = null, bestCandidates = null, bestCount = Infinity;
+      for (const sk of _openSlotSet) {
+        if ((slotAssignedCount[sk] || 0) >= (slotNeedCount[sk] || 0)) { _openSlotSet.delete(sk); continue; }
+        const dateStr = _slotDateCache[sk];
+        const candidates = [];
+        for (const name of r2Bidders) {
+          if (assigned[name].has(sk)) continue;
+          const val = _bidderSlots[name].get(sk);
+          if (!val) continue;
+          if (!isEligible(name, sk, dateStr)) continue;
+          const totalHrs = assigned[name].size * blockHrs;
+          if (totalHrs >= empCap(name)) continue;
+          const wk = getWeek(sk);
+          if (getEmpWeekHrs(name, wk) >= getR2WeeklyCap(name)) continue;
+          const avail = _bidderSlots[name].size - assigned[name].size;
+          candidates.push({ name, pref: val, avail });
+        }
+        if (candidates.length > 0 && candidates.length < bestCount) {
+          bestSlot = sk; bestCandidates = candidates; bestCount = candidates.length;
+          if (bestCount === 1) break;
+        }
       }
-      if (candidates.length > 0) openSlots.push({ slotKey: sk, candidates });
+      if (!bestSlot) break;
+      bestCandidates.sort((a, b) => {
+        if (a.avail !== b.avail) return a.avail - b.avail;
+        const pa = a.pref === 'prefer' ? 0 : 1;
+        const pb = b.pref === 'prefer' ? 0 : 1;
+        if (pa !== pb) return pa - pb;
+        return empSeniority(a.name) - empSeniority(b.name);
+      });
+      const winner = bestCandidates[0];
+      assigned[winner.name].add(bestSlot);
+      slotAssignedCount[bestSlot] = (slotAssignedCount[bestSlot] || 0) + 1;
+      if ((slotAssignedCount[bestSlot] || 0) >= (slotNeedCount[bestSlot] || 0)) _openSlotSet.delete(bestSlot);
+      const wk = getWeek(bestSlot);
+      if (!weekHrs[winner.name]) weekHrs[winner.name] = {};
+      weekHrs[winner.name][wk] = (weekHrs[winner.name][wk] || 0) + blockHrs;
+      slotRemaining[bestSlot] = (slotRemaining[bestSlot] || 0) - 1;
+      r2Made = true;
     }
-    if (openSlots.length === 0) break;
-    openSlots.sort((a, b) => a.candidates.length - b.candidates.length);
-    const slot = openSlots[0];
-    slot.candidates.sort((a, b) => {
-      if (a.avail !== b.avail) return a.avail - b.avail;
-      const pa = a.pref === 'prefer' ? 0 : 1;
-      const pb = b.pref === 'prefer' ? 0 : 1;
-      if (pa !== pb) return pa - pb;
-      return empSeniority(a.name) - empSeniority(b.name);
-    });
-    const winner = slot.candidates[0];
-    assigned[winner.name].push(slot.slotKey);
-    const wk = getWeek(slot.slotKey);
-    if (!weekHrs[winner.name]) weekHrs[winner.name] = {};
-    weekHrs[winner.name][wk] = (weekHrs[winner.name][wk] || 0) + blockHrs;
-    slotRemaining[slot.slotKey] = (slotRemaining[slot.slotKey] || 0) - 1;
-    r2Made = true;
+    console.log('[DIST] R2 completed in ' + r2Iter + ' iterations');
   }
 
-  return { assigned, slotNeedCount, slotRemaining, bids, empDesiredR1, empDesiredR2, empCap, blockHrs, qualifiedBidders };
+  // Safety: clamp — never assign more than needed per slot
+  for (const sk of Object.keys(slotNeedCount)) {
+    const maxForSlot = slotNeedCount[sk];
+    const assignedToSlot = Object.keys(assigned).filter(n => assigned[n].has(sk)).length;
+    if (assignedToSlot > maxForSlot) {
+      console.warn('[DIST] OVER-ASSIGNED slot ' + sk + ': ' + assignedToSlot + ' assigned but need=' + maxForSlot + '. Trimming.');
+      let excess = assignedToSlot - maxForSlot;
+      const byCount = Object.keys(assigned).filter(n => assigned[n].has(sk)).sort((a, b) => assigned[b].size - assigned[a].size);
+      for (const name of byCount) {
+        if (excess <= 0) break;
+        assigned[name].delete(sk);
+        excess--;
+      }
+    }
+  }
+
+  // Convert Sets to arrays for return
+  const assignedArrays = {};
+  for (const name of Object.keys(assigned)) assignedArrays[name] = [...assigned[name]];
+
+  // Debug summary
+  const _totalAssigned = Object.values(assignedArrays).reduce((s, a) => s + a.length, 0);
+  const _totalNeed = Object.values(slotNeedCount).reduce((s, v) => s + v, 0);
+  const _totalUnfilled = Object.values(slotRemaining).reduce((s, v) => s + Math.max(0, v), 0);
+  console.log('[DIST] ' + targetRole + ' DONE: ' + _totalAssigned + ' assignments, ' + _totalNeed + ' total need, ' + _totalUnfilled + ' unfilled');
+  for (const name of Object.keys(assignedArrays)) {
+    if (assignedArrays[name].length > 0) console.log('[DIST]   ' + name + ': ' + assignedArrays[name].length + ' slots (' + (assignedArrays[name].length * blockHrs) + 'hrs), weekHrs=' + JSON.stringify(weekHrs[name] || {}));
+  }
+
+  return { assigned: assignedArrays, slotNeedCount, slotRemaining, bids, empDesiredR1, empDesiredR2, empCap, blockHrs, qualifiedBidders };
 
   } finally {
     // Restore globals
@@ -4821,6 +5555,74 @@ async function runDistributionForRole(targetRole, globalAssigned) {
   }
 }
 
+// ========== MATRIX RAIN LOADING EFFECT ==========
+function _startMatrixRain() {
+  const canvas = document.createElement('canvas');
+  canvas.id = '_matrixCanvas';
+  canvas.style.cssText = 'position:fixed;inset:0;z-index:99999;pointer-events:none;';
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const cols = Math.floor(canvas.width / 14);
+  const drops = Array(cols).fill(0);
+  const chars = '0123456789ABCDEF@#$%&*+-=~'.split('');
+  const _mxInterval = setInterval(() => {
+    ctx.fillStyle = 'rgba(0,0,0,.06)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.font = '13px monospace';
+    for (let i = 0; i < cols; i++) {
+      const ch = chars[Math.floor(Math.random() * chars.length)];
+      const x = i * 14;
+      const y = drops[i] * 14;
+      const g = 180 + Math.floor(Math.random() * 75);
+      ctx.fillStyle = 'rgb(0,' + g + ',0)';
+      ctx.fillText(ch, x, y);
+      if (y > canvas.height && Math.random() > 0.975) drops[i] = 0;
+      drops[i] += 2;
+    }
+  }, 25);
+  // Status text
+  const statusEl = document.createElement('div');
+  statusEl.id = '_matrixStatus';
+  statusEl.style.cssText = 'position:fixed;bottom:40px;left:50%;transform:translateX(-50%);z-index:100000;font-size:16px;font-weight:900;color:#22c55e;font-family:monospace;letter-spacing:2px;text-shadow:0 0 12px #22c55e,0 0 30px rgba(34,197,94,.4);padding:12px 28px;background:rgba(0,0,0,.7);border:1px solid rgba(34,197,94,.3);border-radius:8px';
+  statusEl.textContent = 'COMPUTING...';
+  document.body.appendChild(statusEl);
+  // Freeze warning banner
+  const warnEl = document.createElement('div');
+  warnEl.id = '_matrixWarn';
+  warnEl.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100000;font-size:22px;font-weight:900;color:#facc15;font-family:monospace;letter-spacing:2px;padding:20px 40px;background:rgba(0,0,0,.8);border:2px solid rgba(250,204,21,.4);border-radius:10px;text-shadow:0 0 12px rgba(250,204,21,.5);text-align:center';
+  warnEl.textContent = 'SCREEN MAY FREEZE TEMPORARILY — THIS IS NORMAL';
+  document.body.appendChild(warnEl);
+  return { canvas, interval: _mxInterval, statusEl, warnEl };
+}
+
+function _updateMatrixStatus(mx, text) {
+  if (mx && mx.statusEl) mx.statusEl.textContent = text;
+}
+
+function _stopMatrixRain(mx) {
+  if (!mx) return;
+  clearInterval(mx.interval);
+  // Flash white then fade out
+  const ctx = mx.canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(255,255,255,.15)';
+  ctx.fillRect(0, 0, mx.canvas.width, mx.canvas.height);
+  if (mx.statusEl) mx.statusEl.textContent = 'COMPLETE';
+  if (mx.statusEl) mx.statusEl.style.color = '#4ade80';
+  setTimeout(() => {
+    mx.canvas.style.transition = 'opacity .5s';
+    mx.canvas.style.opacity = '0';
+    if (mx.statusEl) { mx.statusEl.style.transition = 'opacity .5s'; mx.statusEl.style.opacity = '0'; }
+    if (mx.warnEl) { mx.warnEl.style.transition = 'opacity .5s'; mx.warnEl.style.opacity = '0'; }
+    setTimeout(() => {
+      mx.canvas.remove();
+      if (mx.statusEl) mx.statusEl.remove();
+      if (mx.warnEl) mx.warnEl.remove();
+    }, 500);
+  }, 600);
+}
+
 // Single-role distribution button
 document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
   if (!_otBidData) { alert('No bid data available.'); return; }
@@ -4829,12 +5631,26 @@ document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
   const periodEnd = settings.periodEnd;
   if (!periodStart || !periodEnd) { alert('Period dates not set.'); return; }
 
-  const result = await runDistributionForRole(currentRole, {});
+  const mx = _startMatrixRain();
+  _updateMatrixStatus(mx, 'COMPUTING...');
+  await new Promise(r => setTimeout(r, 50)); // let paint happen
+
+  let result;
+  try {
+    result = await runDistributionForRole(currentRole, {}, currentRole === 'CALLTAKER' ? _dispOverflowCache : null);
+  } catch (err) {
+    _stopMatrixRain(mx);
+    console.error('[DIST] Error:', err);
+    alert('Distribution error: ' + err.message);
+    return;
+  }
   const { assigned, slotNeedCount, slotRemaining, bids, empDesiredR1, empDesiredR2, empCap, blockHrs } = result;
   const empSeniority = (name) => {
     const emp = _ALL_EMPLOYEES.find(e => e.name === name);
     return emp ? emp.seniority : 999;
   };
+
+  _stopMatrixRain(mx);
 
   // Store results
   _otBidDistResult = assigned;
@@ -4894,6 +5710,7 @@ document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
   document.getElementById('otbDistResults').innerHTML = html;
   document.getElementById('otbDistResults').style.display = '';
   document.getElementById('btnOtbPublish').style.display = '';
+  renderMonthlyOTView(); // refresh OT bids row to show assigned highlights
 }); // end single-role distribution
 
 // ========== RUN ALL ROLES (PIC → DISPATCHER → CALLTAKER) ==========
@@ -4904,6 +5721,11 @@ document.getElementById('btnOtbRunAll').addEventListener('click', async () => {
   const settings = _otBidData.settings || {};
   if (!settings.periodStart || !settings.periodEnd) { alert('Period dates not set.'); return; }
   if (!confirm('Run distribution for all roles in order: PIC → DISPATCHER → CALLTAKER?\nThis fills the most constrained roles first.')) return;
+
+  const mx = _startMatrixRain();
+  await new Promise(r => setTimeout(r, 50));
+
+  try {
 
   const roleOrder = ['PIC', 'DISPATCHER', 'CALLTAKER'];
   const roleColors = { PIC: '#a855f7', DISPATCHER: '#3b82f6', CALLTAKER: '#22c55e' };
@@ -4916,10 +5738,21 @@ document.getElementById('btnOtbRunAll').addEventListener('click', async () => {
     return emp ? emp.seniority : 999;
   };
 
+  // Pre-compute dispatcher overflow for calltaker need calculation (with SD subtracted)
+  let dispOverflow = null;
+  try {
+    const dispData = await _loadRoleData('DISPATCHER');
+    const sdHourly = _predictSD(dispData.employees);
+    const sdOTBlocks = _aggregateSDToOTBlocks(sdHourly);
+    dispOverflow = _computeDispatcherOverflow(dispData.employees, dispData.adeq, sdOTBlocks);
+  } catch (e) { console.warn('Failed to compute dispatcher overflow:', e); }
+
   let html = '<div style="font-size:15px;font-weight:900;margin-bottom:8px">ALL ROLES DISTRIBUTION — PIC → DISPATCHER → CALLTAKER</div>';
 
   for (const role of roleOrder) {
-    const result = await runDistributionForRole(role, globalAssigned);
+    _updateMatrixStatus(mx, 'COMPUTING...');
+    await new Promise(r => setTimeout(r, 50));
+    const result = await runDistributionForRole(role, globalAssigned, role === 'CALLTAKER' ? dispOverflow : null);
     _runAllResults[role] = result;
 
     // Merge into globalAssigned so next role won't double-book
@@ -4991,21 +5824,26 @@ document.getElementById('btnOtbRunAll').addEventListener('click', async () => {
     }
   }
 
+  _stopMatrixRain(mx);
+
   document.getElementById('otbDistResults').innerHTML = html;
   document.getElementById('otbDistResults').style.display = '';
   document.getElementById('btnOtbPublish').style.display = '';
+  renderMonthlyOTView(); // refresh OT bids row to show assigned highlights
+
+  } catch (err) {
+    _stopMatrixRain(mx);
+    console.error('[DIST] Run All error:', err);
+    alert('Distribution error: ' + err.message);
+  }
 });
 
 // Helper: convert slot keys to otAssignment format { "day-blockIdx": [names] }
 function slotKeysToOTAssignments(assignedMap, blockHrs) {
-  const [yr, mo] = currentMonth.split('-').map(Number);
   const result = {};
   for (const name of Object.keys(assignedMap)) {
     for (const sk of assignedMap[name]) {
       const [dateStr, blockLabel] = sk.split('_');
-      const d = new Date(dateStr + 'T00:00:00');
-      if (d.getMonth() + 1 !== mo || d.getFullYear() !== yr) continue;
-      const dayOfMonth = d.getDate();
       let blockIdx = OT_BLOCKS.findIndex(b => b.label === blockLabel);
       if (blockIdx < 0 && blockHrs === 1) {
         const hourMatch = blockLabel.match(/^(\d+[AP])-/);
@@ -5017,7 +5855,7 @@ function slotKeysToOTAssignments(assignedMap, blockHrs) {
         }
       }
       if (blockIdx < 0) continue;
-      const key = dayOfMonth + '-' + blockIdx;
+      const key = dateStr + '-' + blockIdx;
       if (!result[key]) result[key] = [];
       if (!result[key].includes(name)) result[key].push(name);
     }
@@ -5048,54 +5886,35 @@ document.getElementById('btnOtbPublish').addEventListener('click', async () => {
 
   try {
     if (isRunAll) {
-      // Save each role's assignments to its own settings doc
+      // Save each role's assignments to its own settings doc (REPLACE, not merge)
       for (const role of ['PIC', 'DISPATCHER', 'CALLTAKER']) {
         const roleResult = _runAllResults[role];
         if (!roleResult) continue;
         const roleOTAssign = slotKeysToOTAssignments(roleResult.assigned, blockHrs);
         const docId = ROLE_CONFIG[role].settingsDoc + '-' + currentMonth;
         const ref = db.collection('staffingops').doc(docId);
-        // Merge with existing OT assignments for this role
-        const existing = await ref.get();
-        const existingOT = (existing.exists && existing.data().otAssignments) || {};
-        for (const [key, names] of Object.entries(roleOTAssign)) {
-          if (!existingOT[key]) existingOT[key] = [];
-          for (const n of names) {
-            if (!existingOT[key].includes(n)) existingOT[key].push(n);
-          }
-        }
-        await ref.set({ otAssignments: existingOT }, { merge: true });
+        await ref.set({ otAssignments: roleOTAssign }, { merge: true });
       }
-      // Also update local _otAssignments for the current view
+      // Update local _otAssignments for the current view (replace)
       const currentRoleResult = _runAllResults[currentRole];
       if (currentRoleResult) {
-        const localOT = slotKeysToOTAssignments(currentRoleResult.assigned, blockHrs);
-        for (const [key, names] of Object.entries(localOT)) {
-          if (!_otAssignments[key]) _otAssignments[key] = [];
-          for (const n of names) {
-            if (!_otAssignments[key].includes(n)) _otAssignments[key].push(n);
-          }
-        }
+        _otAssignments = slotKeysToOTAssignments(currentRoleResult.assigned, blockHrs);
       }
     } else {
-      // Single role — save to current role's settings doc
-      const localOT = slotKeysToOTAssignments(_otBidDistResult, blockHrs);
-      for (const [key, names] of Object.entries(localOT)) {
-        if (!_otAssignments[key]) _otAssignments[key] = [];
-        for (const n of names) {
-          if (!_otAssignments[key].includes(n)) _otAssignments[key].push(n);
-        }
-      }
+      // Single role — replace current role's OT assignments
+      _otAssignments = slotKeysToOTAssignments(_otBidDistResult, blockHrs);
       saveOTAssignments();
     }
 
-    // Update bid doc
+    // Update bid doc — store approved as subcollection to avoid index limit
     const pid = getOTBidPeriodId();
     const bidRef = db.collection('ot_bids').doc(pid);
-    await bidRef.set({
-      approved,
-      'settings.status': 'assigned'
-    }, { merge: true });
+    // Save approved to a subcollection doc instead of main doc
+    await bidRef.collection('results').doc('approved').set(approved);
+    // Only update status on main doc (small write)
+    await bidRef.update({ 'settings.status': 'assigned' });
+    // Purge legacy fields if they exist (one-time cleanup)
+    try { await bidRef.update({ needSlots: firebase.firestore.FieldValue.delete() }); } catch(e) {}
 
     _otBidDistResult = null;
     _runAllResults = null;

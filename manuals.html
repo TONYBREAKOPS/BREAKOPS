@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Manuals &amp; Guides</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23070c16'/%3E%3Ccircle cx='32' cy='32' r='30' fill='none' stroke='%23c0c8d4' stroke-width='2'/%3E%3Cpolygon points='36,8 18,36 30,36 28,56 46,28 34,28' fill='%23e8ecf0'/%3E%3C/svg%3E"/>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+:root {
+  --bg: #0b0f14;
+  --bg2: #0e1319;
+  --card: #111826;
+  --card-hover: #182036;
+  --border: #233043;
+  --border-hover: rgba(74,163,255,.4);
+  --text: #e7eef8;
+  --muted: #9aa4b2;
+  --accent: #4aa3ff;
+  --accent2: #3fe7b6;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+/* Background effects */
+.bg-effects {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+}
+.bg-effects::before {
+  content: '';
+  position: absolute;
+  top: -30%; left: -10%;
+  width: 800px; height: 800px;
+  background: radial-gradient(circle, rgba(77,163,255,.08) 0%, transparent 70%);
+  animation: drift1 25s ease-in-out infinite;
+}
+.bg-effects::after {
+  content: '';
+  position: absolute;
+  bottom: -20%; right: -10%;
+  width: 700px; height: 700px;
+  background: radial-gradient(circle, rgba(63,231,182,.06) 0%, transparent 70%);
+  animation: drift2 30s ease-in-out infinite;
+}
+@keyframes drift1 {
+  0%, 100% { transform: translate(0, 0); }
+  33% { transform: translate(80px, 60px); }
+  66% { transform: translate(-40px, 30px); }
+}
+@keyframes drift2 {
+  0%, 100% { transform: translate(0, 0); }
+  33% { transform: translate(-60px, -40px); }
+  66% { transform: translate(50px, -20px); }
+}
+.grid-overlay {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(35,48,67,.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(35,48,67,.3) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black, transparent);
+}
+
+.container {
+  position: relative; z-index: 1;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 48px 40px 80px;
+}
+
+/* Header */
+.page-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+.page-header h1 {
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.page-header .subtitle {
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  margin-bottom: 32px;
+  transition: opacity .2s;
+}
+.back-link:hover { opacity: .7; }
+
+/* Section */
+.section-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Manual cards */
+.manual-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 48px;
+}
+@media (max-width: 700px) {
+  .manual-grid { grid-template-columns: 1fr; }
+}
+.manual-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  text-decoration: none;
+  color: var(--text);
+  transition: all .25s ease;
+  position: relative;
+  overflow: hidden;
+}
+.manual-card:hover {
+  background: var(--card-hover);
+  border-color: var(--border-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,.3);
+}
+.manual-card .icon {
+  width: 44px; height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  font-size: 20px;
+}
+.manual-card .icon.blue { background: rgba(74,163,255,.12); border: 1px solid rgba(74,163,255,.25); }
+.manual-card .icon.green { background: rgba(63,231,182,.12); border: 1px solid rgba(63,231,182,.25); }
+.manual-card .icon.purple { background: rgba(167,139,250,.12); border: 1px solid rgba(167,139,250,.25); }
+.manual-card .icon.amber { background: rgba(255,190,50,.12); border: 1px solid rgba(255,190,50,.25); }
+.manual-card .icon.red { background: rgba(255,107,107,.12); border: 1px solid rgba(255,107,107,.25); }
+.manual-card .icon.teal { background: rgba(45,212,191,.12); border: 1px solid rgba(45,212,191,.25); }
+
+.manual-card h3 {
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+.manual-card .desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  flex: 1;
+  margin-bottom: 14px;
+}
+.manual-card .badge-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.manual-card .badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.badge.supervisor { background: rgba(167,139,250,.12); color: #a78bfa; border: 1px solid rgba(167,139,250,.25); }
+.badge.employee { background: rgba(63,231,182,.12); color: #3fe7b6; border: 1px solid rgba(63,231,182,.25); }
+.badge.pdf { background: rgba(255,190,50,.12); color: #ffbe32; border: 1px solid rgba(255,190,50,.25); }
+.badge.html { background: rgba(74,163,255,.12); color: #4aa3ff; border: 1px solid rgba(74,163,255,.25); }
+
+.card-arrow {
+  position: absolute;
+  top: 24px; right: 24px;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .25s ease;
+}
+.manual-card:hover .card-arrow {
+  background: rgba(74,163,255,.15);
+}
+.card-arrow svg {
+  width: 14px; height: 14px;
+  color: var(--muted);
+}
+.manual-card:hover .card-arrow svg { color: var(--accent); }
+
+footer {
+  text-align: center;
+  padding: 32px 0;
+  font-size: 12px;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}
+</style>
+</head>
+<body>
+
+<div class="bg-effects"></div>
+<div class="grid-overlay"></div>
+
+<div class="container">
+
+  <a href="https://www.legitimous.com/links.html" class="back-link">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Back to Operations Hub
+  </a>
+
+  <div class="page-header">
+    <h1>Manuals &amp; Guides</h1>
+    <div class="subtitle">Training documents, user guides, and system references for all operations tools</div>
+  </div>
+
+  <!-- SUPERVISOR GUIDES -->
+  <div class="section-title">Supervisor &amp; Admin Guides</div>
+  <div class="manual-grid">
+
+    <a href="https://www.legitimous.com/MASTER_MANUAL_WEB.html" target="_blank" class="manual-card">
+      <div class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div class="icon blue">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4aa3ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      </div>
+      <h3>Master Manual</h3>
+      <div class="desc">Complete reference for all operations systems. Covers every tool, every feature, and every workflow from end to end. Start here if you're new.</div>
+      <div class="badge-row">
+        <span class="badge supervisor">Supervisor</span>
+        <span class="badge html">HTML</span>
+      </div>
+    </a>
+
+    <a href="https://www.legitimous.com/StaffingOps_OT_Guide.html" target="_blank" class="manual-card">
+      <div class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div class="icon purple">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      </div>
+      <h3>StaffingOps OT Needs Guide</h3>
+      <div class="desc">How the OT needs system works — reading the monthly grid, running distribution, publishing assignments, and managing overtime across all roles. Includes data flow schematic.</div>
+      <div class="badge-row">
+        <span class="badge supervisor">Supervisor</span>
+        <span class="badge html">HTML</span>
+      </div>
+    </a>
+
+    <a href="https://www.legitimous.com/RotationOps_Guide.pdf" target="_blank" class="manual-card">
+      <div class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div class="icon teal">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      </div>
+      <h3>RotationOps Guide</h3>
+      <div class="desc">How to manage the calltaking rotation — assigning dispatchers to CT duty, viewing rotation plans, and how it integrates with staffing.</div>
+      <div class="badge-row">
+        <span class="badge supervisor">Supervisor</span>
+        <span class="badge pdf">PDF</span>
+      </div>
+    </a>
+
+    <a href="https://www.legitimous.com/ShiftOps_Guide.pdf" target="_blank" class="manual-card">
+      <div class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div class="icon amber">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffbe32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <h3>ShiftOps Guide</h3>
+      <div class="desc">Daily roster management — shift assignments, seat tracking, OT/holdover entries, and Excel export. Everything you need for day-to-day shift operations.</div>
+      <div class="badge-row">
+        <span class="badge supervisor">Supervisor</span>
+        <span class="badge pdf">PDF</span>
+      </div>
+    </a>
+
+  </div>
+
+  <!-- EMPLOYEE GUIDES -->
+  <div class="section-title">Employee Guides</div>
+  <div class="manual-grid">
+
+    <a href="https://www.legitimous.com/OT_Bidding_Guide.html" target="_blank" class="manual-card">
+      <div class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div class="icon green">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3fe7b6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/></svg>
+      </div>
+      <h3>OT Bidding Guide</h3>
+      <div class="desc">Employee guide for submitting overtime bids — how to log in, fill out your availability card, set desired hours, and understand how assignments are made. Includes FAQ and quick reference checklist.</div>
+      <div class="badge-row">
+        <span class="badge employee">Employee</span>
+        <span class="badge html">HTML</span>
+      </div>
+    </a>
+
+  </div>
+
+  <footer>
+    <span>LEGITIMOUS</span> &nbsp;/&nbsp; 911 Operational Tools &nbsp;/&nbsp; <span id="yr">2026</span>
+  </footer>
+
+</div>
+
+<script>
+document.getElementById('yr').textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
