@@ -1,0 +1,881 @@
+# LEGITIMOUS OPERATIONS SUITE — MASTER MANUAL
+
+**911 Operational Tools for Dispatch Center Management**
+**Version 1.0 — March 2026**
+
+---
+
+## TABLE OF CONTENTS
+
+1. [Operations Hub (links.html)](#1-operations-hub)
+2. [ShiftOps (shiftops.html)](#2-shiftops)
+3. [BreakOPS — Admin Panel (admin.html)](#3-breakops-admin)
+4. [BreakOPS — Staff View (index.html)](#4-breakops-staff-view)
+5. [BreakOPS — Backup / Offline (index2.html)](#5-breakops-backup)
+6. [RotationOps (rotationopsv2.html)](#6-rotationops)
+7. [AttendanceOps (vacationops.html)](#7-attendanceops)
+8. [StaffingOps (staffingopsv2.html)](#8-staffingops)
+9. [ScheduleOps (scheduleops.html)](#9-scheduleops)
+10. [MandateOps (mandateops.html)](#10-mandateops)
+11. [DecisionOps (decisionops.html)](#11-decisionops)
+12. [Employee Database Editor (employees.html)](#12-employee-database-editor)
+13. [Bug Reports Dashboard (bugs.html)](#13-bug-reports)
+14. [Cross-App Architecture & Data Flow](#14-cross-app-architecture)
+
+---
+
+# 1. OPERATIONS HUB
+
+**File:** `links.html`
+**Purpose:** Central navigation portal linking to every app in the suite.
+
+## Overview
+
+The Operations Hub is the main landing page for the entire Legitimous Operations Suite. It displays a grid of cards, each linking to a different operational tool. There is no database or login — it is purely a navigation dashboard.
+
+## Features
+
+- **App Cards** — Each card shows the app name, description, feature tags, and a status badge (Ready / Online). Clicking a card opens that app in a new browser tab.
+- **Live Clock** — Header displays real-time clock (HH:MM:SS) and a green "Connected" status dot.
+- **Visual Effects** — Animated background gradients, grid overlay, scanline effect, and mouse-follow glow on cards.
+
+## Connected Apps
+
+| Card | Links To | Description |
+|------|----------|-------------|
+| ShiftOps | shiftops.html | Daily Roster Management |
+| BreakOps (Admin) | admin.html | Full control, manage assignments |
+| BreakOps (Staff) | / (root) | Read-only break board |
+| RotationOps | rotationopsv2.html | Monthly Channel Rotation |
+| AttendanceOps | vacationops.html | Attendance Manager |
+| MandateOps | mandateops.html | Overtime Mandate Ranking |
+| StaffingOps | staffingopsv2.html | Staffing Analysis |
+| DecisionOps | decisionops.html | Meeting Decision Engine |
+| ScheduleOps | scheduleops.html | Schedule Builder & Coverage Simulator |
+| Employee DB | employees.html | Database Editor (Locked) |
+| BreakOps Backup | index2.html | Offline fallback |
+| Bug Reports | bugs.html | Issue tracking |
+
+---
+
+# 2. SHIFTOPS
+
+**File:** `shiftops.html` (~9,500 lines)
+**Purpose:** Real-time shift management and staffing dashboard for daily operations.
+
+## Overview
+
+ShiftOps is the primary daily operations tool. It manages employee scheduling across day and night shifts, tracks attendance (present, absent, tardy, partial, trainer, trainee), assigns seat positions, monitors staffing adequacy, handles overtime imports, generates timesheets, and produces printable/exportable reports.
+
+## Main Interface
+
+### Header Controls
+- **Pay Period (PP)** — Select from PP3 onward (14-day cycles starting 2026-01-10)
+- **Week** — Week 1 or Week 2 within the pay period
+- **Day** — Saturday through Friday with the specific date shown
+- **Shift** — Day Shift (0600–1800) or Night Shift (1800–0600). Auto-selects based on current time
+- **Panel View** — "All 3 blocks" or individual 4-hour blocks, plus an employee search field
+
+### Options Menu
+- **Import OT** — Import Microsoft Teams overtime schedule (XLSX or CSV)
+- **Save XLSX** — Export current day's roster to a styled Excel workbook
+- **Timesheet** — Generate unofficial timesheets for the full 14-day pay period
+- **Print Daily** — Portrait letter-size PDF (roster + comments)
+- **Print Weekly** — 8-page legal-size PDF (regulars + OT for both shifts)
+- **Download Weekly Excel** — Weekly Excel workbook with staffing data
+- **Print Excel Legend** — Reference guide for weekly Excel color codes
+- **Shift Swap** — Swap schedules between two employees
+- **Push to BreakOPS** — Push staffing data to the BreakOPS system
+
+### Status Indicators
+- **UNFILLED pill** — Count of unfilled seats + unfilled absence reasons
+- **Firebase pill** — Connection status
+- **Sync pill** — Real-time sync status (idle / pending / saving / synced / live / error)
+
+## Shift Board Layout
+
+Each shift has three 4-hour blocks displayed as columns. Each column contains stacked cards:
+
+1. **Staffing Numbers** — Hour-by-hour required vs. scheduled headcount (SHORT / STAFFED / OVER)
+2. **Calltakers Table** — Name, Role, Seat, Worked, Hrs, Present, Comment
+3. **Dispatchers Table** — Same format
+4. **PIC Table** — Same format
+5. **OTHER Table** — For OTH roles (SD, TRN, B, ADM)
+6. **Supervisors Table** — Same format
+7. **Absent Table** — Shows absent/tardy/partial with Reason column
+8. **OT / Extra Bar** — Add overtime employees with Role and Segment selectors
+
+## How to Use
+
+### Viewing the Daily Roster
+The app auto-loads employee data from Firebase and auto-selects the current pay period, week, day, and shift.
+
+### Changing Role
+1. Click the role bubble (CT/DP/PIC/SUP/OTH) next to any employee name
+2. Select the new role — employee moves to the correct table
+
+### Assigning a Seat
+1. Click the seat bubble next to an employee
+2. Select from available seat assignments
+
+### Editing Worked Time
+1. Click the worked time pill (e.g., "6-10")
+2. Change start/end times in the floating editor
+3. Press Enter or click away — hours recalculate automatically
+4. Shorter worked time auto-detects TARDY or PARTIAL
+
+### Marking Attendance
+| Status | Effect |
+|--------|--------|
+| **YES** | Normal present |
+| **TRAINER** | Present as trainer (green ring) |
+| **TRAINEE** | Present as trainee (excluded from staffing counts) |
+| **PARTIAL** | Left early (yellow ring, creates ghost absent row for missed time) |
+| **TARDY** | Arrived late (red ring, auto-opens time editor, creates ghost absent row) |
+| **NO** | Triggers absence reason picker. Cascades absence to all later blocks for the day |
+
+### Adding OT / Extra Personnel
+1. Use the "Add OT" bar at the bottom of each block column
+2. Select employee or type a name, choose Role and Segment (4/4, 1/2, 2/2)
+3. Click "Add" — person appears in the appropriate role table with an "OT" badge
+
+### Importing OT from Microsoft Teams
+1. Options > Import OT
+2. Select XLSX or CSV file from Teams
+3. System matches employees by last name and distributes OT across blocks/shifts
+
+### Comments
+1. Click the speech bubble icon in the Cmt column
+2. Type a comment — auto-saves. Rows with comments show a yellow icon
+
+### Shift Swap
+1. Options > Shift Swap
+2. Select Employee A and Employee B
+3. Check the day(s) to swap, preview, then confirm
+4. Active swaps listed with remove buttons. "SWAP" badge appears on swapped names
+
+### Generating Timesheets
+1. Options > Timesheet
+2. Loads all 14 days of the pay period from Firebase
+3. Opens new window with per-employee timesheets including:
+   - Daily in/out times and hours
+   - Badges: OT, ABSENT (with reason), TARDY, PARTIAL, TRAINER, TRAINEE
+   - Attendance Summary (absent days/hours, tardy/partial counts, reason breakdown)
+4. Print individual or group timesheets as PDF
+
+### Daily PDF Print
+Options > Print Daily — Portrait letter PDF with full roster and comments page.
+
+### Weekly PDF Print
+Options > Print Weekly — 8-page legal PDF covering all 7 days for both shifts.
+
+### Push to BreakOPS
+Options > Push to BreakOPS — Writes position overrides and OT extras to the BreakOPS Firebase project.
+
+## Auto-Marking Behaviors
+- **Vacation**: Employees on vacation are auto-marked ABSENT with reason "VACATION"
+- **On-Site Training**: Auto-marked as TRAINEE
+- **Off-Site Training**: Auto-marked as OTH with type TRN
+- Auto-marks only apply if the employee hasn't been manually edited
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| Alt+1 / Alt+2 / Alt+3 | Switch to block 1, 2, or 3 |
+| Alt+A | Switch to "All 3 blocks" view |
+| Enter (on time input) | Commit worked time change |
+| Escape (on time input) | Revert worked time change |
+| Space (on custom select) | Toggle dropdown |
+| Arrow Up/Down (in dropdown) | Navigate options |
+| Enter (in dropdown) | Select option and auto-advance to next row |
+| Type-ahead (on dropdown) | Type letters to filter/preview match |
+| Shift+Enter (on present) | Toggle backwards through statuses |
+
+## Firebase Collections
+
+| Collection | Purpose |
+|------------|---------|
+| `employees` | Employee roster (name, seniority, position, schedule) |
+| `daily_edits` | Per-day per-shift edits (roles, seats, presence, OT, comments) |
+| `Calltaker/Dispatcher/PIC_Adequate_Staffing` | Required headcounts per hour per day |
+| `Calltaker/Dispatcher/PIC/Supervisor_Seat_Assignments` | Seat/position labels per role |
+| `Absent_Reason` | Valid absence reason labels |
+| `rotation_plans` | Vacation and training data per month |
+| `scheduledChanges` | Future schedule changes |
+| `shift_swaps` | Active shift swap records per date |
+| `bugReports` | Bug reports |
+
+---
+
+# 3. BREAKOPS — ADMIN PANEL
+
+**File:** `admin.html` (~4,300 lines)
+**Purpose:** Full-featured break scheduling and seat assignment management.
+
+## Overview
+
+BreakOPS Admin is a real-time break scheduling system for managing employee breaks across four positions (Calltaker, Dispatcher, PIC, ANET). It uses a turn-based sequential system where each employee picks their break in order, with skip timers and second-chance mechanics.
+
+## Main Sections
+
+### Navigation Controls
+- **Date Picker** — Select the working date
+- **Mode** — Days (0600–1800) or Nights (1800–0600)
+- **Block** — Select 4-hour block
+- **Search** — Filter employees by name
+- **Lock/Unlock** — Password-protected toggle for editing
+
+### Dispatcher Channel Assignments
+Three block cards showing 10+ channel assignments (North, East, South, West, Northwest, Central, DC1, DC2, R1, R2). Assign dispatchers to channels via dropdowns — swapping is supported.
+
+### Position Lineup Tables
+Four tables (Calltaker, Dispatcher, PIC, ANET) showing:
+- Employee name, shift, days off, seniority
+- Position override dropdown (change position temporarily)
+- Hours dropdown: "4" (full block), "1/2" (first half), "2/2" (second half)
+- Coverage mini-table showing adequate vs. scheduled per hour
+
+### Break Picker ("PICK YOUR BREAKS")
+- **DEPLOY BREAKS** — Starts break selection for all positions
+- **PAUSE ALL** — Pauses all timers
+- **Timer Duration** — 10sec to 10min (default 5 min)
+- **Slot Capacity Manager** — Adjust per-slot, per-position capacity limits (default: CT=3, DP=2, PIC=1, ANET=1)
+
+For each position:
+- Sequential turn order based on seniority
+- **NEXT UP** (yellow) — Current picker
+- **SKIPPED** (gray) — Timer expired, waiting for second chance
+- **2ND CHANCE** (orange) — Skipped person getting another turn
+- Skip timer with red countdown badge
+- Break time dropdown and seat assignment dropdown
+
+### NOT IN STAFFING LISTS
+Shows employees set to ABSENT with a "Restore" button.
+
+### Add Extra People
+Add overtime/fill-in employees with position selector. Extras appear at end of position lists.
+
+### Print Break Sheets
+Two-page printout — Page 1: Calltaker breaks, Page 2: Dispatcher/PIC breaks with relief table.
+
+## How to Use
+
+### Setting Up for a Shift
+1. Select Mode, Date, and Block
+2. Roster auto-populates from employee database
+3. Make position overrides as needed
+4. Add extras (overtime employees)
+
+### Assigning Breaks
+1. Click DEPLOY BREAKS (must lock editing first)
+2. NEXT UP person selects their seat assignment, then break time
+3. If timer expires, person is skipped; next person highlighted
+4. Skipped people get a second chance after the jumper picks
+
+### Pre-Selections & Auto-Pick
+Admins can set pre-selections for employees. When deployed, auto-pick assigns their preferred break/seat automatically.
+
+### Push Seats to ShiftOps
+Click "PUSH SEATS" to send CT and PIC seat assignments to ShiftOps.
+
+## Firebase Collections
+
+Uses **two separate Firebase projects**:
+
+**BreakOps Firebase (legitimous-2f2d2):**
+- `breakScopes/{scopeKey}` — Breaks, assignments, slot caps, timers, skipped turns, pre-selections
+- `rosterConfig/global` — Position overrides
+- `appState/current` — Landing view state
+- `bugReports` — Bug reports
+
+**ShiftOps Firebase (commandops-93846):**
+- Used for PUSH SEATS feature only
+
+---
+
+# 4. BREAKOPS — STAFF VIEW
+
+**File:** `index.html`
+**Purpose:** Read-only staff-facing view of the break picker.
+
+## Overview
+
+Shows only the break picker card — all admin setup, extras management, and roster configuration are hidden. Staff can see whose turn it is and what breaks have been assigned in real-time.
+
+## Features
+- Break picker for CALLTAKER, DISPATCHER, PIC, ANET positions
+- NEXT UP / SECOND CHANCE / SKIPPED highlighting
+- Skip timer countdown display
+- Live-follow: Automatically syncs to admin's mode/day/block selections
+- Print break sheets
+
+## How to Use
+1. Open the page — it automatically syncs to the admin's selections
+2. Watch the break picker for your turn
+3. Click CALLTAKER/DISPATCHER/PIC tabs to see different positions
+
+## Firebase
+Same as BreakOPS Admin — `legitimous-2f2d2` project, `breakScopes`, `appState`, `rosterConfig` collections.
+
+---
+
+# 5. BREAKOPS — BACKUP / OFFLINE
+
+**File:** `index2.html`
+**Purpose:** Standalone offline fallback for break management when cloud services are unavailable.
+
+## Overview
+
+A self-contained break system that stores all data in browser localStorage (no Firebase required). Provides complete break management with position assignment, extras, and CSV export.
+
+## Key Differences from Online Version
+- No Firebase — all data in localStorage
+- No real-time sync between users
+- No ANET position (only CT, DP, PIC)
+- Contains embedded BASE employee roster array
+
+## Features
+- Mode/Day/Block selection
+- Position management with override dropdowns
+- Extras management
+- Day-off awareness with technical scoring
+- Search by name
+- CSV export of positions and schedules
+- Print break sheets
+- Lock editing
+
+---
+
+# 6. ROTATIONOPS
+
+**File:** `rotationopsv2.html` (~14,500 lines)
+**Purpose:** Monthly dispatcher channel rotation scheduling with AI-powered fairness optimization.
+
+## Overview
+
+RotationOps generates, manages, and publishes monthly rotation schedules assigning dispatchers to 10 radio channels (North, East, South, West, Northwest, Central, DC1, DC2, Relief 1, Relief 2) across six 4-hour blocks per day. The goal is fair channel distribution while respecting dozens of constraints.
+
+## Core Functions
+
+### RANDOMIZE
+Runs hundreds of full-month generation attempts (~60 seconds). Each attempt fills every 4-hour block across all 10 channels from a shuffled dispatcher pool, respecting shift schedules, vacations, training, weekly caps, and fairness targets. Keeps the best-scoring plan.
+
+### BALANCE
+Post-optimization pass that swaps channel and CT assignments to improve fairness without introducing violations.
+
+### CHECK VIOLATIONS
+Scans for rule violations: same-channel-twice in a day, weekly CT/Relief/DC/primary channel caps exceeded.
+
+### CLEAR ASSIGNMENTS
+Password-protected ("911911") — wipes all assignments for the current month.
+
+## View Tabs
+
+### Day View
+Single-day view of all 10 channels x 6 blocks. Click assigned names for actions (SWAP, MOVE, MARK ABSENT). Click NEEDED badges to assign from CT/SD/OT pools. Send day/night shifts to ShiftOps.
+
+### Week View
+7-day grid with employee search. Export open shifts.
+
+### Month View
+Full-month calendar with employee search.
+
+### Roster View
+Per-employee monthly grid split by Day/Night/Split shift. Printable with channel count totals.
+
+### Monthly Exceptions
+- **Vacations/Exclusions** — Add/delete vacation ranges per employee
+- **Trainers** — Add training entries with date ranges, block pickers, channel pickers, and per-day overrides
+
+## Export Options
+- **Export Totals** — Fairness statistics
+- **Export Excel** — Full-month roster as .xls
+- **Export CSV** — All assignments with violation markers
+- **Export Open Shifts** — Teams-compatible .xlsx of unfilled slots
+- **Push to ShiftOps** — Sync rotation data to ShiftOps daily_edits
+
+## How to Use
+
+### Generating a Schedule
+1. Select Month and Year
+2. Click RANDOMIZE — waits ~60 seconds for optimization
+3. Review violation count and fairness metrics
+4. Click BALANCE to further improve
+5. Click CHECK VIOLATIONS to audit
+
+### Manual Adjustments
+- Click any name → SWAP (exchange with another), MOVE (relocate to empty slot), MARK ABSENT
+- Click NEEDED badge → Assign from CT, SD, or overtime pool
+- Click Vacation name → Assign to empty slot as overtime
+
+### Remove from Rotation
+Password-protected. Select employee, set date range — their slots become NEEDED.
+
+## Configuration
+- **Channels:** 10 main + 7th channel (Friday/Saturday nights only)
+- **Blocks:** Six 4-hour blocks (0600–0600)
+- **Weekly caps:** CT 2 blocks, Relief 2 blocks, DC 2 blocks, Primary channel 2 blocks
+- **SD monthly cap:** 32 blocks (128 hrs)
+- **Theme:** Dark/Light toggle saved in localStorage
+
+## Firebase Collections
+- `rotation_plans` — Complete monthly rotation (plan, vacations, trainers, overrides)
+- `employees` — Dispatcher roster (filtered to DISPATCHER position)
+- `daily_edits` — ShiftOps integration for push
+- `scheduledChanges` — Mirror training entries
+- `Dispatcher_Seat_Assignments` — Seat name casing for push
+- `bugReports` — Bug reports
+
+---
+
+# 7. ATTENDANCEOPS
+
+**File:** `vacationops.html` (~2,100 lines)
+**Purpose:** Centralized vacation, training, and absence tracking.
+
+## Overview
+
+AttendanceOps manages employee time-off, training schedules, and absence tracking. It syncs with ShiftOps, StaffingOps, and RotationOps via shared Firestore data.
+
+## Three Main Tabs
+
+### VACATIONS Tab
+- Add vacation entries: select employee, set from/to dates, click ADD
+- Edit existing entries inline (click EDIT, modify dates, SAVE)
+- Delete entries with X button
+- Import bulk vacations from Excel (.xlsx) with name matching and typo correction
+- Clear duplicate vacations across all months
+- Fix misplaced entries (move to correct month document)
+- Month navigation (prev/next) or ALL months view with filters
+
+### TRAINING Tab
+- Add training entries: employee, from/to dates, location (On Site / Off Site)
+- **On-Site** = employee marked present normally (TRAINEE in ShiftOps)
+- **Off-Site** = employee marked absent with reason "Training" (OTH/TRN in ShiftOps)
+- Edit and delete training entries
+
+### ABSENCES Tab
+- View real-time absences synced from ShiftOps daily_edits
+- Absence types: ABSENT (red), TARDY (yellow), PARTIAL (orange)
+- Recent call-offs section (last 7 days)
+- Dismiss individual absences or DISMISS ALL
+- Grouped by employee, expandable/collapsible
+- Search by employee name
+
+## How to Import Vacations from Excel
+1. Click the import section on VACATIONS tab
+2. Drag/drop .xlsx file or click to browse
+3. App parses names, handles typos, shows disambiguation for ambiguous matches
+4. Review imported entries (yellow highlight with "NEW" badge)
+5. Click "Commit to Firestore" or "Discard Import"
+
+## Firebase Collections
+- `rotation_plans` — Vacation and training entries (doc format: `rotation_YYYY_MM`)
+- `employees` — Employee list for dropdowns
+- `daily_edits` — Absence data from ShiftOps (read-only)
+- `dismissed_absences` — Tracks dismissed absences
+
+---
+
+# 8. STAFFINGOPS
+
+**File:** `staffingopsv2.html` (~3,960 lines, v12)
+**Purpose:** Workforce staffing analysis, OT needs calculation, and hypothetical schedule modeling.
+
+## Overview
+
+StaffingOps tracks hourly staffing levels against adequate requirements across a 7-day week for Calltakers, Dispatchers, and PICs. It calculates overtime needs, models hypothetical schedule changes, and tracks vacation impact.
+
+## Two Main Views
+
+### STAFFING NUMBERS View
+- **Staffing Grid** — 7-column (Mon–Sun) x 12-row (hourly blocks) grid split into DAY and NIGHT shifts
+- Each cell shows `current/needed` ratio, color-coded: RED (short), YELLOW (adequate), GREEN (over)
+- Hover cells to see who is working that block
+- Day headers show worst shortfall per day
+- Status bar shows total shortfall count and baseline comparison
+
+### OT NEEDS View (Monthly Calendar)
+- Full-month horizontal scrolling roster table with 6 blocks per day
+- Color-coded name chips, DISP IN CT badges (blue), OT badges (red)
+- NEEDED chips (red, pulsing) — click to assign OT
+- Export OT Needs to Teams-compatible XLSX
+- Import OT Assignments from Teams XLSX
+- Clear all OT assignments
+
+## Hypothetical Schedule Modeling
+- **Dual tabs (Set A / Set B)** with renamable labels
+- Load existing employees or add blank entries
+- Click day pills to set custom IN/OUT times
+- **APPLY SET A / APPLY SET B** — See grid impact with +/- change badges
+- **LOAD RECS** — Load pre-approved schedule recommendations
+- **TRIM** — Remove hypotheticals that don't reduce shortfalls
+- **SUGGEST** — Find best minor-change candidates from unloaded employees
+- Print before/after comparison reports
+
+## Roster Panel (Right Side)
+- Searchable employee list with include/exclude checkboxes
+- Sort by name (A–Z) or seniority (#)
+- Excluded employees grayed/strikethrough
+- Hover name to highlight their blocks on grid
+
+## Vacation Drawer
+Read-only table of vacations from AttendanceOps/RotationOps.
+
+## How to Use
+
+### Checking Staffing
+1. Select role (CALLTAKER / DISPATCHER / PIC) and month
+2. View STAFFING NUMBERS — red cells need attention
+3. Hover cells to see who's working
+
+### Modeling Schedule Changes
+1. Click HYPOTHETICALS to open drawer
+2. Load employees or add new entries
+3. Edit day schedules (click pill → set IN/OUT times)
+4. Click APPLY SET A or B to see impact on grid
+5. Use TRIM to remove ineffective changes, SUGGEST to find best candidates
+
+### Managing OT
+1. Switch to OT NEEDS view
+2. Click NEEDED chips to assign OT from available employees
+3. Export OT needs to Teams XLSX for scheduling
+
+## Firebase Collections
+- `employees` — Employee roster
+- `Calltaker/Dispatcher/PIC_Adequate_Staffing` — Staffing requirements
+- `staffingops` — Exclusions, hypotheticals, OT assignments per month
+- `rotation_plans` — Vacation and CT assignment data
+
+---
+
+# 9. SCHEDULEOPS
+
+**File:** `scheduleops.html`
+**Purpose:** Schedule planning tool and coverage simulator.
+
+## Overview
+
+ScheduleOps lets supervisors design shift templates, simulate staffing coverage across a week, and compare results against adequate staffing thresholds. It answers: "If we assign these shifts, will we have enough people each hour?"
+
+## Three-Panel Layout
+
+### Left Panel: Templates
+- Define shift templates (shift time, days off, headcount)
+- Add, edit, delete templates
+- AUTO-SUGGEST FILLS button for intelligent scheduling
+
+### Center Panel: Coverage Grid
+- 24-hour x 7-day grid showing current vs. adequate staffing
+- Color-coded: RED (short), YELLOW (adequate), GREEN (over)
+- Day headers show total shortfall per day
+- Summary bar with total templates, staff assigned, shortfall body-hours
+
+### Right Panel: Roster
+- Employee list with include/exclude checkboxes
+- Search by name
+- ALL ON / ALL OFF buttons
+- Shows LEAD badges for supervisory personnel
+
+## How to Use
+
+### Building a Schedule
+1. Select role tab (DP / CT / PIC)
+2. Click "+ ADD TEMPLATE" → set shift, days off, headcount
+3. Coverage grid updates in real-time
+4. Repeat until all cells are green/yellow
+
+### Using Auto-Suggest
+1. Click "AUTO-SUGGEST FILLS"
+2. Choose shift structure: 8-hour, Mixed 12 & 8-hour, or 10-hour
+3. Algorithm generates optimal template set
+4. Review and refine manually
+
+### Saving/Loading Scenarios
+- Click SAVE to name and store current template set
+- Select from dropdown to load a saved scenario
+- DEL to remove a scenario
+
+### Exporting
+Click EXPORT to copy a formatted coverage report to clipboard.
+
+## Predefined Shift Codes
+6A-2P, 6A-6P, 10A-6P, 10A-10P, 2P-10P, 6P-2A, 6P-6A, 10P-6A, 2A-2P, 2A-10A, 6A-4P, 2P-12A, 10P-8A, 2P-2A, plus CUSTOM option.
+
+## Firebase Collections
+- `employees` — Employee roster
+- `Calltaker/Dispatcher/PIC_Adequate_Staffing` — Staffing thresholds
+- `scheduleops_scenarios` — Saved schedule scenarios
+- `bugReports` — Bug reports
+
+---
+
+# 10. MANDATEOPS
+
+**File:** `mandateops.html`
+**Purpose:** Overtime mandate ranking, acceptance/refusal tracking, and refusal form generation.
+
+## Overview
+
+MandateOps generates ranked lists of employees eligible for mandatory overtime, records mandate acceptance/refusal, and produces formal documentation.
+
+## Controls
+- **Date Picker** — Select mandate date
+- **Shift Selector** — Day (0600–1800) or Night (1800–0600)
+- **Mandate Block** — 4-hour time block within the shift
+- **Generate List** — Build the ranked eligibility list
+- **Import OT** — Upload Teams export for OT hour tracking
+- **Print List** — Print all three role lists
+
+## Role Tabs
+CALLTAKER | DISPATCHER | PIC — each with independent mandate rankings.
+
+## Ranking Algorithm
+Employees ranked by:
+1. **Shortest work day** (ascending) — fewest total hours that day
+2. **Least OT hours in last 7 days** (ascending)
+3. **Highest seniority number** (descending) — for ties
+
+## Eligibility Rules
+- Shift must end exactly when mandate block starts
+- Must be marked Present
+- Not already on OT overlapping the block
+- Would not exceed 16-hour work day cap
+
+## How to Use
+
+### Generating a Mandate List
+1. Select date, shift, and mandate block
+2. Import OT from Teams if available (for accurate weekly OT tracking)
+3. Click "Generate List"
+4. System loads attendance, checks OT history, ranks eligible employees
+
+### Recording Actions
+- Click **Mandate** to accept an employee for OT
+- Click **Refuse** to record a refusal
+- Click **Undo** to reverse (today's actions only)
+- Click **Print Refusal** to generate a formal refusal form with signature lines
+
+### Mandate Log
+Right-side panel shows real-time log of all mandate/refusal actions. Clear Log is password-protected ("166637805").
+
+### Cross-Qualification
+- CT positions: check CT first, then DP, then PIC
+- DP positions: check DP first, then PIC
+- PIC positions: PIC only
+
+## Firebase Collections
+- `employees` — Employee roster
+- `daily_edits` — Attendance data
+- `mandates` — Mandate action log
+- `bugReports` — Bug reports
+
+---
+
+# 11. DECISIONOPS
+
+**File:** `decisionops.html` (~3,100 lines)
+**Purpose:** Structured meeting decision engine with real-time voting.
+
+## Overview
+
+DecisionOps guides teams through a structured decision-making process: organized topic discussion, timed speakers, option narrowing, participant voting, and action item tracking. All synchronized in real-time via Firebase.
+
+## Meeting Lifecycle
+**Create → Setup → Start → Active → Stop/Resume → End**
+
+## Topic Phases
+
+### WAITING
+Default state. Editable title, description, submitted-by, notes, time limit. Reorderable with arrow buttons.
+
+### DISCUSS
+- Timer counts down from allocated time
+- Track active speakers with per-person countdown timer
+- Propose options/solutions
+- Shared notes section
+- Can declare consensus, table the topic, or advance to narrowing/voting
+
+### NARROW (3+ options)
+Facilitator selects 2–4 finalist options from all proposals (checkbox interface).
+
+### VOTE
+- Real-time per-person voting board
+- Facilitator clicks options to assign votes on behalf of participants
+- Shows vote count and percentage live
+- Facilitator closes voting to reveal results
+- Tied results → facilitator breaks tie
+
+### DECIDED
+Winner displayed with vote breakdown, per-person vote history, actual vs. allocated time, participation stats, and action items with owner/due date.
+
+## How to Use
+
+### Creating a Meeting
+1. Enter meeting title, click "Start Meeting"
+2. Add topics (title, description, time limit)
+3. Add participants (search employees, or type "SUPERVISORS"/"DISPATCHERS" for bulk add)
+4. Click START MEETING
+
+### Running Discussion
+1. Click a WAITING topic to begin DISCUSS phase
+2. Click participant names to track speaker time
+3. Propose options in the input field
+4. Click "Advance to Vote" (2 options) or "Advance to Narrow" (3+ options)
+5. Or click "Declare Consensus" if everyone agrees
+
+### Voting
+1. Facilitator or participants click option buttons to vote
+2. Click "Close Voting & Reveal" to show results
+3. If tied, facilitator selects winner
+4. Click "Finalize Decision"
+
+### Action Items
+In DECIDED phase, add action items with task description, owner, and due date.
+
+### Summaries
+- **COPY** — Plain-text meeting summary to clipboard
+- **PRINT** — Formatted print-ready summary in new window
+
+## Firebase Collections
+- `decisionMeetings` — All meeting data (topics, votes, participants, action items)
+- `employees` — Employee search for participant adding
+- `appSettings` — Saved lead teams (doc: `decisionLeads`)
+
+---
+
+# 12. EMPLOYEE DATABASE EDITOR
+
+**File:** `employees.html`
+**Purpose:** Central management of all employee records and system configuration data.
+
+## Overview
+
+The foundational data source for nearly every other app. Manages employee records, absence reasons, adequate staffing thresholds, seat assignments, and scheduled changes. Requires dual authentication (access code + Firebase login).
+
+## Five Tabs
+
+### Tab 1: Employees
+- Sortable table (Name, Seniority, Position, Mon–Sun schedule)
+- Search by name, filter by position
+- Inline editing — click any cell to edit, Enter to save
+- Add/Delete employees
+- **Export Schedules** — Copies `const BASE = [...]` JSON to clipboard for pasting into BreakOPS
+
+### Tab 2: Absence Reasons
+- Add, edit, delete absence reason codes (e.g., SICK, VACATION, NCNS, PERSONAL)
+- **Migration Tool** — One-time utility to rename old reasons (SICK→REASON 1, FMLA→REASON 2) across all daily_edits
+
+### Tab 3: Adequate Staffing
+- Role tabs: CALLTAKER, DISPATCHER, PIC
+- 24-hour x 7-day grid of minimum staffing numbers per hour
+- Edit numbers and click Save
+
+### Tab 4: Seat Assignments
+- Role tabs: CALLTAKER, DISPATCHER, PIC, SUPERVISOR
+- Add/edit/delete seat names per role
+
+### Tab 5: Scheduled Changes
+Two sub-types:
+- **Schedule Changes** — Change an employee's weekly schedule starting on a date (optionally ending)
+- **Training Mirrors** — A trainee copies a trainer's schedule for a date range
+- Status badges: Pending → Active → Expired (auto-processed on page load)
+
+## Firebase Collections (All Read/Write)
+`employees`, `Absent_Reason`, `Calltaker/Dispatcher/PIC_Adequate_Staffing`, `Calltaker/Dispatcher/PIC/Supervisor_Seat_Assignments`, `scheduledChanges`, `daily_edits` (migration only)
+
+---
+
+# 13. BUG REPORTS
+
+**File:** `bugs.html` (~320 lines)
+**Purpose:** Admin dashboard for viewing and managing bug reports submitted from across the suite.
+
+## Overview
+
+Requires Firebase Auth login. Displays all bug reports from every app with status management.
+
+## Features
+
+### Tabs
+- **ACTIVE** — Non-archived bugs with filter buttons: ALL / OPEN / FIXED
+- **ARCHIVED** — Archived bugs with count badge
+
+### Bug Cards
+Each card shows: reporter name, app tag, email, status badge, details, timestamp, and action buttons.
+
+### Actions by Status
+| Status | Available Actions |
+|--------|-------------------|
+| OPEN | Mark Fixed, Archive, Delete |
+| FIXED | Reopen, Archive, Delete |
+| ARCHIVED | Restore, Delete |
+
+### Stats
+Header shows: X OPEN (red), X FIXED (green), X TOTAL (purple)
+
+## Firebase Collections
+- `bugReports` — Active bugs (real-time via onSnapshot)
+- `bugReportsArchive` — Archived bugs (real-time via onSnapshot)
+
+---
+
+# 14. CROSS-APP ARCHITECTURE
+
+## Two Firebase Projects
+
+| Project | Apps |
+|---------|------|
+| **commandops-93846** | ShiftOps, RotationOps, StaffingOps, AttendanceOps, ScheduleOps, MandateOps, DecisionOps, Employee DB, Bug Reports |
+| **legitimous-2f2d2** | BreakOPS (Admin, Staff View, Backup) |
+
+## Shared Data Flow
+
+```
+Employee Database Editor (employees.html)
+    │
+    ├── employees collection ──► ALL APPS (roster data)
+    ├── *_Adequate_Staffing ──► ShiftOps, StaffingOps, ScheduleOps, BreakOPS
+    ├── *_Seat_Assignments ──► ShiftOps, BreakOPS
+    ├── Absent_Reason ──► ShiftOps
+    ├── scheduledChanges ──► ShiftOps, RotationOps
+    └── Export Schedules ──► BreakOPS (manual copy-paste of BASE array)
+
+RotationOps (rotationopsv2.html)
+    │
+    ├── rotation_plans ──► StaffingOps (vacation/CT data)
+    │                  ──► AttendanceOps (vacation/training)
+    │                  ──► ShiftOps (vacation/training auto-marks)
+    └── daily_edits ◄──── ShiftOps (push rotation to shifts)
+
+ShiftOps (shiftops.html)
+    │
+    ├── daily_edits ──► AttendanceOps (absence extraction)
+    │              ──► MandateOps (attendance checks)
+    │              ──► StaffingOps (OT tracking)
+    └── BreakOPS push ──► BreakOPS (position overrides, OT extras)
+
+AttendanceOps (vacationops.html)
+    │
+    └── rotation_plans ──► RotationOps, StaffingOps, ShiftOps (vacations/training)
+
+All Apps ──► bugReports ──► Bug Reports Dashboard (bugs.html)
+```
+
+## Common Patterns Across All Apps
+- **Single-file HTML** — All apps are self-contained with inline CSS and JS (no build system)
+- **Dark/Light Theme** — Consistent toggle with CSS custom properties
+- **Firebase Firestore** — Real-time shared state via `onSnapshot` listeners
+- **Toast Notifications** — Transient success/error messages
+- **Responsive Design** — CSS Grid and Flexbox layouts
+- **Print Stylesheets** — `@media print` rules for formatted output
+- **Bug Reporting** — Every app has a "Report Bug" button writing to `bugReports` collection
+- **Firebase Auth** — Email/password login required for all apps (except links.html and BreakOPS staff view)
+
+## Real-Time Sync Pattern
+All apps use Firestore `onSnapshot` listeners for live multi-user sync. Write operations use debounced auto-save (typically 1.5–3 seconds) to prevent excessive writes. Guards prevent echo loops where a save triggers the listener which triggers another save.
+
+---
+
+*End of Master Manual*

@@ -125,7 +125,74 @@ body {
   margin-bottom: 48px;
 }
 @media (max-width: 700px) {
-  .manual-grid { grid-template-columns: 1fr; }
+  .container {
+    padding: 24px 16px 48px;
+  }
+  .page-header {
+    margin-bottom: 32px;
+  }
+  .page-header h1 {
+    font-size: 22px;
+  }
+  .page-header .subtitle {
+    font-size: 13px;
+  }
+  .back-link {
+    margin-bottom: 20px;
+  }
+  .section-title {
+    font-size: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+  }
+  .manual-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+  .manual-card {
+    padding: 18px;
+    border-radius: 12px;
+  }
+  .manual-card .icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    font-size: 16px;
+  }
+  .manual-card .icon svg {
+    width: 18px;
+    height: 18px;
+  }
+  .manual-card h3 {
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+  .manual-card .desc {
+    font-size: 12px;
+    margin-bottom: 10px;
+  }
+  .card-arrow {
+    top: 18px;
+    right: 18px;
+    width: 24px;
+    height: 24px;
+  }
+  .card-arrow svg {
+    width: 12px;
+    height: 12px;
+  }
+  footer {
+    padding: 24px 0;
+    font-size: 11px;
+  }
+  .login-box {
+    min-width: unset;
+    width: calc(100% - 32px);
+    max-width: 360px;
+    padding: 24px 20px;
+  }
 }
 .manual-card {
   display: flex;

@@ -293,10 +293,45 @@
   /* Responsive */
   @media (max-width: 900px) {
     .sidebar { display: none; }
-    .main { padding: 20px; }
+    .main { padding: 20px; max-width: 100%; }
     .hero { padding: 40px 20px 30px; }
     .hero h1 { font-size: 1.8rem; }
-    .section { padding: 20px; }
+    .section { padding: 20px; margin-bottom: 20px; border-radius: 8px; }
+    h1.sec-title { font-size: 1.6rem; }
+    h2 { font-size: 1.2rem; }
+    h3 { font-size: 1rem; }
+    table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    pre { font-size: 0.78rem; padding: 12px 14px; overflow-x: auto; }
+    .pdf-bar button { padding: 8px 16px; font-size: 0.82rem; }
+    .login-box { min-width: unset; max-width: 90vw; width: 320px; }
+  }
+
+  @media (max-width: 700px) {
+    .main { padding: 14px 10px 40px; }
+    .hero { padding: 28px 14px 20px; }
+    .hero h1 { font-size: 1.4rem; letter-spacing: 0; }
+    .hero .subtitle { font-size: 0.85rem; }
+    .hero .version { font-size: 0.78rem; }
+    .section { padding: 14px; margin-bottom: 14px; border-radius: 6px; }
+    h1.sec-title { font-size: 1.3rem; padding-bottom: 8px; }
+    h2 { font-size: 1.1rem; margin: 20px 0 8px; }
+    h3 { font-size: 0.95rem; }
+    p, li { font-size: 0.92rem; }
+    code { font-size: 0.8rem; }
+    pre { font-size: 0.72rem; padding: 10px 10px; white-space: pre; }
+    table { font-size: 0.78rem; }
+    th { padding: 8px 10px; }
+    td { padding: 7px 10px; }
+    .sec-meta { font-size: 0.78rem; gap: 8px; }
+    .sec-meta span { padding: 2px 7px; }
+    ul, ol { margin-left: 16px; }
+    .pdf-bar { bottom: 12px; right: 12px; gap: 6px; }
+    .pdf-bar button { padding: 7px 12px; font-size: 0.75rem; border-radius: 6px; }
+    .login-box { padding: 20px; max-width: 92vw; }
+    .login-box h2 { font-size: 16px; }
+    .login-box input { font-size: 13px; padding: 8px; }
+    .login-box button { font-size: 13px; padding: 8px; }
+    hr { margin: 20px 0; }
   }
 .login-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:#0b0f14;z-index:9999;display:flex;align-items:center;justify-content:center;}
 .login-box{background:#111826;border:1px solid #233043;border-radius:12px;padding:30px;min-width:320px;text-align:center;}
