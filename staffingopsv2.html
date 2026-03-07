@@ -4456,8 +4456,95 @@ function isRound1Complete(empName) {
 // ========== DISTRIBUTION ALGORITHM ==========
 
 // Core distribution function — runs for a specific role, returns { assigned, slotNeedCount, slotRemaining, bids, empDesiredR1, empDesiredR2, empCap, blockHrs }
+// Load role-specific data (employees, ADEQ, OT/CT assignments) without mutating globals
+async function _loadRoleData(role) {
+  const rc = ROLE_CONFIG[role];
+  const [empSnap, adeqSnap] = await Promise.all([
+    db.collection('employees').get(),
+    db.collection(rc.adeqCollection).get()
+  ]);
+  const roleEmployees = [];
+  empSnap.docs.forEach(doc => {
+    const d = doc.data();
+    const name = String(d.Employee || doc.id || "").trim().toUpperCase();
+    if (!name) return;
+    const pos = String(d.POSITION ?? d.Position ?? "").toUpperCase();
+    if (!rc.posFilter(pos)) return;
+    roleEmployees.push({
+      name, position: pos,
+      isLead: rc.sdEligible.has(name),
+      seniority: Number(d.SENIORITY ?? d.Seniority ?? 999),
+      schedule: {
+        MONDAY: normalizeShift(d.MONDAY ?? ""),
+        TUESDAY: normalizeShift(d.TUESDAY ?? ""),
+        WEDNESDAY: normalizeShift(d.WEDNESDAY ?? ""),
+        THURSDAY: normalizeShift(d.THURSDAY ?? ""),
+        FRIDAY: normalizeShift(d.FRIDAY ?? ""),
+        SATURDAY: normalizeShift(d.SATURDAY ?? ""),
+        SUNDAY: normalizeShift(d.SUNDAY ?? "")
+      }
+    });
+  });
+  roleEmployees.sort((a, b) => a.seniority - b.seniority);
+
+  const roleAdeq = {};
+  const dayColMap = {"Sun":"SUNDAY","Mon":"MONDAY","Tue":"TUESDAY","Wed":"WEDNESDAY","Thu":"THURSDAY","Fri":"FRIDAY","Sat":"SATURDAY"};
+  adeqSnap.docs.forEach(doc => {
+    const data = doc.data();
+    const timeVal = data[rc.adeqTimeField];
+    if (!timeVal || timeVal === "Time") return;
+    const hourKey = String(timeVal).replace(/[^0-9]/g, "").padStart(4, "0");
+    for (const [col, day] of Object.entries(dayColMap)) {
+      const val = data[col];
+      if (val !== undefined && val !== null && val !== "") {
+        const num = Number(val);
+        if (Number.isFinite(num)) {
+          if (!roleAdeq[day]) roleAdeq[day] = {};
+          roleAdeq[day][hourKey] = num;
+        }
+      }
+    }
+  });
+
+  // Load OT assignments for this role
+  const docId = rc.settingsDoc + '-' + currentMonth;
+  let roleOTAssignments = {};
+  try {
+    const settingsDoc = await db.collection('staffingops').doc(docId).get();
+    if (settingsDoc.exists && settingsDoc.data().otAssignments) {
+      roleOTAssignments = settingsDoc.data().otAssignments;
+    }
+  } catch (e) { console.warn('Failed to load OT assignments for ' + role, e); }
+
+  // CT assignments — only relevant for CALLTAKER
+  let roleCTAssignments = {};
+  if (role === 'CALLTAKER') {
+    roleCTAssignments = { ..._ctAssignments };
+  }
+
+  return { employees: roleEmployees, adeq: roleAdeq, otAssignments: roleOTAssignments, ctAssignments: roleCTAssignments };
+}
+
 async function runDistributionForRole(targetRole, globalAssigned) {
   // globalAssigned = { NAME: [slotKey, ...] } — already assigned across previous roles
+
+  // Load correct data for the target role
+  const roleData = await _loadRoleData(targetRole);
+  // Save globals
+  const savedORIG = ORIG_DISPATCHERS;
+  const savedADEQ = ADEQ;
+  const savedOT = _otAssignments;
+  const savedCT = _ctAssignments;
+  const savedRole = currentRole;
+  // Swap in role-specific data
+  ORIG_DISPATCHERS = roleData.employees;
+  ADEQ = roleData.adeq;
+  _otAssignments = roleData.otAssignments;
+  _ctAssignments = roleData.ctAssignments;
+  currentRole = targetRole;
+
+  try {
+
   const bids = getOTBids();
   const settings = _otBidData.settings || {};
   const blockHrs = settings.blockSize === 1 ? 1 : 4;
@@ -4723,6 +4810,15 @@ async function runDistributionForRole(targetRole, globalAssigned) {
   }
 
   return { assigned, slotNeedCount, slotRemaining, bids, empDesiredR1, empDesiredR2, empCap, blockHrs, qualifiedBidders };
+
+  } finally {
+    // Restore globals
+    ORIG_DISPATCHERS = savedORIG;
+    ADEQ = savedADEQ;
+    _otAssignments = savedOT;
+    _ctAssignments = savedCT;
+    currentRole = savedRole;
+  }
 }
 
 // Single-role distribution button
