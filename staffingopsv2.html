@@ -488,6 +488,7 @@ tr.on-vacation .shift-sel{pointer-events:none}
           <div style="display:flex;gap:8px;margin-bottom:12px">
             <button class="btn primary" id="btnOtbSaveSettings">SAVE SETTINGS</button>
             <button class="btn" id="btnOtbCreatePeriod">CREATE / RESET PERIOD</button>
+            <button class="btn" id="btnOtbSimulate" style="border-color:rgba(168,85,247,.4);color:#a855f7;background:rgba(168,85,247,.08)">SIMULATE BIDS</button>
           </div>
 
           <!-- Per-employee caps -->
@@ -505,6 +506,7 @@ tr.on-vacation .shift-sel{pointer-events:none}
           <!-- Distribution -->
           <div style="display:flex;gap:8px;margin-bottom:12px">
             <button class="btn primary" id="btnOtbRunDist" style="background:#166534;border-color:#22c55e">RUN DISTRIBUTION</button>
+            <button class="btn primary" id="btnOtbRunAll" style="background:#4c1d95;border-color:#8b5cf6">RUN ALL ROLES (PIC → DISP → CT)</button>
             <button class="btn primary" id="btnOtbPublish" style="display:none">PUBLISH ASSIGNMENTS</button>
           </div>
           <div id="otbDistResults" style="display:none;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:8px;max-height:400px;overflow-y:auto;font-size:11px"></div>
@@ -1001,8 +1003,15 @@ function computeMonthlyFromRotation() {
         }
       }
       names.sort((a, b) => a.name.localeCompare(b.name));
-      const otNeed = Math.max(0, needed - filled);
-      blocks.push({ label: _ROT_BLOCK_KEYS[bi], names, needed, current: filled, otNeed, delta: filled - needed, ctNames: [], otNames });
+      // Include OT assignments from StaffingOps
+      const staffOTKey = date + '-' + bi;
+      const staffOTNames = (_otAssignments[staffOTKey] || []).slice();
+      // Merge: don't duplicate names already in rotation otNames
+      const rotOTSet = new Set(otNames.map(n => n.toUpperCase()));
+      const extraOT = staffOTNames.filter(n => !rotOTSet.has(n.toUpperCase()));
+      const allOTNames = [...otNames, ...extraOT];
+      const otNeed = Math.max(0, needed - filled - extraOT.length);
+      blocks.push({ label: _ROT_BLOCK_KEYS[bi], names, needed, current: filled + extraOT.length, otNeed, delta: (filled + extraOT.length) - needed, ctNames: [], otNames: allOTNames });
     }
     result.push({ date, dow, vacNames: [...new Set(vacNamesOnDate)].sort(), blocks });
   }
@@ -1227,17 +1236,13 @@ function renderMonthlyOTView() {
   // Header
   let html = '<div class="ot-month-hdr">';
   html += '<span class="ot-month-title">' + roleLabel + ' — ' + MONTHS[mo - 1] + ' ' + yr + '</span>';
-  if (!isDispatcher) {
-    html += '<button class="btn" id="btnExportOT" style="font-size:10px;padding:5px 14px;background:rgba(220,38,38,.15);color:#ef4444;border-color:rgba(220,38,38,.3)">EXPORT OT NEEDS</button>';
-    html += '<button class="btn" id="btnImportOT" style="font-size:10px;padding:5px 14px;background:rgba(34,197,94,.12);color:#22c55e;border-color:rgba(34,197,94,.3);margin-left:6px">IMPORT OT ASSIGNMENTS</button>';
-    html += '<input type="file" id="importOTFile" accept=".xlsx,.xls,.csv" style="display:none"/>';
-    html += '<button class="btn" id="btnClearOT" style="font-size:10px;padding:5px 14px;background:rgba(251,113,133,.12);color:#fb7185;border-color:rgba(251,113,133,.3);margin-left:auto">CLEAR OT</button>';
-  }
+  html += '<button class="btn" id="btnExportOT" style="font-size:10px;padding:5px 14px;background:rgba(220,38,38,.15);color:#ef4444;border-color:rgba(220,38,38,.3)">EXPORT OT NEEDS</button>';
+  html += '<button class="btn" id="btnImportOT" style="font-size:10px;padding:5px 14px;background:rgba(34,197,94,.12);color:#22c55e;border-color:rgba(34,197,94,.3);margin-left:6px">IMPORT OT ASSIGNMENTS</button>';
+  html += '<input type="file" id="importOTFile" accept=".xlsx,.xls,.csv" style="display:none"/>';
+  html += '<button class="btn" id="btnClearOT" style="font-size:10px;padding:5px 14px;background:rgba(251,113,133,.12);color:#fb7185;border-color:rgba(251,113,133,.3);margin-left:auto">CLEAR OT</button>';
   html += '</div>';
 
-  if (isDispatcher) {
-    html += '<div class="ot-month-summary" style="color:var(--muted)">Read-only — from RotationOps' + (grandTotal > 0 ? ' &mdash; ' + grandTotal + ' unfilled slot' + (grandTotal !== 1 ? 's' : '') : '') + '</div>';
-  } else if (grandTotal > 0) {
+  if (grandTotal > 0) {
     html += '<div class="ot-month-summary">' + grandTotal + ' total OT slot' + (grandTotal !== 1 ? 's' : '') + ' needed across ' + daysWithOT + ' day' + (daysWithOT !== 1 ? 's' : '') + '</div>';
   } else {
     html += '<div class="ot-month-summary" style="color:#22c55e">No overtime needed — adequate staffing all month</div>';
@@ -1289,19 +1294,11 @@ function renderMonthlyOTView() {
       for (const on of (b.otNames || [])) {
         count++;
         const bg = nameColorMap[on] || 'rgba(255,255,255,.08)';
-        if (isDispatcher) {
-          html += '<div class="ot-name" style="background:' + bg + '"><span class="ot-num">' + count + '</span>' + esc(on) + '<span class="ot-badge">OT</span></div>';
-        } else {
           html += '<div class="ot-name" style="background:' + bg + ';cursor:pointer" onclick="removeOTAssign(\'' + esc(on).replace(/'/g, "\\'") + '\',' + d.date + ',' + bi + ')" title="Click to remove"><span class="ot-num">' + count + '</span>' + esc(on) + '<span class="ot-badge">OT</span></div>';
-        }
       }
       for (let n = 0; n < b.otNeed; n++) {
         count++;
-        if (isDispatcher) {
-          html += '<div class="ot-name needed"><span class="ot-num">' + count + '</span>' + roleSingular + ' NEEDED</div>';
-        } else {
           html += '<div class="ot-name needed" style="cursor:pointer" onclick="openOTAssignBox(' + d.date + ',' + bi + ')"><span class="ot-num">' + count + '</span>' + roleSingular + ' NEEDED</div>';
-        }
       }
       const totalFilled = b.names.length + (b.ctNames||[]).length + (b.otNames||[]).length;
       const over = totalFilled - b.needed;
@@ -1320,17 +1317,20 @@ function renderMonthlyOTView() {
   // OT BIDS row — one row, each block column shows who bid prefer/can
   const _allBids = getOTBids();
   const _bidBlockSize = _otBidData?.settings?.blockSize || 4;
-  if (Object.keys(_allBids).length) {
+  {
+    const _hasBids = Object.keys(_allBids).length > 0;
     html += '<tr><td class="sticky-col" style="color:#a78bfa">OT BIDS</td>';
     for (let di = 0; di < monthly.length; di++) {
       const d = monthly[di];
       const slotDateStr = yr + '-' + String(mo).padStart(2,'0') + '-' + String(d.date).padStart(2,'0');
       for (let bi = 0; bi < OT_BLOCKS.length; bi++) {
         const db = (bi === 0) ? dayBorder(di) : '';
-        html += '<td style="' + db + 'vertical-align:top;padding:2px 3px">';
+        html += '<td style="' + db + 'vertical-align:top;padding:2px 3px"><div style="display:flex;flex-direction:column;min-height:500px">';
+        html += '<div>';
         const preferNames = [], canNames = [];
-        for (const [name, bid] of Object.entries(_allBids)) {
+        if (_hasBids) for (const [name, bid] of Object.entries(_allBids)) {
           if (!bid.slots) continue;
+          if (!isQualifiedForRole(name, currentRole)) continue;
           let pref = '';
           if (_bidBlockSize === 1) {
             const blk = OT_BLOCKS[bi];
@@ -1356,31 +1356,23 @@ function renderMonthlyOTView() {
           html += '<div class="ot-name" style="background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.4);color:#facc15;font-size:9px">' + esc(n) + '</div>';
         }
         if (!preferNames.length && !canNames.length) html += '<span style="color:var(--muted);font-size:8px">&mdash;</span>';
-        html += '</td>';
+        html += '</div>';
+        // Vacation names anchored at bottom of cell
+        const _vacForDay = monthly[di].vacNames || [];
+        if (_vacForDay.length) {
+          html += '<div style="margin-top:auto;border-top:1px solid rgba(125,211,252,.15);padding-top:3px"><div style="font-size:8px;font-weight:800;color:#7dd3fc;letter-spacing:.5px;text-align:center;margin-bottom:2px">VACATION</div>';
+          for (const vn of _vacForDay) {
+            html += '<div class="ot-name vac" style="font-size:9px">' + esc(vn) + '</div>';
+          }
+          html += '</div>';
+        }
+        html += '</div></td>';
       }
     }
     html += '</tr>';
   }
 
-  // Spacer row to push vacation to the bottom
-  html += '<tr><td colspan="' + (1 + monthly.length * colsPerDay) + '" style="height:1px;padding:0;border:none"><div style="min-height:calc(100vh - 400px)"></div></td></tr>';
-
-  // VACATION row — one td per block column, matching staff row structure
-  html += '<tr>';
-  html += '<td class="sticky-col" style="color:#7dd3fc;font-weight:800;font-size:10px;vertical-align:top;padding-top:6px">VACATION</td>';
-  for (let di = 0; di < monthly.length; di++) {
-    const d = monthly[di];
-    for (let bi = 0; bi < OT_BLOCKS.length; bi++) {
-      const db = (bi === 0) ? dayBorder(di) : '';
-      html += '<td style="' + db + 'vertical-align:top;padding:2px 3px">';
-      for (const vn of d.vacNames) {
-        html += '<div class="ot-name vac">' + esc(vn) + '</div>';
-      }
-      if (!d.vacNames.length) html += '<span style="color:var(--muted);font-size:9px">&mdash;</span>';
-      html += '</td>';
-    }
-  }
-  html += '</tr>';
+  // Vacation names are now inline at the bottom of the OT BIDS row
 
   html += '</tbody></table>';
   html += '</div>'; // close scroll wrapper
@@ -4191,6 +4183,7 @@ function listenOTBids() {
     if (!snap.exists) { _otBidData = null; renderOTBidAdmin(); return; }
     _otBidData = snap.data();
     renderOTBidAdmin();
+    renderMonthlyOTView();
   });
 }
 
@@ -4327,6 +4320,86 @@ document.getElementById('btnOtbCreatePeriod').addEventListener('click', async ()
   }
 });
 
+// ========== SIMULATE BIDS ==========
+document.getElementById('btnOtbSimulate').addEventListener('click', async () => {
+  const pid = getOTBidPeriodId();
+  if (!pid) { alert('No period configured. Create a period first.'); return; }
+  if (!confirm('This will generate simulated bids for all employees for period ' + pid + '. Existing bids will be overwritten. Continue?')) return;
+
+  const settings = _otBidData?.settings || {};
+  const blockSize = settings.blockSize || parseInt(document.getElementById('otbBlockSize').value) || 4;
+  // Always generate bids for the currently viewed month
+  const [_simYr, _simMo] = currentMonth.split('-').map(Number);
+  const start = new Date(_simYr, _simMo - 1, 1);
+  const end = new Date(_simYr, _simMo, 0); // last day of month
+
+  // Build all slot keys for the period
+  const slotKeys = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    if (blockSize === 1) {
+      for (let h = 0; h < 24; h++) {
+        const fmt = v => { if (v === 0) return '12A'; if (v === 12) return '12P'; return v < 12 ? v + 'A' : (v - 12) + 'P'; };
+        slotKeys.push(dateStr + '_' + fmt(h) + '-' + fmt((h + 1) % 24));
+      }
+    } else {
+      for (const blk of OT_BLOCKS) {
+        slotKeys.push(dateStr + '_' + blk.label);
+      }
+    }
+  }
+
+  // Generate bids for each employee — keep it lean (prefer/can only, max 3 slots per day)
+  const bids = {};
+  const DOW_NAMES = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+
+  // Group slotKeys by date
+  const slotsByDate = {};
+  for (const key of slotKeys) {
+    const datePart = key.split('_')[0];
+    if (!slotsByDate[datePart]) slotsByDate[datePart] = [];
+    slotsByDate[datePart].push(key);
+  }
+
+  for (const emp of _ALL_EMPLOYEES) {
+    const slots = {};
+    const offDays = new Set();
+    for (const [day, shift] of Object.entries(emp.schedule || {})) {
+      if (!shift || shift === 'OFF' || shift === 'X' || shift === '') offDays.add(day);
+    }
+
+    for (const [datePart, dayKeys] of Object.entries(slotsByDate)) {
+      const keyDate = new Date(datePart + 'T12:00:00');
+      const dow = DOW_NAMES[keyDate.getDay()];
+      const isDayOff = offDays.has(dow);
+
+      // Shuffle day's slots and pick a limited number
+      const shuffled = dayKeys.slice().sort(() => Math.random() - 0.5);
+      const maxPicks = isDayOff ? 3 : 1;
+      const pickChance = isDayOff ? 0.6 : 0.15;
+      let picked = 0;
+
+      for (const key of shuffled) {
+        if (picked >= maxPicks) break;
+        if (Math.random() > pickChance) continue;
+        slots[key] = Math.random() < 0.55 ? 'prefer' : 'can';
+        picked++;
+      }
+    }
+    if (Object.keys(slots).length) {
+      bids[emp.name] = { slots, submittedAt: firebase.firestore.FieldValue.serverTimestamp() };
+    }
+  }
+
+  try {
+    const ref = db.collection('ot_bids').doc(pid);
+    await ref.set({ bids }, { merge: true });
+    alert('Simulated bids generated for ' + _ALL_EMPLOYEES.length + ' employees across ' + slotKeys.length + ' slots each.');
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+});
+
 // ========== CROSS-QUALIFICATION FILTER ==========
 function isQualifiedForRole(empName, targetRole) {
   const emp = _ALL_EMPLOYEES.find(e => e.name === empName);
@@ -4381,8 +4454,10 @@ function isRound1Complete(empName) {
 }
 
 // ========== DISTRIBUTION ALGORITHM ==========
-document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
-  if (!_otBidData) { alert('No bid data available.'); return; }
+
+// Core distribution function — runs for a specific role, returns { assigned, slotNeedCount, slotRemaining, bids, empDesiredR1, empDesiredR2, empCap, blockHrs }
+async function runDistributionForRole(targetRole, globalAssigned) {
+  // globalAssigned = { NAME: [slotKey, ...] } — already assigned across previous roles
   const bids = getOTBids();
   const settings = _otBidData.settings || {};
   const blockHrs = settings.blockSize === 1 ? 1 : 4;
@@ -4390,11 +4465,9 @@ document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
   const periodStart = settings.periodStart;
   const periodEnd = settings.periodEnd;
 
-  if (!periodStart || !periodEnd) { alert('Period dates not set.'); return; }
-
   // Fetch OT assignments from ALL roles to prevent cross-role double-booking
   const allRoles = ['DISPATCHER', 'CALLTAKER', 'PIC'];
-  const crossRoleOT = {}; // "day-blockIdx" -> Set of names assigned across all roles
+  const crossRoleOT = {};
   for (const role of allRoles) {
     const docId = ROLE_CONFIG[role].settingsDoc + '-' + currentMonth;
     try {
@@ -4409,17 +4482,16 @@ document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
     } catch (e) { console.warn('Failed to load OT for ' + role + ':', e); }
   }
 
-  // Build set of slot keys where there's an actual OT need from staffing data
+  // Build needed slot keys using the target role's staffing computation
   const neededSlotKeys = new Set();
-  const isDispatcher = currentRole === 'DISPATCHER';
-  const monthly = isDispatcher ? computeMonthlyFromRotation() : computeMonthlyStaffing();
+  const isDisp = targetRole === 'DISPATCHER';
+  const monthly = isDisp ? computeMonthlyFromRotation() : computeMonthlyStaffing();
   const [_yr, _mo] = currentMonth.split('-').map(Number);
   for (const d of monthly) {
     const dateStr = _yr + '-' + String(_mo).padStart(2,'0') + '-' + String(d.date).padStart(2,'0');
     for (let bi = 0; bi < OT_BLOCKS.length; bi++) {
       if (d.blocks[bi].otNeed > 0) {
         if (blockHrs === 1) {
-          // 1-hour blocks: add each hour key within this OT block
           for (let h = OT_BLOCKS[bi].hourStart; h < OT_BLOCKS[bi].hourEnd; h++) {
             const sh = h % 24, eh = (h + 1) % 24;
             const fmt = v => { if (v === 0) return '12A'; if (v === 12) return '12P'; return v < 12 ? v + 'A' : (v - 12) + 'P'; };
@@ -4432,29 +4504,29 @@ document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
     }
   }
 
-  // Collect all slot keys from all bids, filtered to only where there's a need
+  // Collect qualified bidders for this role
   const allSlotKeys = new Set();
+  const qualifiedBidders = new Set();
   for (const name of Object.keys(bids)) {
+    if (!isQualifiedForRole(name, targetRole)) continue;
+    qualifiedBidders.add(name);
     const slots = bids[name].slots || {};
     for (const key of Object.keys(slots)) {
       if (slots[key] !== 'cant' && neededSlotKeys.has(key)) allSlotKeys.add(key);
     }
   }
 
-  // Track assigned hours per person
-  const assigned = {}; // name -> [slotKey, ...]
+  const assigned = {};
   const empCap = (name) => settings.employeeCaps?.[name] ?? defaultCap;
   const empSeniority = (name) => {
     const emp = _ALL_EMPLOYEES.find(e => e.name === name);
     return emp ? emp.seniority : 999;
   };
 
-  // ---- ROUND 1: Fill scarcest slots first, use each employee's desiredR1 (4hrs/week) ----
-  // Pre-compute per-employee total availability and desired hours
   const empAvailCount = {};
-  const empDesiredR1 = {}; // per-week cap from bid (always 4)
-  const empDesiredR2 = {}; // extra hours from bid
-  for (const name of Object.keys(bids)) {
+  const empDesiredR1 = {};
+  const empDesiredR2 = {};
+  for (const name of qualifiedBidders) {
     assigned[name] = [];
     const slots = bids[name].slots || {};
     empAvailCount[name] = Object.keys(slots).filter(k => (slots[k] === 'prefer' || slots[k] === 'can') && neededSlotKeys.has(k)).length;
@@ -4462,8 +4534,8 @@ document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
     empDesiredR2[name] = bids[name].desiredR2 || 0;
   }
 
-  // Track how many people still needed per slot (from otNeed)
-  const slotNeedCount = {}; // slotKey -> how many people needed
+  // Slot need counts
+  const slotNeedCount = {};
   for (const d of monthly) {
     const dateStr = _yr + '-' + String(_mo).padStart(2,'0') + '-' + String(d.date).padStart(2,'0');
     for (let bi = 0; bi < OT_BLOCKS.length; bi++) {
@@ -4481,31 +4553,11 @@ document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
     }
   }
 
-  // Track remaining need per slot (decremented as people are assigned)
   const slotRemaining = { ...slotNeedCount };
-
-  // Account for existing OT assignments from current role — reduce remaining need
   const jsDay2idx = { 0:6, 1:0, 2:1, 3:2, 4:3, 5:4, 6:5 };
-  for (const key of Object.keys(_otAssignments)) {
-    const [dateNum, blockIdx] = key.split('-').map(Number);
-    const dateStr = _yr + '-' + String(_mo).padStart(2,'0') + '-' + String(dateNum).padStart(2,'0');
-    const names = _otAssignments[key] || [];
-    if (blockHrs === 1) {
-      for (let h = OT_BLOCKS[blockIdx].hourStart; h < OT_BLOCKS[blockIdx].hourEnd; h++) {
-        const sh = h % 24, eh = (h + 1) % 24;
-        const fmt = v => { if (v === 0) return '12A'; if (v === 12) return '12P'; return v < 12 ? v + 'A' : (v - 12) + 'P'; };
-        const sk = dateStr + '_' + fmt(sh) + '-' + fmt(eh);
-        if (slotRemaining[sk] !== undefined) slotRemaining[sk] = Math.max(0, slotRemaining[sk] - names.length);
-      }
-    } else {
-      const sk = dateStr + '_' + OT_BLOCKS[blockIdx].label;
-      if (slotRemaining[sk] !== undefined) slotRemaining[sk] = Math.max(0, slotRemaining[sk] - names.length);
-    }
-  }
 
-  // Build cross-role pre-assigned map — tracks who is assigned OT across ALL roles
-  // This prevents double-booking someone for the same block in dispatch + calltaker etc.
-  const preAssigned = {}; // slotKey -> Set of uppercase names
+  // Build cross-role + global pre-assigned map
+  const preAssigned = {};
   for (const key of Object.keys(crossRoleOT)) {
     const [dateNum, blockIdx] = key.split('-').map(Number);
     if (isNaN(dateNum) || isNaN(blockIdx)) continue;
@@ -4525,9 +4577,15 @@ document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
       for (const n of names) preAssigned[sk].add(n);
     }
   }
+  // Add globalAssigned (from previous roles in Run All) to preAssigned
+  for (const [name, slots] of Object.entries(globalAssigned || {})) {
+    for (const sk of slots) {
+      if (!preAssigned[sk]) preAssigned[sk] = new Set();
+      preAssigned[sk].add(name.toUpperCase());
+    }
+  }
 
-  // Build schedule lookup: which employees work which OT blocks on which dates
-  // empScheduled[NAME_UPPER] = Set of slotKeys where they have their regular shift
+  // Build schedule lookup
   const empScheduled = {};
   for (let i = 0; i < ORIG_DISPATCHERS.length; i++) {
     const emp = ORIG_DISPATCHERS[i];
@@ -4539,7 +4597,6 @@ document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
       const day = DAYS[dayIdx];
       const shiftCode = emp.schedule[day];
       for (let bi = 0; bi < OT_BLOCKS.length; bi++) {
-        // Check if any hour-block within this OT block is covered by the shift
         let covers = false;
         for (const hbi of OT_BLOCKS[bi].blockIdxs) {
           if (shiftCoversBlock(shiftCode, BLOCKS[hbi])) { covers = true; break; }
@@ -4560,18 +4617,14 @@ document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
     }
   }
 
-  // Helper: check if employee is eligible for a slot (not pre-assigned, not on regular shift)
   const isEligible = (name, slotKey) => {
     const nameUpper = name.toUpperCase();
-    // Already manually assigned to this slot
     if (preAssigned[slotKey]?.has(nameUpper)) return false;
-    // Working their regular shift during this block
     if (empScheduled[nameUpper]?.has(slotKey)) return false;
     return true;
   };
 
-  // Track weekly hours per employee
-  const weekHrs = {}; // name -> { weekNum: hours }
+  const weekHrs = {};
   const getWeek = (slotKey) => {
     const dateStr = slotKey.split('_')[0];
     const d = new Date(dateStr + 'T00:00:00');
@@ -4580,35 +4633,28 @@ document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
   };
   const getEmpWeekHrs = (name, wk) => (weekHrs[name]?.[wk]) || 0;
 
-  // Round 1: loop — assign one person at a time to scarcest slot, repeat until no more R1 capacity
+  // Round 1
   let r1Made = true;
   while (r1Made) {
     r1Made = false;
-
-    // Build slot list with remaining need > 0
     const r1Open = [];
     for (const sk of allSlotKeys) {
       if ((slotRemaining[sk] || 0) <= 0) continue;
       const candidates = [];
-      for (const name of Object.keys(bids)) {
-        if (assigned[name].includes(sk)) continue; // already assigned to this slot
-        if (!isEligible(name, sk)) continue; // pre-assigned or on regular shift
+      for (const name of qualifiedBidders) {
+        if (assigned[name].includes(sk)) continue;
+        if (!isEligible(name, sk)) continue;
         const val = bids[name].slots?.[sk];
         if (val !== 'prefer' && val !== 'can') continue;
         const wk = getWeek(sk);
-        if (getEmpWeekHrs(name, wk) >= empDesiredR1[name]) continue; // hit R1 weekly cap
+        if (getEmpWeekHrs(name, wk) >= empDesiredR1[name]) continue;
         candidates.push({ name, pref: val });
       }
       if (candidates.length > 0) r1Open.push({ slotKey: sk, candidates });
     }
-
     if (r1Open.length === 0) break;
-
-    // Sort by scarcity
     r1Open.sort((a, b) => a.candidates.length - b.candidates.length);
-
     const slot = r1Open[0];
-    // Pick winner: fewest availability first, prefer > can, seniority
     slot.candidates.sort((a, b) => {
       if (empAvailCount[a.name] !== empAvailCount[b.name]) return empAvailCount[a.name] - empAvailCount[b.name];
       const pa = a.pref === 'prefer' ? 0 : 1;
@@ -4616,7 +4662,6 @@ document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
       if (pa !== pb) return pa - pb;
       return empSeniority(a.name) - empSeniority(b.name);
     });
-
     const winner = slot.candidates[0];
     assigned[winner.name].push(slot.slotKey);
     const wk = getWeek(slot.slotKey);
@@ -4626,8 +4671,7 @@ document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
     r1Made = true;
   }
 
-  // ---- ROUND 2: Maximize fill — use desiredR2 extra hours, scarcest first, multi-fill ----
-  // Compute remaining availability per employee (unfilled prefer/can slots not yet assigned to them)
+  // Round 2
   const getRemainingAvail = (name) => {
     const slots = bids[name].slots || {};
     const assignedSet = new Set(assigned[name] || []);
@@ -4637,60 +4681,38 @@ document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
     }
     return count;
   };
-
-  // R2 weekly cap = desiredR1 + desiredR2 (total desired per week), clamped to overall OT cap
   const getR2WeeklyCap = (name) => Math.min(empDesiredR1[name] + empDesiredR2[name], empCap(name));
 
-  // Loop: assign one person at a time to scarcest slot with remaining need, repeat
   let r2Made = true;
   while (r2Made) {
     r2Made = false;
-
     const openSlots = [];
     for (const sk of allSlotKeys) {
-      if ((slotRemaining[sk] || 0) <= 0) continue; // slot fully filled
+      if ((slotRemaining[sk] || 0) <= 0) continue;
       const candidates = [];
-      for (const name of Object.keys(bids)) {
-        if (assigned[name].includes(sk)) continue; // already assigned here
-        if (!isEligible(name, sk)) continue; // pre-assigned or on regular shift
+      for (const name of qualifiedBidders) {
+        if (assigned[name].includes(sk)) continue;
+        if (!isEligible(name, sk)) continue;
         const val = bids[name].slots?.[sk];
         if (val !== 'prefer' && val !== 'can') continue;
-        // Check total cap
         const totalHrs = assigned[name].length * blockHrs;
         if (totalHrs >= empCap(name)) continue;
-        // Check weekly cap (R2 expanded)
         const wk = getWeek(sk);
         if (getEmpWeekHrs(name, wk) >= getR2WeeklyCap(name)) continue;
-        candidates.push({ name, pref: val });
+        candidates.push({ name, pref: val, avail: getRemainingAvail(name) });
       }
       if (candidates.length > 0) openSlots.push({ slotKey: sk, candidates });
     }
-
     if (openSlots.length === 0) break;
-
-    // Sort by scarcity (fewest candidates first)
     openSlots.sort((a, b) => a.candidates.length - b.candidates.length);
-
     const slot = openSlots[0];
-
-    // Pick winner:
-    // 1. Fewest remaining available slots (save flexible people)
-    // 2. Most cap room (can absorb more hours)
-    // 3. prefer > can
-    // 4. Seniority
     slot.candidates.sort((a, b) => {
-      const ra = getRemainingAvail(a.name);
-      const rb = getRemainingAvail(b.name);
-      if (ra !== rb) return ra - rb;
-      const capRoomA = empCap(a.name) - assigned[a.name].length * blockHrs;
-      const capRoomB = empCap(b.name) - assigned[b.name].length * blockHrs;
-      if (capRoomA !== capRoomB) return capRoomB - capRoomA;
+      if (a.avail !== b.avail) return a.avail - b.avail;
       const pa = a.pref === 'prefer' ? 0 : 1;
       const pb = b.pref === 'prefer' ? 0 : 1;
       if (pa !== pb) return pa - pb;
       return empSeniority(a.name) - empSeniority(b.name);
     });
-
     const winner = slot.candidates[0];
     assigned[winner.name].push(slot.slotKey);
     const wk = getWeek(slot.slotKey);
@@ -4699,6 +4721,24 @@ document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
     slotRemaining[slot.slotKey] = (slotRemaining[slot.slotKey] || 0) - 1;
     r2Made = true;
   }
+
+  return { assigned, slotNeedCount, slotRemaining, bids, empDesiredR1, empDesiredR2, empCap, blockHrs, qualifiedBidders };
+}
+
+// Single-role distribution button
+document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
+  if (!_otBidData) { alert('No bid data available.'); return; }
+  const settings = _otBidData.settings || {};
+  const periodStart = settings.periodStart;
+  const periodEnd = settings.periodEnd;
+  if (!periodStart || !periodEnd) { alert('Period dates not set.'); return; }
+
+  const result = await runDistributionForRole(currentRole, {});
+  const { assigned, slotNeedCount, slotRemaining, bids, empDesiredR1, empDesiredR2, empCap, blockHrs } = result;
+  const empSeniority = (name) => {
+    const emp = _ALL_EMPLOYEES.find(e => e.name === name);
+    return emp ? emp.seniority : 999;
+  };
 
   // Store results
   _otBidDistResult = assigned;
@@ -4758,17 +4798,149 @@ document.getElementById('btnOtbRunDist').addEventListener('click', async () => {
   document.getElementById('otbDistResults').innerHTML = html;
   document.getElementById('otbDistResults').style.display = '';
   document.getElementById('btnOtbPublish').style.display = '';
-}); // end distribution
+}); // end single-role distribution
+
+// ========== RUN ALL ROLES (PIC → DISPATCHER → CALLTAKER) ==========
+let _runAllResults = null; // { PIC: {...}, DISPATCHER: {...}, CALLTAKER: {...} }
+
+document.getElementById('btnOtbRunAll').addEventListener('click', async () => {
+  if (!_otBidData) { alert('No bid data available.'); return; }
+  const settings = _otBidData.settings || {};
+  if (!settings.periodStart || !settings.periodEnd) { alert('Period dates not set.'); return; }
+  if (!confirm('Run distribution for all roles in order: PIC → DISPATCHER → CALLTAKER?\nThis fills the most constrained roles first.')) return;
+
+  const roleOrder = ['PIC', 'DISPATCHER', 'CALLTAKER'];
+  const roleColors = { PIC: '#a855f7', DISPATCHER: '#3b82f6', CALLTAKER: '#22c55e' };
+  const globalAssigned = {}; // name → [slotKeys] across all roles
+  _runAllResults = {};
+  const blockHrs = settings.blockSize === 1 ? 1 : 4;
+
+  const empSeniority = (name) => {
+    const emp = _ALL_EMPLOYEES.find(e => e.name === name);
+    return emp ? emp.seniority : 999;
+  };
+
+  let html = '<div style="font-size:15px;font-weight:900;margin-bottom:8px">ALL ROLES DISTRIBUTION — PIC → DISPATCHER → CALLTAKER</div>';
+
+  for (const role of roleOrder) {
+    const result = await runDistributionForRole(role, globalAssigned);
+    _runAllResults[role] = result;
+
+    // Merge into globalAssigned so next role won't double-book
+    for (const [name, slots] of Object.entries(result.assigned)) {
+      if (!globalAssigned[name]) globalAssigned[name] = [];
+      globalAssigned[name].push(...slots);
+    }
+
+    // Tally
+    let totalAssigned = 0, totalNeeded = 0;
+    for (const name of Object.keys(result.assigned)) totalAssigned += result.assigned[name].length;
+    for (const sk of Object.keys(result.slotNeedCount)) totalNeeded += result.slotNeedCount[sk];
+    const totalFilled = totalNeeded - Object.values(result.slotRemaining).reduce((s, v) => s + Math.max(0, v), 0);
+    const unfilled = Object.keys(result.slotRemaining).filter(sk => result.slotRemaining[sk] > 0);
+
+    html += '<div style="margin:12px 0;padding:10px;border:1px solid ' + roleColors[role] + '44;border-radius:8px;background:' + roleColors[role] + '08">';
+    html += '<div style="font-size:13px;font-weight:900;color:' + roleColors[role] + ';margin-bottom:6px">' + role + '</div>';
+    html += '<div style="font-size:11px;color:var(--muted);margin-bottom:6px">' + totalFilled + ' of ' + totalNeeded + ' needed slots filled — ' + totalAssigned + ' assignments</div>';
+
+    // Show assigned people
+    const sortedNames = Object.keys(result.assigned).sort((a, b) => empSeniority(a) - empSeniority(b));
+    for (const name of sortedNames) {
+      const slots = result.assigned[name];
+      if (slots.length === 0) continue;
+      const hrs = slots.length * blockHrs;
+      html += '<div style="padding:3px 0;font-size:11px"><strong>' + name + '</strong> — ' + hrs + ' hrs (' + slots.length + ' slots) ';
+      for (const sk of slots.sort()) {
+        const [dateStr, blockLabel] = sk.split('_');
+        const pref = result.bids[name]?.slots?.[sk] || '?';
+        const prefColor = pref === 'prefer' ? '#22c55e' : pref === 'can' ? '#eab308' : '#a8b3c7';
+        html += '<span style="display:inline-block;padding:1px 5px;margin:1px;border-radius:3px;background:var(--panel);border:1px solid var(--line);font-size:9px">' + dateStr.slice(5) + ' ' + blockLabel + ' <span style="color:' + prefColor + '">[' + pref.toUpperCase() + ']</span></span>';
+      }
+      html += '</div>';
+    }
+
+    // Unfilled
+    if (unfilled.length) {
+      html += '<div style="margin-top:6px;padding:6px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:4px">';
+      html += '<span style="font-weight:800;color:#ef4444;font-size:10px">UNFILLED: ' + unfilled.length + ' slots</span> ';
+      for (const sk of unfilled.sort()) {
+        const [dateStr, blockLabel] = sk.split('_');
+        html += '<span style="display:inline-block;padding:1px 5px;margin:1px;border-radius:3px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);font-size:9px;color:#fca5a5">' + dateStr.slice(5) + ' ' + blockLabel + ' (need ' + result.slotRemaining[sk] + ')</span>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
+  // Grand total
+  let grandAssigned = 0, grandNeeded = 0, grandFilled = 0;
+  for (const role of roleOrder) {
+    const r = _runAllResults[role];
+    for (const name of Object.keys(r.assigned)) grandAssigned += r.assigned[name].length;
+    for (const sk of Object.keys(r.slotNeedCount)) grandNeeded += r.slotNeedCount[sk];
+    grandFilled += Object.keys(r.slotNeedCount).length > 0
+      ? Object.keys(r.slotNeedCount).reduce((s, sk) => s + r.slotNeedCount[sk], 0) - Object.values(r.slotRemaining).reduce((s, v) => s + Math.max(0, v), 0)
+      : 0;
+  }
+  html += '<div style="margin-top:10px;padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;text-align:center">';
+  html += '<div style="font-size:14px;font-weight:900">GRAND TOTAL: ' + grandFilled + ' / ' + grandNeeded + ' filled — ' + grandAssigned + ' assignments</div>';
+  html += '</div>';
+
+  // Combine all results into _otBidDistResult for publish
+  _otBidDistResult = {};
+  for (const role of roleOrder) {
+    for (const [name, slots] of Object.entries(_runAllResults[role].assigned)) {
+      if (!_otBidDistResult[name]) _otBidDistResult[name] = [];
+      _otBidDistResult[name].push(...slots);
+    }
+  }
+
+  document.getElementById('otbDistResults').innerHTML = html;
+  document.getElementById('otbDistResults').style.display = '';
+  document.getElementById('btnOtbPublish').style.display = '';
+});
+
+// Helper: convert slot keys to otAssignment format { "day-blockIdx": [names] }
+function slotKeysToOTAssignments(assignedMap, blockHrs) {
+  const [yr, mo] = currentMonth.split('-').map(Number);
+  const result = {};
+  for (const name of Object.keys(assignedMap)) {
+    for (const sk of assignedMap[name]) {
+      const [dateStr, blockLabel] = sk.split('_');
+      const d = new Date(dateStr + 'T00:00:00');
+      if (d.getMonth() + 1 !== mo || d.getFullYear() !== yr) continue;
+      const dayOfMonth = d.getDate();
+      let blockIdx = OT_BLOCKS.findIndex(b => b.label === blockLabel);
+      if (blockIdx < 0 && blockHrs === 1) {
+        const hourMatch = blockLabel.match(/^(\d+[AP])-/);
+        if (hourMatch) {
+          const parseHr = (s) => { const n = parseInt(s); const isPM = s.endsWith('P'); if (n === 12) return isPM ? 12 : 0; return isPM ? n + 12 : n; };
+          const hr = parseHr(hourMatch[1]);
+          blockIdx = OT_BLOCKS.findIndex(b => hr >= (b.hourStart % 24) && hr < (b.hourEnd % 24 || 24));
+          if (blockIdx < 0) blockIdx = OT_BLOCKS.findIndex(b => (hr + 24) >= b.hourStart && (hr + 24) < b.hourEnd);
+        }
+      }
+      if (blockIdx < 0) continue;
+      const key = dayOfMonth + '-' + blockIdx;
+      if (!result[key]) result[key] = [];
+      if (!result[key].includes(name)) result[key].push(name);
+    }
+  }
+  return result;
+}
 
 // Publish approved assignments
 document.getElementById('btnOtbPublish').addEventListener('click', async () => {
   if (!_otBidDistResult || !_otBidData) { alert('No distribution results to publish.'); return; }
-  if (!confirm('Publish these OT assignments? This will update _otAssignments and mark period as assigned.')) return;
+
+  const isRunAll = !!_runAllResults;
+  const label = isRunAll ? 'all roles (PIC → DISPATCHER → CALLTAKER)' : currentRole;
+  if (!confirm('Publish OT assignments for ' + label + '?')) return;
 
   const blockHrs = _otBidData.settings?.blockSize === 1 ? 1 : 4;
   const approved = {};
 
-  // Build approved map
+  // Build approved map from combined results
   for (const name of Object.keys(_otBidDistResult)) {
     const slots = _otBidDistResult[name];
     if (!slots || slots.length === 0) continue;
@@ -4778,36 +4950,50 @@ document.getElementById('btnOtbPublish').addEventListener('click', async () => {
     };
   }
 
-  // Also push into _otAssignments for staffing grid integration
-  // Convert slot keys (YYYY-MM-DD_6A-10A or YYYY-MM-DD_6A-7A) to staffing format (dayOfMonth-blockIdx)
-  const [yr, mo] = currentMonth.split('-').map(Number);
-  for (const name of Object.keys(_otBidDistResult)) {
-    for (const sk of _otBidDistResult[name]) {
-      const [dateStr, blockLabel] = sk.split('_');
-      const d = new Date(dateStr + 'T00:00:00');
-      if (d.getMonth() + 1 !== mo || d.getFullYear() !== yr) continue;
-      const dayOfMonth = d.getDate();
-      // Find which OT block this slot belongs to
-      let blockIdx = OT_BLOCKS.findIndex(b => b.label === blockLabel);
-      if (blockIdx < 0 && blockHrs === 1) {
-        // 1hr slot key like "6A-7A" — find which OT block contains this hour
-        const hourMatch = blockLabel.match(/^(\d+[AP])-/);
-        if (hourMatch) {
-          const parseHr = (s) => { const n = parseInt(s); const isPM = s.endsWith('P'); if (n === 12) return isPM ? 12 : 0; return isPM ? n + 12 : n; };
-          const hr = parseHr(hourMatch[1]);
-          blockIdx = OT_BLOCKS.findIndex(b => hr >= (b.hourStart % 24) && hr < (b.hourEnd % 24 || 24));
-          // Handle wrap-around for overnight blocks
-          if (blockIdx < 0) blockIdx = OT_BLOCKS.findIndex(b => (hr + 24) >= b.hourStart && (hr + 24) < b.hourEnd);
+  try {
+    if (isRunAll) {
+      // Save each role's assignments to its own settings doc
+      for (const role of ['PIC', 'DISPATCHER', 'CALLTAKER']) {
+        const roleResult = _runAllResults[role];
+        if (!roleResult) continue;
+        const roleOTAssign = slotKeysToOTAssignments(roleResult.assigned, blockHrs);
+        const docId = ROLE_CONFIG[role].settingsDoc + '-' + currentMonth;
+        const ref = db.collection('staffingops').doc(docId);
+        // Merge with existing OT assignments for this role
+        const existing = await ref.get();
+        const existingOT = (existing.exists && existing.data().otAssignments) || {};
+        for (const [key, names] of Object.entries(roleOTAssign)) {
+          if (!existingOT[key]) existingOT[key] = [];
+          for (const n of names) {
+            if (!existingOT[key].includes(n)) existingOT[key].push(n);
+          }
+        }
+        await ref.set({ otAssignments: existingOT }, { merge: true });
+      }
+      // Also update local _otAssignments for the current view
+      const currentRoleResult = _runAllResults[currentRole];
+      if (currentRoleResult) {
+        const localOT = slotKeysToOTAssignments(currentRoleResult.assigned, blockHrs);
+        for (const [key, names] of Object.entries(localOT)) {
+          if (!_otAssignments[key]) _otAssignments[key] = [];
+          for (const n of names) {
+            if (!_otAssignments[key].includes(n)) _otAssignments[key].push(n);
+          }
         }
       }
-      if (blockIdx < 0) continue;
-      const key = dayOfMonth + '-' + blockIdx;
-      if (!_otAssignments[key]) _otAssignments[key] = [];
-      if (!_otAssignments[key].includes(name)) _otAssignments[key].push(name);
+    } else {
+      // Single role — save to current role's settings doc
+      const localOT = slotKeysToOTAssignments(_otBidDistResult, blockHrs);
+      for (const [key, names] of Object.entries(localOT)) {
+        if (!_otAssignments[key]) _otAssignments[key] = [];
+        for (const n of names) {
+          if (!_otAssignments[key].includes(n)) _otAssignments[key].push(n);
+        }
+      }
+      saveOTAssignments();
     }
-  }
 
-  try {
+    // Update bid doc
     const pid = getOTBidPeriodId();
     const bidRef = db.collection('ot_bids').doc(pid);
     await bidRef.set({
@@ -4815,10 +5001,10 @@ document.getElementById('btnOtbPublish').addEventListener('click', async () => {
       'settings.status': 'assigned'
     }, { merge: true });
 
-    saveOTAssignments();
     _otBidDistResult = null;
+    _runAllResults = null;
     document.getElementById('btnOtbPublish').style.display = 'none';
-    alert('Assignments published!');
+    alert('Assignments published for ' + label + '!');
     renderMonthlyOTView();
   } catch (err) {
     alert('Error publishing: ' + err.message);
