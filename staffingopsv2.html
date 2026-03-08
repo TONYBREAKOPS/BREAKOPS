@@ -457,10 +457,10 @@ tr.on-vacation .shift-sel{pointer-events:none}
           <!-- Period Settings — auto-synced from main month selector -->
           <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;align-items:flex-end">
             <label style="font-size:11px;font-weight:700;color:var(--muted)">Start
-              <input type="date" id="otbPeriodStart" readonly style="display:block;margin-top:3px;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid rgba(74,163,255,.3);background:rgba(74,163,255,.08);color:#4aa3ff;font-weight:700;opacity:1">
+              <input type="date" id="otbPeriodStart" style="display:block;margin-top:3px;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid rgba(74,163,255,.3);background:rgba(74,163,255,.08);color:#4aa3ff;font-weight:700;opacity:1">
             </label>
             <label style="font-size:11px;font-weight:700;color:var(--muted)">End
-              <input type="date" id="otbPeriodEnd" readonly style="display:block;margin-top:3px;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid rgba(74,163,255,.3);background:rgba(74,163,255,.08);color:#4aa3ff;font-weight:700;opacity:1">
+              <input type="date" id="otbPeriodEnd" style="display:block;margin-top:3px;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid rgba(74,163,255,.3);background:rgba(74,163,255,.08);color:#4aa3ff;font-weight:700;opacity:1">
             </label>
             <select id="otbPeriodType" style="display:none"><option value="biweekly" selected>Biweekly</option></select>
             <label style="font-size:11px;font-weight:700;color:var(--muted)">Deadline
@@ -751,6 +751,15 @@ let dispatchers = [];
 let modifications = new Set();
 let excluded = new Set();
 let vacations = [];
+let _trainingList = [];       // vacationops training (name, from, to, site)
+let _prevMonthTraining = [];
+let _prevTrainUnsub = null;
+let _nextMonthVacations = [];
+let _nextMonthTraining = [];
+let _nextMonthTrainers = [];
+let _nextMonthUnsub = null;
+let _trainersList = [];       // rotationops trainers (name, from, to, blocks, dayBlocks)
+let _prevMonthTrainers = [];
 let BASELINE_SHORTFALL = 0;
 let BASELINE_GRID = null; // [dayIdx][blockIdx].current — cached on first load
 let rosterSort = 'name'; // 'seniority' or 'name'
@@ -928,13 +937,14 @@ function isOnVacation(name) {
 }
 
 function isOnVacationDate(name, dateObj) {
-  if (!vacations.length) return false;
+  const allVac = _getAllVacationsForDate(dateObj);
+  if (!allVac.length) return false;
   const nm = name.toUpperCase();
   const dt = dateObj.getTime();
   const [yr, mo] = currentMonth.split('-').map(Number);
   const monthEnd = new Date(yr, mo, 0);
-  for (const v of vacations) {
-    if (v.name.toUpperCase() !== nm) continue;
+  for (const v of allVac) {
+    if ((v.name || '').toUpperCase() !== nm) continue;
     const f = v.from ? new Date(v.from + 'T00:00:00') : new Date(yr, mo - 1, 1);
     const t = v.to ? new Date(v.to + 'T00:00:00') : monthEnd;
     if (dt >= f.getTime() && dt <= t.getTime()) return true;
@@ -991,13 +1001,8 @@ function computeMonthlyFromRotation() {
     const day = DAYS[dayIdx];
     const dayKey = _fmtDate(dateObj);
     const dayData = _rotationPlanDays[dayKey];
-    // Vacations for this date
-    const vacNamesOnDate = [];
-    for (const v of vacations) {
-      const f = v.from ? new Date(v.from + 'T00:00:00') : new Date(activeDates[0]);
-      const t = v.to ? new Date(v.to + 'T00:00:00') : new Date(activeDates[activeDates.length - 1]);
-      if (dateObj.getTime() >= f.getTime() && dateObj.getTime() <= t.getTime()) vacNamesOnDate.push(v.name.toUpperCase());
-    }
+    // Vacations for this date (includes next month for overflow days)
+    const vacNamesOnDate = _getVacNamesForDate(dateObj, activeDates);
     const blocks = [];
     for (let bi = 0; bi < _ROT_BLOCK_KEYS.length; bi++) {
       const bk = _ROT_BLOCK_KEYS[bi];
@@ -1014,8 +1019,10 @@ function computeMonthlyFromRotation() {
         if (bd.assignments) {
           for (const [ch, nm] of Object.entries(bd.assignments)) {
             if (nm && String(nm).trim()) {
-              filled++;
               const nameUp = String(nm).trim().toUpperCase();
+              // Skip ON_SITE trainees for staffing count (they're present but training)
+              if (_isOnSiteTrainingForBlock(nameUp, dateObj, bi)) continue;
+              filled++;
               const isOT = (bd.ot || []).some(o => String(o).toUpperCase() === nameUp);
               if (isOT) {
                 otNames.push(nameUp);
@@ -1040,7 +1047,8 @@ function computeMonthlyFromRotation() {
     }
     const [_cyr, _cmo] = currentMonth.split('-').map(Number);
     const _outOfMonth = (dateObj.getMonth() + 1 !== _cmo || dateObj.getFullYear() !== _cyr);
-    result.push({ date, dow, dateStr: dayKey, outOfMonth: _outOfMonth, vacNames: [...new Set(vacNamesOnDate)].sort(), blocks });
+    const trainNamesOnDate = [..._getOffSiteTrainingNames(dateObj), ..._getOnSiteTrainingNames(dateObj)];
+    result.push({ date, dow, dateStr: dayKey, outOfMonth: _outOfMonth, vacNames: [...new Set(vacNamesOnDate)].sort(), trainNames: [...new Set(trainNamesOnDate)].sort(), blocks });
   }
   return result;
 }
@@ -1066,25 +1074,22 @@ function computeOTNeeds() {
     const dayIdx = jsDay2idx[dateObj.getDay()];
     const day = DAYS[dayIdx];
 
-    // Get vacation names for this specific date
-    const vacNamesOnDate = [];
-    for (const v of vacations) {
-      const f = v.from ? new Date(v.from + 'T00:00:00') : new Date(activeDates[0]);
-      const t = v.to ? new Date(v.to + 'T00:00:00') : new Date(activeDates[activeDates.length - 1]);
-      if (dateObj.getTime() >= f.getTime() && dateObj.getTime() <= t.getTime()) {
-        vacNamesOnDate.push(v.name.toUpperCase());
-      }
-    }
-    const vacSet = new Set(vacNamesOnDate);
+    // Get vacation names for this specific date (includes next month for overflow days)
+    const vacNamesOnDate = _getVacNamesForDate(dateObj, activeDates);
+    // OFF_SITE training — exclude from staffing; ON_SITE excluded per-block below
+    const trainNamesOnDate = [..._getOffSiteTrainingNames(dateObj), ..._getOnSiteTrainingNames(dateObj)];
+    const vacSet = new Set([...vacNamesOnDate, ..._getOffSiteTrainingNames(dateObj)]);
 
     // Compute staffing per hour-block — uses ORIG dispatchers only, no hypotheticals
     const hourlyStaffing = [];
     for (let bi = 0; bi < BLOCKS.length; bi++) {
       const block = BLOCKS[bi];
+      const otBI = Math.floor(bi / 4); // map hourly block to 4hr OT block index
       let current = 0;
       for (let i = 0; i < ORIG_DISPATCHERS.length; i++) {
         const nm = ORIG_DISPATCHERS[i].name.toUpperCase();
         if (vacSet.has(nm)) continue;
+        if (_isOnSiteTrainingForBlock(nm, dateObj, otBI)) continue;
         if (shiftCoversBlock(ORIG_DISPATCHERS[i].schedule[day], block)) current++;
       }
       const needed = getNeededForBlock(day, block);
@@ -1128,7 +1133,8 @@ function computeOTNeeds() {
         dateStr: String(dateObj.getMonth() + 1).padStart(2,'0') + '/' + String(date).padStart(2,'0'),
         blocks: dateBlocks,
         totalOT: dateTotalOT,
-        vacNames: [...vacSet].sort()
+        vacNames: [...new Set(vacNamesOnDate)].sort(),
+        trainNames: [...new Set(trainNamesOnDate)].sort()
       });
     }
   }
@@ -1151,13 +1157,9 @@ function _predictSD(dispEmployees) {
     const dayIdx = jsDay2idx[dateObj.getDay()];
     const day = DAYS[dayIdx];
 
-    // Vacations
-    const vacSet = new Set();
-    for (const v of vacations) {
-      const f = v.from ? new Date(v.from + 'T00:00:00') : new Date(activeDates[0]);
-      const t = v.to ? new Date(v.to + 'T00:00:00') : new Date(activeDates[activeDates.length - 1]);
-      if (dateObj.getTime() >= f.getTime() && dateObj.getTime() <= t.getTime()) vacSet.add(v.name.toUpperCase());
-    }
+    // Vacations + OFF_SITE training (includes next month for overflow days)
+    const vacSet = new Set(_getVacNamesForDate(dateObj, activeDates));
+    for (const tn of _getOffSiteTrainingNames(dateObj)) vacSet.add(tn);
 
     // Count dispatchers and track who works each hourly block
     let dispCount = 0;
@@ -1165,10 +1167,13 @@ function _predictSD(dispEmployees) {
     for (let bi = 0; bi < BLOCKS.length; bi++) {
       blockWorkers.push([]);
       const block = BLOCKS[bi];
+      const otBI = Math.floor(bi / 4);
       for (const emp of dispEmployees) {
-        if (vacSet.has(emp.name.toUpperCase())) continue;
+        const empUp = emp.name.toUpperCase();
+        if (vacSet.has(empUp)) continue;
+        if (_isOnSiteTrainingForBlock(empUp, dateObj, otBI)) continue;
         if (shiftCoversBlock(emp.schedule[day], block)) {
-          blockWorkers[bi].push(emp.name.toUpperCase());
+          blockWorkers[bi].push(empUp);
         }
       }
       dispCount = Math.max(dispCount, blockWorkers[bi].length);
@@ -1263,13 +1268,9 @@ function _computeDispatcherOverflow(dispEmployees, dispAdeq, sdOTBlocks) {
     const dayIdx = jsDay2idx[dateObj.getDay()];
     const day = DAYS[dayIdx];
 
-    // Vacations for this date
-    const vacSet = new Set();
-    for (const v of vacations) {
-      const f = v.from ? new Date(v.from + 'T00:00:00') : new Date(activeDates[0]);
-      const t = v.to ? new Date(v.to + 'T00:00:00') : new Date(activeDates[activeDates.length - 1]);
-      if (dateObj.getTime() >= f.getTime() && dateObj.getTime() <= t.getTime()) vacSet.add(v.name.toUpperCase());
-    }
+    // Vacations + OFF_SITE training for this date (includes next month for overflow days)
+    const vacSet = new Set(_getVacNamesForDate(dateObj, activeDates));
+    for (const tn of _getOffSiteTrainingNames(dateObj)) vacSet.add(tn);
 
     for (let obi = 0; obi < OT_BLOCKS.length; obi++) {
       const ob = OT_BLOCKS[obi];
@@ -1284,6 +1285,7 @@ function _computeDispatcherOverflow(dispEmployees, dispAdeq, sdOTBlocks) {
         for (const emp of dispEmployees) {
           const nm = emp.name.toUpperCase();
           if (vacSet.has(nm)) continue;
+          if (_isOnSiteTrainingForBlock(nm, dateObj, obi)) continue;
           if (sdSet.has(nm)) continue; // on SD, not dispatching
           if (shiftCoversBlock(emp.schedule[day], block)) scheduled++;
         }
@@ -1332,25 +1334,23 @@ function computeMonthlyStaffing(dispOverflow) {
     const dayIdx = jsDay2idx[dow];
     const day = DAYS[dayIdx];
 
-    // Vacations for this specific date
-    const vacNamesOnDate = [];
-    for (const v of vacations) {
-      const f = v.from ? new Date(v.from + 'T00:00:00') : new Date(activeDates[0]);
-      const t = v.to ? new Date(v.to + 'T00:00:00') : new Date(activeDates[activeDates.length - 1]);
-      if (dateObj.getTime() >= f.getTime() && dateObj.getTime() <= t.getTime()) {
-        vacNamesOnDate.push(v.name.toUpperCase());
-      }
-    }
-    const vacSet = new Set(vacNamesOnDate);
+    // Vacations for this specific date (includes next month for overflow days)
+    const vacNamesOnDate = _getVacNamesForDate(dateObj, activeDates);
+    // OFF_SITE training — exclude from staffing; ON_SITE excluded per-block below
+    const trainNamesOnDate = [..._getOffSiteTrainingNames(dateObj), ..._getOnSiteTrainingNames(dateObj)];
+    const vacSet = new Set([...vacNamesOnDate, ..._getOffSiteTrainingNames(dateObj)]);
 
     // Compute per-hour: who is working + needed count
     const hourlyNames = [];
     const hourlyNeeded = [];
     for (let bi = 0; bi < BLOCKS.length; bi++) {
       const block = BLOCKS[bi];
+      const otBI = Math.floor(bi / 4);
       const names = [];
       for (let i = 0; i < ORIG_DISPATCHERS.length; i++) {
-        if (vacSet.has(ORIG_DISPATCHERS[i].name.toUpperCase())) continue;
+        const nm = ORIG_DISPATCHERS[i].name.toUpperCase();
+        if (vacSet.has(nm)) continue;
+        if (_isOnSiteTrainingForBlock(nm, dateObj, otBI)) continue;
         if (shiftCoversBlock(ORIG_DISPATCHERS[i].schedule[day], block)) {
           names.push({ name: ORIG_DISPATCHERS[i].name, isLead: ORIG_DISPATCHERS[i].isLead });
         }
@@ -1408,7 +1408,7 @@ function computeMonthlyStaffing(dispOverflow) {
 
     const [_cyr, _cmo] = currentMonth.split('-').map(Number);
     const _outOfMonth = (dateObj.getMonth() + 1 !== _cmo || dateObj.getFullYear() !== _cyr);
-    result.push({ date, dow, dateStr: dateKey, outOfMonth: _outOfMonth, vacNames: [...vacSet].sort(), blocks });
+    result.push({ date, dow, dateStr: dateKey, outOfMonth: _outOfMonth, vacNames: [...new Set(vacNamesOnDate)].sort(), trainNames: [...new Set(trainNamesOnDate)].sort(), blocks });
   }
   return result;
 }
@@ -1663,10 +1663,20 @@ function renderMonthlyOTView() {
         html += '</div>';
         // Vacation names anchored at bottom of cell
         const _vacForDay = monthly[di].vacNames || [];
-        if (_vacForDay.length) {
-          html += '<div style="margin-top:auto;border-top:1px solid rgba(125,211,252,.15);padding-top:3px"><div style="font-size:8px;font-weight:800;color:#7dd3fc;letter-spacing:.5px;text-align:center;margin-bottom:2px">VACATION</div>';
-          for (const vn of _vacForDay) {
-            html += '<div class="ot-name vac" style="font-size:9px">' + esc(vn) + '</div>';
+        const _trainForDay = monthly[di].trainNames || [];
+        if (_vacForDay.length || _trainForDay.length) {
+          html += '<div style="margin-top:auto;border-top:1px solid rgba(125,211,252,.15);padding-top:3px">';
+          if (_vacForDay.length) {
+            html += '<div style="font-size:8px;font-weight:800;color:#7dd3fc;letter-spacing:.5px;text-align:center;margin-bottom:2px">VACATION</div>';
+            for (const vn of _vacForDay) {
+              html += '<div class="ot-name vac" style="font-size:9px">' + esc(vn) + '</div>';
+            }
+          }
+          if (_trainForDay.length) {
+            html += '<div style="font-size:8px;font-weight:800;color:#f59e0b;letter-spacing:.5px;text-align:center;margin-bottom:2px;margin-top:3px">TRAINING</div>';
+            for (const tn of _trainForDay) {
+              html += '<div class="ot-name" style="font-size:9px;background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.3);color:#f59e0b;font-weight:700">' + esc(tn) + '</div>';
+            }
           }
           html += '</div>';
         }
@@ -3189,14 +3199,57 @@ function saveVacations() {
     .catch(e => { console.warn('Save vacations failed:', e); showToast('Vacation save failed: ' + (e.code || e.message)); });
 }
 
+function _getPrevMonthVacRef() {
+  const [yr, mo] = currentMonth.split('-').map(Number);
+  const prevMo = mo === 1 ? 11 : mo - 2; // 0-based month index
+  const prevYr = mo === 1 ? yr - 1 : yr;
+  return db.collection('rotation_plans').doc('rotation_' + prevYr + '_' + prevMo);
+}
+
+function _getNextMonthVacRef() {
+  const [yr, mo] = currentMonth.split('-').map(Number);
+  const nextMo = mo === 12 ? 0 : mo; // 0-based month index (mo is 1-based, so mo=12 → next is Jan=0)
+  const nextYr = mo === 12 ? yr + 1 : yr;
+  return db.collection('rotation_plans').doc('rotation_' + nextYr + '_' + nextMo);
+}
+
 function loadVacations() {
-  return getVacDocRef().get().then(doc => {
-    if (doc.exists && Array.isArray(doc.data().vacations)) {
-      vacations = doc.data().vacations;
-    } else {
-      vacations = [];
-    }
-  }).catch(e => console.warn('Failed to load vacations:', e));
+  return Promise.all([
+    getVacDocRef().get().then(doc => {
+      if (doc.exists) {
+        const data = doc.data();
+        vacations = Array.isArray(data.vacations) ? data.vacations : [];
+        _trainingList = Array.isArray(data.training) ? data.training : [];
+        _trainersList = Array.isArray(data.trainers) ? data.trainers : [];
+      } else {
+        vacations = [];
+        _trainingList = [];
+        _trainersList = [];
+      }
+    }).catch(e => console.warn('Failed to load vacations:', e)),
+    _getPrevMonthVacRef().get().then(doc => {
+      if (doc.exists) {
+        const data = doc.data();
+        _prevMonthTraining = Array.isArray(data.training) ? data.training : [];
+        _prevMonthTrainers = Array.isArray(data.trainers) ? data.trainers : [];
+      } else {
+        _prevMonthTraining = [];
+        _prevMonthTrainers = [];
+      }
+    }).catch(e => { _prevMonthTraining = []; _prevMonthTrainers = []; }),
+    _getNextMonthVacRef().get().then(doc => {
+      if (doc.exists) {
+        const data = doc.data();
+        _nextMonthVacations = Array.isArray(data.vacations) ? data.vacations : [];
+        _nextMonthTraining = Array.isArray(data.training) ? data.training : [];
+        _nextMonthTrainers = Array.isArray(data.trainers) ? data.trainers : [];
+      } else {
+        _nextMonthVacations = [];
+        _nextMonthTraining = [];
+        _nextMonthTrainers = [];
+      }
+    }).catch(e => { _nextMonthVacations = []; _nextMonthTraining = []; _nextMonthTrainers = []; })
+  ]);
 }
 
 function listenVacations() {
@@ -3205,15 +3258,195 @@ function listenVacations() {
     if (Date.now() - _vacSaveTs < 3000) return;
     if (!doc.exists) return;
     const data = doc.data();
+    let changed = false;
     if (Array.isArray(data.vacations)) {
       const incomingJson = JSON.stringify(data.vacations);
-      const currentJson = JSON.stringify(vacations);
-      if (incomingJson !== currentJson) {
+      if (incomingJson !== JSON.stringify(vacations)) {
         vacations = data.vacations;
-        renderAll();
+        changed = true;
       }
     }
+    if (Array.isArray(data.training)) {
+      const incomingJson = JSON.stringify(data.training);
+      if (incomingJson !== JSON.stringify(_trainingList)) {
+        _trainingList = data.training;
+        changed = true;
+      }
+    }
+    if (Array.isArray(data.trainers)) {
+      const incomingJson = JSON.stringify(data.trainers);
+      if (incomingJson !== JSON.stringify(_trainersList)) {
+        _trainersList = data.trainers;
+        changed = true;
+      }
+    }
+    if (changed) renderAll();
   });
+  // Also listen to previous month's training for cross-month entries
+  if (_prevTrainUnsub) _prevTrainUnsub();
+  _prevTrainUnsub = _getPrevMonthVacRef().onSnapshot(doc => {
+    if (!doc.exists) return;
+    const data = doc.data();
+    let changed = false;
+    const arr = Array.isArray(data.training) ? data.training : [];
+    if (JSON.stringify(arr) !== JSON.stringify(_prevMonthTraining)) {
+      _prevMonthTraining = arr;
+      changed = true;
+    }
+    const trArr = Array.isArray(data.trainers) ? data.trainers : [];
+    if (JSON.stringify(trArr) !== JSON.stringify(_prevMonthTrainers)) {
+      _prevMonthTrainers = trArr;
+      changed = true;
+    }
+    if (changed) renderAll();
+  });
+  // Also listen to next month's data for overflow days
+  if (_nextMonthUnsub) _nextMonthUnsub();
+  _nextMonthUnsub = _getNextMonthVacRef().onSnapshot(doc => {
+    if (!doc.exists) return;
+    const data = doc.data();
+    let changed = false;
+    const vArr = Array.isArray(data.vacations) ? data.vacations : [];
+    if (JSON.stringify(vArr) !== JSON.stringify(_nextMonthVacations)) {
+      _nextMonthVacations = vArr;
+      changed = true;
+    }
+    const tArr = Array.isArray(data.training) ? data.training : [];
+    if (JSON.stringify(tArr) !== JSON.stringify(_nextMonthTraining)) {
+      _nextMonthTraining = tArr;
+      changed = true;
+    }
+    const trArr = Array.isArray(data.trainers) ? data.trainers : [];
+    if (JSON.stringify(trArr) !== JSON.stringify(_nextMonthTrainers)) {
+      _nextMonthTrainers = trArr;
+      changed = true;
+    }
+    if (changed) renderAll();
+  });
+}
+
+// Map OT block index to rotationops block key
+const _OT_BLOCK_TO_ROT_KEY = ['0600-1000','1000-1400','1400-1800','1800-2200','2200-0200','0200-0600'];
+
+// Returns all vacation sources to check for a date (current + next month for overflow days)
+function _getAllVacationsForDate(dateObj) {
+  const [cyr, cmo] = currentMonth.split('-').map(Number);
+  const isNextMonth = dateObj.getMonth() + 1 !== cmo || dateObj.getFullYear() !== cyr;
+  if (isNextMonth) return vacations.concat(_nextMonthVacations);
+  return vacations;
+}
+function _getAllTrainingForDate(dateObj) {
+  const [cyr, cmo] = currentMonth.split('-').map(Number);
+  const isNextMonth = dateObj.getMonth() + 1 !== cmo || dateObj.getFullYear() !== cyr;
+  const base = _trainingList.concat(_prevMonthTraining);
+  if (isNextMonth) return base.concat(_nextMonthTraining);
+  return base;
+}
+function _getAllTrainersForDate(dateObj) {
+  const [cyr, cmo] = currentMonth.split('-').map(Number);
+  const isNextMonth = dateObj.getMonth() + 1 !== cmo || dateObj.getFullYear() !== cyr;
+  const base = _trainersList.concat(_prevMonthTrainers);
+  if (isNextMonth) return base.concat(_nextMonthTrainers);
+  return base;
+}
+
+// Returns uppercase names of employees on vacation for a given date (all sources)
+function _getVacNamesForDate(dateObj, activeDates) {
+  const names = [];
+  const allVac = _getAllVacationsForDate(dateObj);
+  for (const v of allVac) {
+    const f = v.from ? new Date(v.from + 'T00:00:00') : (activeDates ? new Date(activeDates[0]) : new Date(dateObj.getFullYear(), dateObj.getMonth(), 1));
+    const t = v.to ? new Date(v.to + 'T00:00:00') : (activeDates ? new Date(activeDates[activeDates.length - 1]) : new Date(dateObj.getFullYear(), dateObj.getMonth() + 1, 0));
+    if (dateObj.getTime() >= f.getTime() && dateObj.getTime() <= t.getTime()) names.push((v.name || '').toUpperCase());
+  }
+  return names;
+}
+
+// Returns uppercase names of employees on OFF_SITE training for a given date
+function _getOffSiteTrainingNames(dateObj) {
+  const names = [];
+  const dt = dateObj.getTime();
+  const yr = dateObj.getFullYear(), mo = dateObj.getMonth();
+  const combined = _getAllTrainingForDate(dateObj);
+  for (const t of combined) {
+    if ((t.site || 'ON_SITE') !== 'OFF_SITE') continue;
+    const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
+    const e = t.to ? new Date(t.to + 'T00:00:00') : new Date(yr, mo + 1, 0);
+    if (dt >= f.getTime() && dt <= e.getTime()) names.push((t.name || '').toUpperCase());
+  }
+  return names;
+}
+
+// Check if employee is in ON_SITE training for a specific date + 4hr block (by OT block index)
+// Returns true if they are training during that block (should be excluded from staffing)
+function _isOnSiteTrainingForBlock(name, dateObj, otBlockIdx) {
+  const nm = (name || '').toUpperCase();
+  const dt = dateObj.getTime();
+  const yr = dateObj.getFullYear(), mo = dateObj.getMonth();
+  const dateStr = yr + '-' + String(mo + 1).padStart(2, '0') + '-' + String(dateObj.getDate()).padStart(2, '0');
+  const rotKey = _OT_BLOCK_TO_ROT_KEY[otBlockIdx];
+  if (!rotKey) return false;
+  // First check rotationops trainers data (has per-block granularity)
+  const combined = _getAllTrainersForDate(dateObj);
+  let foundInTrainers = false;
+  for (const t of combined) {
+    if ((t.name || '').toUpperCase() !== nm) continue;
+    const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
+    const e = t.to ? new Date(t.to + 'T00:00:00') : new Date(yr, mo + 1, 0);
+    if (dt < f.getTime() || dt > e.getTime()) continue;
+    foundInTrainers = true;
+    // Per-day block check: dayBlocks overrides blocks
+    if (t.dayBlocks && t.dayBlocks[dateStr] !== undefined) {
+      const dayArr = t.dayBlocks[dateStr];
+      if (Array.isArray(dayArr) && dayArr.includes(rotKey)) return true;
+      continue;
+    }
+    // Fallback to blocks array
+    if (Array.isArray(t.blocks) && t.blocks.length > 0) {
+      if (t.blocks.includes(rotKey)) return true;
+      continue;
+    }
+    // No block restriction = all blocks are training
+    return true;
+  }
+  // If not in rotationops trainers, check vacationops training list (ON_SITE = all blocks)
+  if (!foundInTrainers) {
+    const trainCombined = _getAllTrainingForDate(dateObj);
+    for (const t of trainCombined) {
+      if ((t.site || 'ON_SITE') !== 'ON_SITE') continue;
+      if ((t.name || '').toUpperCase() !== nm) continue;
+      const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
+      const e = t.to ? new Date(t.to + 'T00:00:00') : new Date(yr, mo + 1, 0);
+      if (dt >= f.getTime() && dt <= e.getTime()) return true;
+    }
+  }
+  return false;
+}
+
+// Returns uppercase names of ON_SITE trainees for a date (all blocks — for display)
+function _getOnSiteTrainingNames(dateObj) {
+  const names = [];
+  const dt = dateObj.getTime();
+  const yr = dateObj.getFullYear(), mo = dateObj.getMonth();
+  // From rotationops trainers
+  const combined = _getAllTrainersForDate(dateObj);
+  for (const t of combined) {
+    const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
+    const e = t.to ? new Date(t.to + 'T00:00:00') : new Date(yr, mo + 1, 0);
+    if (dt >= f.getTime() && dt <= e.getTime()) names.push((t.name || '').toUpperCase());
+  }
+  // Also from vacationops training (ON_SITE entries not already in trainers)
+  const nameSet = new Set(names);
+  const trainCombined = _getAllTrainingForDate(dateObj);
+  for (const t of trainCombined) {
+    if ((t.site || 'ON_SITE') !== 'ON_SITE') continue;
+    const nm = (t.name || '').toUpperCase();
+    if (nameSet.has(nm)) continue;
+    const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
+    const e = t.to ? new Date(t.to + 'T00:00:00') : new Date(yr, mo + 1, 0);
+    if (dt >= f.getTime() && dt <= e.getTime()) { names.push(nm); nameSet.add(nm); }
+  }
+  return [...new Set(names)];
 }
 
 function listenSettings() {
@@ -4725,9 +4958,23 @@ function listenOTBids() {
 }
 
 function _syncOTBidDates() {
-  // Auto-fill start/end from the currently selected month's pay periods
-  if (_ppStart) document.getElementById('otbPeriodStart').value = _ppStart;
-  if (_ppEnd) document.getElementById('otbPeriodEnd').value = _ppEnd;
+  // Auto-fill start/end from the calendar month, aligned to Sat-Fri weeks
+  if (currentMonth) {
+    const [y, m] = currentMonth.split('-').map(Number);
+    // Find Saturday on or before the 1st
+    const first = new Date(y, m - 1, 1);
+    const dayOfWeek = first.getDay(); // 0=Sun
+    const satOffset = dayOfWeek === 6 ? 0 : -(dayOfWeek + 1); // roll back to Saturday
+    const startDate = new Date(y, m - 1, 1 + satOffset);
+    // Find Friday on or after the last day of month
+    const last = new Date(y, m, 0); // last day of month
+    const lastDow = last.getDay();
+    const friOffset = lastDow === 5 ? 0 : (5 - lastDow + 7) % 7; // roll forward to Friday
+    const endDate = new Date(y, m, 0 + friOffset);
+    const fmt = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    document.getElementById('otbPeriodStart').value = fmt(startDate);
+    document.getElementById('otbPeriodEnd').value = fmt(endDate);
+  }
 }
 
 function renderOTBidAdmin() {
@@ -4740,10 +4987,9 @@ function renderOTBidAdmin() {
     return;
   }
   const s = _otBidData.settings || {};
-  // Fill form fields from saved settings (overrides PP sync if saved data exists)
+  // Fill form fields from saved settings (but NOT periodStart/End — always use calendar month)
   if (s.periodType) document.getElementById('otbPeriodType').value = s.periodType;
-  if (s.periodStart) document.getElementById('otbPeriodStart').value = s.periodStart;
-  if (s.periodEnd) document.getElementById('otbPeriodEnd').value = s.periodEnd;
+  // periodStart/End always come from _syncOTBidDates (calendar month), do not override
   if (s.deadline) {
     const dl = s.deadline.toDate ? s.deadline.toDate() : new Date(s.deadline);
     const iso = new Date(dl.getTime() - dl.getTimezoneOffset() * 60000).toISOString().slice(0, 16);

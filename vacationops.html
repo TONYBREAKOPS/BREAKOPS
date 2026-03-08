@@ -313,6 +313,11 @@ main{max-width:900px;margin:0 auto;padding:20px 18px}
     <div class="card">
       <div class="card-header" style="border-color:rgba(96,165,250,.25)">
         <span>TRAINING &mdash; <span id="trainCount">0</span> entries</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="text" id="trainEmployeeSearch" placeholder="Search employee..." oninput="renderAll()" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:12px;font-weight:600;outline:none;width:180px"/>
+          <button onclick="clearDuplicateTraining()" style="padding:4px 12px;font-size:10px;font-weight:800;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--bad);cursor:pointer;letter-spacing:.04em">CLEAR DUPES</button>
+          <button onclick="fixMisplacedEntries()" style="padding:4px 12px;font-size:10px;font-weight:800;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--warn);cursor:pointer;letter-spacing:.04em">FIX MISPLACED</button>
+        </div>
       </div>
       <div class="card-body" id="trainListArea">
         <div class="empty-msg">Loading...</div>
@@ -754,6 +759,30 @@ async function addVacation(){
       showToast(name + ' added to ' + mLabel);
     } catch(e){ console.error(e); showToast('Add failed'); }
   } else {
+    // If from date belongs to a different month, save to the correct month's doc
+    if(from){
+      const fd = new Date(from + 'T00:00:00');
+      const fYear = fd.getFullYear(), fMo = fd.getMonth() + 1;
+      if(fYear !== _currentYear || fMo !== _currentMonth){
+        const moIdx = fMo - 1;
+        const docId = 'rotation_' + fYear + '_' + moIdx;
+        const docRef = db.collection('rotation_plans').doc(docId);
+        try {
+          _vacSaveTs = Date.now();
+          const doc = await docRef.get();
+          let vacs = (doc.exists && Array.isArray(doc.data().vacations)) ? doc.data().vacations : [];
+          vacs.push({ name, from: from||'', to: to||'' });
+          await docRef.set({ vacations: vacs }, { merge: true });
+          const mLabel = MONTH_NAMES[moIdx] + ' ' + fYear;
+          renderAll();
+          showToast(name + ' added to ' + mLabel + ' (auto-routed)');
+        } catch(e){ console.error(e); showToast('Add failed'); }
+        document.getElementById('vacEmployee').value = '';
+        document.getElementById('vacFrom').value = '';
+        document.getElementById('vacTo').value = '';
+        return;
+      }
+    }
     _vacations.push({ name, from: from||'', to: to||'' });
     saveVacations();
     renderAll();
@@ -804,6 +833,31 @@ async function addTraining(){
       showToast(name + ' training added to ' + mLabel);
     } catch(e){ console.error(e); showToast('Add failed'); }
   } else {
+    // If from date belongs to a different month, save to the correct month's doc
+    if(from){
+      const fd = new Date(from + 'T00:00:00');
+      const fYear = fd.getFullYear(), fMo = fd.getMonth() + 1;
+      if(fYear !== _currentYear || fMo !== _currentMonth){
+        const moIdx = fMo - 1;
+        const docId = 'rotation_' + fYear + '_' + moIdx;
+        const docRef = db.collection('rotation_plans').doc(docId);
+        try {
+          _vacSaveTs = Date.now();
+          const doc = await docRef.get();
+          let arr = (doc.exists && Array.isArray(doc.data().training)) ? doc.data().training : [];
+          arr.push({ name, from:from||'', to:to||'', site });
+          await docRef.set({ training: arr }, { merge: true });
+          const mLabel = MONTH_NAMES[moIdx] + ' ' + fYear;
+          renderAll();
+          showToast(name + ' training added to ' + mLabel + ' (auto-routed)');
+        } catch(e){ console.error(e); showToast('Add failed'); }
+        document.getElementById('trainEmployee').value = '';
+        document.getElementById('trainFrom').value = '';
+        document.getElementById('trainTo').value = '';
+        document.getElementById('trainSite').value = 'ON_SITE';
+        return;
+      }
+    }
     _training.push({ name, from:from||'', to:to||'', site });
     saveTraining();
     renderAll();
@@ -973,14 +1027,19 @@ function renderVacList(){
 function renderTrainList(){
   const area = document.getElementById('trainListArea');
   const countEl = document.getElementById('trainCount');
-  countEl.textContent = _training.length;
+  const trainSearch = ((document.getElementById('trainEmployeeSearch') || {}).value || '').trim().toUpperCase();
 
-  if(_training.length === 0){
-    area.innerHTML = '<div class="empty-msg">No training set for this month.</div>';
+  let filtered = _training.map((t,i) => ({...t, _idx:i}));
+  if(trainSearch) filtered = filtered.filter(t => t.name.toUpperCase().includes(trainSearch));
+
+  countEl.textContent = filtered.length;
+
+  if(filtered.length === 0){
+    area.innerHTML = '<div class="empty-msg">No training' + (trainSearch ? ' matching search' : ' set for this month') + '.</div>';
     return;
   }
 
-  const sorted = _training.map((t,i) => ({...t, _idx:i})).sort((a,b) => {
+  const sorted = filtered.sort((a,b) => {
     if(a.from && b.from) return a.from.localeCompare(b.from);
     if(a.from) return -1;
     if(b.from) return 1;
@@ -1074,14 +1133,17 @@ function renderAllTrainList(){
   const filterVal = document.getElementById('filterMonth').value;
   const empFilter = getEmployeeFilter();
 
+  const trainSearch = ((document.getElementById('trainEmployeeSearch') || {}).value || '').trim().toUpperCase();
+
   let list = _allTraining;
   if(filterVal) list = list.filter(t => t.monthKey === filterVal);
   if(empFilter) list = list.filter(t => matchesEmployeeFilter(t.name, empFilter));
+  if(trainSearch) list = list.filter(t => t.name.toUpperCase().includes(trainSearch));
 
   countEl.textContent = list.length;
 
   if(list.length === 0){
-    area.innerHTML = '<div class="empty-msg">No training found' + (filterVal || empFilter ? ' matching filters' : '') + '.</div>';
+    area.innerHTML = '<div class="empty-msg">No training found' + (filterVal || empFilter || trainSearch ? ' matching filters' : '') + '.</div>';
     return;
   }
 
@@ -1969,6 +2031,57 @@ async function clearDuplicateVacations(){
     if(!confirm('Found ' + removed + ' duplicate vacation(s). Remove them?')) return;
     _vacations = deduped;
     saveVacations();
+    renderAll();
+    showToast(removed + ' duplicate(s) removed');
+  }
+}
+
+// ── Clear duplicate training ──
+async function clearDuplicateTraining(){
+  if(_allMode){
+    showToast('Scanning all months for duplicate training...');
+    try {
+      const snap = await db.collection('rotation_plans').get();
+      let totalRemoved = 0;
+      const batch = db.batch();
+      snap.docs.forEach(doc => {
+        const data = doc.data();
+        if(!Array.isArray(data.training) || data.training.length === 0) return;
+        const seen = new Set();
+        const deduped = [];
+        let removed = 0;
+        for(const t of data.training){
+          const key = (t.name||'') + '|' + (t.from||'') + '|' + (t.to||'') + '|' + (t.site||'');
+          if(seen.has(key)){ removed++; continue; }
+          seen.add(key);
+          deduped.push(t);
+        }
+        if(removed > 0){
+          batch.set(doc.ref, { training: deduped }, { merge: true });
+          totalRemoved += removed;
+        }
+      });
+      if(totalRemoved === 0){ showToast('No duplicate training found'); return; }
+      if(!confirm('Found ' + totalRemoved + ' duplicate training(s) across all months. Remove them?')) return;
+      _vacSaveTs = Date.now();
+      await batch.commit();
+      showToast(totalRemoved + ' duplicate(s) removed');
+      loadAllData();
+    } catch(e){ console.error(e); showToast('Error clearing duplicates'); }
+  } else {
+    const seen = new Set();
+    const deduped = [];
+    let removed = 0;
+    for(const t of _training){
+      const key = (t.name||'') + '|' + (t.from||'') + '|' + (t.to||'') + '|' + (t.site||'');
+      if(seen.has(key)){ removed++; continue; }
+      seen.add(key);
+      deduped.push(t);
+    }
+    if(removed === 0){ showToast('No duplicate training found'); return; }
+    if(!confirm('Found ' + removed + ' duplicate training(s). Remove them?')) return;
+    _training = deduped;
+    saveTraining();
     renderAll();
     showToast(removed + ' duplicate(s) removed');
   }

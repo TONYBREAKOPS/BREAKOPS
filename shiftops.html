@@ -3453,47 +3453,136 @@ function isOnVacationDate(name, iso){
 
 // ===== Training (synced from rotation_plans) =====
 let _trainingList = [];
+let _prevMonthTraining = [];
+let _trainersList = [];
+let _prevMonthTrainers = [];
+let _trainListenUnsub = null;
+let _prevTrainUnsub = null;
+
+function _getPrevMonthDocRef(iso){
+  const d = parseISO(iso);
+  const yr = d.getFullYear();
+  const mo = d.getMonth(); // 0-based
+  const prevMo = mo === 0 ? 11 : mo - 1;
+  const prevYr = mo === 0 ? yr - 1 : yr;
+  return db.collection('rotation_plans').doc('rotation_' + prevYr + '_' + prevMo);
+}
 
 function loadTraining(iso){
-  return getVacDocRef(iso).get().then(doc => {
-    if(doc.exists && Array.isArray(doc.data().training)){
-      _trainingList = doc.data().training;
-    } else {
-      _trainingList = [];
-    }
-  }).catch(e => console.warn('Failed to load training:', e));
+  return Promise.all([
+    getVacDocRef(iso).get().then(doc => {
+      if (doc.exists) {
+        const data = doc.data();
+        _trainingList = Array.isArray(data.training) ? data.training : [];
+        _trainersList = Array.isArray(data.trainers) ? data.trainers : [];
+      } else {
+        _trainingList = [];
+        _trainersList = [];
+      }
+    }).catch(e => { console.warn('Failed to load training:', e); _trainingList = []; _trainersList = []; }),
+    _getPrevMonthDocRef(iso).get().then(doc => {
+      if (doc.exists) {
+        const data = doc.data();
+        _prevMonthTraining = Array.isArray(data.training) ? data.training : [];
+        _prevMonthTrainers = Array.isArray(data.trainers) ? data.trainers : [];
+      } else {
+        _prevMonthTraining = [];
+        _prevMonthTrainers = [];
+      }
+    }).catch(e => { _prevMonthTraining = []; _prevMonthTrainers = []; })
+  ]);
 }
 
 function listenTraining(iso){
-  // Piggyback on the existing vacation listener doc — add a second onSnapshot
-  getVacDocRef(iso).onSnapshot(doc => {
+  if (_trainListenUnsub) _trainListenUnsub();
+  if (_prevTrainUnsub) _prevTrainUnsub();
+  _trainListenUnsub = getVacDocRef(iso).onSnapshot(doc => {
     if(!doc.exists) return;
     const data = doc.data();
+    let changed = false;
     if(Array.isArray(data.training)){
       const incoming = JSON.stringify(data.training);
-      if(incoming !== JSON.stringify(_trainingList)){
-        _trainingList = data.training;
-        renderAll();
-      }
+      if(incoming !== JSON.stringify(_trainingList)){ _trainingList = data.training; changed = true; }
     }
+    if(Array.isArray(data.trainers)){
+      const incoming = JSON.stringify(data.trainers);
+      if(incoming !== JSON.stringify(_trainersList)){ _trainersList = data.trainers; changed = true; }
+    }
+    if(changed) renderAll();
+  });
+  _prevTrainUnsub = _getPrevMonthDocRef(iso).onSnapshot(doc => {
+    if(!doc.exists) return;
+    const data = doc.data();
+    let changed = false;
+    const arr = Array.isArray(data.training) ? data.training : [];
+    if(JSON.stringify(arr) !== JSON.stringify(_prevMonthTraining)){ _prevMonthTraining = arr; changed = true; }
+    const trArr = Array.isArray(data.trainers) ? data.trainers : [];
+    if(JSON.stringify(trArr) !== JSON.stringify(_prevMonthTrainers)){ _prevMonthTrainers = trArr; changed = true; }
+    if(changed) renderAll();
   });
 }
 
 // Returns "ON_SITE" | "OFF_SITE" | null
 function isOnTrainingDate(name, iso){
-  if(!_trainingList.length) return null;
+  const combined = _trainingList.concat(_prevMonthTraining);
+  if(!combined.length) return null;
   const nm = name.toUpperCase();
   const dt = parseISO(iso).getTime();
   const d = parseISO(iso);
   const yr = d.getFullYear(); const mo = d.getMonth();
   const monthEnd = new Date(yr, mo + 1, 0);
-  for(const t of _trainingList){
+  for(const t of combined){
     if((t.name||'').toUpperCase() !== nm) continue;
     const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
     const e = t.to ? new Date(t.to + 'T00:00:00') : monthEnd;
     if(dt >= f.getTime() && dt <= e.getTime()) return t.site || 'ON_SITE';
   }
   return null;
+}
+
+// Check if employee is ON_SITE training for a specific block (using rotationops trainers data)
+// Falls back to vacationops training list if no rotationops entry exists
+function isOnSiteTrainingForBlock(name, iso, blockId){
+  const nm = (name||'').toUpperCase();
+  const d = parseISO(iso);
+  const dt = d.getTime();
+  const yr = d.getFullYear(), mo = d.getMonth();
+  const dateStr = iso; // already YYYY-MM-DD
+  // First check rotationops trainers (has per-block granularity)
+  const combined = _trainersList.concat(_prevMonthTrainers);
+  let foundInTrainers = false;
+  for(const t of combined){
+    if((t.name||'').toUpperCase() !== nm) continue;
+    const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
+    const e = t.to ? new Date(t.to + 'T00:00:00') : new Date(yr, mo + 1, 0);
+    if(dt < f.getTime() || dt > e.getTime()) continue;
+    foundInTrainers = true;
+    // Per-day block check
+    if(t.dayBlocks && t.dayBlocks[dateStr] !== undefined){
+      const dayArr = t.dayBlocks[dateStr];
+      if(Array.isArray(dayArr) && dayArr.includes(blockId)) return true;
+      continue;
+    }
+    // Fallback to blocks array
+    if(Array.isArray(t.blocks) && t.blocks.length > 0){
+      if(t.blocks.includes(blockId)) return true;
+      continue;
+    }
+    // No block restriction = all blocks
+    return true;
+  }
+  // If not in rotationops trainers, check vacationops training (ON_SITE = all blocks)
+  if(!foundInTrainers){
+    const trainCombined = _trainingList.concat(_prevMonthTraining);
+    for(const t of trainCombined){
+      if((t.site || 'ON_SITE') !== 'ON_SITE') continue;
+      if((t.name||'').toUpperCase() !== nm) continue;
+      const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
+      const e = t.to ? new Date(t.to + 'T00:00:00') : new Date(yr, mo + 1, 0);
+      if(dt >= f.getTime() && dt <= e.getTime()) return true;
+    }
+  }
+  return false;
 }
 
 // ===== Shift Swaps =====
@@ -3708,7 +3797,7 @@ async function saveEditsToFirebase(iso, shift){
         if(!allEdits[emp]) allEdits[emp] = {};
         const clean = {...edit};
         delete clean._userEdited;
-        delete clean._vacAutoMarked;
+        // Keep _vacAutoMarked so we know on reload it was auto-set, not manual
         allEdits[emp][blockId] = clean;
       }
     }
@@ -3756,7 +3845,7 @@ async function loadEditsFromFirebase(iso, shift){
           for(const [blockId, edit] of Object.entries(blocks)){
             const ctx = ctxKey(iso, shift, blockId);
             const m = editsMapFor(ctx);
-            const merged = {..._defaultEdit(), ...edit, _userEdited: true};
+            const merged = {..._defaultEdit(), ...edit, _userEdited: !edit._vacAutoMarked};
             m.set(emp, merged);
           }
         }
@@ -3870,7 +3959,7 @@ function startRealtimeSync(iso, shift) {
         for (const [blockId, edit] of Object.entries(blocks)) {
           const ctx = ctxKey(iso, shift, blockId);
           const m = editsMapFor(ctx);
-          const merged = {..._defaultEdit(), ...edit, _userEdited: true};
+          const merged = {..._defaultEdit(), ...edit, _userEdited: !edit._vacAutoMarked};
           m.set(emp, merged);
         }
       }
@@ -4650,6 +4739,27 @@ function computeRowsForBlock(iso, shift, block){
     const key=ctxKey(iso,shift,block.id);
     const ed=ensureEdit(key,e.Employee);
 
+    // Revert auto-marks if vacation/training no longer applies (e.g., cancelled)
+    if(ed._vacAutoMarked && !ed._userEdited){
+      const stillOnVac = isOnVacationDate(e.Employee, iso);
+      const stillOnTrain = isOnTrainingDate(e.Employee, iso);
+      const stillOnSiteBlock = stillOnTrain === 'ON_SITE' && isOnSiteTrainingForBlock(e.Employee, iso, block.id);
+      if(!stillOnVac && !stillOnTrain){
+        // Vacation/training was removed — revert to present
+        ed.Present="YES";
+        ed.Hours="";
+        ed.AbsenceReason="";
+        ed.Role = "";
+        ed.OthType = "";
+        delete ed._vacAutoMarked;
+      } else if(!stillOnVac && stillOnTrain === 'ON_SITE' && !stillOnSiteBlock){
+        // Was training but this block is no longer a training block
+        ed.Present="YES";
+        ed.Hours="";
+        delete ed._vacAutoMarked;
+      }
+    }
+
     // Auto-mark vacation employees as absent (only if not already manually edited)
     if(ed.Present==="YES" && !ed._userEdited && isOnVacationDate(e.Employee, iso)){
       ed.Present="NO";
@@ -4658,12 +4768,16 @@ function computeRowsForBlock(iso, shift, block){
       ed._vacAutoMarked=true;
     }
 
-    // Auto-mark training (only if not already manually edited)
-    if(ed.Present==="YES" && !ed._userEdited && !ed._vacAutoMarked){
+    // Auto-mark training — always apply when employee is in training
+    // (skip only if on vacation or manually marked absent/partial/tardy)
+    if(ed.Present==="YES" && !ed._vacAutoMarked){
       const trainSite = isOnTrainingDate(e.Employee, iso);
       if(trainSite === 'ON_SITE'){
-        ed.Present="TRAINEE";
-        ed._vacAutoMarked=true;
+        // Only mark TRAINEE if this specific block is a training block
+        if(isOnSiteTrainingForBlock(e.Employee, iso, block.id)){
+          ed.Present="TRAINEE";
+          ed._vacAutoMarked=true;
+        }
       } else if(trainSite === 'OFF_SITE'){
         ed.Present="YES";
         ed.Role="OTH";
@@ -5210,6 +5324,7 @@ function _applyPresent(key, emp, val, reason){
   const ed=ensureEdit(key,emp);
   ed.Present=val;
   ed._userEdited=true;
+  delete ed._vacAutoMarked;
   if(val==="NO"){ ed.Hours="0"; ed.AbsenceReason=reason; }
   if(val==="YES"){ ed.Hours=""; ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
   if(val==="TRAINER"){ ed.Hours=""; ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }

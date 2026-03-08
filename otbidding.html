@@ -321,14 +321,8 @@ const OT_BLOCKS_4HR = [
   { label:'2A-6A', start:26, end:30 }
 ];
 
-// Generate 1-hour blocks
-const OT_BLOCKS_1HR = [];
-for (let h = 6; h < 30; h++) {
-  const sh = h % 24;
-  const eh = (h + 1) % 24;
-  const fmt = v => { if (v === 0) return '12A'; if (v === 12) return '12P'; return v < 12 ? v + 'A' : (v - 12) + 'P'; };
-  OT_BLOCKS_1HR.push({ label: fmt(sh) + '-' + fmt(eh), start: h, end: h + 1 });
-}
+// Only 4-hour blocks supported
+
 
 // ========== STATE ==========
 let _loggedInName = '';
@@ -681,9 +675,8 @@ async function listenBids() {
       _isHistorical = false;
     }
 
-    // Update block size
-    const bs = _bidDoc.settings?.blockSize;
-    _otBlocks = (bs === 1) ? OT_BLOCKS_1HR : OT_BLOCKS_4HR;
+    // Always use 4-hour blocks
+    _otBlocks = OT_BLOCKS_4HR;
 
     // Listen to emp_bids subcollection (individual employee bids)
     if (!_empBidUnsub) {
@@ -925,14 +918,8 @@ function renderScheduleGrid(settings) {
       const slotKey = (dateStr + '_' + block.label).toUpperCase();
       const isScheduled = shiftCoversBlock(shift, block);
 
-      // Check if this slot has approved OT — handle both 4hr and 1hr block sizes
+      // Check if this slot has approved OT
       let hasOT = approvedSet.has(slotKey);
-      if (!hasOT && _otBlocks === OT_BLOCKS_1HR) {
-        // For 1hr blocks, check if any approved slot falls in this hour
-        for (const s of approved.slots) {
-          if (s.toUpperCase() === slotKey) { hasOT = true; break; }
-        }
-      }
 
       let cls = 'sched-cell';
       let label = '';
@@ -981,7 +968,7 @@ function renderRoundTracker(settings) {
     return;
   }
 
-  const blockHrs = settings.blockSize === 1 ? 1 : 4;
+  const blockHrs = 4;
 
   // Count slots for the current week only
   const weekDates = getWeekDates(settings);
@@ -1020,7 +1007,7 @@ function renderRoundTracker(settings) {
 function renderCapInfo(settings) {
   const el = document.getElementById('capInfo');
   const cap = settings.employeeCaps?.[_loggedInName] ?? settings.defaultMaxOT ?? 36;
-  el.innerHTML = 'Your OT cap: <strong>' + cap + ' hours/week</strong> &nbsp;|&nbsp; Block size: <strong>' + (settings.blockSize === 1 ? '1 hour' : '4 hours') + '</strong>';
+  el.innerHTML = 'Your OT cap: <strong>' + cap + ' hours/week</strong> &nbsp;|&nbsp; Block size: <strong>4 hours</strong>';
 }
 
 // ========== BIDDING GRID (transposed: days = columns, blocks = rows) ==========
