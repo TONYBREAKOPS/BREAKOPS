@@ -33,11 +33,19 @@ body {
   background: var(--bg);
 }
 
+/* Password gate */
+#passGate {
+  position: fixed; inset: 0; z-index: 1001;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+}
+#passGate .login-err { margin-top: 10px; }
+
 /* Login gate */
 #loginOverlay {
   position: fixed; inset: 0; z-index: 1000;
   background: var(--bg);
-  display: flex; align-items: center; justify-content: center;
+  display: none; align-items: center; justify-content: center;
 }
 .login-box {
   background: var(--card);
@@ -145,6 +153,26 @@ tr:hover td { background: rgba(74,163,255,.04); }
 </head>
 <body>
 
+<!-- Password Gate -->
+<div id="passGate">
+  <div class="login-box">
+    <svg width="48" height="48" viewBox="0 0 64 64" fill="none" style="margin-bottom:12px">
+      <circle cx="32" cy="32" r="29" stroke="#233043" stroke-width="2" fill="#0b0f14"/>
+      <rect x="20" y="28" width="24" height="18" rx="3" fill="none" stroke="#4aa3ff" stroke-width="2"/>
+      <path d="M24 28V22a8 8 0 0 1 16 0v6" fill="none" stroke="#4aa3ff" stroke-width="2"/>
+      <circle cx="32" cy="37" r="2" fill="#4aa3ff"/>
+    </svg>
+    <h2>Audit Log Access</h2>
+    <div class="sub">Enter access code to continue</div>
+    <div class="login-err" id="passError"></div>
+    <form id="passForm">
+      <label>Access Code</label>
+      <input type="password" id="passInput" placeholder="Enter access code" required autocomplete="off"/>
+      <button type="submit" class="btn-login" id="btnUnlock">Unlock</button>
+    </form>
+  </div>
+</div>
+
 <!-- Login Gate -->
 <div id="loginOverlay">
   <div class="login-box">
@@ -229,6 +257,39 @@ tr:hover td { background: rgba(74,163,255,.04); }
 </div>
 
 <script>
+// Password gate
+const PASS_HASH = "e9ea85886c6f94643bcc7b5f9ed746d72f5ac6f6b955684bf3858c0dd58c645c";
+let passUnlocked = false;
+
+async function sha256(text) {
+  const data = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+document.getElementById("passForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = document.getElementById("passInput").value;
+  const errEl = document.getElementById("passError");
+  const hash = await sha256(input);
+  if (hash === PASS_HASH) {
+    passUnlocked = true;
+    document.getElementById("passGate").style.display = "none";
+    if (auth.currentUser) {
+      document.getElementById("app").style.display = "";
+      document.getElementById("userEmail").textContent = auth.currentUser.email;
+      loadLogs();
+    } else {
+      document.getElementById("loginOverlay").style.display = "flex";
+    }
+  } else {
+    errEl.textContent = "Incorrect access code";
+    errEl.classList.add("show");
+    document.getElementById("passInput").value = "";
+    document.getElementById("passInput").focus();
+  }
+});
+
 // Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyA6KELmSyotefK0zhahQZ0-mbYur8_nTsg",
@@ -261,7 +322,8 @@ document.getElementById("btnLogout").addEventListener("click", e => {
   auth.signOut();
 });
 auth.onAuthStateChanged(user => {
-  document.getElementById("loginOverlay").style.display = user ? "none" : "";
+  if (!passUnlocked) return;
+  document.getElementById("loginOverlay").style.display = user ? "none" : "flex";
   document.getElementById("app").style.display = user ? "" : "none";
   if (user) {
     document.getElementById("userEmail").textContent = user.email;

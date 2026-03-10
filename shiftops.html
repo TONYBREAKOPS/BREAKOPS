@@ -3208,7 +3208,7 @@ body.light .customSelBtn.typing-mode {
           <button id="btnPrintDaily" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Print Daily</button>
           <button id="btnPrintWeeklyD" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#e2e8f0;cursor:pointer;border-bottom:1px solid #334155;">Print Weekly</button>
           <button id="btnDownloadWeeklyXlsx" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#4ade80;cursor:pointer;border-bottom:1px solid #334155;">Download Weekly Excel</button>
-          <button id="btnPrintLegend" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#a78bfa;cursor:pointer;border-bottom:1px solid #334155;">Print Excel Legend</button>
+          <button id="btnPrintFilledWeekly" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#fbbf24;cursor:pointer;border-bottom:1px solid #334155;">Print Filled Weekly</button>
           <button id="btnShiftSwap" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;background:none;border:none;color:#a3d4ff;cursor:pointer;border-bottom:1px solid #334155;">Shift Swap</button>
           <button id="btnBreakOPS" style="display:block;width:100%;padding:10px 14px;font-size:11px;font-weight:700;text-align:left;background:none;border:none;color:#f59e0b;cursor:pointer;">Push to BreakOPS</button>
         </div>
@@ -3524,18 +3524,26 @@ function listenTraining(iso){
 
 // Returns "ON_SITE" | "OFF_SITE" | null
 function isOnTrainingDate(name, iso){
-  const combined = _trainingList.concat(_prevMonthTraining);
-  if(!combined.length) return null;
   const nm = name.toUpperCase();
   const dt = parseISO(iso).getTime();
   const d = parseISO(iso);
   const yr = d.getFullYear(); const mo = d.getMonth();
   const monthEnd = new Date(yr, mo + 1, 0);
+  // Check VacationOps training list
+  const combined = _trainingList.concat(_prevMonthTraining);
   for(const t of combined){
     if((t.name||'').toUpperCase() !== nm) continue;
     const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
     const e = t.to ? new Date(t.to + 'T00:00:00') : monthEnd;
     if(dt >= f.getTime() && dt <= e.getTime()) return t.site || 'ON_SITE';
+  }
+  // Also check RotationOps trainers list (trainee/trainer may only be listed here)
+  const trainersCombined = _trainersList.concat(_prevMonthTrainers);
+  for(const t of trainersCombined){
+    if((t.name||'').toUpperCase() !== nm) continue;
+    const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
+    const e = t.to ? new Date(t.to + 'T00:00:00') : monthEnd;
+    if(dt >= f.getTime() && dt <= e.getTime()) return 'ON_SITE';
   }
   return null;
 }
@@ -4565,12 +4573,13 @@ async function importTeamsWeek(file){
   const weekEnd=new Date(weekStart.getTime()+6*86400000);
   // Extend by 1 day to catch post-midnight OT (e.g., Mar 1 02:00 belongs to Feb 28 NIGHT)
   const weekEndExtended=new Date(weekStart.getTime()+7*86400000);
-  // Clear OT for today and future dates so traded OT gets replaced.
-  // Past dates are preserved (never touch history).
-  const todayISO=toISODate(new Date());
+  // Clear ALL OT for the selected week so re-imports fully replace previous data.
+  // This lets daily re-imports reflect swaps (removed people get cleared, new ones added).
+  const weekStartISO=toISODate(weekStart);
+  const weekEndExtISO=toISODate(weekEndExtended);
   for(const [k] of OT_BY_CTX.entries()){
     const kISO=k.split("|")[0];
-    if(kISO>=todayISO) OT_BY_CTX.delete(k);
+    if(kISO>=weekStartISO && kISO<=weekEndExtISO) OT_BY_CTX.delete(k);
   }
 
   let text=null, wb=null;
@@ -4652,9 +4661,14 @@ async function importTeamsWeek(file){
         // place OT into BOTH shift sets, by overlap with each block window
         for(const sh of ["DAY","NIGHT"]){
           const blocks = (sh==="NIGHT")?BLOCKS_NIGHT:BLOCKS_DAY;
+          const isNightCtx = (sh==="NIGHT");
+          const nightStart = 18*60;
           for(const b of blocks){
-            const bw=blockWindowMinutes(b);
-            const ov=overlapMinutes(sMin,eMin,bw.startMin,bw.endMin);
+            // Compute block window inline (don't rely on DOM shiftSel)
+            let bs = minutesOf(b.start), be = minutesOf(b.end);
+            if(be<=bs) be += 1440;
+            if(isNightCtx && bs < nightStart){ bs += 1440; be += 1440; }
+            const ov=overlapMinutes(sMin,eMin,bs,be);
             if(ov>0){
               addOtToCtx(iso, sh, b.id, emp.Employee, emp.POSITION||"", sMin, eMin);
               imported++;
@@ -7324,7 +7338,7 @@ let _forceSave=false;
 // Sheet 2 front/back: Days OT (roles split + blank slots)
 // Sheet 3 front/back: Nights Regulars (roles split)
 // Sheet 4 front/back: Nights OT (roles split + blank slots)
-async function printWeeklyD(){
+async function printWeeklyD(filled=false){
   try{
     if(!window.jspdf){
       setErr("Loading PDF library\u2026 click Print Weekly D again in a few seconds.");
@@ -7361,14 +7375,31 @@ async function printWeeklyD(){
       }).catch(()=>{vacByMonth[mk]=[];trainByMonth[mk]=[];});
     }));
 
+    // Snapshot in-memory OT before loading edits (import data is most current)
+    const _otSnapPrint = new Map();
+    for(const [k,v] of OT_BY_CTX) _otSnapPrint.set(k, v.map(e=>({...e})));
+
     await Promise.all(weekDates.flatMap(wd=>[
       loadEditsFromFirebase(wd.iso,"DAY"),
       loadEditsFromFirebase(wd.iso,"NIGHT"),
       loadShiftSwaps(wd.iso)
     ]));
 
+    // Restore imported OT
+    for(const [k,v] of _otSnapPrint) OT_BY_CTX.set(k, v);
+
     const roleOrder=["CALLTAKER","DISPATCHER","PIC","SUPERVISOR"];
     const roleAbbr2={CALLTAKER:"CT",DISPATCHER:"DP",PIC:"PIC",SUPERVISOR:"SUP",OTH:"OTH"};
+    function _abbrSeat(s){
+      return (s||"").replace(/RELIEF\s*2/i,"R2").replace(/RELIEF\s*1/i,"R1")
+        .replace(/\bNORTHWEST\b/i,"NW").replace(/\bNORTHEAST\b/i,"NE")
+        .replace(/\bSOUTHWEST\b/i,"SW").replace(/\bSOUTHEAST\b/i,"SE")
+        .replace(/\bNORTH\b/i,"N").replace(/\bSOUTH\b/i,"S")
+        .replace(/\bEAST\b/i,"E").replace(/\bWEST\b/i,"W")
+        .replace(/\bDISPATCH\b/i,"DSP").replace(/\bSUPERVISOR\b/i,"SUP")
+        .replace(/\bCALLTAKER\b/i,"CT").replace(/\bTRAINING\b/i,"TRN")
+        .trim();
+    }
     const roleRGB={CALLTAKER:[26,82,118],DISPATCHER:[74,35,90],PIC:[14,102,85],SUPERVISOR:[125,102,8],OTH:[107,114,128]};
     const roleBgRGB={CALLTAKER:[230,230,230],DISPATCHER:[230,230,230],PIC:[230,230,230],SUPERVISOR:[230,230,230],OTH:[230,230,230]};
     const fullName={CALLTAKER:"CALLTAKER",DISPATCHER:"DISPATCH",PIC:"PIC",SUPERVISOR:"SUPVSR",OTH:"OTHER"};
@@ -7397,7 +7428,6 @@ async function printWeeklyD(){
             if(!sh){
               rec.blocks[bKey]={assignment:"",hours:0,status:"OFF",statusDetail:""};
             } else if(sh.start<=bw.startMin && sh.end>=bw.endMin){
-              // Shift fully covers this block
               if(isVac){
                 rec.blocks[bKey]={assignment:"",hours:0,status:"VAC",statusDetail:"VACATION"};
               } else {
@@ -7405,6 +7435,16 @@ async function printWeeklyD(){
               }
             } else {
               rec.blocks[bKey]={assignment:"",hours:0,status:"OFF",statusDetail:""};
+            }
+            // In filled mode, capture actual edit data
+            if(filled && rec.blocks[bKey].status==="WORK"){
+              const ctx=ctxKey(iso,shift,block.id);
+              const ed=ensureEdit(ctx,emp.Employee);
+              rec.blocks[bKey].present=ed.Present||"YES";
+              rec.blocks[bKey].absReason=(ed.AbsenceReason||"").toUpperCase();
+              rec.blocks[bKey].editHours=ed.Hours!==""?Number(ed.Hours):4;
+              rec.blocks[bKey].assignment=ed.Assignment||"";
+              rec.blocks[bKey].othType=ed.OthType||"";
             }
           }
         }
@@ -7471,13 +7511,26 @@ async function printWeeklyD(){
 
     // Legal portrait: 612 x 1008, minimal margin for max print area
     const doc=new jsPDF({orientation:"portrait",unit:"pt",format:"legal"});
-    const pw=612,ph=1008,mg=2;
+    const pw=612,ph=1008,mg=8;
     const usableW=pw-mg*2,usableH=ph-mg*2;
     const nameW=60;
     const blockColW=(usableW-nameW)/21;
     const dayGroupW=blockColW*3;
     let _rowIdx=0;
     function _rl(i){if(i<26)return String.fromCharCode(65+i);return String.fromCharCode(65+Math.floor(i/26)-1)+String.fromCharCode(65+(i%26));}
+
+    // Auto-fit text: shrink font until it fits within maxW, with padding
+    function _fitText(doc,txt,startFs,maxW,pad){
+      pad=pad||2;
+      let sz=startFs;
+      while(sz>2){
+        doc.setFontSize(sz);
+        const tw=doc.getTextWidth(txt);
+        if(tw<=maxW-pad) return sz;
+        sz-=0.3;
+      }
+      return sz;
+    }
 
     // Split roles into two balanced groups for front/back
     function splitRolesD(shiftData){
@@ -7569,7 +7622,7 @@ async function printWeeklyD(){
       y+=roleHeaderH;
       for(let ei=0;ei<regs.length;ei++){
         const altBg=ei%2===0?[255,255,255]:bg;
-        y=drawRowD(regs[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role,true);
+        y=drawRowD(regs[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role,true,filled);
       }
       return y;
     }
@@ -7588,9 +7641,10 @@ async function printWeeklyD(){
       y+=roleHeaderH;
       for(let ei=0;ei<ots.length;ei++){
         const altBg=ei%2===0?[255,255,255]:[230,230,230];
-        y=drawRowD(ots[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role,false);
+        y=drawRowD(ots[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role,false,filled);
       }
-      // Blank write-in rows (numbered 1,2,3…)
+      // Blank write-in rows (numbered 1,2,3…) — skip in filled/report mode
+      if(filled) return y;
       for(let bi=0;bi<blankCount;bi++){
         const bNum=String(bi+1);
         doc.setFillColor(255,255,255);
@@ -7622,21 +7676,22 @@ async function printWeeklyD(){
     }
 
     // --- Draw one employee row ---
-    function drawRowD(e,bgColor,blockDefs,y,rowH,fs,fsT,roleAb,isReg){
+    function drawRowD(e,bgColor,blockDefs,y,rowH,fs,fsT,roleAb,isReg,isFilled){
       const rowLetter=_rl(_rowIdx++);
       doc.setFillColor(bgColor[0],bgColor[1],bgColor[2]);
       doc.rect(mg,y,usableW,rowH,'F');
       // Row outer border — thick, dark
       doc.setLineWidth(0.8);doc.setDrawColor(40,40,40);doc.rect(mg,y,usableW,rowH,'S');doc.setLineWidth(0.2);
       const fullNm=String(e.emp).toUpperCase();
-      doc.setFontSize(fs);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
-      let nm=fullNm;
-      const maxNm=Math.floor(nameW/(fs*0.52));
-      if(nm.length>maxNm)nm=nm.slice(0,maxNm-1)+"\u2026";
-      doc.text(nm,mg+nameW/2,y+rowH/2+fs*0.35,{align:"center"});
-      // Row letter bold in bottom-right of name column
-      doc.setFontSize(fsT*1.2);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
-      doc.text(rowLetter,mg+nameW-2,y+rowH-2,{align:"right"});
+      doc.setFont("helvetica","bold");
+      const nmFs=_fitText(doc,fullNm,fs,nameW-4,2);
+      doc.setFontSize(nmFs);doc.setTextColor(0,0,0);
+      doc.text(fullNm,mg+nameW/2,y+rowH/2+nmFs*0.35,{align:"center"});
+      // Row letter bold in bottom-right of name column (skip for filled regulars)
+      if(!(isFilled && isReg)){
+        doc.setFontSize(fsT*1.2);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
+        doc.text(rowLetter,mg+nameW-2,y+rowH-2,{align:"right"});
+      }
       doc.setDrawColor(140,140,140);doc.line(mg+nameW,y,mg+nameW,y+rowH);
       // Info/write divider line at 35% height
       const infoH=rowH*0.35;
@@ -7650,36 +7705,79 @@ async function printWeeklyD(){
           // No per-block tinting — row color extends uniformly across all columns
 
           if(!cell){
-            doc.setFontSize(fsT*1.2);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);doc.text(rowLetter,dx+1,y+rowH-2.5);
+            if(!(isFilled && isReg)){doc.setFontSize(fsT*1.2);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);doc.text(rowLetter,dx+1,y+rowH-2.5);}
             doc.setLineWidth(0.5);doc.setDrawColor(60,60,60);doc.rect(dx,y,blockColW,rowH,'S');doc.setLineWidth(0.2);
             continue;
           }
 
           if(cell.status==="OFF"){
             doc.setFillColor(0,0,0);doc.rect(dx,y,blockColW,rowH,'F');
-            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
-            doc.text("OFF",dx+blockColW/2,y+rowH/2+fsT*0.35,{align:"center"});
+            doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+            const offFs=_fitText(doc,"OFF",fsT,blockColW,1);doc.setFontSize(offFs);
+            doc.text("OFF",dx+blockColW/2,y+rowH/2+offFs*0.35,{align:"center"});
           }else if(cell.status==="VAC"){
             doc.setFillColor(30,80,180);doc.rect(dx,y,blockColW,rowH,'F');
-            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
-            doc.text("VAC",dx+blockColW/2,y+rowH/2+fsT*0.35,{align:"center"});
+            doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+            const vacFs=_fitText(doc,"VAC",fsT,blockColW,1);doc.setFontSize(vacFs);
+            doc.text("VAC",dx+blockColW/2,y+rowH/2+vacFs*0.35,{align:"center"});
           }else if(cell.status==="ABS"){
             doc.setFillColor(190,30,30);doc.rect(dx,y,blockColW,rowH,'F');
-            doc.setFontSize(fsT);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
-            doc.text("ABSENT",dx+blockColW/2,y+rowH/2+fsT*0.35,{align:"center"});
+            doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+            const absFs=_fitText(doc,"ABS",fsT,blockColW,1);doc.setFontSize(absFs);
+            doc.text("ABS",dx+blockColW/2,y+rowH/2+absFs*0.35,{align:"center"});
+          }else if(isFilled && isReg && cell.present && cell.present!=="YES"){
+            // Filled mode: show actual absence/status data
+            const p=cell.present;
+            const abs=cell.absReason||"";
+            const hrs=cell.editHours;
+            let label="", bgR=255,bgG=255,bgB=255, fR=0,fG=0,fB=0;
+            if(p==="NO"){
+              if(abs==="NCNS"){ label="NCNS"; bgR=253;bgG=224;bgB=71; }
+              else if(abs==="VACATION"||abs==="VAC"){ label="VAC"; bgR=30;bgG=80;bgB=180; fR=255;fG=255;fB=255; }
+              else if(abs.startsWith("SICK")){ label="S"+(4-hrs); bgR=204;bgG=0;bgB=0; fR=255;fG=255;fB=255; }
+              else if(abs.startsWith("FAMILY")){ label="F"+(4-hrs); bgR=255;bgG=153;bgB=0; }
+              else if(abs==="SZ"){ label="SZ"+(4-hrs); bgR=91;bgG=33;bgB=182; fR=255;fG=255;fB=255; }
+              else if(abs==="FZ"){ label="FZ"+(4-hrs); bgR=167;bgG=139;bgB=250; fR=255;fG=255;fB=255; }
+              else { label=abs||"ABS"; bgR=204;bgG=0;bgB=0; fR=255;fG=255;fB=255; }
+            } else if(p==="TARDY"){ label="T"+(4-hrs); bgR=255;bgG=102;bgB=102; }
+            else if(p==="PARTIAL"){ label="P"+hrs; bgR=252;bgG=165;bgB=165; }
+            else if(p==="TRAINEE"){ label="TRN"; bgR=251;bgG=191;bgB=36; }
+            doc.setFillColor(bgR,bgG,bgB);doc.rect(dx,y,blockColW,rowH,'F');
+            doc.setFont("helvetica","bold");doc.setTextColor(fR,fG,fB);
+            const lblFs=_fitText(doc,label,fsT*1.3,blockColW,1);doc.setFontSize(lblFs);
+            doc.text(label,dx+blockColW/2,y+rowH/2+lblFs*0.35,{align:"center"});
+          }else if(isFilled && isReg && cell.assignment){
+            // Filled mode: show abbreviated seat assignment
+            const asgn=_abbrSeat(cell.assignment);
+            doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
+            const asgFs=_fitText(doc,asgn,fsT*1.2,blockColW,1);doc.setFontSize(asgFs);
+            doc.text(asgn,dx+blockColW/2,y+rowH/2+asgFs*0.35,{align:"center"});
           }else if(!isReg){
-            // Role+hours centered at top, bigger, bold, red
-            doc.setFontSize(fsT*1.3);doc.setFont("helvetica","bold");doc.setTextColor(190,30,30);
+            // OT cell: Role+hours top line, seat bottom line
             const hrs=Math.round(cell.hours*10)/10;
             const hStr=hrs%1===0?String(Math.round(hrs)):String(hrs);
-            doc.text(roleAb+hStr,dx+blockColW/2,y+fsT*1.3+1,{align:"center"});
-            // Row letter bold in bottom-left
-            doc.setFontSize(fsT*1.2);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
-            doc.text(rowLetter,dx+1,y+rowH-2.5);
+            const otAsgn=_abbrSeat(cell.assignment||"");
+            const otLabel=roleAb+hStr;
+            if(isFilled && otAsgn){
+              // Two lines: role+hrs (red) top, seat (black) bottom — fit within rowH
+              doc.setFont("helvetica","bold");
+              const maxFs=Math.min(fsT*1.2, rowH*0.35);
+              const otFs1=_fitText(doc,otLabel,maxFs,blockColW,1);
+              const otFs2=_fitText(doc,otAsgn,maxFs,blockColW,1);
+              // Top line at 38% of row, bottom line at 78% of row
+              doc.setFontSize(otFs1);doc.setTextColor(190,30,30);
+              doc.text(otLabel,dx+blockColW/2,y+rowH*0.38,{align:"center"});
+              doc.setFontSize(otFs2);doc.setTextColor(0,0,0);
+              doc.text(otAsgn,dx+blockColW/2,y+rowH*0.78,{align:"center"});
+            } else {
+              doc.setFont("helvetica","bold");doc.setTextColor(190,30,30);
+              const otFs=_fitText(doc,otLabel,fsT*1.3,blockColW,1);doc.setFontSize(otFs);
+              doc.text(otLabel,dx+blockColW/2,y+rowH/2+otFs*0.35,{align:"center"});
+            }
+            if(!isFilled){doc.setFontSize(fsT*1.2);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);doc.text(rowLetter,dx+1,y+rowH-2.5);}
           }else{
-            // Regulars WORK: letter bold in bottom-left
-            doc.setFontSize(fsT*1.2);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
-            doc.text(rowLetter,dx+1,y+rowH-2.5);
+            // Regulars WORK: letter bold in bottom-left (template mode only)
+            if(!isFilled){doc.setFontSize(fsT*1.2);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);doc.text(rowLetter,dx+1,y+rowH-2.5);}
           }
           // Cell border — thicker, darker
           doc.setLineWidth(0.5);doc.setDrawColor(60,60,60);doc.rect(dx,y,blockColW,rowH,'S');doc.setLineWidth(0.2);
@@ -7769,32 +7867,125 @@ async function printWeeklyD(){
     const nightRegSplit=splitRolesD(nightData);
     const nightOTSplit=splitRolesOT(nightData);
 
-    // Page 1: Days Regulars front
-    drawRegularsPage("DAYS",BLOCKS_DAY,dayData,dayRegSplit[0]);
-    // Page 2: Days Regulars back
-    doc.addPage("legal","portrait");
-    drawRegularsPage("DAYS",BLOCKS_DAY,dayData,dayRegSplit[1]);
-    // Page 3: Days OT front
-    doc.addPage("legal","portrait");
-    drawOTPage("DAYS",BLOCKS_DAY,dayData,dayOTSplit[0].length?dayOTSplit[0]:dayData.activeGroups);
-    // Page 4: Days OT back
-    doc.addPage("legal","portrait");
-    drawOTPage("DAYS",BLOCKS_DAY,dayData,dayOTSplit[1].length?dayOTSplit[1]:dayData.activeGroups.slice(-1));
-    // Page 5: Nights Regulars front
-    doc.addPage("legal","portrait");
-    drawRegularsPage("NIGHTS",BLOCKS_NIGHT,nightData,nightRegSplit[0]);
-    // Page 6: Nights Regulars back
-    doc.addPage("legal","portrait");
-    drawRegularsPage("NIGHTS",BLOCKS_NIGHT,nightData,nightRegSplit[1]);
-    // Page 7: Nights OT front
-    doc.addPage("legal","portrait");
-    drawOTPage("NIGHTS",BLOCKS_NIGHT,nightData,nightOTSplit[0].length?nightOTSplit[0]:nightData.activeGroups);
-    // Page 8: Nights OT back
-    doc.addPage("legal","portrait");
-    drawOTPage("NIGHTS",BLOCKS_NIGHT,nightData,nightOTSplit[1].length?nightOTSplit[1]:nightData.activeGroups.slice(-1));
+    if(filled){
+      // Filled/report mode: compact layout — regulars then OT per shift, no blanks
+      // --- Filled page drawing with per-row pagination ---
+      function drawFilledPage(shiftLabel,blockDefs,shiftData){
+        const{grouped,activeGroups}=shiftData;
+        // Count total rows + role headers to compute ideal row height
+        let totalRegs=0,totalOT=0,roleHeaders=0;
+        for(const r of activeGroups){
+          if(grouped[r].regulars.length){totalRegs+=grouped[r].regulars.length;roleHeaders++;}
+          if(grouped[r].ot.length){totalOT+=grouped[r].ot.length;roleHeaders++;}
+        }
+        const totalRows=totalRegs+totalOT;
+        const pageHeaderH=14+12;
+        const roleHeaderH=10;
+        const availH=usableH-pageHeaderH-roleHeaders*roleHeaderH;
+        const rowH=Math.min(18,Math.max(11,availH/Math.max(1,totalRows)));
+        const fs=Math.min(6,rowH*0.55);
+        const fsT=fs*0.75;
+        const pageBottom=mg+usableH;
+        let pageNum=1;
 
-    if(_forceSave){doc.save("ShiftOps_Weekly_D_"+weekDates[0].iso+".pdf");}
-    else{const pdfBlob=doc.output('blob');const pdfUrl=URL.createObjectURL(pdfBlob);const win=window.open(pdfUrl,'_blank');if(win){win.onload=()=>{win.focus();win.print();};}else{doc.save("ShiftOps_Weekly_D_"+weekDates[0].iso+".pdf");}}
+        function startPage(contLabel){
+          const lbl=contLabel||shiftLabel+" \u2014 REPORT";
+          return drawHeader(lbl,blockDefs,mg);
+        }
+
+        function drawSectionHeader(label,y){
+          doc.setFillColor(0,0,0);
+          doc.rect(mg,y,nameW,roleHeaderH,'F');
+          doc.setDrawColor(0,0,0);doc.rect(mg,y,nameW,roleHeaderH,'S');
+          doc.setFontSize(label.includes("OT")?6:7);doc.setFont("helvetica","bold");doc.setTextColor(255,255,255);
+          doc.text(label,mg+nameW/2,y+roleHeaderH*0.73,{align:"center"});
+          drawBlockTimesRow(blockDefs,y,roleHeaderH);
+          return y+roleHeaderH;
+        }
+
+        let y=startPage();
+
+        for(const role of activeGroups){
+          // --- Regulars ---
+          const regs=grouped[role].regulars;
+          if(regs.length){
+            // Check if section header + at least 1 row fits
+            if(y+roleHeaderH+rowH>pageBottom){
+              doc.addPage("legal","portrait");pageNum++;
+              y=startPage(shiftLabel+" \u2014 REPORT (cont.)");
+            }
+            _rowIdx=0;
+            const bg=roleBgRGB[role]||[255,255,255];
+            y=drawSectionHeader(fullName[role]||role,y);
+            for(let ei=0;ei<regs.length;ei++){
+              // Check if row fits, paginate if needed
+              if(y+rowH>pageBottom){
+                doc.addPage("legal","portrait");pageNum++;
+                y=startPage(shiftLabel+" \u2014 REPORT (cont.)");
+                y=drawSectionHeader((fullName[role]||role)+" (cont.)",y);
+              }
+              const altBg=ei%2===0?[255,255,255]:bg;
+              y=drawRowD(regs[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role,true,filled);
+            }
+          }
+          // --- OT ---
+          const ots=grouped[role].ot;
+          if(ots.length){
+            if(y+roleHeaderH+rowH>pageBottom){
+              doc.addPage("legal","portrait");pageNum++;
+              y=startPage(shiftLabel+" \u2014 REPORT (cont.)");
+            }
+            _rowIdx=0;
+            y=drawSectionHeader((fullName[role]||role)+" OT",y);
+            for(let ei=0;ei<ots.length;ei++){
+              if(y+rowH>pageBottom){
+                doc.addPage("legal","portrait");pageNum++;
+                y=startPage(shiftLabel+" \u2014 REPORT (cont.)");
+                y=drawSectionHeader((fullName[role]||role)+" OT (cont.)",y);
+              }
+              const altBg=ei%2===0?[255,255,255]:[230,230,230];
+              y=drawRowD(ots[ei],altBg,blockDefs,y,rowH,fs,fsT,roleAbbr2[role]||role,false,filled);
+            }
+            // Red bottom border to mark end of OT section
+            doc.setLineWidth(2.0);doc.setDrawColor(200,0,0);
+            doc.line(mg,y,mg+usableW,y);
+            doc.setLineWidth(0.2);doc.setDrawColor(0,0,0);
+          }
+        }
+      }
+      drawFilledPage("DAY SHIFT",BLOCKS_DAY,dayData);
+      doc.addPage("legal","portrait");
+      drawFilledPage("NIGHT SHIFT",BLOCKS_NIGHT,nightData);
+    } else {
+      // Template mode: original 8-page layout
+      // Page 1: Days Regulars front
+      drawRegularsPage("DAYS",BLOCKS_DAY,dayData,dayRegSplit[0]);
+      // Page 2: Days Regulars back
+      doc.addPage("legal","portrait");
+      drawRegularsPage("DAYS",BLOCKS_DAY,dayData,dayRegSplit[1]);
+      // Page 3: Days OT front
+      doc.addPage("legal","portrait");
+      drawOTPage("DAYS",BLOCKS_DAY,dayData,dayOTSplit[0].length?dayOTSplit[0]:dayData.activeGroups);
+      // Page 4: Days OT back
+      doc.addPage("legal","portrait");
+      drawOTPage("DAYS",BLOCKS_DAY,dayData,dayOTSplit[1].length?dayOTSplit[1]:dayData.activeGroups.slice(-1));
+      // Page 5: Nights Regulars front
+      doc.addPage("legal","portrait");
+      drawRegularsPage("NIGHTS",BLOCKS_NIGHT,nightData,nightRegSplit[0]);
+      // Page 6: Nights Regulars back
+      doc.addPage("legal","portrait");
+      drawRegularsPage("NIGHTS",BLOCKS_NIGHT,nightData,nightRegSplit[1]);
+      // Page 7: Nights OT front
+      doc.addPage("legal","portrait");
+      drawOTPage("NIGHTS",BLOCKS_NIGHT,nightData,nightOTSplit[0].length?nightOTSplit[0]:nightData.activeGroups);
+      // Page 8: Nights OT back
+      doc.addPage("legal","portrait");
+      drawOTPage("NIGHTS",BLOCKS_NIGHT,nightData,nightOTSplit[1].length?nightOTSplit[1]:nightData.activeGroups.slice(-1));
+    }
+
+    const _fname="ShiftOps_"+(filled?"Report_":"Weekly_D_")+weekDates[0].iso+".pdf";
+    if(_forceSave){doc.save(_fname);}
+    else{const pdfBlob=doc.output('blob');const pdfUrl=URL.createObjectURL(pdfBlob);const win=window.open(pdfUrl,'_blank');if(win){win.onload=()=>{win.focus();win.print();};}else{doc.save(_fname);}}
 
     document.getElementById("shiftSel").value=origShift;
     _vacations=origVac;
@@ -7810,7 +8001,7 @@ async function printWeeklyD(){
 document.getElementById("btnPrintWeeklyD").addEventListener("click", printWeeklyD);
 
 // ===== Download Weekly Excel =====
-async function downloadWeeklyXlsx(){
+async function downloadWeeklyXlsx(filled=false){
   try{
     if(!window.XLSX){ setErr("XLSX library not loaded."); return; }
     const weekDates=_swapWeekDates();
@@ -7836,11 +8027,18 @@ async function downloadWeeklyXlsx(){
       }).catch(()=>{vacByMonth[mk]=[];trainByMonth[mk]=[];});
     }));
 
+    // Snapshot in-memory OT before loading edits (import data is most current)
+    const _otSnap = new Map();
+    for(const [k,v] of OT_BY_CTX) _otSnap.set(k, v.map(e=>({...e})));
+
     await Promise.all(weekDates.flatMap(wd=>[
       loadEditsFromFirebase(wd.iso,"DAY"),
       loadEditsFromFirebase(wd.iso,"NIGHT"),
       loadShiftSwaps(wd.iso)
     ]));
+
+    // Restore imported OT — loadEditsFromFirebase may have overwritten with stale Firebase data
+    for(const [k,v] of _otSnap) OT_BY_CTX.set(k, v);
 
     // Load SD rotation data from RotationOps Firestore
     const sdByDayBlock={}; // "YYYY-MM-DD|blockId" -> Set of employee names
@@ -7881,6 +8079,7 @@ async function downloadWeeklyXlsx(){
         for(const wd of weekDates){
           const iso=wd.iso,d=parseISO(iso),mk=d.getFullYear()+"-"+d.getMonth();
           _vacations=vacByMonth[mk]||[];
+          _trainingList=trainByMonth[mk]||[];
           const dname=dayNameFromISO(iso);
           const shStr=shiftForDay(emp,dname,iso);
           const sh=parseShiftString(shStr);
@@ -7893,6 +8092,20 @@ async function downloadWeeklyXlsx(){
               if(isVac){ rec.blocks[bKey]={status:"VAC",assignment:"",hours:0}; }
               else { rec.blocks[bKey]={status:"WORK",assignment:"",hours:0}; }
             } else { rec.blocks[bKey]={status:"OFF",assignment:"",hours:0}; }
+            // In filled mode, capture actual edit data for regulars
+            if(filled && rec.blocks[bKey] && rec.blocks[bKey].status==="WORK"){
+              const ctx=ctxKey(iso,shift,block.id);
+              const ed=ensureEdit(ctx,emp.Employee);
+              const present=ed.Present||"YES";
+              const absReason=(ed.AbsenceReason||"").toUpperCase();
+              const hrs=ed.Hours!==""?Number(ed.Hours):4;
+              const asgn=ed.Assignment||"";
+              rec.blocks[bKey].present=present;
+              rec.blocks[bKey].absReason=absReason;
+              rec.blocks[bKey].editHours=hrs;
+              rec.blocks[bKey].assignment=asgn;
+              rec.blocks[bKey].othType=(ed.OthType||"");
+            }
           }
         }
         regulars.set(emp.Employee,rec);
@@ -7961,7 +8174,7 @@ async function downloadWeeklyXlsx(){
 
     const wb=XLSX.utils.book_new();
 
-    function buildSheet(shiftLabel, grouped, blockDefs, sdData){
+    function buildSheet(shiftLabel, grouped, blockDefs, sdData, isFilled){
       const aoa=[];
       const rType=[]; // row type for styling: title|daynames|blocktimes|rolehdr|reg|ot|blank
 
@@ -8009,8 +8222,36 @@ async function downloadWeeklyXlsx(){
                 const cell=e.blocks[bKey];
                 if(!cell||cell.status==="OFF") row.push("DO");
                 else if(cell.status==="VAC") row.push("VAC");
-                else{
-                  // Check if employee is SD for this day/block
+                else if(isFilled && cell.present){
+                  // Filled mode: show actual attendance data
+                  const p=cell.present;
+                  const abs=cell.absReason||"";
+                  const hrs=cell.editHours;
+                  const asgn=(cell.assignment||"")
+                    .replace(/RELIEF\s*2/i,"R2").replace(/RELIEF\s*1/i,"R1")
+                    .replace(/\bNORTHWEST\b/i,"NW").replace(/\bNORTHEAST\b/i,"NE")
+                    .replace(/\bSOUTHWEST\b/i,"SW").replace(/\bSOUTHEAST\b/i,"SE")
+                    .replace(/\bNORTH\b/i,"N").replace(/\bSOUTH\b/i,"S")
+                    .replace(/\bEAST\b/i,"E").replace(/\bWEST\b/i,"W");
+                  if(p==="NO"){
+                    // Absent: show absence code + hours deducted
+                    if(abs==="NCNS") row.push("NCNS");
+                    else if(abs.startsWith("SICK")) row.push("S"+(4-hrs));
+                    else if(abs.startsWith("FAMILY")) row.push("F"+(4-hrs));
+                    else if(abs==="SZ") row.push("SZ"+(4-hrs));
+                    else if(abs==="FZ") row.push("FZ"+(4-hrs));
+                    else row.push(abs||(asgn||"ABS"));
+                  } else if(p==="TARDY") row.push("T"+(4-hrs));
+                  else if(p==="PARTIAL") row.push("P"+hrs);
+                  else if(p==="TRAINEE") row.push("TRN");
+                  else {
+                    // Present: show seat assignment or SD
+                    const sdSet=sdData[bKey];
+                    if(sdSet&&sdSet.has(e.emp.toUpperCase())) row.push(asgn||"SD");
+                    else row.push(asgn||"");
+                  }
+                } else {
+                  // Template mode: empty editable cell
                   const sdSet=sdData[bKey];
                   if(sdSet&&sdSet.has(e.emp.toUpperCase())) row.push("SD");
                   else row.push("");
@@ -8056,78 +8297,74 @@ async function downloadWeeklyXlsx(){
             row.push(""); // total placeholder
             aoa.push(row); rType.push("ot");
           }
-          for(let i=0;i<5;i++){
-            const row=[""];
-            for(let c=0;c<22;c++) row.push("");
-            aoa.push(row); rType.push("blank");
+          if(!isFilled){
+            for(let i=0;i<5;i++){
+              const row=[""];
+              for(let c=0;c<22;c++) row.push("");
+              aoa.push(row); rType.push("blank");
+            }
           }
         }
       }
 
-      // Add legend at the bottom
-      aoa.push([]); rType.push("blank");
-      // Legend header row
-      const legendHdr=[]; for(let i=0;i<23;i++) legendHdr.push(""); legendHdr[0]="LEGEND"; aoa.push(legendHdr); rType.push("legendhdr");
-      // Legend entries: [swatchText, description, bgColor, fontColor]
-      // 3 columns of swatch+desc pairs: cols 0-1, 4-5, 8-9 (with gap cols 2-3, 6-7)
-      // Row 1: Light Pink / White / Grey
-      // Row 2: SICK Red / Family Orange / Tardy Light Red
-      // Row 3: SZ Dark Purple / FZ Light Purple / NCNS Yellow
-      // Row 4: VAC Blue / SD Purple / DO Grey
-      // Row 5: OT format / Block = 4hrs / Tab navigation
-      const legendGrid=[
-        [
-          {sw:"",desc:"Empty cell (unfilled)",bg:"FFE0E0",fc:"000000"},
-          {sw:"Filled",desc:"Assigned cell (white)",bg:"FFFFFF",fc:"000000"},
-          {sw:"DO",desc:"Day Off (locked)",bg:"808080",fc:"000000"}
-        ],[
-          {sw:"S2.5",desc:"Sick \u2014 4 minus hrs",bg:"CC0000",fc:"FFFFFF"},
-          {sw:"F4",desc:"Family \u2014 4 minus hrs",bg:"FF9900",fc:"000000"},
-          {sw:"T.25",desc:"Tardy \u2014 4 minus hrs",bg:"FF6666",fc:"000000"}
-        ],[
-          {sw:"SZ2",desc:"SZ absence \u2014 4 minus hrs",bg:"5B21B6",fc:"FFFFFF"},
-          {sw:"FZ1.5",desc:"FZ absence \u2014 4 minus hrs",bg:"A78BFA",fc:"FFFFFF"},
-          {sw:"NCNS",desc:"No Call No Show \u2014 0 hrs",bg:"FDE047",fc:"000000"}
-        ],[
-          {sw:"VAC",desc:"Vacation \u2014 0 hrs",bg:"1E50B4",fc:"FFFFFF"},
-          {sw:"SD",desc:"Shift Director (RotationOps)",bg:"7C3AED",fc:"FFFFFF"},
-          {sw:"CT4/16",desc:"OT: Role+Hrs / Seat",bg:"FFFFFF",fc:"CC0000"}
-        ],[
-          {sw:"\u2022",desc:"Each block = 4 hours",bg:null,fc:"333333"},
-          {sw:"\u2022",desc:"Total col sums hours worked",bg:null,fc:"333333"},
-          {sw:"\u2022",desc:"Tab key skips locked cells",bg:null,fc:"333333"}
-        ]
-      ];
-      // Build legend rows centered: cols 4-17 (14 cols content, ~37ch left margin, ~36ch right margin)
-      // Pair 1: col4=swatch, 5-7=desc | gap col8 | Pair 2: col9=swatch, 10-12=desc | gap col13 | Pair 3: col14=swatch, 15-17=desc
-      for(let li=0;li<legendGrid.length;li++){
-        const row=[]; for(let i=0;i<23;i++) row.push("");
-        const items=legendGrid[li];
-        row[4]=items[0].sw;  row[5]=items[0].desc;
-        row[9]=items[1].sw;  row[10]=items[1].desc;
-        row[14]=items[2].sw; row[15]=items[2].desc;
-        aoa.push(row);
-        rType.push("legendrow|"+li);
+      // Add legend at the bottom (skip in filled/report mode to save print space)
+      if(!isFilled){
+        aoa.push([]); rType.push("blank");
+        // Legend header row
+        const legendHdr=[]; for(let i=0;i<23;i++) legendHdr.push(""); legendHdr[0]="LEGEND"; aoa.push(legendHdr); rType.push("legendhdr");
+        const legendGrid=[
+          [
+            {sw:"",desc:"Empty cell (unfilled)",bg:"FFE0E0",fc:"000000"},
+            {sw:"Filled",desc:"Assigned cell (white)",bg:"FFFFFF",fc:"000000"},
+            {sw:"DO",desc:"Day Off (locked)",bg:"808080",fc:"000000"}
+          ],[
+            {sw:"S2.5",desc:"Sick \u2014 4 minus hrs",bg:"CC0000",fc:"FFFFFF"},
+            {sw:"F4",desc:"Family \u2014 4 minus hrs",bg:"FF9900",fc:"000000"},
+            {sw:"T.25",desc:"Tardy \u2014 4 minus hrs",bg:"FF6666",fc:"000000"}
+          ],[
+            {sw:"SZ2",desc:"SZ absence \u2014 4 minus hrs",bg:"5B21B6",fc:"FFFFFF"},
+            {sw:"FZ1.5",desc:"FZ absence \u2014 4 minus hrs",bg:"A78BFA",fc:"FFFFFF"},
+            {sw:"NCNS",desc:"No Call No Show \u2014 0 hrs",bg:"FDE047",fc:"000000"}
+          ],[
+            {sw:"VAC",desc:"Vacation \u2014 0 hrs",bg:"1E50B4",fc:"FFFFFF"},
+            {sw:"SD",desc:"Shift Director (RotationOps)",bg:"7C3AED",fc:"FFFFFF"},
+            {sw:"CT4/16",desc:"OT: Role+Hrs / Seat",bg:"FFFFFF",fc:"CC0000"}
+          ],[
+            {sw:"\u2022",desc:"Each block = 4 hours",bg:null,fc:"333333"},
+            {sw:"\u2022",desc:"Total col sums hours worked",bg:null,fc:"333333"},
+            {sw:"\u2022",desc:"Tab key skips locked cells",bg:null,fc:"333333"}
+          ]
+        ];
+        for(let li=0;li<legendGrid.length;li++){
+          const row=[]; for(let i=0;i<23;i++) row.push("");
+          const items=legendGrid[li];
+          row[4]=items[0].sw;  row[5]=items[0].desc;
+          row[9]=items[1].sw;  row[10]=items[1].desc;
+          row[14]=items[2].sw; row[15]=items[2].desc;
+          aoa.push(row);
+          rType.push("legendrow|"+li);
+        }
       }
 
       const ws=XLSX.utils.aoa_to_sheet(aoa,{sheetStubs:true});
 
       // Column widths: name col wide, block cols narrow
-      const colW=[{wch:16}];
-      for(let i=0;i<21;i++) colW.push({wch:7});
-      colW.push({wch:8}); // TOTAL column
+      const _fSz = isFilled ? 8 : 11;  // smaller font for filled/print mode
+      const colW=[{wch: isFilled ? 14 : 16}];
+      for(let i=0;i<21;i++) colW.push({wch: isFilled ? 5.5 : 7});
+      colW.push({wch: isFilled ? 6 : 8}); // TOTAL column
       ws['!cols']=colW;
 
       // Row heights
       ws['!rows']=[];
       for(let R=0;R<aoa.length;R++){
-        if(rType[R]==="title") ws['!rows'][R]={hpt:22};
-        else if(rType[R]==="daynames") ws['!rows'][R]={hpt:18};
-        else if(rType[R]==="blocktimes") ws['!rows'][R]={hpt:26};
-        else if(rType[R]==="rolehdr") ws['!rows'][R]={hpt:18};
-        else if(rType[R]==="legendhdr") ws['!rows'][R]={hpt:22};
-        else if(rType[R].startsWith("legendrow")) ws['!rows'][R]={hpt:20};
-        else ws['!rows'][R]={hpt:16};
+        if(rType[R]==="title") ws['!rows'][R]={hpt: isFilled ? 16 : 22};
+        else if(rType[R]==="daynames") ws['!rows'][R]={hpt: isFilled ? 14 : 18};
+        else if(rType[R]==="blocktimes") ws['!rows'][R]={hpt: isFilled ? 18 : 26};
+        else if(rType[R]==="rolehdr") ws['!rows'][R]={hpt: isFilled ? 14 : 18};
+        else if(rType[R]==="legendhdr") ws['!rows'][R]={hpt: isFilled ? 16 : 22};
+        else if(rType[R].startsWith("legendrow")) ws['!rows'][R]={hpt: isFilled ? 14 : 20};
+        else ws['!rows'][R]={hpt: isFilled ? 12 : 16};
       }
 
       // Merge day-name headers (row 1)
@@ -8203,19 +8440,19 @@ async function downloadWeeklyXlsx(){
 
           // --- Font & Fill by row type ---
           if(meta==="title"){
-            cl.s.font={bold:true,sz:12,color:{rgb:"FFFFFF"}};
+            cl.s.font={bold:true,sz:isFilled?9:12,color:{rgb:"FFFFFF"}};
             cl.s.fill={fgColor:{rgb:"000000"}};
           }else if(meta==="daynames"){
-            cl.s.font={bold:true,sz:10,color:{rgb:"FFFFFF"}};
+            cl.s.font={bold:true,sz:isFilled?8:10,color:{rgb:"FFFFFF"}};
             cl.s.fill={fgColor:{rgb:"000000"}};
           }else if(meta==="blocktimes"){
-            cl.s.font={bold:true,sz:8,color:{rgb:"FFFFFF"}};
+            cl.s.font={bold:true,sz:isFilled?7:8,color:{rgb:"FFFFFF"}};
             cl.s.fill={fgColor:{rgb:"1E1E1E"}};
           }else if(meta==="rolehdr"){
-            cl.s.font={bold:true,sz:10,color:{rgb:"FFFFFF"}};
+            cl.s.font={bold:true,sz:isFilled?8:10,color:{rgb:"FFFFFF"}};
             cl.s.fill={fgColor:{rgb:"2D3748"}};
           }else if(meta==="legendhdr"){
-            cl.s.font={bold:true,sz:11,color:{rgb:"FFFFFF"}};
+            cl.s.font={bold:true,sz:isFilled?8:11,color:{rgb:"FFFFFF"}};
             cl.s.fill={fgColor:{rgb:"2D3748"}};
             cl.s.alignment={horizontal:"center",vertical:"center"};
             cl.s.border={top:{style:"medium",color:{rgb:"000000"}},bottom:{style:"medium",color:{rgb:"000000"}},left:{style:"thin",color:{rgb:"AAAAAA"}},right:{style:"thin",color:{rgb:"AAAAAA"}}};
@@ -8254,22 +8491,43 @@ async function downloadWeeklyXlsx(){
             }
           }else{
             // Data rows
-            cl.s.font={bold:true,sz:11,color:{rgb:"000000"}};
-            if(C===0) cl.s.font={bold:true,sz:11,color:{rgb:"000000"}};
+            cl.s.font={bold:true,sz:_fSz,color:{rgb:"000000"}};
+            if(C===0) cl.s.font={bold:true,sz:_fSz,color:{rgb:"000000"}};
             // DO cells — dark grey fill
             if(typeof cl.v==="string"&&cl.v==="DO"&&C>0){
-              cl.s.font={bold:true,sz:11,color:{rgb:"000000"}};
+              cl.s.font={bold:true,sz:_fSz,color:{rgb:"000000"}};
               cl.s.fill={fgColor:{rgb:"808080"}};
             }
             // VAC cells — blue fill
             if(typeof cl.v==="string"&&cl.v==="VAC"){
-              cl.s.font={bold:true,sz:11,color:{rgb:"FFFFFF"}};
+              cl.s.font={bold:true,sz:_fSz,color:{rgb:"FFFFFF"}};
               cl.s.fill={fgColor:{rgb:"1E50B4"}};
             }
             // SD cells — bright purple fill
             if(typeof cl.v==="string"&&cl.v==="SD"&&C>0){
-              cl.s.font={bold:true,sz:11,color:{rgb:"FFFFFF"}};
+              cl.s.font={bold:true,sz:_fSz,color:{rgb:"FFFFFF"}};
               cl.s.fill={fgColor:{rgb:"7C3AED"}};
+            }
+            // Filled-mode absence styling for regular cells
+            if(isFilled&&meta==="reg"&&C>0&&typeof cl.v==="string"&&cl.v!=="DO"&&cl.v!=="VAC"&&cl.v!=="SD"&&cl.v!==""){
+              const v=cl.v.toUpperCase();
+              if(v.startsWith("S")&&!v.startsWith("SD")&&!v.startsWith("SZ")){
+                cl.s.font={bold:true,sz:_fSz,color:{rgb:"FFFFFF"}}; cl.s.fill={fgColor:{rgb:"CC0000"}}; // Sick — red
+              } else if(v.startsWith("F")){
+                cl.s.font={bold:true,sz:_fSz,color:{rgb:"000000"}}; cl.s.fill={fgColor:{rgb:"FF9900"}}; // Family — orange
+              } else if(v.startsWith("T")&&!v.startsWith("TRN")){
+                cl.s.font={bold:true,sz:_fSz,color:{rgb:"000000"}}; cl.s.fill={fgColor:{rgb:"FF6666"}}; // Tardy — light red
+              } else if(v.startsWith("SZ")){
+                cl.s.font={bold:true,sz:_fSz,color:{rgb:"FFFFFF"}}; cl.s.fill={fgColor:{rgb:"5B21B6"}}; // SZ — dark purple
+              } else if(v.startsWith("FZ")){
+                cl.s.font={bold:true,sz:_fSz,color:{rgb:"FFFFFF"}}; cl.s.fill={fgColor:{rgb:"A78BFA"}}; // FZ — light purple
+              } else if(v==="NCNS"){
+                cl.s.font={bold:true,sz:_fSz,color:{rgb:"000000"}}; cl.s.fill={fgColor:{rgb:"FDE047"}}; // NCNS — yellow
+              } else if(v==="TRN"){
+                cl.s.font={bold:true,sz:_fSz,color:{rgb:"000000"}}; cl.s.fill={fgColor:{rgb:"FBBF24"}}; // Trainee — amber
+              } else if(v.startsWith("P")){
+                cl.s.font={bold:true,sz:_fSz,color:{rgb:"000000"}}; cl.s.fill={fgColor:{rgb:"FCA5A5"}}; // Partial — soft red
+              }
             }
             // OT prefilled cells — role+hours red, assignment black
             if(meta==="ot"&&C>0&&typeof cl.v==="string"&&cl.v!==""&&cl.v!=="DO"&&cl.v!=="VAC"){
@@ -8278,22 +8536,24 @@ async function downloadWeeklyXlsx(){
                 // Mark for JSZip rich text post-processing
                 if(!ws._rtCells) ws._rtCells=[];
                 ws._rtCells.push({addr:addr,prefix:cl.v.substring(0,slashIdx),suffix:cl.v.substring(slashIdx)});
-                cl.s.font={bold:true,sz:11,color:{rgb:"CC0000"}}; // fallback
+                cl.s.font={bold:true,sz:_fSz,color:{rgb:"CC0000"}}; // fallback
               } else {
-                cl.s.font={bold:true,sz:11,color:{rgb:"CC0000"}};
+                cl.s.font={bold:true,sz:_fSz,color:{rgb:"CC0000"}};
               }
             }
-            // Light pink fill on empty editable cells
-            if((meta==="reg"||meta==="ot"||meta==="blank")&&C>0&&!(typeof cl.v==="string"&&(cl.v==="DO"||cl.v==="VAC"))&&(cl.v==null||cl.v==="")){
+            // Light pink fill on empty editable cells (not in filled mode)
+            if(!isFilled&&(meta==="reg"||meta==="ot"||meta==="blank")&&C>0&&!(typeof cl.v==="string"&&(cl.v==="DO"||cl.v==="VAC"))&&(cl.v==null||cl.v==="")){
               cl.s.fill={fgColor:{rgb:"FFE0E0"}};
             }
           }
 
-          // --- Mark unlocked cells (post-processed via JSZip) ---
-          if(meta==="reg"){
-            if(C>0&&C<22&&!(typeof cl.v==="string"&&(cl.v==="DO"||cl.v==="VAC"))) cl._u=1;
-          }else if((meta==="ot"||meta==="blank")&&C>0&&C<22){
-            cl._u=1;
+          // --- Mark unlocked cells (post-processed via JSZip) --- skip in filled/report mode
+          if(!isFilled){
+            if(meta==="reg"){
+              if(C>0&&C<22&&!(typeof cl.v==="string"&&(cl.v==="DO"||cl.v==="VAC"))) cl._u=1;
+            }else if((meta==="ot"||meta==="blank")&&C>0&&C<22){
+              cl._u=1;
+            }
           }
         }
       }
@@ -8320,17 +8580,21 @@ async function downloadWeeklyXlsx(){
             }
             formula=rParts.join("+");
           } else {
-            // OT: SUM individual cells — no array issues in Excel 2007
-            // Only count if has "/" with number after it; extract hours before "/"
+            // OT: extract hours from cells like "CT4/NW", "D4/16", "SUP4/R2", or plain "4"
+            // Handles text seat names (NW, R2, etc.) — no requirement for numeric seat
             const otCols="BCDEFGHIJKLMNOPQRSTUV".split("");
             const parts=[];
             for(const col of otCols){
               const c=col+rowNum;
-              parts.push('IF(AND('+c+'<>"",'+c+'<>"DO",'+c+'<>"VAC",NOT(ISERROR(FIND("/",'+c+'))),ISNUMBER(VALUE(MID('+c+',FIND("/",'+c+')+1,10)))),'
+              // If cell has "/", extract number before it (try positions 1-4 to skip role prefix)
+              // If no "/", try VALUE of the whole cell (plain number)
+              parts.push('IF(OR('+c+'="",'+c+'="DO",'+c+'="VAC"),0,'
+                +'IF(ISERROR(FIND("/",'+c+')),'
+                +'IFERROR(VALUE('+c+'),0),'
                 +'IFERROR(VALUE(MID('+c+',1,FIND("/",'+c+')-1)),'
                 +'IFERROR(VALUE(MID('+c+',2,FIND("/",'+c+')-2)),'
                 +'IFERROR(VALUE(MID('+c+',3,FIND("/",'+c+')-3)),'
-                +'IFERROR(VALUE(MID('+c+',4,FIND("/",'+c+')-4)),0)))),0)');
+                +'IFERROR(VALUE(MID('+c+',4,FIND("/",'+c+')-4)),0))))))');
             }
             formula=parts.join("+");
           }
@@ -8339,7 +8603,7 @@ async function downloadWeeklyXlsx(){
             z:"0.##",
             f:formula,
             s:{
-              font:{bold:true,sz:11,color:{rgb:"000000"}},
+              font:{bold:true,sz:_fSz,color:{rgb:"000000"}},
               fill:{fgColor:{rgb:"E2E8F0"}},
               alignment:{horizontal:"center",vertical:"center"},
               border:{
@@ -8356,8 +8620,8 @@ async function downloadWeeklyXlsx(){
       return ws;
     }
 
-    const dayWs=buildSheet("DAY SHIFT",dayGrouped,blocksDayDef,sdByDayBlock);
-    const nightWs=buildSheet("NIGHT SHIFT",nightGrouped,blocksNightDef,sdByDayBlock);
+    const dayWs=buildSheet("DAY SHIFT",dayGrouped,blocksDayDef,sdByDayBlock,filled);
+    const nightWs=buildSheet("NIGHT SHIFT",nightGrouped,blocksNightDef,sdByDayBlock,filled);
     XLSX.utils.book_append_sheet(wb,dayWs,"Day Shift");
     XLSX.utils.book_append_sheet(wb,nightWs,"Night Shift");
 
@@ -8563,6 +8827,24 @@ async function downloadWeeklyXlsx(){
             }
           }
 
+          // Add page setup for filled/report mode: legal landscape, fit to 1 page wide
+          if(filled){
+            const pgSetup='<pageSetup paperSize="5" orientation="landscape" fitToHeight="0" fitToWidth="1"/>';
+            const pgMargins='<pageMargins left="0.25" right="0.25" top="0.25" bottom="0.25" header="0.15" footer="0.15"/>';
+            const sheetPr='<sheetFormatPr';
+            if(sheetXml.indexOf("<pageSetup")===-1){
+              sheetXml=sheetXml.replace("</worksheet>", pgMargins+pgSetup+"</worksheet>");
+            }
+            // Add fitToPage in sheetPr if not present
+            if(sheetXml.indexOf("fitToPage")===-1){
+              if(sheetXml.indexOf("<sheetPr")!==-1){
+                sheetXml=sheetXml.replace("<sheetPr","<sheetPr fitToPage=\"1\"");
+              } else {
+                sheetXml=sheetXml.replace("<sheetViews",'<sheetPr fitToPage="1"/><sheetViews');
+              }
+            }
+          }
+
           zip.file(sheetFile,sheetXml);
         }
       }
@@ -8616,7 +8898,7 @@ async function downloadWeeklyXlsx(){
       const url=URL.createObjectURL(blob);
       const a=document.createElement("a");
       a.href=url;
-      a.download="ShiftOps_Weekly_"+weekDates[0].iso+".xlsx";
+      a.download="ShiftOps_"+(filled?"Report_":"Weekly_")+weekDates[0].iso+".xlsx";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -8635,86 +8917,8 @@ async function downloadWeeklyXlsx(){
     setErr("Download Weekly Excel failed: "+(err&&err.message?err.message:err));
   }
 }
-document.getElementById("btnDownloadWeeklyXlsx").addEventListener("click", downloadWeeklyXlsx);
-
-document.getElementById("btnPrintLegend").addEventListener("click", function(){
-  const w=window.open("","_blank","width=700,height=900");
-  w.document.write(`<!DOCTYPE html><html><head><title>ShiftOps Excel Legend</title>
-<style>
-body{font-family:Calibri,Arial,sans-serif;margin:40px;color:#222}
-h1{font-size:22px;margin-bottom:4px}
-h2{font-size:15px;margin:18px 0 8px;border-bottom:2px solid #333;padding-bottom:4px}
-table{border-collapse:collapse;width:100%;margin-bottom:12px}
-td,th{border:1px solid #999;padding:6px 10px;font-size:13px}
-th{background:#2D3748;color:#fff;text-align:left}
-.swatch{display:inline-block;width:40px;height:18px;border:1px solid #666;vertical-align:middle;margin-right:8px;border-radius:2px}
-p{font-size:13px;line-height:1.5;margin:6px 0}
-ul{font-size:13px;margin:4px 0 10px 18px}
-li{margin:3px 0}
-</style></head><body>
-<h1>SHIFTOPS - Weekly Excel Reference Guide</h1>
-<p style="color:#666;font-size:12px">Print this page for a quick desk reference.</p>
-
-<h2>Color Legend</h2>
-<table>
-<tr><th>Color</th><th>Code</th><th>Meaning</th></tr>
-<tr><td><span class="swatch" style="background:#FFE0E0"></span>Light Pink</td><td>-</td><td>Empty cell (needs assignment)</td></tr>
-<tr><td><span class="swatch" style="background:#fff;border:1px solid #ccc"></span>White</td><td>Any text</td><td>Filled/assigned cell</td></tr>
-<tr><td><span class="swatch" style="background:#808080"></span>Grey</td><td>DO</td><td>Day Off (locked)</td></tr>
-<tr><td><span class="swatch" style="background:#1E50B4"></span>Blue</td><td>VAC</td><td>Vacation (locked or typed)</td></tr>
-<tr><td><span class="swatch" style="background:#7C3AED"></span>Purple</td><td>SD</td><td>Shift Director (from RotationOps)</td></tr>
-<tr><td><span class="swatch" style="background:#CC0000"></span>Red</td><td>S + hours</td><td>Sick (e.g. S2.5 = 2.5 hrs sick)</td></tr>
-<tr><td><span class="swatch" style="background:#FF9900"></span>Orange</td><td>F + hours</td><td>Family leave (e.g. F4)</td></tr>
-<tr><td><span class="swatch" style="background:#FF6666"></span>Light Red</td><td>T + hours</td><td>Tardy (e.g. T.25)</td></tr>
-<tr><td><span class="swatch" style="background:#5B21B6"></span>Dark Purple</td><td>SZ + hours</td><td>SZ absence (e.g. SZ2)</td></tr>
-<tr><td><span class="swatch" style="background:#A78BFA"></span>Light Purple</td><td>FZ + hours</td><td>FZ absence (e.g. FZ1.5)</td></tr>
-<tr><td><span class="swatch" style="background:#FDE047"></span>Yellow</td><td>NCNS</td><td>No Call No Show (0 hours)</td></tr>
-</table>
-
-<h2>Absence Codes</h2>
-<table>
-<tr><th>Code</th><th>Format</th><th>Example</th><th>Hours Counted</th></tr>
-<tr><td>Sick</td><td>S + decimal hours</td><td>S2.5</td><td>4 - 2.5 = 1.5 hrs</td></tr>
-<tr><td>Family</td><td>F + decimal hours</td><td>F4</td><td>4 - 4 = 0 hrs</td></tr>
-<tr><td>Tardy</td><td>T + decimal hours</td><td>T.25</td><td>4 - 0.25 = 3.75 hrs</td></tr>
-<tr><td>SZ</td><td>SZ + decimal hours</td><td>SZ2</td><td>4 - 2 = 2 hrs</td></tr>
-<tr><td>FZ</td><td>FZ + decimal hours</td><td>FZ1.5</td><td>4 - 1.5 = 2.5 hrs</td></tr>
-<tr><td>NCNS</td><td>NCNS</td><td>NCNS</td><td>0 hrs</td></tr>
-<tr><td>Vacation</td><td>VAC</td><td>VAC</td><td>0 hrs</td></tr>
-</table>
-
-<h2>OT Format</h2>
-<p>Overtime entries use: <b>Role + Hours / Seat</b></p>
-<table>
-<tr><th>Role</th><th>Abbreviation</th><th>Example</th></tr>
-<tr><td>Calltaker</td><td>CT</td><td>CT4/16</td></tr>
-<tr><td>Dispatcher</td><td>D</td><td>D8/NW</td></tr>
-<tr><td>PIC</td><td>P</td><td>P4/R2</td></tr>
-<tr><td>Supervisor</td><td>SUP</td><td>SUP4/5</td></tr>
-</table>
-<p>OT total only counts hours when a seat is assigned (number after the slash).</p>
-
-<h2>Total Column</h2>
-<ul>
-<li>Each filled block = <b>4 hours</b></li>
-<li>Absence codes subtract from 4 (e.g. S2.5 = 1.5 hrs)</li>
-<li>DO, VAC, NCNS = <b>0 hours</b></li>
-<li>SD = <b>4 hours</b> (working)</li>
-<li>OT hours are read from the entry (e.g. CT4/16 = 4 hrs)</li>
-</ul>
-
-<h2>Navigation</h2>
-<ul>
-<li>Use <b>Tab</b> to jump between editable cells (skips locked DO/VAC cells)</li>
-<li>DO and VAC cells are <b>locked</b> and cannot be edited</li>
-<li>SD cells are editable — you can overwrite with an assignment</li>
-</ul>
-
-<p style="text-align:center;color:#999;margin-top:30px;font-size:11px">ShiftOps Weekly Excel Reference</p>
-</body></html>`);
-  w.document.close();
-  w.print();
-});
+document.getElementById("btnDownloadWeeklyXlsx").addEventListener("click", ()=>downloadWeeklyXlsx(false));
+document.getElementById("btnPrintFilledWeekly").addEventListener("click", ()=>printWeeklyD(true));
 
 // Shift Swap button + modal backdrop close
 document.getElementById("btnShiftSwap").addEventListener("click", openSwapModal);
