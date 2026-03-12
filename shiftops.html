@@ -3457,6 +3457,7 @@ let _prevMonthTraining = [];
 let _trainersList = [];
 let _prevMonthTrainers = [];
 let _mirrorTraineesList = []; // from scheduledChanges mirror entries
+let _mirrorTrainersList = []; // trainers from scheduledChanges mirror entries
 let _extTrainingOverrides = {}; // block overrides for mirror/cross-month trainees
 let _trainListenUnsub = null;
 let _prevTrainUnsub = null;
@@ -3553,8 +3554,14 @@ function isOnTrainingDate(name, iso){
     const e = t.to ? new Date(t.to + 'T00:00:00') : monthEnd;
     if(dt >= f.getTime() && dt <= e.getTime()) return 'ON_SITE';
   }
-  // Check mirror trainees from scheduledChanges
+  // Check mirror trainees and trainers from scheduledChanges
   for(const t of _mirrorTraineesList){
+    if((t.name||'').toUpperCase() !== nm) continue;
+    const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
+    const e = t.to ? new Date(t.to + 'T00:00:00') : monthEnd;
+    if(dt >= f.getTime() && dt <= e.getTime()) return 'ON_SITE';
+  }
+  for(const t of _mirrorTrainersList){
     if((t.name||'').toUpperCase() !== nm) continue;
     const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
     const e = t.to ? new Date(t.to + 'T00:00:00') : monthEnd;
@@ -3605,31 +3612,51 @@ function isOnSiteTrainingForBlock(name, iso, blockId){
       if(dt >= f.getTime() && dt <= e.getTime()) return true;
     }
   }
-  // Check mirror trainees from scheduledChanges (respect block overrides from RotationOps)
+  // Check mirror trainees/trainers from scheduledChanges (respect block overrides from RotationOps)
   if(!foundInTrainers){
+    // Check if this person is a mirror trainee
     for(const t of _mirrorTraineesList){
       if((t.name||'').toUpperCase() !== nm) continue;
       const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
       const e = t.to ? new Date(t.to + 'T00:00:00') : new Date(yr, mo + 1, 0);
       if(dt < f.getTime() || dt > e.getTime()) continue;
-      // Apply extTrainingOverrides for block granularity (same key format as RotationOps)
-      const ovKey = (t.name||'').toUpperCase() + '|' + (t.from||'') + '|' + (t.to||'');
+      // Override key uses trainer name (RotationOps stores mirrors under trainer name)
+      const ovKey = (t.trainerName||'').toUpperCase() + '|' + (t.from||'') + '|' + (t.to||'');
       const ov = _extTrainingOverrides[ovKey];
       if(ov){
-        // Per-day block check
         if(ov.dayBlocks && ov.dayBlocks[dateStr] !== undefined){
           const dayArr = ov.dayBlocks[dateStr];
           if(Array.isArray(dayArr) && dayArr.includes(blockId)) return true;
           continue;
         }
-        // Fallback to blocks array
         if(Array.isArray(ov.blocks) && ov.blocks.length > 0){
           if(ov.blocks.includes(blockId)) return true;
           continue;
         }
       }
-      // No override = all blocks
-      return true;
+      return true; // No override = all blocks
+    }
+    // Check if this person is a mirror trainer
+    for(const t of _mirrorTrainersList){
+      if((t.name||'').toUpperCase() !== nm) continue;
+      const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
+      const e = t.to ? new Date(t.to + 'T00:00:00') : new Date(yr, mo + 1, 0);
+      if(dt < f.getTime() || dt > e.getTime()) continue;
+      // Override key uses trainer name (which is this person)
+      const ovKey = (t.name||'').toUpperCase() + '|' + (t.from||'') + '|' + (t.to||'');
+      const ov = _extTrainingOverrides[ovKey];
+      if(ov){
+        if(ov.dayBlocks && ov.dayBlocks[dateStr] !== undefined){
+          const dayArr = ov.dayBlocks[dateStr];
+          if(Array.isArray(dayArr) && dayArr.includes(blockId)) return true;
+          continue;
+        }
+        if(Array.isArray(ov.blocks) && ov.blocks.length > 0){
+          if(ov.blocks.includes(blockId)) return true;
+          continue;
+        }
+      }
+      return true; // No override = all blocks
     }
   }
   return false;
@@ -3638,6 +3665,58 @@ function isOnSiteTrainingForBlock(name, iso, blockId){
 // ===== Shift Swaps =====
 let SHIFT_SWAPS = new Map(); // iso date -> array of {empA, empB, createdAt}
 let swapUnsubscribe = null;
+
+// Returns "TRAINEE" | "TRAINER" | null for mirror training entries
+function getMirrorTrainingRole(name, iso, blockId){
+  const nm = (name||'').toUpperCase();
+  const d = parseISO(iso);
+  const dt = d.getTime();
+  const yr = d.getFullYear(), mo = d.getMonth();
+  const dateStr = iso;
+  // Check if person is a mirror trainer for this block
+  for(const t of _mirrorTrainersList){
+    if((t.name||'').toUpperCase() !== nm) continue;
+    const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
+    const e = t.to ? new Date(t.to + 'T00:00:00') : new Date(yr, mo + 1, 0);
+    if(dt < f.getTime() || dt > e.getTime()) continue;
+    const ovKey = nm + '|' + (t.from||'') + '|' + (t.to||'');
+    const ov = _extTrainingOverrides[ovKey];
+    if(ov){
+      if(ov.dayBlocks && ov.dayBlocks[dateStr] !== undefined){
+        const dayArr = ov.dayBlocks[dateStr];
+        if(Array.isArray(dayArr) && dayArr.includes(blockId)) return 'TRAINER';
+        continue;
+      }
+      if(Array.isArray(ov.blocks) && ov.blocks.length > 0){
+        if(ov.blocks.includes(blockId)) return 'TRAINER';
+        continue;
+      }
+    }
+    return 'TRAINER';
+  }
+  // Check if person is a mirror trainee for this block
+  for(const t of _mirrorTraineesList){
+    if((t.name||'').toUpperCase() !== nm) continue;
+    const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
+    const e = t.to ? new Date(t.to + 'T00:00:00') : new Date(yr, mo + 1, 0);
+    if(dt < f.getTime() || dt > e.getTime()) continue;
+    const ovKey = (t.trainerName||'').toUpperCase() + '|' + (t.from||'') + '|' + (t.to||'');
+    const ov = _extTrainingOverrides[ovKey];
+    if(ov){
+      if(ov.dayBlocks && ov.dayBlocks[dateStr] !== undefined){
+        const dayArr = ov.dayBlocks[dateStr];
+        if(Array.isArray(dayArr) && dayArr.includes(blockId)) return 'TRAINEE';
+        continue;
+      }
+      if(Array.isArray(ov.blocks) && ov.blocks.length > 0){
+        if(ov.blocks.includes(blockId)) return 'TRAINEE';
+        continue;
+      }
+    }
+    return 'TRAINEE';
+  }
+  return null;
+}
 
 function getSwappedShift(emp, iso){
   const swaps = SHIFT_SWAPS.get(iso);
@@ -3800,6 +3879,7 @@ async function loadFromFirebase(){
     // 5. Process scheduled changes (for date-aware schedule lookups)
     SCHED_CHANGES = [];
     _mirrorTraineesList = [];
+    _mirrorTrainersList = [];
     _effEmpCache = { iso: null, list: null };
     const schedSnap = otherSnaps[adeqMap.length + seatMap.length + 1];
     if(schedSnap){
@@ -3808,17 +3888,32 @@ async function loadFromFirebase(){
         if(d.status === 'active' && d._originalData && d.effectiveDate){
           SCHED_CHANGES.push(d);
         }
-        // Extract active mirror entries as trainee records for training detection
+        // Extract active mirror entries for training detection
         if(d.type === 'mirror' && d.employee && d.effectiveDate){
           const st = String(d.status || '').toLowerCase();
           if(st !== 'expired' && st !== 'reverted'){
+            const trainerName = String(d.trainerName || '').trim().toUpperCase();
+            const traineeName = String(d.employee).trim().toUpperCase();
+            const from = d.effectiveDate || '';
+            const to = d.endDate || '';
             _mirrorTraineesList.push({
-              name: String(d.employee).trim().toUpperCase(),
-              from: d.effectiveDate || '',
-              to: d.endDate || '',
+              name: traineeName,
+              trainerName: trainerName,
+              from: from,
+              to: to,
               blocks: [],
               dayBlocks: {}
             });
+            if(trainerName){
+              _mirrorTrainersList.push({
+                name: trainerName,
+                traineeName: traineeName,
+                from: from,
+                to: to,
+                blocks: [],
+                dayBlocks: {}
+              });
+            }
           }
         }
       });
@@ -4843,9 +4938,11 @@ function computeRowsForBlock(iso, shift, block){
     if(ed.Present==="YES" && !ed._vacAutoMarked){
       const trainSite = isOnTrainingDate(e.Employee, iso);
       if(trainSite === 'ON_SITE'){
-        // Only mark TRAINEE if this specific block is a training block
+        // Only mark TRAINEE/TRAINER if this specific block is a training block
         if(isOnSiteTrainingForBlock(e.Employee, iso, block.id)){
-          ed.Present="TRAINEE";
+          // Determine if this person is a trainer or trainee
+          const mirrorRole = getMirrorTrainingRole(e.Employee, iso, block.id);
+          ed.Present = mirrorRole === 'TRAINER' ? 'TRAINER' : 'TRAINEE';
           ed._vacAutoMarked=true;
         }
       } else if(trainSite === 'OFF_SITE'){
