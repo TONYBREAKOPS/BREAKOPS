@@ -3456,6 +3456,8 @@ let _trainingList = [];
 let _prevMonthTraining = [];
 let _trainersList = [];
 let _prevMonthTrainers = [];
+let _mirrorTraineesList = []; // from scheduledChanges mirror entries
+let _extTrainingOverrides = {}; // block overrides for mirror/cross-month trainees
 let _trainListenUnsub = null;
 let _prevTrainUnsub = null;
 
@@ -3475,11 +3477,13 @@ function loadTraining(iso){
         const data = doc.data();
         _trainingList = Array.isArray(data.training) ? data.training : [];
         _trainersList = Array.isArray(data.trainers) ? data.trainers : [];
+        _extTrainingOverrides = (data.extTrainingOverrides && typeof data.extTrainingOverrides === 'object') ? data.extTrainingOverrides : {};
       } else {
         _trainingList = [];
         _trainersList = [];
+        _extTrainingOverrides = {};
       }
-    }).catch(e => { console.warn('Failed to load training:', e); _trainingList = []; _trainersList = []; }),
+    }).catch(e => { console.warn('Failed to load training:', e); _trainingList = []; _trainersList = []; _extTrainingOverrides = {}; }),
     _getPrevMonthDocRef(iso).get().then(doc => {
       if (doc.exists) {
         const data = doc.data();
@@ -3507,6 +3511,10 @@ function listenTraining(iso){
     if(Array.isArray(data.trainers)){
       const incoming = JSON.stringify(data.trainers);
       if(incoming !== JSON.stringify(_trainersList)){ _trainersList = data.trainers; changed = true; }
+    }
+    if(data.extTrainingOverrides && typeof data.extTrainingOverrides === 'object'){
+      const incoming = JSON.stringify(data.extTrainingOverrides);
+      if(incoming !== JSON.stringify(_extTrainingOverrides)){ _extTrainingOverrides = data.extTrainingOverrides; changed = true; }
     }
     if(changed) renderAll();
   });
@@ -3540,6 +3548,13 @@ function isOnTrainingDate(name, iso){
   // Also check RotationOps trainers list (trainee/trainer may only be listed here)
   const trainersCombined = _trainersList.concat(_prevMonthTrainers);
   for(const t of trainersCombined){
+    if((t.name||'').toUpperCase() !== nm) continue;
+    const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
+    const e = t.to ? new Date(t.to + 'T00:00:00') : monthEnd;
+    if(dt >= f.getTime() && dt <= e.getTime()) return 'ON_SITE';
+  }
+  // Check mirror trainees from scheduledChanges
+  for(const t of _mirrorTraineesList){
     if((t.name||'').toUpperCase() !== nm) continue;
     const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
     const e = t.to ? new Date(t.to + 'T00:00:00') : monthEnd;
@@ -3588,6 +3603,33 @@ function isOnSiteTrainingForBlock(name, iso, blockId){
       const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
       const e = t.to ? new Date(t.to + 'T00:00:00') : new Date(yr, mo + 1, 0);
       if(dt >= f.getTime() && dt <= e.getTime()) return true;
+    }
+  }
+  // Check mirror trainees from scheduledChanges (respect block overrides from RotationOps)
+  if(!foundInTrainers){
+    for(const t of _mirrorTraineesList){
+      if((t.name||'').toUpperCase() !== nm) continue;
+      const f = t.from ? new Date(t.from + 'T00:00:00') : new Date(yr, mo, 1);
+      const e = t.to ? new Date(t.to + 'T00:00:00') : new Date(yr, mo + 1, 0);
+      if(dt < f.getTime() || dt > e.getTime()) continue;
+      // Apply extTrainingOverrides for block granularity (same key format as RotationOps)
+      const ovKey = (t.name||'').toUpperCase() + '|' + (t.from||'') + '|' + (t.to||'');
+      const ov = _extTrainingOverrides[ovKey];
+      if(ov){
+        // Per-day block check
+        if(ov.dayBlocks && ov.dayBlocks[dateStr] !== undefined){
+          const dayArr = ov.dayBlocks[dateStr];
+          if(Array.isArray(dayArr) && dayArr.includes(blockId)) return true;
+          continue;
+        }
+        // Fallback to blocks array
+        if(Array.isArray(ov.blocks) && ov.blocks.length > 0){
+          if(ov.blocks.includes(blockId)) return true;
+          continue;
+        }
+      }
+      // No override = all blocks
+      return true;
     }
   }
   return false;
@@ -3757,6 +3799,7 @@ async function loadFromFirebase(){
 
     // 5. Process scheduled changes (for date-aware schedule lookups)
     SCHED_CHANGES = [];
+    _mirrorTraineesList = [];
     _effEmpCache = { iso: null, list: null };
     const schedSnap = otherSnaps[adeqMap.length + seatMap.length + 1];
     if(schedSnap){
@@ -3764,6 +3807,19 @@ async function loadFromFirebase(){
         const d = doc.data();
         if(d.status === 'active' && d._originalData && d.effectiveDate){
           SCHED_CHANGES.push(d);
+        }
+        // Extract active mirror entries as trainee records for training detection
+        if(d.type === 'mirror' && d.employee && d.effectiveDate){
+          const st = String(d.status || '').toLowerCase();
+          if(st !== 'expired' && st !== 'reverted'){
+            _mirrorTraineesList.push({
+              name: String(d.employee).trim().toUpperCase(),
+              from: d.effectiveDate || '',
+              to: d.endDate || '',
+              blocks: [],
+              dayBlocks: {}
+            });
+          }
         }
       });
     }
