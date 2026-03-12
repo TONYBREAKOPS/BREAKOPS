@@ -1002,6 +1002,13 @@ table, thead th, tbody td { text-transform: uppercase !important; }
   box-shadow:0 0 0 2px #a7f3d0 !important;
   font-size:11px !important;
 }
+.customSelBtn.anet-blue{
+  background:#22d3ee !important;
+  color:#083344 !important;
+  border-color:#06b6d4 !important;
+  box-shadow:0 0 0 2px #22d3ee !important;
+  font-size:11px !important;
+}
 .presentSel.tardy-ring{
   box-shadow:0 0 0 3px #ef4444, 0 0 8px rgba(239,68,68,0.5);
   border-radius:4px;
@@ -5880,11 +5887,12 @@ function enhanceSelects(root=document){
 
       // Colored bubble for present status
       if(sel.classList.contains('presentSel')){
-        btn.classList.remove('partial-yellow','tardy-red','trainer-green','trainee-green');
+        btn.classList.remove('partial-yellow','tardy-red','trainer-green','trainee-green','anet-blue');
         if(sel.value === 'PARTIAL') btn.classList.add('partial-yellow');
         else if(sel.value === 'TARDY') btn.classList.add('tardy-red');
         else if(sel.value === 'TRAINER') btn.classList.add('trainer-green');
         else if(sel.value === 'TRAINEE') btn.classList.add('trainee-green');
+        else if(sel.value === 'ANET') btn.classList.add('anet-blue');
       }
     }
 
