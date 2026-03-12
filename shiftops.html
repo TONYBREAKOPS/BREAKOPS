@@ -10131,106 +10131,63 @@ async function pushToBreakOPS(){
 
   const blocks = shift === "NIGHT" ? BLOCKS_NIGHT : BLOCKS_DAY;
   const mode = shift === "NIGHT" ? "nights" : "days";
-
-  // Collect all people across all blocks, tracking regular vs OT per block
-  const presentPeople = new Map(); // emp -> {sen, role, regBlocks:[], otBlocks:[], otRole}
-  const absentPeople = new Map();  // emp -> {sen}
-
-  for(const block of blocks){
-    const rows = computeRowsForBlock(iso, shift, block);
-    for(const role of ["CALLTAKER","DISPATCHER","PIC"]){
-      for(const r of (rows[role]||[])){
-        if(String(r.present||"").toUpperCase() === "TRAINEE") continue;
-        if(!presentPeople.has(r.emp)){
-          presentPeople.set(r.emp, {
-            sen: r.sen, role: role,
-            regBlocks: r.isOT ? [] : [block.id],
-            otBlocks: r.isOT ? [block.id] : [],
-            otRole: r.isOT ? role : null
-          });
-        } else {
-          const p = presentPeople.get(r.emp);
-          if(r.isOT){
-            if(!p.otBlocks.includes(block.id)) p.otBlocks.push(block.id);
-            p.otRole = role;
-          } else {
-            if(!p.regBlocks.includes(block.id)) p.regBlocks.push(block.id);
-            p.role = role; // update to assigned role (where they sit in ShiftOps)
-          }
-        }
-      }
-    }
-    for(const r of (rows.ABSENT||[])){
-      if(r.present === "NO" && !r.isPartial && !presentPeople.has(r.emp)){
-        absentPeople.set(r.emp, {sen: r.sen});
-      }
-    }
-  }
-
-  // Build posOverrides map
-  // Map ShiftOps roles to BreakOPS positions
   const roleMap = {CALLTAKER:"CALLTAKER", DISPATCHER:"DISPATCHER", PIC:"PIC"};
 
-  // Lookup for employee data from ShiftOps
   const empLookup = new Map();
   for(const e of BASE_EMP) empLookup.set(e.Employee, e);
 
   try {
-    // Read existing posOverrides to merge (preserve overrides for other shifts)
-    // Uses db (commandops-93846) — admin2's Firestore
-    const rosterRef = db.collection("rosterConfig").doc("global");
-    const rosterSnap = await rosterRef.get();
-    const existing = rosterSnap.exists ? ((rosterSnap.data()||{}).posOverrides || {}) : {};
-
-    // Update present people's positions (only those with regular blocks)
-    for(const [emp, info] of presentPeople){
-      if(!info.regBlocks.length) continue; // Pure OT — handled as extras only
-      const empData = empLookup.get(emp);
-      if(!empData) continue;
-      const key = emp + "||" + empData.SENIORITY;
-      existing[key] = roleMap[info.role] || info.role || empData.POSITION;
-    }
-
-    // Mark absent people
-    for(const [emp, info] of absentPeople){
-      const empData = empLookup.get(emp);
-      if(!empData) continue;
-      const key = emp + "||" + empData.SENIORITY;
-      existing[key] = "ABSENT";
-    }
-
-    // Write merged posOverrides to Firestore
-    await rosterRef.set({ posOverrides: existing }, { merge: true });
-
-    // Write OT people as extras to each breakScope (only for their OT blocks)
-    const otPeople = [...presentPeople.entries()].filter(([,info]) => info.otBlocks.length > 0);
-    console.log("OT people for extras:", otPeople.map(([emp,info])=>({emp, otRole:info.otRole, otBlocks:info.otBlocks, regBlocks:info.regBlocks})));
+    let totalPresent = 0, totalOT = 0, totalAbsent = 0;
 
     for(const block of blocks){
-      const scopeKey = mode + "|" + iso + "|" + block.id;
-      const extras = [];
+      const rows = computeRowsForBlock(iso, shift, block);
+      const blockPosOverrides = {};
+      const blockExtras = [];
 
-      for(const [emp, info] of otPeople){
-        if(!info.otBlocks.includes(block.id)) continue; // Only add to blocks where they're actually OT
-        const empData = empLookup.get(emp);
-        extras.push({
-          Employee: emp,
-          Seniority: empData ? empData.SENIORITY : 0,
-          DaysOff: "OT",
-          Position: roleMap[info.otRole] || info.otRole || "CALLTAKER"
-        });
+      // Present people — write their role for THIS block
+      for(const role of ["CALLTAKER","DISPATCHER","PIC"]){
+        for(const r of (rows[role]||[])){
+          if(String(r.present||"").toUpperCase() === "TRAINEE") continue;
+          const empData = empLookup.get(r.emp);
+          if(!empData) continue;
+          const key = r.emp + "||" + empData.SENIORITY;
+          if(r.isOT){
+            blockExtras.push({
+              Employee: r.emp,
+              Seniority: empData.SENIORITY,
+              DaysOff: "OT",
+              Position: roleMap[role] || role || "CALLTAKER"
+            });
+          } else {
+            blockPosOverrides[key] = roleMap[role] || role || empData.POSITION;
+          }
+        }
       }
 
-      // Write extras to breakScope (merge to preserve break selections)
-      // Uses db (commandops-93846) — admin2's Firestore
-      console.log("Writing extras to", scopeKey, ":", JSON.stringify(extras));
+      // Absent people for this block
+      for(const r of (rows.ABSENT||[])){
+        if(r.present === "NO" && !r.isPartial){
+          const empData = empLookup.get(r.emp);
+          if(!empData) continue;
+          const key = r.emp + "||" + empData.SENIORITY;
+          blockPosOverrides[key] = "ABSENT";
+        }
+      }
+
+      // Write per-block posOverrides + extras to breakScope
+      const scopeKey = mode + "|" + iso + "|" + block.id;
+      console.log("Writing scope", scopeKey, "posOverrides:", JSON.stringify(blockPosOverrides), "extras:", JSON.stringify(blockExtras));
       const scopeRef = db.collection("breakScopes").doc(scopeKey);
-      await scopeRef.set({ extras: extras }, { merge: true });
+      await scopeRef.set({ posOverrides: blockPosOverrides, extras: blockExtras }, { merge: true });
+
+      // Count from first block for summary
+      if(block === blocks[0]){
+        totalPresent = Object.values(blockPosOverrides).filter(v => v !== "ABSENT").length;
+        totalOT = blockExtras.length;
+        totalAbsent = Object.values(blockPosOverrides).filter(v => v === "ABSENT").length;
+      }
     }
 
-    const totalPresent = [...presentPeople.values()].filter(p => p.regBlocks.length > 0).length;
-    const totalOT = otPeople.length;
-    const totalAbsent = absentPeople.size;
     alert("BreakOPS updated!\n\n" + totalPresent + " present, " + totalOT + " OT, " + totalAbsent + " absent.");
 
   } catch(e){

@@ -725,6 +725,7 @@ textarea.copyBox,
   // - breakScopes/{scopeKey}: { breaks: {...}, extras: [...] }
   const _ROSTER_DOC = doc(_db, "rosterConfig", "global");
   let _sharedRosterCache = { posOverrides: {} };
+  let _sharedScopePosOverrides = {}; // per-block posOverrides from breakScope
   let _sharedExtrasCache = [];
   let _rosterUnsub = null;
 
@@ -950,6 +951,14 @@ textarea.copyBox,
       _sharedDpVisualCache = _normalizeDpVisual(data.dpVisual);
       _sharedDpVisualLockedCache = !!data.dpVisualLocked;
       _sharedExtrasCache = Array.isArray(data.extras) ? data.extras : [];
+      // Per-block posOverrides (pushed from ShiftOps per block)
+      if(data.posOverrides && typeof data.posOverrides === 'object'){
+        const norm = {};
+        for(const [k,v] of Object.entries(data.posOverrides)) norm[String(k)] = String(v||"ABSENT").toUpperCase();
+        _sharedScopePosOverrides = norm;
+      } else {
+        _sharedScopePosOverrides = {};
+      }
       // Merge incoming timers carefully: don't let a stale snapshot clobber
       // a locally-written timer whose Firestore write hasn't propagated yet.
       {
@@ -995,6 +1004,7 @@ textarea.copyBox,
           dpVisual: _sharedDpVisualCache,
           dpVisualLocked: _sharedDpVisualLockedCache,
           extras: _sharedExtrasCache,
+          posOverrides: _sharedScopePosOverrides,
           turnTimers: _sharedTurnTimersCache,
           skippedTurns: _sharedSkippedTurnsCache,
           breakStarted: _sharedBreakStartedCache,
@@ -1160,6 +1170,9 @@ textarea.copyBox,
     try {
       const snap = await getDoc(doc(_db, "breakScopes", k));
       const data = snap.exists() ? (snap.data()||{}) : {};
+      const scopePo = (data.posOverrides && typeof data.posOverrides === 'object') ? data.posOverrides : {};
+      const normPo = {};
+      for(const [pk,pv] of Object.entries(scopePo)) normPo[String(pk)] = String(pv||"ABSENT").toUpperCase();
       const entry = {
         breaks: _normalizeBreaks(data.breaks),
         assignments: _normalizeAssignments(data.assignments),
@@ -1167,6 +1180,7 @@ textarea.copyBox,
         dpVisual: _normalizeDpVisual(data.dpVisual),
         dpVisualLocked: !!data.dpVisualLocked,
         extras: Array.isArray(data.extras) ? data.extras : [],
+        posOverrides: normPo,
         turnTimers: _normalizeTurnTimers(data.turnTimers),
         skippedTurns: _normalizeSkippedTurns(data.skippedTurns),
         breakStarted: _normalizeBreakStarted(data.breakStarted),
@@ -1420,16 +1434,27 @@ function loadJson(key, fallback){
 function saveJson(key, obj){ localStorage.setItem(key, JSON.stringify(obj)); }
 
 function loadPosOverrides(){
-  // Prefer shared Firestore roster cache; fallback to localStorage
+  // Prefer per-block posOverrides from breakScope (pushed per block from ShiftOps)
+  if(_sharedScopePosOverrides && Object.keys(_sharedScopePosOverrides).length){
+    return _sharedScopePosOverrides;
+  }
+  // Fallback to global roster posOverrides
   if(_sharedRosterCache && _sharedRosterCache.posOverrides && Object.keys(_sharedRosterCache.posOverrides).length){
     return _sharedRosterCache.posOverrides;
   }
   return loadJson(STORAGE_KEY_POS, {});
 }
 function savePosOverrides(map){
-  // Save for everyone (Firestore) + keep local fallback copy
-  saveJson(STORAGE_KEY_POS, map);
-  saveRosterPosOverrides(map).catch((e)=>{ console.error(e); toast("Couldn't save roster to Firebase."); });
+  // Save per-block posOverrides to current scope's breakScopes doc
+  const norm = {};
+  for(const [k,v] of Object.entries(map||{})) norm[String(k)] = String(v||"ABSENT").toUpperCase();
+  _sharedScopePosOverrides = norm;
+  saveJson(STORAGE_KEY_POS, norm);
+  // Write to current scope in Firestore
+  const ref = _scopeRef();
+  setDoc(ref, { posOverrides: norm }, { merge: true }).catch((e)=>{
+    console.error(e); toast("Couldn't save position overrides.");
+  });
 }
 
 function baseKey(rec){ return `${rec.Employee}||${rec.Seniority}`; }
@@ -2185,6 +2210,8 @@ function renderDispatcherDayAssignments(selectedDay, dateStr, mode, posOverrides
 
     // Build the list of scheduled dispatchers for this day *and* this 4-hour block
     // (only show whoever actually works during this time frame)
+    // Use per-block posOverrides from scope cache if available
+    const blockPosOverrides = (cached && cached.posOverrides && Object.keys(cached.posOverrides).length) ? cached.posOverrides : posOverrides;
     const normal = BASE.map(r=>{
       const sched = (r.Schedule||{})[selectedDay.toUpperCase()];
       const shift = parseShift(sched);
@@ -2192,7 +2219,7 @@ function renderDispatcherDayAssignments(selectedDay, dateStr, mode, posOverrides
       if(!overlapsInterval(shift, block)) return null;
       return {
         ...r,
-        Position: up(getPosition(r, posOverrides)),
+        Position: up(getPosition(r, blockPosOverrides)),
         _extra:false,
         _dayOff: isDayOff(r.DaysOff, selectedDay)
       };
