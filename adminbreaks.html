@@ -890,11 +890,11 @@ textarea.copyBox,
       for(const [k,v] of Object.entries(obj)){
         if(Array.isArray(v)){
           // Backward compat: old format was just an array of times
-          norm[String(k)] = { seat: '', times: v.filter(t=>typeof t==='string'&&t.length>0).slice(0,3) };
+          norm[String(k)] = { seat: '', times: v.filter(t=>typeof t==='string'&&t.length>0).slice(0,4) };
         } else if(v && typeof v === 'object'){
           norm[String(k)] = {
             seat: typeof v.seat === 'string' ? v.seat : '',
-            times: Array.isArray(v.times) ? v.times.filter(t=>typeof t==='string'&&t.length>0).slice(0,3) : []
+            times: Array.isArray(v.times) ? v.times.filter(t=>typeof t==='string'&&t.length>0).slice(0,4) : []
           };
         }
       }

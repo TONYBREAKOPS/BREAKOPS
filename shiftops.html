@@ -1009,6 +1009,13 @@ table, thead th, tbody td { text-transform: uppercase !important; }
   color:#fca5a5 !important;
   border-color:#ef4444 !important;
 }
+.presentSel.anet-ring{
+  box-shadow:0 0 0 3px #22d3ee, 0 0 8px rgba(34,211,238,0.5);
+  border-radius:4px;
+  background:#0c3a4a !important;
+  color:#22d3ee !important;
+  border-color:#22d3ee !important;
+}
 .rowPill.tardy-needs-time{
   box-shadow:0 0 0 3px #ef4444, 0 0 8px rgba(239,68,68,0.5);
   background:#3d1111 !important;
@@ -5167,10 +5174,11 @@ function renderRoleTable(iso, shift, block, role, rows){
         ? (isAbsent ? `<span class="absHrsLabel" style="display:block;text-align:center">${hrs}</span>` : hrs)
         : `<span class="hrsIn" style="display:block;text-align:center">${hrs}</span>`}</td>
       <td class="ctrlCell presCol">
-        ${(r.isPartial||r.isTardy) ? (isAbsent ? '' : `<span style="font-size:18px;color:${r.isTardy?'#ef4444':'#d4a017'};font-weight:900">${r.isTardy?'T':'P'}</span>`) : `<select class="presentSel${present==="PARTIAL"?" partial-ring":""}${present==="TARDY"?" tardy-ring":""}${present==="TRAINER"?" trainer-ring":""}${present==="TRAINEE"?" trainee-ring":""}" onchange="setPresent('${esc(key)}','${esc(r.emp)}', this.value)">
+        ${(r.isPartial||r.isTardy) ? (isAbsent ? '' : `<span style="font-size:18px;color:${r.isTardy?'#ef4444':'#d4a017'};font-weight:900">${r.isTardy?'T':'P'}</span>`) : `<select class="presentSel${present==="PARTIAL"?" partial-ring":""}${present==="TARDY"?" tardy-ring":""}${present==="TRAINER"?" trainer-ring":""}${present==="TRAINEE"?" trainee-ring":""}${present==="ANET"?" anet-ring":""}" onchange="setPresent('${esc(key)}','${esc(r.emp)}', this.value)">
           <option value="YES"${present==="YES"?" selected":""}>YES</option>
           <option value="TRAINER"${present==="TRAINER"?" selected":""}>TRAINER</option>
           <option value="TRAINEE"${present==="TRAINEE"?" selected":""}>TRAINEE</option>
+          <option value="ANET"${present==="ANET"?" selected":""}>ANET</option>
           <option value="PARTIAL"${present==="PARTIAL"?" selected":""}>PARTIAL</option>
           <option value="TARDY"${present==="TARDY"?" selected":""}>TARDY</option>
           <option value="NO"${present==="NO"?" selected":""}>NO</option>
@@ -5238,10 +5246,11 @@ function renderOthTable(iso, shift, block, rows){
       </td>
       <td class="ctrlCell hrsCol"><span class="hrsIn" style="display:block;text-align:center">${hrs}</span></td>
       <td class="ctrlCell presCol">
-        ${(r.isPartial||r.isTardy) ? `<span style="font-size:18px;color:${r.isTardy?'#ef4444':'#d4a017'};font-weight:900">${r.isTardy?'T':'P'}</span>` : `<select class="presentSel${present==="PARTIAL"?" partial-ring":""}${present==="TARDY"?" tardy-ring":""}${present==="TRAINER"?" trainer-ring":""}${present==="TRAINEE"?" trainee-ring":""}" onchange="setPresent('${esc(key)}','${esc(r.emp)}', this.value)">
+        ${(r.isPartial||r.isTardy) ? `<span style="font-size:18px;color:${r.isTardy?'#ef4444':'#d4a017'};font-weight:900">${r.isTardy?'T':'P'}</span>` : `<select class="presentSel${present==="PARTIAL"?" partial-ring":""}${present==="TARDY"?" tardy-ring":""}${present==="TRAINER"?" trainer-ring":""}${present==="TRAINEE"?" trainee-ring":""}${present==="ANET"?" anet-ring":""}" onchange="setPresent('${esc(key)}','${esc(r.emp)}', this.value)">
           <option value="YES"${present==="YES"?" selected":""}>YES</option>
           <option value="TRAINER"${present==="TRAINER"?" selected":""}>TRAINER</option>
           <option value="TRAINEE"${present==="TRAINEE"?" selected":""}>TRAINEE</option>
+          <option value="ANET"${present==="ANET"?" selected":""}>ANET</option>
           <option value="PARTIAL"${present==="PARTIAL"?" selected":""}>PARTIAL</option>
           <option value="TARDY"${present==="TARDY"?" selected":""}>TARDY</option>
           <option value="NO"${present==="NO"?" selected":""}>NO</option>
@@ -5541,6 +5550,7 @@ function _applyPresent(key, emp, val, reason){
   if(val==="YES"){ ed.Hours=""; ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
   if(val==="TRAINER"){ ed.Hours=""; ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
   if(val==="TRAINEE"){ ed.Hours=""; ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
+  if(val==="ANET"){ ed.Hours=""; ed.AbsenceReason=""; ed.PartialReason=""; ed.TardyReason=""; }
   if(val==="PARTIAL"){ ed.Hours=""; ed.AbsenceReason=""; ed.TardyReason=""; }
   if(val==="TARDY"){ ed.Hours=""; ed.AbsenceReason=""; ed.TardyReason="TARDY"; }
 
@@ -10165,6 +10175,11 @@ async function pushToBreakOPS(){
           // Mark trainees/trainers so they don't appear in break lists
           if(pres === "TRAINEE" || pres === "TRAINER"){
             blockPosOverrides[key] = pres;
+            continue;
+          }
+          // ANET — push to ANET role in adminbreaks
+          if(pres === "ANET"){
+            blockPosOverrides[key] = "ANET";
             continue;
           }
           if(r.isOT){
