@@ -3398,8 +3398,9 @@ function getEffectiveEmpList(iso){
   const _dt = _d.getTime();
   const _yr = _d.getFullYear(), _mo = _d.getMonth();
   const result = filtered.map(e => {
+    const empUpper = (e.Employee||'').toUpperCase();
     const mirrorEntry = _mirrorTraineesList.find(mt => {
-      if((mt.name||'').toUpperCase() !== e.Employee) return false;
+      if((mt.name||'').toUpperCase() !== empUpper) return false;
       if(mt._status !== 'active') return false;
       const f = mt.from ? new Date(mt.from + 'T00:00:00') : new Date(_yr, _mo, 1);
       const end = mt.to ? new Date(mt.to + 'T00:00:00') : new Date(_yr, _mo + 1, 0);
@@ -3408,7 +3409,7 @@ function getEffectiveEmpList(iso){
     if(!mirrorEntry) return e;
     // Find trainer in BASE_EMP and use their schedule/position
     const trainerName = (mirrorEntry.trainerName||'').toUpperCase();
-    const trainer = BASE_EMP.find(t => t.Employee === trainerName);
+    const trainer = BASE_EMP.find(t => (t.Employee||'').toUpperCase() === trainerName);
     if(!trainer) return e;
     return {
       Employee: e.Employee,
