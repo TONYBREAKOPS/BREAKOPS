@@ -10179,6 +10179,34 @@ async function pushToBreakOPS(){
         }
       }
 
+      // Mark ALL active mirror trainees/trainers (even if their mirrored schedule
+      // didn't overlap this block — their base schedule in employees DB might,
+      // so adminbreaks would show them without an explicit override)
+      for(const mt of _mirrorTraineesList){
+        if(mt._status !== 'active') continue;
+        const f = mt.from ? new Date(mt.from + 'T00:00:00') : null;
+        const t = mt.to ? new Date(mt.to + 'T00:00:00') : null;
+        const d = new Date(iso + 'T00:00:00');
+        if(f && d < f) continue;
+        if(t && d > t) continue;
+        const empData = empLookup.get(mt.name) || BASE_EMP.find(e => (e.Employee||'').toUpperCase() === (mt.name||'').toUpperCase());
+        if(!empData) continue;
+        const key = empData.Employee + "||" + empData.SENIORITY;
+        if(!blockPosOverrides[key]) blockPosOverrides[key] = "TRAINEE";
+      }
+      for(const mt of _mirrorTrainersList){
+        if(mt._status !== 'active') continue;
+        const f = mt.from ? new Date(mt.from + 'T00:00:00') : null;
+        const t = mt.to ? new Date(mt.to + 'T00:00:00') : null;
+        const d = new Date(iso + 'T00:00:00');
+        if(f && d < f) continue;
+        if(t && d > t) continue;
+        const empData = empLookup.get(mt.name) || BASE_EMP.find(e => (e.Employee||'').toUpperCase() === (mt.name||'').toUpperCase());
+        if(!empData) continue;
+        const key = empData.Employee + "||" + empData.SENIORITY;
+        if(!blockPosOverrides[key]) blockPosOverrides[key] = "TRAINER";
+      }
+
       // Write per-block posOverrides + extras to breakScope
       const scopeKey = mode + "|" + iso + "|" + block.id;
       console.log("Writing scope", scopeKey, "posOverrides:", JSON.stringify(blockPosOverrides), "extras:", JSON.stringify(blockExtras));
