@@ -10147,10 +10147,15 @@ async function pushToBreakOPS(){
       // Present people — write their role for THIS block
       for(const role of ["CALLTAKER","DISPATCHER","PIC"]){
         for(const r of (rows[role]||[])){
-          if(String(r.present||"").toUpperCase() === "TRAINEE") continue;
           const empData = empLookup.get(r.emp);
           if(!empData) continue;
           const key = r.emp + "||" + empData.SENIORITY;
+          const pres = String(r.present||"").toUpperCase();
+          // Mark trainees/trainers so they don't appear in break lists
+          if(pres === "TRAINEE" || pres === "TRAINER"){
+            blockPosOverrides[key] = pres;
+            continue;
+          }
           if(r.isOT){
             blockExtras.push({
               Employee: r.emp,
