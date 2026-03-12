@@ -9,7 +9,7 @@
 
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>BreakOPS Staff View</title>
+<title>BreakOPS</title>
 <style>
 #loginGate{position:fixed;inset:0;background:var(--bg,#0b0f14);z-index:9999;display:flex;align-items:center;justify-content:center;}
 #loginGate .loginBox{background:var(--card,#111826);border:1px solid var(--border,#233043);border-radius:16px;padding:28px;width:340px;max-width:90vw;text-align:center;}
@@ -414,10 +414,10 @@ body { padding-top: 12px !important; }
 
 <div id="loginGate" style="display:flex;">
   <div class="loginBox">
-    <h2>BreakOPS Staff View</h2>
+    <h2>BreakOPS</h2>
     <p class="loginSub">Enter password to continue</p>
     <form id="loginForm" autocomplete="off">
-      <input type="password" id="loginPass" placeholder="Password" required>
+      <input type="text" id="loginPass" placeholder="Password" required autocomplete="off" style="-webkit-text-security:disc; text-security:disc;">
       <button type="submit">Enter</button>
     </form>
     <div class="loginErr" id="loginErr"></div>
