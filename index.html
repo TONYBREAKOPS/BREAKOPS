@@ -1989,7 +1989,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
           </div>
         </div>
         <div style="overflow:auto; position:relative;">
-          ${!started ? `<div style="position:absolute;top:0;right:0;bottom:0;left:15%;z-index:2;display:flex;align-items:center;justify-content:center;background:rgba(12,19,32,.82);border-radius:0 12px 12px 0;pointer-events:auto;"><span style="font-size:28px;font-weight:900;letter-spacing:2px;color:#facc15;text-shadow:0 2px 8px rgba(0,0,0,.6);">BREAKS PENDING</span></div>` : ''}
+          ${!started ? `<div style="position:absolute;top:0;right:0;bottom:0;left:15%;z-index:2;display:flex;align-items:center;justify-content:center;background:rgba(12,19,32,.82);border-radius:0 12px 12px 0;pointer-events:none;"><span style="font-size:28px;font-weight:900;letter-spacing:2px;color:#facc15;text-shadow:0 2px 8px rgba(0,0,0,.6);">BREAKS PENDING</span></div>` : ''}
           <table>
             <thead>
               <tr>
@@ -2056,7 +2056,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
                 const myPreTimes = myPreObj ? (myPreObj.times || []) : [];
                 const myPreSeat = myPreObj ? (myPreObj.seat || '') : '';
                 const hasPicked = !!cur;
-                const showPreSelect = !hasPicked && !isActive;
+                const showPreSelect = !hasPicked && !(started && isActive);
                 // Build pre-select badge display
                 const preBadges = (myPreTimes.length || myPreSeat) ? `${myPreSeat ? `<span style="background:rgba(250,204,21,.15);color:#facc15;padding:1px 5px;border-radius:4px;font-size:10px;">${escapeHtml(myPreSeat)}</span> ` : ''}${myPreTimes.map((t,i)=>`<span style="background:rgba(59,130,246,.15);color:#60a5fa;padding:1px 5px;border-radius:4px;font-size:10px;">#${i+1}: ${escapeHtml(slotLabelHHMM(t))}</span>`).join(' ')}` : '';
                 return `
@@ -2291,7 +2291,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
     });
   });
 
-  // Pre-select buttons: open a picker to choose top 3 break preferences
+  // Pre-select buttons: open a picker to choose top 4 break preferences
   card.querySelectorAll("[data-presel-pos]").forEach(btn=>{
     btn.addEventListener("click", ()=>{
       const pos = btn.getAttribute("data-presel-pos");
@@ -2341,7 +2341,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       overlay.innerHTML = `
         <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;min-width:280px;max-width:360px;">
           <h3 style="margin:0 0 12px;color:#e2e8f0;">Pre-select Seat & Breaks</h3>
-          <p style="margin:0 0 12px;color:#94a3b8;font-size:12px;">Pick your seat and top 3 break times. When it's your turn, your choices will be auto-assigned if available.</p>
+          <p style="margin:0 0 12px;color:#94a3b8;font-size:12px;">Pick your seat and top 4 break times. When it's your turn, your choices will be auto-assigned if available.</p>
           <div style="display:flex;flex-direction:column;gap:8px;">
             <label style="color:#facc15;font-size:13px;font-weight:600;">Seat / Assignment
               <select id="preselSeat" style="width:100%;margin-top:2px;padding:6px;background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:6px;">${seatOptHtml}</select>
@@ -2356,6 +2356,9 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
             <label style="color:#cbd5e1;font-size:13px;">#3 Break Choice
               <select id="presel3" style="width:100%;margin-top:2px;padding:6px;background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:6px;">${optHtml(existingTimes[2]||"")}</select>
             </label>
+            <label style="color:#cbd5e1;font-size:13px;">#4 Break Choice
+              <select id="presel4" style="width:100%;margin-top:2px;padding:6px;background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:6px;">${optHtml(existingTimes[3]||"")}</select>
+            </label>
           </div>
           <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">
             <button id="preselCancel" class="secondary" type="button">Cancel</button>
@@ -2365,7 +2368,7 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
       document.body.appendChild(overlay);
 
       // Disable already-chosen times in sibling dropdowns
-      const _preSelDropdowns = [overlay.querySelector("#presel1"), overlay.querySelector("#presel2"), overlay.querySelector("#presel3")];
+      const _preSelDropdowns = [overlay.querySelector("#presel1"), overlay.querySelector("#presel2"), overlay.querySelector("#presel3"), overlay.querySelector("#presel4")];
       function _syncPreSelOpts(){
         const chosen = _preSelDropdowns.map(s => s.value);
         _preSelDropdowns.forEach((sel, idx) => {
@@ -2387,7 +2390,8 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
         const v1 = overlay.querySelector("#presel1").value;
         const v2 = overlay.querySelector("#presel2").value;
         const v3 = overlay.querySelector("#presel3").value;
-        const picks = [v1, v2, v3].filter(v=>v);
+        const v4 = overlay.querySelector("#presel4").value;
+        const picks = [v1, v2, v3, v4].filter(v=>v);
         const uniqueTimes = [...new Set(picks)];
 
         const preSelsNow = loadPreSelectionsForScope();

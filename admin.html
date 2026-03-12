@@ -1651,7 +1651,7 @@ function escapeHtml(s){ return String(s ?? "").replace(/[&<>"']/g, m => ({"&":"&
 function up(s){ return String(s||"").toUpperCase(); }
 
 function positionsOptions(current){
-  const all = Array.from(new Set([...POSITIONS, "ABSENT", ...BASE.map(r=>String(r.Position||"ABSENT").toUpperCase())]));
+  const all = Array.from(new Set([...POSITIONS, "ABSENT", ...BASE.map(r=>String(r.Position||"ABSENT").toUpperCase())])).filter(p => p !== "SUPERVISOR");
   return all.map(p=>`<option value="${escapeHtml(p)}" ${p===current?"selected":""}>${escapeHtml(p)}</option>`).join("");
 }
 
