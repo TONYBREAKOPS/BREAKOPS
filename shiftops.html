@@ -10214,6 +10214,14 @@ async function pushToBreakOPS(){
         }
       }
 
+      // OTH (Other) people — exclude from break lists
+      for(const r of (rows.OTH||[])){
+        const empData = empLookup.get(r.emp);
+        if(!empData) continue;
+        const key = r.emp + "||" + empData.SENIORITY;
+        if(!blockPosOverrides[key]) blockPosOverrides[key] = "OTH";
+      }
+
       // Absent people for this block
       for(const r of (rows.ABSENT||[])){
         if(r.present === "NO" && !r.isPartial){
