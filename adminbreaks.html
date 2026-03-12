@@ -3714,18 +3714,21 @@ function renderBreakPicker(selectedDay, mode, block, buckets){
           const cur = snap.exists() ? (snap.data()||{}) : {};
           const bsData = _normalizeBreakStarted(cur.breakStarted);
           const tt = _normalizeTurnTimers(cur.turnTimers);
+          const st = _normalizeSkippedTurns(cur.skippedTurns);
           for(const pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
             if(bsData[pos]){
               bsData[pos] = false;
               tt[pos] = null;
+              st[pos] = [];
             }
           }
-          tx.set(ref, { ...cur, breakStarted: bsData, turnTimers: tt }, { merge: true });
+          tx.set(ref, { ...cur, breakStarted: bsData, turnTimers: tt, skippedTurns: st }, { merge: true });
         });
         // Update local caches
         for(const pos of ["CALLTAKER","DISPATCHER","PIC","ANET"]){
           _sharedBreakStartedCache[pos] = false;
           _sharedTurnTimersCache[pos] = null;
+          _sharedSkippedTurnsCache[pos] = [];
         }
         toast("All breaks paused. Click Deploy to resume.");
         renderBreakPicker(selectedDay, mode, block, buckets);
