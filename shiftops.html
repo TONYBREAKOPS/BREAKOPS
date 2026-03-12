@@ -3414,7 +3414,8 @@ function getEffectiveEmpList(iso){
     return {
       Employee: e.Employee,
       SENIORITY: e.SENIORITY,
-      POSITION: normalizeRole(trainer.POSITION),
+      POSITION: e.POSITION,
+      _trainerPosition: normalizeRole(trainer.POSITION),
       SATURDAY: trainer.SATURDAY,
       SUNDAY: trainer.SUNDAY,
       MONDAY: trainer.MONDAY,
@@ -4955,6 +4956,7 @@ function computeRowsForBlock(iso, shift, block){
         // Was training but this block is no longer a training block
         ed.Present="YES";
         ed.Hours="";
+        ed.Role = "";
         delete ed._vacAutoMarked;
       }
     }
@@ -4977,6 +4979,10 @@ function computeRowsForBlock(iso, shift, block){
           // Determine if this person is a trainer or trainee
           const mirrorRole = getMirrorTrainingRole(e.Employee, iso, block.id);
           ed.Present = mirrorRole === 'TRAINER' ? 'TRAINER' : 'TRAINEE';
+          // During training blocks, use trainer's role for trainees
+          if(mirrorRole !== 'TRAINER' && e._trainerPosition){
+            ed.Role = e._trainerPosition;
+          }
           ed._vacAutoMarked=true;
         }
       } else if(trainSite === 'OFF_SITE'){
