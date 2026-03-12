@@ -4999,7 +4999,12 @@ function computeRowsForBlock(iso, shift, block){
     const workedEnd = ed.WorkedEnd || minToHHMM(wEndMin%1440);
     const mins = overlapMinutes(wStartMin,wEndMin,bw.startMin,bw.endMin);
     const role = normalizeRole(ed.Role||e.POSITION);
-    const present=(ed.Present||"YES");
+    // Auto-mark PARTIAL if schedule covers less than the full block and not already edited
+    let present=(ed.Present||"YES");
+    if(present === "YES" && !ed._userEdited && mins > 0 && mins < (bw.endMin - bw.startMin)){
+      present = "PARTIAL";
+      ed.Present = "PARTIAL";
+    }
     // When TARDY/PARTIAL and hours not yet manually set, compute from actual worked range
     let hours;
     if(ed.Hours!==""){
@@ -10142,7 +10147,13 @@ async function pushToBreakOPS(){
     for(const block of blocks){
       const rows = computeRowsForBlock(iso, shift, block);
       const blockPosOverrides = {};
+      const blockHoursMap = {};
       const blockExtras = [];
+
+      // Compute block midpoint for 1/2 vs 2/2 detection
+      const bw = blockWindowMinutes(block);
+      const blockDuration = bw.endMin - bw.startMin;
+      const blockMid = bw.startMin + Math.floor(blockDuration / 2);
 
       // Present people — write their role for THIS block
       for(const role of ["CALLTAKER","DISPATCHER","PIC"]){
@@ -10164,7 +10175,18 @@ async function pushToBreakOPS(){
               Position: roleMap[role] || role || "CALLTAKER"
             });
           } else {
+            // Less than 2 hours in the block — exclude from break lists
+            if(r.hours < 2){
+              blockPosOverrides[key] = "SHORT";
+              continue;
+            }
             blockPosOverrides[key] = roleMap[role] || role || empData.POSITION;
+            // Detect partial block coverage (1/2 or 2/2)
+            if(r.hours < blockDuration / 60 * 0.75){
+              let wS = minutesOf(r.workedStart);
+              if(bw.endMin > 1440 && wS < bw.startMin) wS += 1440;
+              blockHoursMap[key] = wS < blockMid ? "1/2" : "2/2";
+            }
           }
         }
       }
@@ -10207,11 +10229,11 @@ async function pushToBreakOPS(){
         if(!blockPosOverrides[key]) blockPosOverrides[key] = "TRAINER";
       }
 
-      // Write per-block posOverrides + extras to breakScope
+      // Write per-block posOverrides + extras + hoursMap to breakScope
       const scopeKey = mode + "|" + iso + "|" + block.id;
-      console.log("Writing scope", scopeKey, "posOverrides:", JSON.stringify(blockPosOverrides), "extras:", JSON.stringify(blockExtras));
+      console.log("Writing scope", scopeKey, "posOverrides:", JSON.stringify(blockPosOverrides), "hoursMap:", JSON.stringify(blockHoursMap), "extras:", JSON.stringify(blockExtras));
       const scopeRef = db.collection("breakScopes").doc(scopeKey);
-      await scopeRef.set({ posOverrides: blockPosOverrides, extras: blockExtras }, { merge: true });
+      await scopeRef.set({ posOverrides: blockPosOverrides, hoursMap: blockHoursMap, extras: blockExtras }, { merge: true });
 
       // Count from first block for summary
       if(block === blocks[0]){

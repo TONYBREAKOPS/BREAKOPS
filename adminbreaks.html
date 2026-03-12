@@ -726,6 +726,7 @@ textarea.copyBox,
   const _ROSTER_DOC = doc(_db, "rosterConfig", "global");
   let _sharedRosterCache = { posOverrides: {} };
   let _sharedScopePosOverrides = {}; // per-block posOverrides from breakScope
+  let _sharedScopeHoursMap = {};    // per-block hoursMap from ShiftOps push ("1/2" or "2/2")
   let _sharedExtrasCache = [];
   let _rosterUnsub = null;
 
@@ -959,6 +960,14 @@ textarea.copyBox,
       } else {
         _sharedScopePosOverrides = {};
       }
+      // Per-block hoursMap (pushed from ShiftOps: "1/2" or "2/2" for partial employees)
+      if(data.hoursMap && typeof data.hoursMap === 'object'){
+        const hm = {};
+        for(const [k,v] of Object.entries(data.hoursMap)) hm[String(k)] = String(v);
+        _sharedScopeHoursMap = hm;
+      } else {
+        _sharedScopeHoursMap = {};
+      }
       // Merge incoming timers carefully: don't let a stale snapshot clobber
       // a locally-written timer whose Firestore write hasn't propagated yet.
       {
@@ -1005,6 +1014,7 @@ textarea.copyBox,
           dpVisualLocked: _sharedDpVisualLockedCache,
           extras: _sharedExtrasCache,
           posOverrides: _sharedScopePosOverrides,
+          hoursMap: _sharedScopeHoursMap,
           turnTimers: _sharedTurnTimersCache,
           skippedTurns: _sharedSkippedTurnsCache,
           breakStarted: _sharedBreakStartedCache,
@@ -1181,6 +1191,7 @@ textarea.copyBox,
         dpVisualLocked: !!data.dpVisualLocked,
         extras: Array.isArray(data.extras) ? data.extras : [],
         posOverrides: normPo,
+        hoursMap: (data.hoursMap && typeof data.hoursMap === 'object') ? data.hoursMap : {},
         turnTimers: _normalizeTurnTimers(data.turnTimers),
         skippedTurns: _normalizeSkippedTurns(data.skippedTurns),
         breakStarted: _normalizeBreakStarted(data.breakStarted),
@@ -1768,6 +1779,8 @@ function saveHoursForScope(map){
   saveJson(STORAGE_KEY_HOURS, all);
 }
 function getHoursSetting(k){
+  // Prefer Firestore hoursMap from ShiftOps push, then localStorage override
+  if(_sharedScopeHoursMap && _sharedScopeHoursMap[k]) return _sharedScopeHoursMap[k];
   const map = loadHoursForScope();
   return map[k] || "4";
 }

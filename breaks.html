@@ -639,6 +639,7 @@ body { padding-top: 12px !important; }
   const _ROSTER_DOC = doc(_db, "rosterConfig", "global");
   let _sharedRosterCache = { posOverrides: {} };
   let _sharedScopePosOverrides = {}; // per-block posOverrides from breakScope
+  let _sharedScopeHoursMap = {};    // per-block hoursMap from ShiftOps push
   let _sharedExtrasCache = [];
   let _rosterUnsub = null;
 
@@ -876,6 +877,14 @@ body { padding-top: 12px !important; }
         _sharedScopePosOverrides = norm;
       } else {
         _sharedScopePosOverrides = {};
+      }
+      // Per-block hoursMap (pushed from ShiftOps: "1/2" or "2/2" for partial employees)
+      if(data.hoursMap && typeof data.hoursMap === 'object'){
+        const hm = {};
+        for(const [k,v] of Object.entries(data.hoursMap)) hm[String(k)] = String(v);
+        _sharedScopeHoursMap = hm;
+      } else {
+        _sharedScopeHoursMap = {};
       }
       _sharedSlotCapsCache = _normalizeSlotCaps(data.slotCaps);
       if(typeof data.skipDurationMs === "number" && data.skipDurationMs > 0){
