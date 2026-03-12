@@ -3365,7 +3365,7 @@ let _effEmpCache = { iso: null, list: null };
 
 function getEffectiveEmpList(iso){
   if(_effEmpCache.iso === iso && _effEmpCache.list) return _effEmpCache.list;
-  if(!SCHED_CHANGES.length){ _effEmpCache = {iso, list: BASE_EMP}; return BASE_EMP; }
+  if(!SCHED_CHANGES.length && !_mirrorTraineesList.length){ _effEmpCache = {iso, list: BASE_EMP}; return BASE_EMP; }
   const list = BASE_EMP.map(e => {
     const change = SCHED_CHANGES.find(c => c.employee === e.Employee && iso < c.effectiveDate);
     if(!change) return e;
@@ -3391,8 +3391,40 @@ function getEffectiveEmpList(iso){
     if(change && change._originalData && change._originalData._wasNewlyCreated) return false;
     return true;
   });
-  _effEmpCache = {iso, list: filtered};
-  return filtered;
+  // Override schedule for active mirror trainees with trainer's schedule
+  // This ensures trainees appear in the correct blocks even if mirror activation
+  // didn't fully copy the trainer's schedule to the trainee's employee record
+  const _d = parseISO(iso);
+  const _dt = _d.getTime();
+  const _yr = _d.getFullYear(), _mo = _d.getMonth();
+  const result = filtered.map(e => {
+    const mirrorEntry = _mirrorTraineesList.find(mt => {
+      if((mt.name||'').toUpperCase() !== e.Employee) return false;
+      if(mt._status !== 'active') return false;
+      const f = mt.from ? new Date(mt.from + 'T00:00:00') : new Date(_yr, _mo, 1);
+      const end = mt.to ? new Date(mt.to + 'T00:00:00') : new Date(_yr, _mo + 1, 0);
+      return _dt >= f.getTime() && _dt <= end.getTime();
+    });
+    if(!mirrorEntry) return e;
+    // Find trainer in BASE_EMP and use their schedule/position
+    const trainerName = (mirrorEntry.trainerName||'').toUpperCase();
+    const trainer = BASE_EMP.find(t => t.Employee === trainerName);
+    if(!trainer) return e;
+    return {
+      Employee: e.Employee,
+      SENIORITY: e.SENIORITY,
+      POSITION: normalizeRole(trainer.POSITION),
+      SATURDAY: trainer.SATURDAY,
+      SUNDAY: trainer.SUNDAY,
+      MONDAY: trainer.MONDAY,
+      TUESDAY: trainer.TUESDAY,
+      WEDNESDAY: trainer.WEDNESDAY,
+      THURSDAY: trainer.THURSDAY,
+      FRIDAY: trainer.FRIDAY,
+    };
+  });
+  _effEmpCache = {iso, list: result};
+  return result;
 }
 
 let OT_BY_CTX=new Map(); // ctxKey -> array of OT entries
@@ -3902,7 +3934,8 @@ async function loadFromFirebase(){
               from: from,
               to: to,
               blocks: [],
-              dayBlocks: {}
+              dayBlocks: {},
+              _status: st
             });
             if(trainerName){
               _mirrorTrainersList.push({
