@@ -4417,7 +4417,7 @@ async function confirmRemoveSwap(iso, empA, empB){
 }
 
 // ===== Workbook helpers =====
-function loadWorkbook(arrayBuf){ return XLSX.read(arrayBuf,{type:"array"}); }
+function loadWorkbook(arrayBuf){ return XLSX.read(arrayBuf,{type:"array", cellDates:true}); }
 function getSheet(wb, names){
   for(const n of names){ if(wb.Sheets[n]) return {name:n, ws:wb.Sheets[n]}; }
   const keys=Object.keys(wb.Sheets||{});
@@ -10174,6 +10174,7 @@ async function pushToBreakOPS(){
       const blockMid = bw.startMin + Math.floor(blockDuration / 2);
 
       // Present people — write their role for THIS block
+      const regularEmps = new Set(); // track regular employees to avoid OT duplicates
       for(const role of ["CALLTAKER","DISPATCHER","PIC"]){
         for(const r of (rows[role]||[])){
           const empData = empLookup.get(r.emp);
@@ -10191,6 +10192,8 @@ async function pushToBreakOPS(){
             continue;
           }
           if(r.isOT){
+            // Skip OT extra if this employee already appears as regular
+            if(regularEmps.has(r.emp)) continue;
             blockExtras.push({
               Employee: r.emp,
               Seniority: empData.SENIORITY,
@@ -10198,6 +10201,7 @@ async function pushToBreakOPS(){
               Position: roleMap[role] || role || "CALLTAKER"
             });
           } else {
+            regularEmps.add(r.emp);
             // Less than 2 hours in the block — exclude from break lists
             if(r.hours < 2){
               blockPosOverrides[key] = "SHORT";
