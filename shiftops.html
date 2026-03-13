@@ -4417,7 +4417,7 @@ async function confirmRemoveSwap(iso, empA, empB){
 }
 
 // ===== Workbook helpers =====
-function loadWorkbook(arrayBuf){ return XLSX.read(arrayBuf,{type:"array", cellDates:true}); }
+function loadWorkbook(arrayBuf){ return XLSX.read(arrayBuf,{type:"array"}); }
 function getSheet(wb, names){
   for(const n of names){ if(wb.Sheets[n]) return {name:n, ws:wb.Sheets[n]}; }
   const keys=Object.keys(wb.Sheets||{});
