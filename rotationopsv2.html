@@ -1242,6 +1242,61 @@ function getScheduledOTForBlock(dayKey, blockKey) {
   return result;
 }
 
+// --- ShiftOps OT → CT injection ---
+let _shiftOpsOTCache = new Map(); // dayKey -> [{emp, role, blockId, ...}]
+
+function _trackCTOTRemoval(bd, nameUp) {
+  if (!bd.ctOtRemoved) bd.ctOtRemoved = [];
+  if (!bd.ctOtRemoved.includes(nameUp)) bd.ctOtRemoved.push(nameUp);
+}
+
+async function fetchShiftOpsOT(dayKey) {
+  if (_shiftOpsOTCache.has(dayKey)) return _shiftOpsOTCache.get(dayKey);
+  const allOT = [];
+  try {
+    for (const shift of ["DAY", "NIGHT"]) {
+      const doc = await db.collection('daily_edits').doc(dayKey + '_' + shift).get();
+      if (doc.exists && doc.data().ot) {
+        for (const entry of doc.data().ot) allOT.push(entry);
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to fetch ShiftOps OT for", dayKey, err);
+  }
+  _shiftOpsOTCache.set(dayKey, allOT);
+  return allOT;
+}
+
+function injectShiftOpsOTIntoPlan(dayKey, otEntries) {
+  const plan = loadPlan();
+  if (!plan || !plan.days || !plan.days[dayKey]) return;
+  const dispNames = new Set(BASE.map(e => String(e.Employee).toUpperCase()));
+  for (const ot of otEntries) {
+    const nameUp = String(ot.emp || "").toUpperCase();
+    if (!nameUp || !dispNames.has(nameUp)) continue;
+    const blockId = ot.blockId || "";
+    const bd = plan.days[dayKey][blockId];
+    if (!bd) continue;
+    if (!bd.ct) bd.ct = [];
+    if (!bd.ctOtRemoved) bd.ctOtRemoved = [];
+    // Skip if manually removed
+    if (bd.ctOtRemoved.includes(nameUp)) continue;
+    // Skip if already assigned to a channel
+    if (bd.assignments && Object.values(bd.assignments).some(v => String(v).toUpperCase() === nameUp)) continue;
+    // Skip if already in CT
+    if (bd.ct.some(n => String(n).toUpperCase() === nameUp)) continue;
+    // Skip if in SD
+    if (bd.sd && bd.sd.some(n => String(n).toUpperCase() === nameUp)) continue;
+    // Skip if in absent
+    if (bd.absent && bd.absent.some(n => String(n).toUpperCase() === nameUp)) continue;
+    bd.ct.push(nameUp);
+    // Also add to OT list so OT badge renders
+    if (!bd.ot) bd.ot = [];
+    if (!bd.ot.some(n => String(n).toUpperCase() === nameUp)) bd.ot.push(nameUp);
+  }
+  savePlan(plan);
+}
+
 // Tracking + scoring maps (reinitialized each time a plan is built)
 let sdWeekHours = new Map();          // weekKey -> Map(name -> SD hours)
 let overflowScoreByDay = new Map();   // YYYY-MM-DD -> total overflow score for that day
@@ -11912,7 +11967,7 @@ function boot() {
     }
     if (bd.ct) {
       const idx = bd.ct.findIndex(n => String(n).toUpperCase() === nameUp);
-      if (idx !== -1) bd.ct.splice(idx, 1);
+      if (idx !== -1) { bd.ct.splice(idx, 1); _trackCTOTRemoval(bd, nameUp); }
     }
     if (bd.ot) {
       const idx = bd.ot.findIndex(n => String(n).toUpperCase() === nameUp);
@@ -12032,7 +12087,7 @@ function boot() {
       }
       if (bd.ct) {
         const idx = bd.ct.findIndex(n => String(n).toUpperCase() === personName);
-        if (idx !== -1) { bd.ct.splice(idx, 1); removedCount++; }
+        if (idx !== -1) { bd.ct.splice(idx, 1); _trackCTOTRemoval(bd, personName); removedCount++; }
       }
       if (bd.sd) {
         const idx = bd.sd.findIndex(n => String(n).toUpperCase() === personName);
@@ -12150,7 +12205,7 @@ function boot() {
       if (idx !== -1) blockData.sd.splice(idx, 1);
     } else if (type === "ct") {
       const idx = (blockData.ct || []).findIndex(n => String(n).toUpperCase() === personName);
-      if (idx !== -1) blockData.ct.splice(idx, 1);
+      if (idx !== -1) { blockData.ct.splice(idx, 1); _trackCTOTRemoval(blockData, personName); }
     } else if (type === "channel") {
       if (blockData.assignments && String(blockData.assignments[channel] || "").toUpperCase() === personName) {
         blockData.assignments[channel] = "";
@@ -12397,7 +12452,7 @@ function boot() {
     // Remove person from CT if they were there
     if (blockData.ct) {
       const idx = blockData.ct.findIndex(n => String(n).toUpperCase() === selectedName.toUpperCase());
-      if (idx !== -1) blockData.ct.splice(idx, 1);
+      if (idx !== -1) { blockData.ct.splice(idx, 1); _trackCTOTRemoval(blockData, selectedName.toUpperCase()); }
     }
     // Remove person from SD if they were there
     if (blockData.sd) {
@@ -14193,6 +14248,7 @@ function boot() {
   const monthYearChanged = async () => {
     const m = Number(document.getElementById("monthSel").value);
     const y = Number(document.getElementById("yearSel").value);
+    _shiftOpsOTCache.clear();
     setSyncStatus("LOADING...", "pending");
     const loaded = await loadRotationFromFirebase(y, m);
     await loadCrossMonthData(y, m);
@@ -14203,6 +14259,8 @@ function boot() {
       if (plan && plan.meta && plan.meta.year === y && plan.meta.monthIndex === m) {
         const dk = ymd(new Date(y, m, 1, 12, 0, 0, 0));
         document.getElementById("dayPick").value = dk;
+        const otEntries = await fetchShiftOpsOT(dk);
+        if (otEntries.length) injectShiftOpsOTIntoPlan(dk, otEntries);
         renderDay(dk); renderWeek(dk); renderMonth(y, m);
         if (loadJSON(STORAGE.ui, {}).tab === "mroster") renderMonthRostersIfActive();
         if (loadJSON(STORAGE.ui, {}).tab === "exceptions") renderExceptions();
@@ -14316,19 +14374,23 @@ function boot() {
     });
   });
 
-  document.getElementById("dayPick").addEventListener("change", ()=>{
+  document.getElementById("dayPick").addEventListener("change", async ()=>{
     const dk = document.getElementById("dayPick").value;
+    const otEntries = await fetchShiftOpsOT(dk);
+    if (otEntries.length) injectShiftOpsOTIntoPlan(dk, otEntries);
     renderDay(dk); renderWeek(dk);
   });
 
   // Day arrow navigation
-  function shiftDay(offset) {
+  async function shiftDay(offset) {
     const picker = document.getElementById("dayPick");
     const current = parseYMD(picker.value);
     if (!current) return;
     current.setDate(current.getDate() + offset);
     const newKey = ymd(current);
     picker.value = newKey;
+    const otEntries = await fetchShiftOpsOT(newKey);
+    if (otEntries.length) injectShiftOpsOTIntoPlan(newKey, otEntries);
     renderDay(newKey); renderWeek(newKey);
   }
   document.getElementById("btnDayPrev").addEventListener("click", () => shiftDay(-1));
@@ -14501,6 +14563,9 @@ function boot() {
       console.log("INIT: First day assignments:", firstDayKey, "→", firstAssign);
 
       document.getElementById("dayPick").value = today;
+      // Inject ShiftOps OT dispatchers into CT before first render
+      const otEntries = await fetchShiftOpsOT(today);
+      if (otEntries.length) injectShiftOpsOTIntoPlan(today, otEntries);
       renderDay(today); renderWeek(today); renderMonth(plan.meta.year, plan.meta.monthIndex);
       renderMonthRostersIfActive();
       showSwapTip();
