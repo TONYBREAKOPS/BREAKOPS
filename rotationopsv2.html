@@ -11767,8 +11767,6 @@ function boot() {
         if (dispatchSnap.exists && dispatchSnap.data().board) {
           dispatchData = JSON.parse(dispatchSnap.data().board);
         }
-        // Ensure day 0 structure exists
-        if (!dispatchData[0]) dispatchData[0] = {};
         const chMap = {
           'NORTH':'NORTH','EAST':'EAST','SOUTH':'SOUTH','WEST':'WEST',
           'NORTHWEST':'NORTHWEST','CENTRAL':'CENTRAL',
@@ -11777,36 +11775,40 @@ function boot() {
         const blockMap = shiftTarget === "DAY"
           ? {'0600-1000':1, '1000-1400':2, '1400-1800':3}
           : {'1800-2200':4, '2200-0200':5, '0200-0600':6};
-        // Init channels if missing
-        for (const dKey of Object.values(chMap)) {
-          if (!dispatchData[0][dKey]) dispatchData[0][dKey] = {};
-        }
-        if (!dispatchData[0]['CT']) dispatchData[0]['CT'] = {};
-        // Clear the shift's blocks first
-        for (const bNum of Object.values(blockMap)) {
+        // Write to ALL day keys (0-6) so dispatch board works regardless of currentDay
+        for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+          const dk = String(dayIdx);
+          if (!dispatchData[dk]) dispatchData[dk] = {};
           for (const dKey of Object.values(chMap)) {
-            dispatchData[0][dKey][bNum] = '';
+            if (!dispatchData[dk][dKey]) dispatchData[dk][dKey] = {};
           }
-          dispatchData[0]['CT'][bNum] = ['','',''];
-        }
-        // Fill in assignments
-        for (const bk of targetBlocks) {
-          const entry = dayBlocks[bk];
-          if (!entry) continue;
-          const bNum = blockMap[bk];
-          if (!bNum) continue;
-          if (entry.assignments) {
-            for (const [ch, nm] of Object.entries(entry.assignments)) {
-              const dKey = chMap[ch.toUpperCase()] || ch.toUpperCase();
-              if (dispatchData[0][dKey] !== undefined) {
-                dispatchData[0][dKey][bNum] = String(nm||'').toUpperCase();
+          if (!dispatchData[dk]['CT']) dispatchData[dk]['CT'] = {};
+          // Clear the shift's blocks
+          for (const bNum of Object.values(blockMap)) {
+            for (const dKey of Object.values(chMap)) {
+              dispatchData[dk][dKey][bNum] = '';
+            }
+            dispatchData[dk]['CT'][bNum] = ['','',''];
+          }
+          // Fill in assignments
+          for (const bk of targetBlocks) {
+            const entry = dayBlocks[bk];
+            if (!entry) continue;
+            const bNum = blockMap[bk];
+            if (!bNum) continue;
+            if (entry.assignments) {
+              for (const [ch, nm] of Object.entries(entry.assignments)) {
+                const dKey = chMap[ch.toUpperCase()] || ch.toUpperCase();
+                if (dispatchData[dk][dKey] !== undefined) {
+                  dispatchData[dk][dKey][bNum] = String(nm||'').toUpperCase();
+                }
               }
             }
-          }
-          if (entry.ct && entry.ct.length) {
-            const ctArr = entry.ct.slice(0, 3).map(n => String(n||'').toUpperCase());
-            while (ctArr.length < 3) ctArr.push('');
-            dispatchData[0]['CT'][bNum] = ctArr;
+            if (entry.ct && entry.ct.length) {
+              const ctArr = entry.ct.slice(0, 3).map(n => String(n||'').toUpperCase());
+              while (ctArr.length < 3) ctArr.push('');
+              dispatchData[dk]['CT'][bNum] = ctArr;
+            }
           }
         }
         await dispatchRef.set({
@@ -11815,7 +11817,7 @@ function boot() {
         }, { merge: true });
         console.log("Dispatch board updated successfully");
       } catch (dispErr) {
-        console.warn("Dispatch board push failed:", dispErr);
+        console.error("Dispatch board push failed:", dispErr);
       }
 
       showToast("Pushed " + shiftLabel + " (" + iso + ") to ShiftOps & Dispatch Board! " + assignCount + " assignments.");
