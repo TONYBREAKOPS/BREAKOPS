@@ -11770,11 +11770,6 @@ function boot() {
             messagingSenderId: '1097431114529',
             appId:             '1:1097431114529:web:2adfdae7838b4840f0d460'
           }, 'dispatchApp');
-          // App Check required by dispatch project
-          firebase.appCheck(dispatchApp).activate(
-            new firebase.appCheck.ReCaptchaEnterpriseProvider('6LeH6GMsAAAAAIjV9DPRrmSKfvNeNHVS9LI8JQVU'),
-            true
-          );
           await dispatchApp.auth().signInAnonymously();
           window._dispatchDb = dispatchApp.firestore();
         }
