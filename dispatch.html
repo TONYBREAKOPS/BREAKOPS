@@ -857,8 +857,19 @@ window.addEventListener('storage', (e) => {
           });
         });
         renderBoard();
-        saveData(); // persist to Firestore for other viewers
-        setStatus('🟢 Updated from RotationOps push');
+        // Persist to Firestore for other viewers
+        if (DOC_REF) {
+          DOC_REF.set({
+            board: JSON.stringify(data),
+            announcement: document.getElementById('announcementBox').value || '',
+            powered: _powered
+          }, { merge: true })
+          .then(() => setStatus('🟢 Updated from RotationOps push — synced to Firebase'))
+          .catch(e => setStatus('⚠️ Updated locally but Firebase save failed: ' + e.message));
+        } else {
+          saveLocal();
+          setStatus('🟢 Updated from RotationOps push — saved locally (no Firebase)');
+        }
       }
     } catch(err) { console.warn('Storage sync error:', err); }
   }
