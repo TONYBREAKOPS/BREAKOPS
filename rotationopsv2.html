@@ -11554,7 +11554,7 @@ function boot() {
       "Push " + shiftLabel + " to ShiftOps?\n\n" +
       "Date: " + formattedDate + "\n" +
       shiftLabel + " assignments: " + count + "\n\n" +
-      "This will merge into existing ShiftOps data for this date."
+      "This will merge into ShiftOps and update the Dispatch Board."
     )) return;
 
     // Build name-casing map: UPPER -> original Firestore casing
@@ -11759,7 +11759,66 @@ function boot() {
         }, { merge: true });
       }
 
-      showToast("Pushed " + shiftLabel + " (" + iso + ") to ShiftOps! " + assignCount + " assignments.");
+      // Also push to Dispatch Board (appState/rotationBoard)
+      try {
+        const dispatchRef = db.collection('appState').doc('rotationBoard');
+        const dispatchSnap = await dispatchRef.get();
+        let dispatchData = {};
+        if (dispatchSnap.exists && dispatchSnap.data().board) {
+          dispatchData = JSON.parse(dispatchSnap.data().board);
+        }
+        // Ensure day 0 structure exists
+        if (!dispatchData[0]) dispatchData[0] = {};
+        const chMap = {
+          'NORTH':'NORTH','EAST':'EAST','SOUTH':'SOUTH','WEST':'WEST',
+          'NORTHWEST':'NORTHWEST','CENTRAL':'CENTRAL',
+          'DC1':'DC1','DC2':'DC2','RELIEF 1':'RELIEF1','RELIEF 2':'RELIEF2'
+        };
+        const blockMap = shiftTarget === "DAY"
+          ? {'0600-1000':1, '1000-1400':2, '1400-1800':3}
+          : {'1800-2200':4, '2200-0200':5, '0200-0600':6};
+        // Init channels if missing
+        for (const dKey of Object.values(chMap)) {
+          if (!dispatchData[0][dKey]) dispatchData[0][dKey] = {};
+        }
+        if (!dispatchData[0]['CT']) dispatchData[0]['CT'] = {};
+        // Clear the shift's blocks first
+        for (const bNum of Object.values(blockMap)) {
+          for (const dKey of Object.values(chMap)) {
+            dispatchData[0][dKey][bNum] = '';
+          }
+          dispatchData[0]['CT'][bNum] = ['','',''];
+        }
+        // Fill in assignments
+        for (const bk of targetBlocks) {
+          const entry = dayBlocks[bk];
+          if (!entry) continue;
+          const bNum = blockMap[bk];
+          if (!bNum) continue;
+          if (entry.assignments) {
+            for (const [ch, nm] of Object.entries(entry.assignments)) {
+              const dKey = chMap[ch.toUpperCase()] || ch.toUpperCase();
+              if (dispatchData[0][dKey] !== undefined) {
+                dispatchData[0][dKey][bNum] = String(nm||'').toUpperCase();
+              }
+            }
+          }
+          if (entry.ct && entry.ct.length) {
+            const ctArr = entry.ct.slice(0, 3).map(n => String(n||'').toUpperCase());
+            while (ctArr.length < 3) ctArr.push('');
+            dispatchData[0]['CT'][bNum] = ctArr;
+          }
+        }
+        await dispatchRef.set({
+          board: JSON.stringify(dispatchData),
+          powered: true
+        }, { merge: true });
+        console.log("Dispatch board updated successfully");
+      } catch (dispErr) {
+        console.warn("Dispatch board push failed:", dispErr);
+      }
+
+      showToast("Pushed " + shiftLabel + " (" + iso + ") to ShiftOps & Dispatch Board! " + assignCount + " assignments.");
     } catch (err) {
       console.error("Push to ShiftOps failed:", err);
       showToast("ERROR: " + (err.message || err));

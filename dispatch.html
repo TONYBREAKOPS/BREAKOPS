@@ -654,7 +654,7 @@ const DAY_KEYS     = [1,2,3];
 const NIGHT_KEYS   = [4,5,6];
 
 // ── State ─────────────────────────────────────────────────────
-let currentDay         = new Date().getDay();
+let currentDay         = 0; // fixed — no day-of-week rotation
 let currentShift       = 'day';
 let data               = {};
 let _unlocked          = false;
