@@ -836,6 +836,34 @@ function startLiveSync() {
 
 function setStatus(msg) { document.getElementById('statusBar').textContent = msg; }
 
+// ── Listen for RotationOps pushes via localStorage ────────────
+window.addEventListener('storage', (e) => {
+  if (e.key === LS_KEY && e.newValue) {
+    try {
+      const saved = JSON.parse(e.newValue);
+      if (saved.board) {
+        Object.keys(saved.board).forEach(d => {
+          if (!data[d]) return;
+          Object.keys(saved.board[d]).forEach(ch => {
+            if (!data[d][ch]) return;
+            Object.keys(saved.board[d][ch]).forEach(b => {
+              const v = saved.board[d][ch][b];
+              if (Array.isArray(v)) {
+                data[d][ch][b] = v.map(n => sanitize(String(n||'')));
+              } else {
+                data[d][ch][b] = sanitize(String(v||''));
+              }
+            });
+          });
+        });
+        renderBoard();
+        saveData(); // persist to Firestore for other viewers
+        setStatus('🟢 Updated from RotationOps push');
+      }
+    } catch(err) { console.warn('Storage sync error:', err); }
+  }
+});
+
 // ── Name hover trail ──────────────────────────────────────────
 const trailSvg = document.getElementById('trailSvg');
 
