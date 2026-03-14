@@ -431,6 +431,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-check-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
   // Firebase configuration (same as ShiftOps)
@@ -11759,7 +11760,7 @@ function boot() {
         }, { merge: true });
       }
 
-      // Also push to Dispatch Board (appState/rotationBoard) — different Firebase project
+      // Also push to Dispatch Board (legitimous Firestore)
       try {
         if (!window._dispatchDb) {
           const dispatchApp = firebase.initializeApp({
@@ -11770,6 +11771,10 @@ function boot() {
             messagingSenderId: '1097431114529',
             appId:             '1:1097431114529:web:2adfdae7838b4840f0d460'
           }, 'dispatchApp');
+          firebase.appCheck(dispatchApp).activate(
+            new firebase.appCheck.ReCaptchaEnterpriseProvider('6LeH6GMsAAAAAIjV9DPRrmSKfvNeNHVS9LI8JQVU'),
+            true
+          );
           await dispatchApp.auth().signInAnonymously();
           window._dispatchDb = dispatchApp.firestore();
         }
