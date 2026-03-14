@@ -11759,13 +11759,26 @@ function boot() {
         }, { merge: true });
       }
 
-      // Also push to Dispatch Board via localStorage (same domain)
+      // Also push to Dispatch Board (legitimous Firestore)
       try {
+        if (!window._dispatchDb) {
+          const dispatchApp = firebase.initializeApp({
+            apiKey:            'AIzaSyCnabvDHyrEYPjtGikTSC6eIQL2VEPWnn4',
+            authDomain:        'legitimous-2f2d2.firebaseapp.com',
+            projectId:         'legitimous-2f2d2',
+            storageBucket:     'legitimous-2f2d2.firebasestorage.app',
+            messagingSenderId: '1097431114529',
+            appId:             '1:1097431114529:web:2adfdae7838b4840f0d460'
+          }, 'dispatchApp');
+          await dispatchApp.auth().signInAnonymously();
+          window._dispatchDb = dispatchApp.firestore();
+        }
+        const dispatchRef = window._dispatchDb.collection('appState').doc('rotationBoard');
+        const dispatchSnap = await dispatchRef.get();
         let dispatchData = {};
-        try {
-          const raw = localStorage.getItem('dispatchBoard_v2');
-          if (raw) dispatchData = JSON.parse(raw).board || {};
-        } catch(e) {}
+        if (dispatchSnap.exists && dispatchSnap.data().board) {
+          dispatchData = JSON.parse(dispatchSnap.data().board);
+        }
         const chMap = {
           'NORTH':'NORTH','EAST':'EAST','SOUTH':'SOUTH','WEST':'WEST',
           'NORTHWEST':'NORTHWEST','CENTRAL':'CENTRAL',
@@ -11810,14 +11823,11 @@ function boot() {
             }
           }
         }
-        // Save to localStorage — dispatch board on same domain picks it up
-        const lsData = { board: dispatchData, powered: true, announcement: '' };
-        try {
-          const existing = JSON.parse(localStorage.getItem('dispatchBoard_v2') || '{}');
-          if (existing.announcement) lsData.announcement = existing.announcement;
-        } catch(e) {}
-        localStorage.setItem('dispatchBoard_v2', JSON.stringify(lsData));
-        console.log("Dispatch board updated via localStorage");
+        await dispatchRef.set({
+          board: JSON.stringify(dispatchData),
+          powered: true
+        }, { merge: true });
+        console.log("Dispatch board updated successfully");
       } catch (dispErr) {
         console.error("Dispatch board push failed:", dispErr);
         showToast("WARNING: Dispatch Board update failed — " + (dispErr.message || dispErr));
