@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>RotationOps</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23070c16'/%3E%3Ccircle cx='32' cy='32' r='30' fill='none' stroke='%23c0c8d4' stroke-width='2'/%3E%3Cpath d='M20 16 A18 18 0 0 1 48 26' fill='none' stroke='%23e8ecf0' stroke-width='4' stroke-linecap='round'/%3E%3Cpolygon points='48,20 54,28 44,27' fill='%23e8ecf0'/%3E%3Cpath d='M44 48 A18 18 0 0 1 16 38' fill='none' stroke='%23e8ecf0' stroke-width='4' stroke-linecap='round'/%3E%3Cpolygon points='16,44 10,36 20,37' fill='%23e8ecf0'/%3E%3C/svg%3E"/>
+<script>window._embedMode = new URLSearchParams(window.location.search).has('embed');</script>
 <style>
   :root {
     --bg:#0b0f16; --panel:#111826; --panel2:#0f1622; --line:#2a3446; --text:#e6edf7;
@@ -399,6 +400,31 @@
 }
 #btnLogout:hover{ background:rgba(255,255,255,.06); }
 
+/* Embed mode: only show day grid + day navigation + push button */
+.embed-mode .header-controls { display:none !important; }
+.embed-mode .topbar { display:none !important; }
+.embed-mode .tabs { display:none !important; }
+.embed-mode #tab_week, .embed-mode #tab_month, .embed-mode #tab_mroster, .embed-mode #tab_exceptions { display:none !important; }
+.embed-mode #btnSendDayShift, .embed-mode #btnSendNightShift, .embed-mode #btnExportNeedsDay { display:none !important; }
+.embed-mode { margin:0 !important; padding:0 !important; overflow:hidden !important; }
+.embed-mode .wrap { padding:0 4px !important; max-width:none !important; margin:0 !important; }
+.embed-mode .card { padding:2px 4px !important; margin:0 !important; }
+.embed-mode table { font-size:13px !important; table-layout:auto !important; width:100% !important; }
+.embed-mode table td, .embed-mode table th { padding:3px 4px !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; }
+.embed-mode table td:not(.sticky-col) { width:auto !important; }
+.embed-mode .assign-cell { padding:4px 6px !important; font-size:12px !important; min-width:0 !important; width:100% !important; display:block !important; box-sizing:border-box !important; }
+.embed-mode .ctitem { padding:4px 6px !important; font-size:12px !important; min-width:0 !important; width:100% !important; display:block !important; box-sizing:border-box !important; }
+.embed-mode .sticky-col { font-size:11px !important; padding:3px 3px !important; width:1px !important; min-width:0 !important; max-width:none !important; white-space:nowrap !important; }
+.embed-mode h2 { font-size:15px !important; margin:0 !important; }
+.embed-mode #dayTitle { font-size:14px !important; }
+.embed-mode .copy-btn { font-size:9px !important; padding:2px 8px !important; }
+.embed-mode #embedPushBtn { display:inline-block !important; margin-left:auto; }
+.embed-mode h2 { display:none !important; }
+.embed-mode #btnDayPrev, .embed-mode #btnDayNext, .embed-mode #dayTitle { display:none !important; }
+.embed-mode #appFooter { display:none !important; }
+.embed-mode #swapTip { display:none !important; }
+.embed-mode .vacation-row, .embed-mode .unassigned-row { display:none !important; }
+
 </style>
 
 <!-- Firebase SDK -->
@@ -747,6 +773,62 @@
 </script>
 </head>
 <body>
+<script>
+if(window._embedMode){
+  document.body.classList.add('embed-mode');
+  const _ep = new URLSearchParams(window.location.search);
+  window._embedShift = _ep.get('shift') || '';
+  window._embedDate = _ep.get('date') || '';
+  // After each render, hide the other shift's columns + cleanup
+  window._embedFilterColumns = function(){
+    if(!window._embedShift) return;
+    const wrap = document.getElementById('dayTableWrap');
+    if(!wrap) return;
+    const table = wrap.querySelector('table');
+    if(!table) return;
+    const isDay = window._embedShift === 'DAY';
+    const hideStart = isDay ? 4 : 1;
+    const hideEnd = isDay ? 6 : 3;
+    for(const row of table.querySelectorAll('tr')){
+      const cells = row.querySelectorAll('th, td');
+      let colIdx = 0;
+      for(const cell of cells){
+        const span = parseInt(cell.getAttribute('colspan')) || 1;
+        const cellEnd = colIdx + span - 1;
+        if(colIdx >= hideStart && cellEnd <= hideEnd) cell.style.display = 'none';
+        if(span > 1 && colIdx < hideStart && cellEnd >= hideStart){
+          cell.setAttribute('colspan', hideStart - colIdx);
+        }
+        if(span > 1 && colIdx >= hideStart && colIdx <= hideEnd && cellEnd > hideEnd){
+          cell.setAttribute('colspan', cellEnd - hideEnd);
+        }
+        colIdx += span;
+      }
+    }
+    // Show push button next to day name
+    const dayNameRow = document.getElementById('dayNameRow');
+    if(dayNameRow && !document.getElementById('embedPushArea')){
+      const btn = document.createElement('button');
+      btn.id = 'embedPushArea';
+      btn.className = 'btn';
+      btn.style.cssText = 'font-size:10px;padding:4px 12px;border-radius:6px;white-space:nowrap;font-weight:700;border:none;cursor:pointer;position:absolute;right:4px;' +
+        (isDay ? 'background:#16A34A;color:#fff;' : 'background:#7C3AED;color:#fff;');
+      btn.textContent = isDay ? 'PUSH DAY SHIFT' : 'PUSH NIGHT SHIFT';
+      btn.addEventListener('click', ()=>{
+        const origBtn = isDay ? document.getElementById('btnSendDayShift') : document.getElementById('btnSendNightShift');
+        if(origBtn) origBtn.click();
+      });
+      dayNameRow.appendChild(btn);
+    }
+  };
+  new MutationObserver(()=>{
+    window._embedFilterColumns();
+    // Report content height to parent for auto-sizing
+    const h = document.documentElement.scrollHeight;
+    if(window.parent !== window) window.parent.postMessage({type:'rotationOpsHeight', height:h},'*');
+  }).observe(document.documentElement, {childList:true, subtree:true});
+}
+</script>
 
 <!-- Login Overlay -->
 <div id="loginOverlay">
@@ -8003,7 +8085,9 @@ function renderDay(dayKey) {
 
   // Row 1: Day of the week
   html += `<tr><th colspan="${BLOCKS.length + 1}" style="text-align:center; padding:0; border:none;">
-    <div style="font-size:15px; font-weight:900; letter-spacing:3px; color:var(--muted); padding:8px 0 2px;">${dayOfWeekName}</div>
+    <div id="dayNameRow" style="display:flex; align-items:center; justify-content:center; padding:8px 0 2px; position:relative;">
+      <span style="font-size:15px; font-weight:900; letter-spacing:3px; color:var(--muted);">${dayOfWeekName}</span>
+    </div>
   </th></tr>`;
 
   // Row 2: Day Shift / Night Shift banners
@@ -8109,7 +8193,7 @@ function renderDay(dayKey) {
       .filter(r => String(r.Position||"").trim().toUpperCase() === "DISPATCHER")
       .map(r => String(r.Employee||"").trim()).filter(Boolean);
     const vacNames = allDispatchers.filter(n => isExcluded(n, d)).map(n => n.toUpperCase()).sort();
-    html += `<tr><td><b style="color:#7dd3fc;">VACATION</b></td>`;
+    html += `<tr class="vacation-row"><td><b style="color:#7dd3fc;">VACATION</b></td>`;
     if (vacNames.length) {
       const items = vacNames.map(n =>
         `<div style="margin:1px 0;"><span class="assign-cell clickable-vac" data-day="${dayKey}" data-name="${escapeHtml(n)}" style="background:rgba(125,211,252,.15); color:#7dd3fc; font-weight:700; font-size:10px; border:1px solid rgba(125,211,252,.3); cursor:pointer;">${escapeHtml(n)}</span></div>`
@@ -8139,7 +8223,7 @@ function renderDay(dayKey) {
   html += "</tr>";
 
   // UNASSIGNED row: people scheduled to work but not in any channel/CT/SD
-  html += `<tr><td class="sticky-col"><b style="color:rgba(200,200,210,.7);">UNASSIGNED</b></td>`;
+  html += `<tr class="unassigned-row"><td class="sticky-col"><b style="color:rgba(200,200,210,.7);">UNASSIGNED</b></td>`;
   // Mirror trainees already excluded at source (buildDispatcherPoolForDate treats them as calltakers)
   const _poolRawDay = buildDispatcherPoolForDate(d);
   for (let bi=0; bi<BLOCKS.length; bi++) {
@@ -8901,7 +8985,7 @@ function renderWeek(anchorDayKey) {
   html += `</tr>`;
 
   // UNASSIGNED row
-  html += `<tr><td class="sticky-col"><b style="color:rgba(200,200,210,.7);">UNASSIGNED</b></td>`;
+  html += `<tr class="unassigned-row"><td class="sticky-col"><b style="color:rgba(200,200,210,.7);">UNASSIGNED</b></td>`;
   for (const d of daysList) {
     const dayKey = ymd(d);
     // Mirror trainees already excluded at source (buildDispatcherPoolForDate)
@@ -9217,7 +9301,7 @@ function renderMonth(year, monthIndex) {
   html += `</tr>`;
 
   // UNASSIGNED row
-  html += `<tr><td class="sticky-col"><b style="color:rgba(200,200,210,.7);">UNASSIGNED</b></td>`;
+  html += `<tr class="unassigned-row"><td class="sticky-col"><b style="color:rgba(200,200,210,.7);">UNASSIGNED</b></td>`;
   for (const d of daysList) {
     const dayKey = ymd(d);
     // Mirror trainees already excluded at source (buildDispatcherPoolForDate)
@@ -14562,11 +14646,12 @@ function boot() {
         : "none";
       console.log("INIT: First day assignments:", firstDayKey, "→", firstAssign);
 
-      document.getElementById("dayPick").value = today;
+      const initDay = (window._embedDate && plan.days[window._embedDate]) ? window._embedDate : today;
+      document.getElementById("dayPick").value = initDay;
       // Inject ShiftOps OT dispatchers into CT before first render
-      const otEntries = await fetchShiftOpsOT(today);
-      if (otEntries.length) injectShiftOpsOTIntoPlan(today, otEntries);
-      renderDay(today); renderWeek(today); renderMonth(plan.meta.year, plan.meta.monthIndex);
+      const otEntries = await fetchShiftOpsOT(initDay);
+      if (otEntries.length) injectShiftOpsOTIntoPlan(initDay, otEntries);
+      renderDay(initDay); renderWeek(initDay); renderMonth(plan.meta.year, plan.meta.monthIndex);
       renderMonthRostersIfActive();
       showSwapTip();
     } else {
@@ -14602,7 +14687,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
 </script>
 
-<div style="text-align:center; padding:20px 10px; margin-top:20px; border-top:1px solid var(--line); color:var(--muted); font-size:11px; letter-spacing:.5px;">
+<div id="appFooter" style="text-align:center; padding:20px 10px; margin-top:20px; border-top:1px solid var(--line); color:var(--muted); font-size:11px; letter-spacing:.5px;">
   Built and Maintained by T. Martinez &middot; Version 3.0
 </div>
 
