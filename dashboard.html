@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CommandOps Dashboard</title>
+<title>CommandOps</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👽</text></svg>">
 <style>
   :root {
     --bg:       #06090d;
@@ -56,7 +57,7 @@
   /* ─── Main Layout: left ShiftOps + right column ─── */
   #grid {
     display:flex;
-    height:calc(100vh - var(--header-h));
+    height:100vh;
     gap:var(--gap); padding:var(--gap);
   }
 
@@ -177,16 +178,8 @@
 </head>
 <body>
 
-<!-- Top Bar -->
-<div id="topbar">
-  <div class="brand">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="2" y="3" width="20" height="14" rx="2"/>
-      <line x1="8" y1="21" x2="16" y2="21"/>
-      <line x1="12" y1="17" x2="12" y2="21"/>
-    </svg>
-    COMMANDOPS DASHBOARD
-  </div>
+<!-- Top Bar (hidden) -->
+<div id="topbar" style="display:none">
   <div class="clock" id="clock"></div>
   <div class="controls">
     <button class="tb-btn" id="btnRefresh" title="Reload all panels">&#8635; Refresh</button>
