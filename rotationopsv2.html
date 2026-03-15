@@ -716,6 +716,61 @@
         if (trainingChanged) {
           originalSetItem.call(localStorage, "rotation_training_v2", JSON.stringify(incomingTraining));
         }
+
+        // AUTO-REMOVE: strip vacationing employees from channel assignments
+        if (vacChanged) {
+          const plan = loadPlan();
+          if (plan && plan.days) {
+            let planModified = false;
+            const allVac = incomingVac.concat(_crossMonthVac || []);
+            for (const v of allVac) {
+              if (!v || !v.name) continue;
+              const nm = String(v.name).trim().toUpperCase();
+              const f = v.from ? parseYMD(v.from) : null;
+              const t = v.to ? parseYMD(v.to) : null;
+              // Iterate all days in plan
+              for (const dayKey of Object.keys(plan.days)) {
+                const dayDate = parseYMD(dayKey);
+                if (!dayDate) continue;
+                const dt = dayDate.getTime();
+                const inRange = (f ? dt >= f.getTime() : true) && (t ? dt <= t.getTime() : true);
+                if (!inRange) continue;
+                // Remove from all blocks this day
+                for (const bk of Object.keys(plan.days[dayKey])) {
+                  const bd = plan.days[dayKey][bk];
+                  if (!bd) continue;
+                  // Remove from channel assignments
+                  if (bd.assignments) {
+                    for (const ch of Object.keys(bd.assignments)) {
+                      if (String(bd.assignments[ch]||"").trim().toUpperCase() === nm) {
+                        bd.assignments[ch] = "";
+                        planModified = true;
+                      }
+                    }
+                  }
+                  // Remove from CT array
+                  if (Array.isArray(bd.ct)) {
+                    const before = bd.ct.length;
+                    bd.ct = bd.ct.filter(n => String(n||"").trim().toUpperCase() !== nm);
+                    if (bd.ct.length !== before) planModified = true;
+                  }
+                  // Remove from SD array
+                  if (Array.isArray(bd.sd)) {
+                    const before = bd.sd.length;
+                    bd.sd = bd.sd.filter(n => String(n||"").trim().toUpperCase() !== nm);
+                    if (bd.sd.length !== before) planModified = true;
+                  }
+                }
+              }
+            }
+            if (planModified) {
+              console.log("REALTIME: auto-removed vacationing employees from rotation assignments");
+              savePlan(plan);
+              scheduleAutoSave();
+            }
+          }
+        }
+
         // Refresh views — guard against re-save loop
         _isApplyingSync = true;
         try {
@@ -1264,8 +1319,11 @@ async function loadEmployeesFromFirestore() {
       };
       emp.DaysOff = deriveDaysOff(emp);
       return emp;
-    }).filter(r => r.Employee && r.Position === "DISPATCHER");
-    console.log("Loaded " + BASE.length + " dispatchers from Firestore");
+    });
+    // Cache supervisors for assign modal, then filter BASE to dispatchers only
+    window._supCache = BASE.filter(r => r.Employee && r.Position === "SUPERVISOR").map(r => r.Employee);
+    BASE = BASE.filter(r => r.Employee && r.Position === "DISPATCHER");
+    console.log("Loaded " + BASE.length + " dispatchers + " + window._supCache.length + " supervisors from Firestore");
     return true;
   } catch (err) {
     console.error("Failed to load employees from Firestore:", err);
@@ -12522,6 +12580,27 @@ function boot() {
           opt.textContent = nm.toUpperCase() + "  (OT)";
           opt.style.fontWeight = "700";
           sel.appendChild(opt);
+        }
+      }
+
+      // SUPERVISORS — available to fill needed slots (loaded from _supervisorCache)
+      if (Array.isArray(window._supCache) && window._supCache.length > 0) {
+        const supCandidates = window._supCache
+          .filter(n => !usedNames.has(n.toUpperCase()))
+          .sort((a, b) => a.localeCompare(b));
+        if (supCandidates.length > 0) {
+          const sepSup = document.createElement("option");
+          sepSup.disabled = true;
+          sepSup.textContent = "\u2500\u2500\u2500 SUPERVISORS \u2500\u2500\u2500";
+          sel.appendChild(sepSup);
+          for (const nm of supCandidates) {
+            const opt = document.createElement("option");
+            opt.value = "OT|" + nm;
+            opt.textContent = nm.toUpperCase() + "  (SUP)";
+            opt.style.fontWeight = "700";
+            opt.style.color = "#f59e0b";
+            sel.appendChild(opt);
+          }
         }
       }
 
