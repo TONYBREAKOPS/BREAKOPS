@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+<script>window._dashboardMode = new URLSearchParams(window.location.search).has('dashboard');</script>
 <link rel="icon" type="image/png" href="data:image/png;base64,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">
 
 
@@ -382,6 +383,206 @@ textarea.copyBox,
 .status-staffed, .staffed, .ok, .right {
   color: #1e90ff !important; /* blue */
   font-weight: 700;
+}
+</style>
+
+<!-- Dashboard embed mode styles -->
+<style>
+/* ===== DASHBOARD MODE ===== */
+body.dashboard-mode header { display:none !important; }
+body.dashboard-mode .wrap { padding:0 6px !important; max-width:none !important; }
+body.dashboard-mode .wrap > .card:not(#extrasCard) { display:none !important; }
+
+/* ─── Dashboard toolbar: single compact row ─── */
+body.dashboard-mode .dash-toolbar {
+  display:flex; align-items:center; gap:5px; flex-wrap:nowrap;
+  background:#0d1220; border-bottom:1px solid var(--border);
+  padding:4px 8px; min-height:30px;
+}
+/* Toolbar labels */
+body.dashboard-mode .dash-toolbar .tl {
+  font-size:9px; color:var(--muted); font-weight:600;
+  text-transform:uppercase; letter-spacing:.4px; white-space:nowrap;
+}
+/* Toolbar selects & date input */
+body.dashboard-mode .dash-toolbar select,
+body.dashboard-mode .dash-toolbar input[type="date"] {
+  padding:4px 6px; font-size:11px; border-radius:4px;
+  background:#0c1320; border:1px solid var(--border); color:var(--text);
+  font-family:inherit; outline:none; cursor:pointer;
+}
+body.dashboard-mode .dash-toolbar input[type="date"] { width:120px; }
+body.dashboard-mode .dash-toolbar select:hover,
+body.dashboard-mode .dash-toolbar input[type="date"]:hover {
+  border-color:var(--accent);
+}
+/* Toolbar buttons — uniform compact size */
+body.dashboard-mode .dash-toolbar button {
+  padding:4px 10px; font-size:11px; border-radius:4px;
+  font-weight:700; cursor:pointer; white-space:nowrap;
+  border:1px solid var(--border); background:#0c1320; color:var(--text);
+  transition:border-color .15s, color .15s;
+}
+body.dashboard-mode .dash-toolbar button:hover {
+  border-color:var(--accent); color:var(--accent);
+}
+/* Deploy — same size as other toolbar buttons, green */
+body.dashboard-mode .dash-toolbar .deploy-btn {
+  padding:4px 10px !important; font-size:11px !important; border-radius:4px !important;
+  background:#16a34a !important; color:#fff !important;
+  border:1px solid #4ade80 !important; font-weight:800;
+  letter-spacing:normal !important; text-transform:none !important;
+  box-shadow:none !important;
+}
+body.dashboard-mode .dash-toolbar .deploy-btn:hover { background:#22c55e !important; }
+/* Pause — same size as other toolbar buttons, amber */
+body.dashboard-mode .dash-toolbar .pause-btn {
+  padding:4px 10px !important; font-size:11px !important; border-radius:4px !important;
+  background:#d97706 !important; color:#fff !important;
+  border:1px solid #fbbf24 !important; font-weight:800;
+  letter-spacing:normal !important; text-transform:none !important;
+  box-shadow:none !important;
+}
+body.dashboard-mode .dash-toolbar .pause-btn:hover { background:#f59e0b !important; }
+/* Push seats — purple accent */
+body.dashboard-mode .dash-toolbar .push-btn {
+  border-color:#818cf8 !important; color:#818cf8 !important;
+}
+/* Separator */
+body.dashboard-mode .dash-toolbar .sep {
+  width:1px; height:16px; background:var(--border); margin:0 1px; flex-shrink:0;
+}
+/* Spacer */
+body.dashboard-mode .dash-toolbar .spc { flex:1; min-width:4px; }
+
+/* ─── Break Status Panel ─── */
+body.dashboard-mode .dash-break-status {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:4px;
+  padding:4px 6px; background:#0a0e15; border-bottom:1px solid var(--border);
+}
+body.dashboard-mode .dash-break-status .bsp {
+  background:#111826; border:1px solid var(--border); border-radius:5px;
+  padding:4px 6px; min-height:36px;
+}
+body.dashboard-mode .dash-break-status .bsp-title {
+  display:flex; align-items:center; gap:5px; margin-bottom:3px;
+}
+body.dashboard-mode .dash-break-status .bsp-name {
+  font-size:11px; font-weight:800; letter-spacing:.3px;
+}
+body.dashboard-mode .dash-break-status .bsp-badge {
+  font-size:9px; font-weight:700; padding:1px 6px; border-radius:3px;
+  text-transform:uppercase; letter-spacing:.3px;
+}
+body.dashboard-mode .dash-break-status .bsp-badge.started {
+  background:rgba(34,197,94,.15); color:#4ade80;
+}
+body.dashboard-mode .dash-break-status .bsp-badge.pending {
+  background:rgba(250,204,21,.12); color:#facc15;
+}
+body.dashboard-mode .dash-break-status .bsp-count {
+  font-size:9px; color:var(--muted); margin-left:auto;
+}
+body.dashboard-mode .dash-break-status .bsp-row {
+  display:flex; align-items:center; gap:4px; font-size:10px;
+  padding:1px 0; line-height:1.4;
+}
+body.dashboard-mode .dash-break-status .bsp-row .lbl {
+  color:var(--muted); font-size:9px; font-weight:600; min-width:42px;
+  text-transform:uppercase;
+}
+body.dashboard-mode .dash-break-status .bsp-next {
+  color:#4ade80; font-weight:700;
+}
+body.dashboard-mode .dash-break-status .bsp-2nd {
+  color:#f59e0b; font-weight:700;
+}
+body.dashboard-mode .dash-break-status .bsp-skip {
+  color:#f87171; font-weight:600; text-decoration:line-through; opacity:.7;
+}
+body.dashboard-mode .dash-break-status .bsp-timer {
+  font-family:ui-monospace,monospace; font-size:12px; font-weight:900;
+  color:#f87171; padding:1px 5px; background:rgba(248,113,113,.12);
+  border-radius:3px; letter-spacing:.5px;
+}
+body.dashboard-mode .dash-break-status .bsp-presel {
+  font-size:9px; color:#818cf8; font-style:italic;
+}
+body.dashboard-mode .dash-break-status .bsp-picked {
+  font-size:9px; color:var(--muted);
+}
+
+/* ─── Hidden panels ─── */
+body.dashboard-mode #absentPanel { display:none !important; }
+/* Extras card — compact inline form */
+body.dashboard-mode #extrasCard {
+  margin-top:4px !important; padding:4px 6px !important;
+  border-radius:5px !important;
+}
+body.dashboard-mode #extrasCard .sectionTitle { display:none !important; }
+body.dashboard-mode #extrasCard > div[style*="grid-template"] {
+  grid-template-columns:1.4fr .7fr auto !important; gap:4px !important;
+}
+body.dashboard-mode #extrasCard label { font-size:9px !important; margin:0 0 1px !important; }
+body.dashboard-mode #extrasCard input,
+body.dashboard-mode #extrasCard select {
+  padding:3px 5px !important; font-size:11px !important; border-radius:4px !important;
+}
+body.dashboard-mode #extrasCard button {
+  padding:3px 8px !important; font-size:10px !important; border-radius:4px !important;
+}
+body.dashboard-mode #extrasCard > div[style*="overflow:auto"] { display:none !important; }
+body.dashboard-mode #printCard, body.dashboard-mode .printCard { display:none !important; }
+body.dashboard-mode .covMini { display:none !important; }
+body.dashboard-mode #breakPickerCard { position:absolute !important; left:-9999px !important; height:0 !important; overflow:hidden !important; opacity:0 !important; pointer-events:none !important; }
+body.dashboard-mode #breakopsFooter { display:none !important; }
+body.dashboard-mode .toast { display:none !important; }
+
+/* ─── Section title + count ─── */
+body.dashboard-mode .sectionTitle {
+  margin:4px 4px 3px !important;
+  justify-content:flex-start !important; gap:8px !important;
+}
+body.dashboard-mode .sectionTitle h2 { font-size:13px !important; font-weight:800 !important; }
+body.dashboard-mode .sectionTitle .pill {
+  font-size:11px !important; font-weight:700 !important;
+  background:#1e293b; padding:2px 8px; border-radius:4px;
+  color:var(--accent);
+}
+
+/* ─── Position lists ─── */
+body.dashboard-mode .posGrid { gap:6px !important; }
+body.dashboard-mode .posGrid table { font-size:12px !important; border-radius:8px !important; }
+body.dashboard-mode .posGrid th {
+  padding:5px 6px !important; font-size:11px !important;
+  font-weight:700 !important; text-transform:uppercase; letter-spacing:.3px;
+}
+body.dashboard-mode .posGrid td { padding:4px 6px !important; }
+/* Alternating row shading */
+body.dashboard-mode .posGrid tbody tr:nth-child(even) {
+  background:rgba(255,255,255,.025);
+}
+body.dashboard-mode .posGrid tbody tr:hover {
+  background:rgba(74,163,255,.07);
+}
+body.dashboard-mode .posGrid table select {
+  padding:3px 4px !important; font-size:11px !important; border-radius:4px !important;
+}
+body.dashboard-mode .posGrid .hrsCol { width:44px !important; }
+body.dashboard-mode .posGrid .hrsSel {
+  padding:3px 2px !important; font-size:11px !important; border-radius:4px !important;
+}
+body.dashboard-mode .posGrid .posSel {
+  padding:3px 4px !important; font-size:11px !important; border-radius:4px !important;
+}
+body.dashboard-mode .posGrid > div { max-height:none; overflow-y:visible; }
+body.dashboard-mode .posGrid > div::-webkit-scrollbar { width:4px; }
+body.dashboard-mode .posGrid > div::-webkit-scrollbar-thumb { background:#334; border-radius:3px; }
+body.dashboard-mode .card + .card, body.dashboard-mode #content + .card { margin-top:3px !important; }
+/* Position count labels */
+body.dashboard-mode .posGrid > div > .muted {
+  font-size:12px !important; font-weight:700 !important;
+  margin:0 0 3px 2px !important;
 }
 </style>
 
@@ -1012,6 +1213,13 @@ textarea.copyBox,
   function loadPreSelectionsForScope(){
     return _normalizePreSelections(_sharedPreSelectionsCache);
   }
+  // Dashboard bridge — expose read-only getters for live break status updates
+  try {
+    if (window._dashboardMode) {
+      window._bk = function(){ return { b: loadBreaksForScope(), t: loadTurnTimersForScope(), s: loadBreakStartedForScope(), k: loadSkippedTurnsForScope(), c: _lastCtx, d: SKIP_DURATION_MS }; };
+    }
+  } catch(e){}
+
   async function savePreSelectionsForScope(preSelections){
     const normalized = _normalizePreSelections(preSelections);
     await runTransaction(_db, async (tx)=>{
@@ -1655,6 +1863,12 @@ function positionsOptions(current){
   return all.map(p=>`<option value="${escapeHtml(p)}" ${p===current?"selected":""}>${escapeHtml(p)}</option>`).join("");
 }
 
+function positionsOptionsShort(current){
+  const abbr = {CALLTAKER:'CT',DISPATCHER:'DP',PIC:'PIC',ANET:'ANET',ABSENT:'ABS'};
+  const all = Array.from(new Set([...POSITIONS, "ABSENT", ...BASE.map(r=>String(r.Position||"ABSENT").toUpperCase())])).filter(p => p !== "SUPERVISOR");
+  return all.map(p=>`<option value="${escapeHtml(p)}" ${p===current?"selected":""}>${escapeHtml(abbr[p]||p)}</option>`).join("");
+}
+
 function hoursOptions(current){
   const opts = [
     {v:"4", t:"4"},
@@ -2056,6 +2270,18 @@ function renderCoverageMini(pos, rows, selectedDay, mode, block){
 
 function renderPosTable(pos, rows, selectedDay, mode, posOverrides, block, coverageRows){
   const pretty = pos[0] + pos.slice(1).toLowerCase();
+  const _isDash = !!window._dashboardMode;
+  // Load preselections for badge display
+  let _preSel = {};
+  try { _preSel = loadPreSelectionsForScope()[pos] || {}; } catch(e){}
+  // Load break selections for dashboard break column
+  let _breakSel = new Map();
+  if (_isDash) {
+    try {
+      const bl = loadBreaksForScope()[pos] || [];
+      for (const s of bl) { if (s && s.key && s.time) _breakSel.set(s.key, s.time); }
+    } catch(e){}
+  }
   return `
     <div>
       <div class="muted" style="font-size:12px;margin:0 0 6px 2px;">${escapeHtml(pretty)} • ${rows.length}</div>
@@ -2065,12 +2291,13 @@ function renderPosTable(pos, rows, selectedDay, mode, posOverrides, block, cover
           <thead>
             <tr>
               <th class="hrsCol">Hrs</th>
-              <th style="width:34%">Employee</th>
+              <th>Employee</th>
+              ${_isDash ? '<th style="width:14%" class="dash-break-col">Break</th>' : ''}
               <th style="width:18%">Shift</th>
               <th style="width:16%">Days Off</th>
               <th style="width:10%">Days Off In</th>
-              <th style="width:10%">Seniority</th>
-              <th style="width:12%">Pos</th>
+              ${_isDash ? '' : '<th style="width:10%">Seniority</th>'}
+              <th style="width:${_isDash ? '8%' : '12%'}">Pos</th>
             </tr>
           </thead>
           <tbody>
@@ -2080,22 +2307,36 @@ function renderPosTable(pos, rows, selectedDay, mode, posOverrides, block, cover
               const cur = getHoursSetting(k);
               const curPos = r._extra ? r.Position : getPosition(r, posOverrides);
               const shift = r._extra ? "EXTRA" : r.Schedule;
-              const badge = r._extra ? (r._dayOff ? ' <span class="muted">(EXTRA • DAY OFF)</span>' : ' <span class="muted">(EXTRA)</span>') : '';
+              const badge = (!_isDash && r._extra) ? (r._dayOff ? ' <span class="muted">(EXTRA • DAY OFF)</span>' : ' <span class="muted">(EXTRA)</span>') : '';
+              // Preselection badge
+              const ps = _preSel[k];
+              const preBadge = (ps && ps.times && ps.times.length > 0)
+                ? (_isDash
+                  ? ' <span style="font-size:9px;font-weight:700;color:#818cf8;background:rgba(129,140,248,.15);padding:1px 5px;border-radius:3px;margin-left:3px;">PRE</span>'
+                  : ' <span style="font-size:9px;font-weight:700;color:#818cf8;background:rgba(129,140,248,.12);padding:1px 5px;border-radius:3px;margin-left:4px;">PRE ' + ps.times.map(t=>slotLabelHHMM(t)).join(', ') + '</span>')
+                : '';
+              // Break time for dashboard (key must be uppercased to match break picker storage)
+              const breakTime = _isDash ? (_breakSel.get(up(r.Employee) + '||' + Number(r.Seniority)) || '') : '';
+              const breakCell = _isDash
+                ? `<td class="mono dash-break-col" style="font-weight:700;${breakTime ? 'color:#4ade80;' : 'color:var(--muted);'}">${breakTime ? slotLabelHHMM(breakTime) : '—'}</td>`
+                : '';
+              const dashKey = up(r.Employee) + '||' + Number(r.Seniority);
               return `
-                <tr>
+                <tr ${_isDash ? 'data-dash-key="'+escapeHtml(dashKey)+'" data-dash-pos="'+escapeHtml(pos)+'"' : ''}>
                   <td class="hrsCol">
                     <select class="hrsSel" data-action="hrsChange" data-key="${escapeHtml(k)}" data-extra="${r._extra ? "1" : "0"}" data-extra-index="${r._extraIndex ?? ""}">
                       ${hoursOptions(cur)}
                     </select>
                   </td>
-                  <td>${escapeHtml(up(r.Employee))}${hoursSuffix(cur)}${badge}</td>
+                  <td ${_isDash ? 'class="dash-name-cell"' : ''}>${escapeHtml(up(r.Employee))}${hoursSuffix(cur)}${badge}${preBadge}</td>
+                  ${breakCell}
                   <td class="mono">${escapeHtml(up(shift))}</td>
                   <td class="mono">${escapeHtml(up(r.DaysOff||""))}</td>
                   <td class="mono">${score===999 ? "—" : String(score)}</td>
-                  <td class="mono">${Number(r.Seniority)}</td>
+                  ${_isDash ? '' : '<td class="mono">'+Number(r.Seniority)+'</td>'}
                   <td>
                     <select class="posSel" data-action="posChange" data-key="${escapeHtml(k)}" data-extra="${r._extra ? "1" : "0"}" data-extra-index="${r._extraIndex ?? ""}">
-                      ${positionsOptions(curPos)}
+                      ${_isDash ? positionsOptionsShort(curPos) : positionsOptions(curPos)}
                     </select>
                   </td>
                 </tr>
@@ -4327,5 +4568,193 @@ if(_btnBugSubmit) _btnBugSubmit.addEventListener('click', async ()=>{
     setInterval(refresh, 4 * 60 * 60 * 1000);
   })();
   </script>
+
+<!-- Dashboard mode: activate if ?dashboard query param present -->
+<script>
+(function(){
+  if (!window._dashboardMode) return;
+  document.body.classList.add('dashboard-mode');
+
+  function buildToolbar(){
+    if (document.getElementById('dashToolbar')) return;
+
+    const tb = document.createElement('div');
+    tb.id = 'dashToolbar';
+    tb.className = 'dash-toolbar';
+
+    function mk(tag, cls, txt){
+      const el = document.createElement(tag);
+      if (cls) el.className = cls;
+      if (txt) el.textContent = txt;
+      return el;
+    }
+
+    // Grab controls
+    const dateSel = document.getElementById('dateSel');
+    const modeSel = document.getElementById('modeSel');
+    const blockSel = document.getElementById('blockSel');
+    const resetBtn = document.getElementById('resetPositions');
+    const lockBtn = document.getElementById('lockBtn');
+    const lockState = document.getElementById('lockState');
+    const pushBtn = document.getElementById('pushSeatsBtn');
+
+    // Deploy/Pause first, then Date Mode Block | Reset Unlock | Push | Copy
+    const deployArea = document.createElement('span');
+    deployArea.id = 'dashDeployArea';
+    deployArea.style.cssText = 'display:flex;gap:5px;align-items:center;';
+    tb.appendChild(deployArea);
+    tb.appendChild(mk('span','sep'));
+    if (dateSel) tb.appendChild(dateSel);
+    if (modeSel) tb.appendChild(modeSel);
+    if (blockSel) tb.appendChild(blockSel);
+    tb.appendChild(mk('span','sep'));
+    if (resetBtn) tb.appendChild(resetBtn);
+    if (lockBtn) tb.appendChild(lockBtn);
+    if (lockState) { lockState.style.fontSize='10px'; tb.appendChild(lockState); }
+    tb.appendChild(mk('span','sep'));
+    if (pushBtn) { pushBtn.className='push-btn'; pushBtn.style.cssText=''; tb.appendChild(pushBtn); }
+
+    // Copy Breaks button
+    var copyBtn = mk('button','','COPY BREAKS');
+    copyBtn.title = 'Copy break summary to clipboard';
+    copyBtn.addEventListener('click', function(){
+      var orig = document.getElementById('copyBreakSummary');
+      if (orig) { orig.click(); return; }
+    });
+    tb.appendChild(copyBtn);
+
+    document.body.insertBefore(tb, document.body.firstChild);
+  }
+
+  function moveDeployToToolbar(){
+    const area = document.getElementById('dashDeployArea');
+    if (!area || document.getElementById('dashDeploy')) return;
+
+    const deployBtn = document.getElementById('deployBreaks');
+    const pauseBtn = document.getElementById('pauseAllBreaks');
+    const timerSel = document.getElementById('timerDuration');
+
+    if (deployBtn) {
+      const d = deployBtn.cloneNode(true);
+      d.id = 'dashDeploy'; d.className = 'deploy-btn';
+      d.textContent = '\u25B6 DEPLOY';
+      d.addEventListener('click', () => deployBtn.click());
+      area.appendChild(d);
+    }
+    if (pauseBtn) {
+      const p = pauseBtn.cloneNode(true);
+      p.id = 'dashPause'; p.className = 'pause-btn';
+      p.textContent = '\u23F8 PAUSE';
+      p.addEventListener('click', () => pauseBtn.click());
+      area.appendChild(p);
+    }
+    // Timer selector removed from dashboard — never changed
+  }
+
+  // Build toolbar once DOM is ready
+  setTimeout(buildToolbar, 100);
+
+  // ─── Live break status updater (dashboard only) ───
+  // Updates break time cells, highlights whose turn it is, shows timer
+  function dashLiveUpdate(){
+    if (!window._bk) return;
+    var data;
+    try { data = window._bk(); } catch(e){ return; }
+    if (!data || !data.c || !data.c.buckets) return;
+
+    var breaks = data.b, timers = data.t, started = data.s;
+    var skipped = data.k, ctx = data.c, SDMS = data.d || 300000;
+    var U = function(s){ return String(s||'').toUpperCase(); };
+
+    var POSITIONS = ['CALLTAKER','DISPATCHER','PIC','ANET'];
+
+    // Build break map per position: key → time
+    var breakMaps = {};
+    for (var pi=0; pi<POSITIONS.length; pi++){
+      var pos = POSITIONS[pi];
+      var bl = breaks[pos] || [];
+      var m = {};
+      for (var bi=0; bi<bl.length; bi++){
+        if (bl[bi] && bl[bi].key && bl[bi].time) m[bl[bi].key] = bl[bi].time;
+      }
+      breakMaps[pos] = m;
+    }
+
+    // Compute who's turn per position
+    var turnKeys = {};
+    for (var pi2=0; pi2<POSITIONS.length; pi2++){
+      var pos2 = POSITIONS[pi2];
+      if (!started[pos2]) { turnKeys[pos2] = null; continue; }
+      if (timers[pos2] && timers[pos2].key) { turnKeys[pos2] = timers[pos2].key; continue; }
+      turnKeys[pos2] = null;
+    }
+
+    // Update all break cells and row highlighting
+    var allRows = document.querySelectorAll('.posGrid tr[data-dash-key]');
+    for (var ri=0; ri<allRows.length; ri++){
+      var row = allRows[ri];
+      var key = row.getAttribute('data-dash-key');
+      var pos3 = row.getAttribute('data-dash-pos');
+      if (!key || !pos3) continue;
+
+      // Update break cell
+      var breakCell = row.querySelector('.dash-break-col');
+      if (breakCell) {
+        var bTime = (breakMaps[pos3] && breakMaps[pos3][key]) || '';
+        if (bTime) {
+          // Format "06:30" -> "630", "10:00" -> "1000"
+          var parts = String(bTime).split(':');
+          var fmtTime = String(parseInt(parts[0],10)) + (parts[1]==='00' ? '00' : parts[1]);
+          breakCell.textContent = fmtTime;
+          breakCell.style.color = '#4ade80';
+          breakCell.style.fontWeight = '700';
+        } else {
+          breakCell.textContent = '\u2014';
+          breakCell.style.color = 'var(--muted)';
+          breakCell.style.fontWeight = '';
+        }
+      }
+
+      // Highlight whose turn
+      var isTurn = turnKeys[pos3] === key;
+      var isSkipped = false;
+      var skArr = skipped[pos3] || [];
+      for (var si=0; si<skArr.length; si++){ if (skArr[si]===key){ isSkipped=true; break; } }
+      var hasPicked = breakMaps[pos3] && breakMaps[pos3][key];
+
+      row.style.outline = isTurn ? '2px solid #4ade80' : '';
+      row.style.background = isTurn ? 'rgba(74,222,128,.08)' : (isSkipped && !hasPicked ? 'rgba(248,113,113,.06)' : '');
+
+      // Timer badge in name cell
+      var nameCell = row.querySelector('.dash-name-cell');
+      if (nameCell) {
+        var oldBadge = nameCell.querySelector('.dash-turn-badge');
+        if (oldBadge) oldBadge.remove();
+        if (isTurn && started[pos3]) {
+          var rem = 0;
+          if (timers[pos3] && timers[pos3].ts) rem = Math.max(0, SDMS - (Date.now() - timers[pos3].ts));
+          var secs = Math.floor(rem / 1000);
+          var badge = document.createElement('span');
+          badge.className = 'dash-turn-badge';
+          badge.style.cssText = 'font-family:monospace;font-size:10px;font-weight:900;color:#f87171;background:rgba(248,113,113,.15);padding:1px 5px;border-radius:3px;margin-left:4px;';
+          badge.textContent = String(Math.floor(secs/60)).padStart(2,'0') + ':' + String(secs%60).padStart(2,'0');
+          nameCell.appendChild(badge);
+        }
+      }
+    }
+  }
+  setInterval(dashLiveUpdate, 1000);
+
+  // Watch for break picker to render, then add deploy/pause
+  const obs = new MutationObserver(() => {
+    if (document.getElementById('deployBreaks') && !document.getElementById('dashDeploy')) {
+      moveDeployToToolbar();
+    }
+  });
+  obs.observe(document.body, { childList:true, subtree:true });
+  setTimeout(moveDeployToToolbar, 3000);
+  setTimeout(moveDeployToToolbar, 6000);
+})();
+</script>
 </body>
 </html>

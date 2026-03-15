@@ -11,6 +11,7 @@
 <meta name="format-detection" content="telephone=no">
 <!-- Prevent all password manager prompts -->
 <style>input { -webkit-text-security: none; }</style>
+<script>window._dashMode = new URLSearchParams(window.location.search).has('dashboard');</script>
 <title>Dispatch Rotation Board</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -383,6 +384,29 @@
     .grid-header.shift-title{font-weight:700;letter-spacing:1px}
   }
 </style>
+<!-- Dashboard embed mode -->
+<style>
+body.dash-mode { padding:0 !important; margin:0 !important; overflow:hidden !important; }
+body.dash-mode #pageGate { display:none !important; }
+body.dash-mode .page-wrap { max-width:none !important; margin:0 !important; padding:0 !important; height:100vh; display:flex; flex-direction:column; }
+body.dash-mode .page-header { display:none !important; }
+body.dash-mode .shift-tabs { margin:0 !important; padding:1px 2px !important; gap:1px !important; }
+body.dash-mode .shift-tabs button { padding:1px 8px !important; font-size:9px !important; }
+body.dash-mode .board-container { flex:1; border-radius:0 !important; border:none !important; overflow:hidden !important; }
+body.dash-mode .board-wrapper { overflow:hidden !important; height:100% !important; }
+body.dash-mode .board-grid { font-size:10px !important; grid-template-columns:70px repeat(3,1fr) !important; }
+body.dash-mode .board-grid .grid-header { padding:1px 3px !important; font-size:8px !important; letter-spacing:.3px !important; }
+body.dash-mode .board-grid .grid-header.shift-title { padding:0px 4px !important; font-size:8px !important; letter-spacing:.3px !important; line-height:1.2 !important; }
+body.dash-mode .board-grid .grid-header.channel-label { padding:1px 3px !important; font-size:8px !important; }
+body.dash-mode .channel-label-cell { padding:0px 4px !important; font-size:9px !important; letter-spacing:.5px !important; line-height:1 !important; }
+body.dash-mode .assignment-badge { font-size:15px !important; padding:0px 3px !important; height:auto !important; min-height:14px !important; letter-spacing:1px !important; border-left-width:2px !important; line-height:1 !important; }
+body.dash-mode .assignment-badge::placeholder { font-size:8px !important; }
+body.dash-mode #announcementWrapper { display:none !important; }
+body.dash-mode .status-bar { display:none !important; }
+body.dash-mode .board-grid > div { border-bottom:none !important; }
+body.dash-mode .board-grid { gap:0 !important; }
+body.dash-mode .grid-header { border-bottom:none !important; }
+</style>
 </head>
 <body>
 <!-- Hidden decoy inputs stop Chrome's password manager heuristic -->
@@ -625,8 +649,15 @@ document.getElementById('gateBtn').addEventListener('click', submitGate);
 document.getElementById('gateInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') submitGate();
 });
+// Dashboard mode: bypass gate, add body class
+if (window._dashMode) {
+  document.body.classList.add('dash-mode');
+  document.getElementById('pageGate').style.display = 'none';
+  setGateOpen();
+  resetGateIdle();
+}
 // Skip gate if already authenticated this session
-if (isGateOpen()) {
+else if (isGateOpen()) {
   document.getElementById('pageGate').style.display = 'none';
   resetGateIdle();
 } else {

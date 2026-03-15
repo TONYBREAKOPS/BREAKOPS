@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CommandOps Dashboard</title>
+<style>
+  :root {
+    --bg:       #06090d;
+    --surface:  #0b1017;
+    --card:     #111826;
+    --border:   #1a2536;
+    --accent:   #4aa3ff;
+    --accent2:  #36d399;
+    --accent3:  #f5a623;
+    --text:     #e7eef8;
+    --muted:    #6b7a8d;
+    --header-h: 38px;
+    --tab-h:    28px;
+    --gap:      3px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    height:100%; width:100%; overflow:hidden;
+    background:var(--bg); color:var(--text);
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    font-size:13px; user-select:none;
+  }
+
+  /* ─── Top Bar ─── */
+  #topbar {
+    height:var(--header-h);
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 12px; background:var(--surface);
+    border-bottom:1px solid var(--border); z-index:100; gap:10px;
+  }
+  #topbar .brand {
+    display:flex; align-items:center; gap:7px;
+    font-weight:700; font-size:14px; letter-spacing:.5px;
+    color:var(--accent); white-space:nowrap;
+  }
+  #topbar .brand svg { width:20px; height:20px; }
+  #topbar .clock {
+    font-family:'Consolas','Courier New',monospace;
+    font-size:12px; color:var(--muted); letter-spacing:.5px;
+  }
+  #topbar .controls { display:flex; align-items:center; gap:5px; }
+  .tb-btn {
+    background:var(--card); border:1px solid var(--border);
+    color:var(--text); padding:3px 9px; border-radius:4px;
+    font-size:11px; cursor:pointer; transition:background .15s,border-color .15s;
+    white-space:nowrap;
+  }
+  .tb-btn:hover { background:var(--border); border-color:var(--accent); }
+
+  /* ─── Main Layout: left ShiftOps + right column ─── */
+  #grid {
+    display:flex;
+    height:calc(100vh - var(--header-h));
+    gap:var(--gap); padding:var(--gap);
+  }
+
+  /* Left: ShiftOps — fits available space, scrolls internally */
+  #left-panel {
+    flex:1.6 1 0; min-width:400px;
+    display:flex; flex-direction:column;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:5px; overflow:hidden;
+  }
+
+  /* Right column — fills remaining space */
+  #right-col {
+    flex:1 1 0; min-width:280px;
+    display:flex; flex-direction:column;
+    gap:var(--gap);
+  }
+
+  /* Right top: BreakOPS condensed */
+  #right-top {
+    flex:1 1 0; min-height:120px;
+    display:flex; flex-direction:column;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:5px; overflow:hidden;
+  }
+
+  /* Right bottom: Dispatch */
+  #right-bottom {
+    flex:1 1 0; min-height:120px;
+    display:flex; flex-direction:column;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:5px; overflow:hidden;
+  }
+
+  /* ─── Panel Headers ─── */
+  .panel-header {
+    height:var(--tab-h); display:flex; align-items:center;
+    padding:0 8px; background:var(--card);
+    border-bottom:1px solid var(--border);
+    gap:6px; flex-shrink:0;
+  }
+  .panel-header .dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+  .panel-header .title {
+    font-size:11px; font-weight:600; letter-spacing:.3px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .panel-header .spacer { flex:1; }
+  .ph-btn {
+    width:18px; height:18px;
+    display:flex; align-items:center; justify-content:center;
+    background:none; border:none; color:var(--muted);
+    border-radius:3px; cursor:pointer; font-size:12px; line-height:1;
+    transition:background .12s,color .12s; flex-shrink:0;
+  }
+  .ph-btn:hover { background:var(--border); color:var(--text); }
+
+  .dot-shift  { background:var(--accent); }
+  .dot-break  { background:var(--accent2); }
+  .dot-rotate { background:var(--accent3); }
+
+  /* ─── Panel Body & iframes ─── */
+  .panel-body {
+    flex:1; position:relative; overflow:hidden;
+  }
+  .panel-body iframe {
+    width:100%; height:100%; border:none; background:var(--bg);
+  }
+
+  /* ─── Resize Handle (vertical, between left and right) ─── */
+  #resize-v {
+    width:5px; cursor:col-resize; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; z-index:10;
+  }
+  #resize-v::after {
+    content:''; width:2px; height:40px;
+    background:var(--border); border-radius:2px;
+    transition:background .15s,height .15s;
+  }
+  #resize-v:hover::after, #resize-v.dragging::after {
+    background:var(--accent); height:60px;
+  }
+
+  /* ─── Resize Handle (horizontal, between top-right and bottom-right) ─── */
+  #resize-h {
+    height:5px; cursor:row-resize; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; z-index:10;
+  }
+  #resize-h::after {
+    content:''; height:2px; width:40px;
+    background:var(--border); border-radius:2px;
+    transition:background .15s,width .15s;
+  }
+  #resize-h:hover::after, #resize-h.dragging::after {
+    background:var(--accent); width:60px;
+  }
+
+  /* drag overlay */
+  #drag-overlay {
+    display:none; position:fixed; inset:0; z-index:9999;
+  }
+  #drag-overlay.col { display:block; cursor:col-resize; }
+  #drag-overlay.row { display:block; cursor:row-resize; }
+
+  /* ─── Loading ─── */
+  .panel-loading {
+    position:absolute; inset:0; display:flex;
+    align-items:center; justify-content:center;
+    background:var(--surface); z-index:5; transition:opacity .3s;
+  }
+  .panel-loading.hidden { opacity:0; pointer-events:none; }
+  .spinner {
+    width:24px; height:24px;
+    border:3px solid var(--border); border-top-color:var(--accent);
+    border-radius:50%; animation:spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div id="topbar">
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2"/>
+      <line x1="8" y1="21" x2="16" y2="21"/>
+      <line x1="12" y1="17" x2="12" y2="21"/>
+    </svg>
+    COMMANDOPS DASHBOARD
+  </div>
+  <div class="clock" id="clock"></div>
+  <div class="controls">
+    <button class="tb-btn" id="btnRefresh" title="Reload all panels">&#8635; Refresh</button>
+    <button class="tb-btn" id="btnFullscreen" title="Toggle fullscreen (F11)">&#9974; Fullscreen</button>
+  </div>
+</div>
+
+<!-- Main Grid -->
+<div id="grid">
+
+  <!-- Left: ShiftOps (full view) -->
+  <div id="left-panel">
+    <div class="panel-header">
+      <div class="dot dot-shift"></div>
+      <span class="title">SHIFTOPS</span>
+      <span class="spacer"></span>
+      <button class="ph-btn" title="Reload" onclick="reloadPanel('shift')">&#8635;</button>
+    </div>
+    <div class="panel-body">
+      <div class="panel-loading" id="loader-shift"><div class="spinner"></div></div>
+      <iframe id="frame-shift" src="shiftops.html" loading="eager"></iframe>
+    </div>
+  </div>
+
+  <!-- Vertical resize handle -->
+  <div id="resize-v"></div>
+
+  <!-- Right column -->
+  <div id="right-col">
+
+    <!-- Top-right: BreakOPS condensed -->
+    <div id="right-top">
+      <div class="panel-header">
+        <div class="dot dot-break"></div>
+        <span class="title">BREAKOPS</span>
+        <span class="spacer"></span>
+        <button class="ph-btn" title="Open full BreakOPS" onclick="window.open('admin.html','_blank')">&#8599;</button>
+        <button class="ph-btn" title="Reload" onclick="reloadPanel('break')">&#8635;</button>
+      </div>
+      <div class="panel-body">
+        <div class="panel-loading" id="loader-break"><div class="spinner"></div></div>
+        <iframe id="frame-break" src="admin.html?dashboard=1" loading="eager"></iframe>
+      </div>
+    </div>
+
+    <!-- Horizontal resize handle -->
+    <div id="resize-h"></div>
+
+    <!-- Bottom-right: Dispatch assignments -->
+    <div id="right-bottom">
+      <div class="panel-header">
+        <div class="dot dot-rotate"></div>
+        <span class="title">DISPATCH</span>
+        <span class="spacer"></span>
+        <button class="ph-btn" title="Open full Dispatch" onclick="window.open('dispatch.html','_blank')">&#8599;</button>
+        <button class="ph-btn" title="Reload" onclick="reloadPanel('rotate')">&#8635;</button>
+      </div>
+      <div class="panel-body">
+        <div class="panel-loading" id="loader-rotate"><div class="spinner"></div></div>
+        <iframe id="frame-rotate" src="dispatch.html?dashboard=1" loading="eager"></iframe>
+      </div>
+    </div>
+
+  </div><!-- /right-col -->
+</div><!-- /grid -->
+
+<!-- Drag overlay -->
+<div id="drag-overlay"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ─── Clock ─── */
+  const clockEl = document.getElementById('clock');
+  function tickClock(){
+    const now = new Date();
+    const dow = ['SUN','MON','TUE','WED','THU','FRI','SAT'][now.getDay()];
+    const p = n => String(n).padStart(2,'0');
+    clockEl.textContent = `${dow} ${p(now.getMonth()+1)}/${p(now.getDate())}/${now.getFullYear()}  ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+  }
+  tickClock(); setInterval(tickClock,1000);
+
+  /* ─── Frame refs ─── */
+  const frames = {
+    shift:  document.getElementById('frame-shift'),
+    break:  document.getElementById('frame-break'),
+    rotate: document.getElementById('frame-rotate'),
+  };
+  const loaders = {
+    shift:  document.getElementById('loader-shift'),
+    break:  document.getElementById('loader-break'),
+    rotate: document.getElementById('loader-rotate'),
+  };
+
+  Object.keys(frames).forEach(id => {
+    frames[id].addEventListener('load', () => {
+      setTimeout(() => loaders[id].classList.add('hidden'), 400);
+      // inject dashboard CSS overrides into same-origin iframes
+      if (id === 'rotate') { setTimeout(() => setupRotateDashboard(frames[id]), 500); }
+    });
+  });
+
+  window.reloadPanel = function(id){
+    loaders[id].classList.remove('hidden');
+    const f = frames[id];
+    f.src = f.src;
+  };
+
+  /* ─── RotationOps: ensure push buttons visible in embed ─── */
+  function setupRotateDashboard(iframe){
+    function tryInject(){
+      let doc;
+      try { doc = iframe.contentDocument; } catch(e){ return; }
+      if (!doc || !doc.head) return;
+      if (!doc.getElementById('_dashRotCSS')) {
+        const s = doc.createElement('style');
+        s.id = '_dashRotCSS';
+        s.textContent = [
+          '#embedPushArea { display:inline-block !important; }',
+          '#btnSendDayShift, #btnSendNightShift { display:inline-block !important; }',
+        ].join('\n');
+        doc.head.appendChild(s);
+      }
+    }
+    tryInject();
+    setTimeout(tryInject, 2000);
+  }
+
+  /* ─── Refresh All ─── */
+  document.getElementById('btnRefresh').addEventListener('click', () => {
+    Object.keys(frames).forEach(id => reloadPanel(id));
+  });
+
+  /* ─── Fullscreen ─── */
+  document.getElementById('btnFullscreen').addEventListener('click', () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+    else document.exitFullscreen().catch(()=>{});
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'F11') { e.preventDefault(); document.getElementById('btnFullscreen').click(); }
+  });
+
+  /* ─── Vertical Resize (left ↔ right) ─── */
+  const dragOverlay = document.getElementById('drag-overlay');
+  const leftPanel = document.getElementById('left-panel');
+  const rightCol = document.getElementById('right-col');
+  const resizeV = document.getElementById('resize-v');
+
+  resizeV.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startL = leftPanel.getBoundingClientRect().width;
+    const startR = rightCol.getBoundingClientRect().width;
+    resizeV.classList.add('dragging');
+    dragOverlay.classList.add('col');
+
+    function onMove(ev){
+      const dx = ev.clientX - startX;
+      const newL = Math.max(400, startL + dx);
+      const newR = Math.max(280, startR - dx);
+      leftPanel.style.flex = '0 0 ' + newL + 'px';
+      rightCol.style.flex = '0 0 ' + newR + 'px';
+    }
+    function onUp(){
+      resizeV.classList.remove('dragging');
+      dragOverlay.classList.remove('col');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      // convert to ratios
+      const grid = document.getElementById('grid');
+      const total = grid.clientWidth - 8;
+      const lw = leftPanel.getBoundingClientRect().width;
+      const rw = rightCol.getBoundingClientRect().width;
+      leftPanel.style.flex = (lw/total*4) + ' 1 0';
+      rightCol.style.flex = (rw/total*4) + ' 1 0';
+      localStorage.setItem('dash_vr', JSON.stringify({l:lw/total, r:rw/total}));
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  /* ─── Horizontal Resize (top-right ↔ bottom-right) ─── */
+  const rightTop = document.getElementById('right-top');
+  const rightBottom = document.getElementById('right-bottom');
+  const resizeH = document.getElementById('resize-h');
+
+  resizeH.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startT = rightTop.getBoundingClientRect().height;
+    const startB = rightBottom.getBoundingClientRect().height;
+    resizeH.classList.add('dragging');
+    dragOverlay.classList.add('row');
+
+    function onMove(ev){
+      const dy = ev.clientY - startY;
+      const newT = Math.max(100, startT + dy);
+      const newB = Math.max(100, startB - dy);
+      rightTop.style.flex = '0 0 ' + newT + 'px';
+      rightBottom.style.flex = '0 0 ' + newB + 'px';
+    }
+    function onUp(){
+      resizeH.classList.remove('dragging');
+      dragOverlay.classList.remove('row');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      const colH = rightCol.clientHeight - 8;
+      const th = rightTop.getBoundingClientRect().height;
+      const bh = rightBottom.getBoundingClientRect().height;
+      rightTop.style.flex = (th/colH*2) + ' 1 0';
+      rightBottom.style.flex = (bh/colH*2) + ' 1 0';
+      localStorage.setItem('dash_hr', JSON.stringify({t:th/colH, b:bh/colH}));
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  /* ─── Restore saved sizes ─── */
+  try {
+    const vr = JSON.parse(localStorage.getItem('dash_vr'));
+    if (vr) {
+      leftPanel.style.flex = (vr.l*4) + ' 1 0';
+      rightCol.style.flex = (vr.r*4) + ' 1 0';
+    }
+  } catch{}
+  try {
+    const hr = JSON.parse(localStorage.getItem('dash_hr'));
+    if (hr) {
+      rightTop.style.flex = (hr.t*2) + ' 1 0';
+      rightBottom.style.flex = (hr.b*2) + ' 1 0';
+    }
+  } catch{}
+
+})();
+</script>
+</body>
+</html>
